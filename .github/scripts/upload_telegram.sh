@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # PurrfectSnap "Elite" Telegram Notifier
-# Version: 3.0.0 (A9 & Test Optimization)
+# Version: 3.1.0 (Hardened Edition)
 
 TOKEN=$1
 CHAT_ID=$2
@@ -14,7 +14,7 @@ EXTERNAL_BRANCH=$7
 # Identifiers
 GIT_HASH=${EXTERNAL_SHA:0:7}
 BRANCH_NAME="$EXTERNAL_BRANCH"
-AUTHOR=$(git log -1 --pretty=%an)
+AUTHOR=$(git log -1 --pretty=%an || echo "Unknown")
 
 # --- Helper: HTML Escaper ---
 escape_html() {
@@ -50,48 +50,54 @@ $ESCAPED_CHANGELOG
 ━━━━━━━━━━━━━━━━
 📂 <b>Assets & Mirrors:</b>"
 
-# Search for APKs
-shopt -s nullglob
-OUTPUT_DIR="app/build/outputs/apk"
-APKS=$(find "$OUTPUT_DIR" "all-apks" -name "*.apk" -type f 2>/dev/null | grep -v "unsigned")
+# Search for APKs in multiple possible locations
+SEARCH_PATHS=("all-apks" "app/build/outputs/apk")
+FOUND_APKS=""
 
-if [ -z "$APKS" ]; then
+for path in "${SEARCH_PATHS[@]}"; do
+    if [ -d "$path" ]; then
+        FOUND_APKS+="$(find "$path" -name "*.apk" -type f 2>/dev/null | grep -v "unsigned")"$'\n'
+    fi
+done
+
+if [ -z "$(echo -n "$FOUND_APKS" | tr -d '[:space:]')" ]; then
     MESSAGE+="
 ⚠️ No APK assets discovered."
 else
-    for apk in $APKS; do
+    while read -r apk; do
+        [ -z "$apk" ] && continue
+        
         FILENAME=$(basename "$apk")
         FILESIZE_BYTES=$(stat -c%s "$apk")
-        FILESIZE_MB=$(echo "scale=1; $FILESIZE_BYTES / 1048576" | bc)
+        # Use awk for division to avoid 'bc' dependency
+        FILESIZE_MB=$(awk "BEGIN {printf \"%.1f\", $FILESIZE_BYTES/1048576}")
         
         # Architecture detection
-        if [[ "$FILENAME" == *"arm64-v8a"* || "$FILENAME" == *"armv8"* ]]; then ARCH="ARMv8"
+        if [[ "$FILENAME" == *"arm64-v8a"* || "$FILENAME" == *"armv8"* ]]; then ARCH="ARM64"
         elif [[ "$FILENAME" == *"armeabi-v7a"* || "$FILENAME" == *"armv7"* ]]; then ARCH="ARMv7"
         else ARCH="Universal"
         fi
 
         # Pro Renaming
         PRO_NAME="PurrfectSnap_${BRANCH_NAME}_${GIT_HASH}_${ARCH}.apk"
-        mv "$apk" "./$PRO_NAME"
-        apk="./$PRO_NAME"
-        FILENAME="$PRO_NAME"
+        cp "$apk" "./$PRO_NAME"
+        apk_target="./$PRO_NAME"
 
-        echo "📤 Uploading $FILENAME..."
+        echo "📤 Uploading $PRO_NAME..."
 
         # Mirror Strategy (Try multiple to ensure delivery)
-        MIRROR_URL=$(curl -s https://bashupload.com/ -T "$apk" | grep -o 'https://bashupload.com/[^ ]*' | head -n 1 | tr -d '
-')
+        MIRROR_URL=$(curl -s https://bashupload.com/ -T "$apk_target" | grep -o 'https://bashupload.com/[^ ]*' | head -n 1 | tr -d '\r\n')
         
         if [ -z "$MIRROR_URL" ]; then
-             MIRROR_URL=$(curl -s -F "reqtype=fileupload" -F "fileToUpload=@$apk" https://catbox.moe/user/api.php | tr -d '
-')
+             # Fallback to catbox
+             MIRROR_URL=$(curl -s -F "reqtype=fileupload" -F "fileToUpload=@$apk_target" https://catbox.moe/user/api.php | tr -d '\r\n')
         fi
 
         # Append to message
         if [ -n "$MIRROR_URL" ] && [[ "$MIRROR_URL" == "http"* ]]; then
             MESSAGE+="
 📦 <code>$ARCH</code> ($FILESIZE_MB MB)
-└ <a href="$MIRROR_URL">Download APK</a>"
+└ <a href=\"$MIRROR_URL\">Download APK</a>"
         else
             MESSAGE+="
 📦 <code>$ARCH</code> ($FILESIZE_MB MB)
@@ -100,21 +106,21 @@ else
 
         # Direct Telegram Upload (if size < 50MB)
         if [ "$FILESIZE_BYTES" -lt 50000000 ]; then
-            curl -s -F "chat_id=$CHAT_ID" -F "document=@$apk" 
-                 -F "caption=📦 $ARCH Build (#$GIT_HASH)" 
-                 -F "parse_mode=HTML" 
+            curl -s -F "chat_id=$CHAT_ID" -F "document=@$apk_target" \
+                 -F "caption=📦 $ARCH Build (#$GIT_HASH)" \
+                 -F "parse_mode=HTML" \
                  "https://api.telegram.org/bot$TOKEN/sendDocument" > /dev/null
         fi
-    done
+    done <<< "$FOUND_APKS"
 fi
 
 MESSAGE+="
 ━━━━━━━━━━━━━━━━
-🛠 <a href="https://github.com/$REPO/actions/runs/$RUN_ID">View Execution Log</a>"
+🛠 <a href=\"https://github.com/$REPO/actions/runs/$RUN_ID\">View Execution Log</a>"
 
 # Final Dispatch
-curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" 
-    -d "chat_id=$CHAT_ID" 
-    --data-urlencode "text=$MESSAGE" 
-    -d "parse_mode=HTML" 
+curl -s -X POST "https://api.telegram.org/bot$TOKEN/sendMessage" \
+    -d "chat_id=$CHAT_ID" \
+    --data-urlencode "text=$MESSAGE" \
+    -d "parse_mode=HTML" \
     -d "disable_web_page_preview=true" || exit 0
