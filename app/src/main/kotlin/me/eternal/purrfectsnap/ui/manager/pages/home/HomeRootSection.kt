@@ -535,7 +535,7 @@ class HomeRootSection : Routes.Route() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                                    LivingPurrAura(isActive = isPurrAuraActive)
+                                    LivingPurrAura(isActive = isPurrAuraActive, haptic = haptic)
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -624,7 +624,7 @@ class HomeRootSection : Routes.Route() {
                         ExternalLinkIcon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram), onClick = { 
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) 
-                        }, tint = Color.White, containerColor = Color.White.copy(alpha = 0.14f))
+                        }, tint = Color.White, containerColor = Color.White.copy(alpha = 0.14f), haptic = haptic)
                     }
                 }
             }
