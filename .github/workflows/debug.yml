@@ -203,3 +203,31 @@ jobs:
         with:
           name: purrfectsnap-armv7-debug
           path: app/build/outputs/apk/armv7/debug/*.apk
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [job_armv8, job_armv7]
+    if: success() && (github.ref == 'refs/heads/test' || github.ref == 'refs/heads/a9')
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-apks
+      - name: Run Telegram notification script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          chmod +x .github/scripts/upload_telegram.sh
+          ./.github/scripts/upload_telegram.sh \
+            "${TELEGRAM_TOKEN}" \
+            "${TELEGRAM_TO}" \
+            "SUCCESS" \
+            "${{ github.repository }}" \
+            "${{ github.run_id }}" \
+            "${{ github.sha }}" \
+            "${{ github.ref_name }}"
