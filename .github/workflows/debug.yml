@@ -1,5 +1,9 @@
 name: PurrfectSnap Debug CI
 on:
+  push:
+    branches:
+      - test
+      - a9
   workflow_dispatch:
     inputs:
       ci_upload:
