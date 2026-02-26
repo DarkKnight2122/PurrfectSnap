@@ -4,6 +4,11 @@ on:
     branches:
       - test
       - a9
+    paths-ignore:
+      - '**.md'
+      - '_reference/**'
+      - '.github/scripts/upload_telegram.sh'
+      - '.gitignore'
   workflow_dispatch:
     inputs:
       ci_upload:
