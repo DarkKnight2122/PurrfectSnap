@@ -6,7 +6,6 @@ on:
       - a9
     paths-ignore:
       - '**.md'
-      - '_reference/**'
       - '.github/scripts/upload_telegram.sh'
       - '.gitignore'
   workflow_dispatch:
