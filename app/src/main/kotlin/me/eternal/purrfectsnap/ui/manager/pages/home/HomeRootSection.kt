@@ -653,7 +653,6 @@ class HomeRootSection : Routes.Route() {
         var showAnnouncementsDialog by rememberSaveable { mutableStateOf(false) }
         var announcementsText by rememberSaveable { mutableStateOf<String?>(null) }
         var announcementsLoading by remember { mutableStateOf(false) }
-        val haptic = LocalHapticFeedback.current
         val coroutineScope = rememberCoroutineScope()
         var controlsHeight by remember { mutableStateOf(100.dp) }
 
