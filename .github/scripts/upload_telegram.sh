@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# PurrfectSnap "Elite" Telegram Notifier
-# Version: 3.1.0 (Hardened Edition)
+# PurrfectSnap Telegram Notifier
+# Version: 3.1.0
 
 TOKEN=$1
 CHAT_ID=$2
@@ -38,7 +38,7 @@ DYNAMIC_CHANGELOG=$(git log -n 5 --pretty=format:"• %s")
 ESCAPED_CHANGELOG=$(escape_html "$DYNAMIC_CHANGELOG")
 
 # Create Message Header
-MESSAGE="<b>$TYPE_ICON PurrfectSnap Elite | $BRANCH_NAME</b>
+MESSAGE="<b>$TYPE_ICON PurrfectSnap | $BRANCH_NAME</b>
 ━━━━━━━━━━━━━━━━
 📌 <b>Status:</b> $BUILD_STATUS
 🏗️ <b>Type:</b> <code>$TYPE_LABEL</code>
