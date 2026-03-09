@@ -155,6 +155,9 @@ class RetroGameScreen : Routes.Route() {
         }
 
         LaunchedEffect(Unit) {
+            routes.about.translation["about_magic_toast"]?.let {
+                context.shortToast(it)
+            }
             resetGame()
             while (true) {
                 delay(16)
@@ -209,7 +212,8 @@ class RetroGameScreen : Routes.Route() {
             ) {
                 FloatingTopBar(
                     title = translation["title"],
-                    onBack = { routes.navController.popBackStack() }
+                    onBack = { routes.navController.popBackStack() },
+                    enableMorph = true
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Box(

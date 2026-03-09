@@ -2,11 +2,15 @@ package me.eternal.purrfectsnap.ui.util
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.documentfile.provider.DocumentFile
 import me.eternal.purrfectsnap.common.logger.AbstractLogger
+import java.net.URLDecoder
 
 typealias ActivityLauncherCallback = (resultCode: Int, intent: Intent?) -> Unit
 
@@ -143,4 +147,19 @@ fun ActivityLauncherHelper.openFile(type: String = "*/*", callback: (uri: String
         this.activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
         callback(value)
     }
+}
+
+fun getFolderReadablePath(context: Context, uriString: String?): String? {
+    if (uriString.isNullOrBlank()) return null
+    return runCatching {
+        val uri = Uri.parse(uriString)
+        val segments = uri.pathSegments
+        if (segments.size >= 2 && segments[0] == "tree") {
+            val treeId = segments[1]
+            val path = treeId.substringAfterLast(":")
+            URLDecoder.decode(path, "UTF-8")
+        } else {
+            DocumentFile.fromTreeUri(context, uri)?.name ?: URLDecoder.decode(uriString, "UTF-8")
+        }
+    }.getOrElse { URLDecoder.decode(uriString ?: "", "UTF-8") }
 }

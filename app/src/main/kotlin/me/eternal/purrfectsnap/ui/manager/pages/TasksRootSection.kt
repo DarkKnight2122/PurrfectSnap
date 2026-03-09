@@ -53,6 +53,7 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfectsnap.bridge.DownloadCallback
 import me.eternal.purrfectsnap.common.data.download.DownloadMetadata
@@ -65,6 +66,7 @@ import me.eternal.purrfectsnap.download.DownloadProcessor
 import me.eternal.purrfectsnap.download.FFMpegProcessor
 import me.eternal.purrfectsnap.task.*
 import me.eternal.purrfectsnap.ui.manager.Routes
+import me.eternal.purrfectsnap.ui.manager.ManagerTheme
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.util.OnLifecycleEvent
 import me.eternal.purrfectsnap.ui.util.coil.cacheKey
@@ -74,17 +76,31 @@ import kotlin.math.absoluteValue
 import kotlin.text.Regex
 
 class TasksRootSection : Routes.Route() {
-    private var activeTasks by mutableStateOf(listOf<PendingTask>())
-    private lateinit var recentTasks: MutableList<Task>
-    private val taskSelection = mutableStateListOf<Pair<Task, DocumentFile?>>()
+    internal var activeTasks by mutableStateOf(listOf<PendingTask>())
+    internal lateinit var recentTasks: MutableList<Task>
+    internal val taskSelection = mutableStateListOf<Pair<Task, DocumentFile?>>()
+    internal var lastFetchedTaskId: Long? by mutableStateOf(null)
 
-    private fun fetchActiveTasks(scope: CoroutineScope = context.coroutineScope) {
+    internal fun isRecentTasksInitialized(): Boolean = ::recentTasks.isInitialized
+
+    internal fun fetchActiveTasks(scope: CoroutineScope = context.coroutineScope) {
         scope.launch(Dispatchers.IO) {
             activeTasks = context.taskManager.getActiveTasks().values.sortedByDescending { it.taskId }.toMutableList()
         }
     }
 
-    private fun mergeSelection(selection: List<Pair<Task, DocumentFile>>) {
+    internal fun fetchNewRecentTasks(scope: CoroutineScope = context.coroutineScope) {
+        scope.launch(Dispatchers.IO) {
+            val tasks = context.taskManager.fetchStoredTasks(lastFetchedTaskId ?: Long.MAX_VALUE, limit = 20)
+            if (tasks.isNotEmpty()) {
+                lastFetchedTaskId = tasks.keys.last()
+                val activeTaskIds = activeTasks.map { it.taskId }
+                recentTasks.addAll(tasks.filter { it.key !in activeTaskIds }.values)
+            }
+        }
+    }
+
+    internal fun mergeSelection(selection: List<Pair<Task, DocumentFile>>) {
         val firstTask = selection.first().first
 
         val taskHash = UUID.randomUUID().toString().longHashCode().absoluteValue.toString(16)
@@ -164,7 +180,7 @@ class TasksRootSection : Routes.Route() {
         }
     }
 
-    private fun clearTasks(alsoDeleteFiles: Boolean, scope: CoroutineScope) {
+    internal fun clearTasks(alsoDeleteFiles: Boolean, scope: CoroutineScope) {
         if (taskSelection.isNotEmpty()) {
             taskSelection.forEach { (task, documentFile) ->
                 scope.launch(Dispatchers.IO) {
@@ -189,7 +205,7 @@ class TasksRootSection : Routes.Route() {
     }
 
     @Composable
-    private fun TaskDangerDialog(
+    internal fun TaskDangerDialog(
         visible: Boolean,
         title: String,
         message: String,
@@ -301,13 +317,12 @@ class TasksRootSection : Routes.Route() {
                                     )
                                     Column {
                                         Text(
-                                            text = context.translation["manager.sections.tasks.delete_files_option"],
+                                            text = context.translation["delete_files_option"],
                                             color = Color.White,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Text(
-                                            text = context.translation["manager.sections.tasks.delete_files_option_hint"]
-                                                ?: "Also remove downloaded files",
+                                            text = context.translation["delete_files_option_hint"] ?: "Also remove downloaded files",
                                             color = PurrfectPalette.textSecondary,
                                             style = MaterialTheme.typography.bodySmall
                                         )
@@ -346,7 +361,7 @@ class TasksRootSection : Routes.Route() {
     }
 
     @Composable
-    private fun TasksEmptyState(text: String) {
+    internal fun TasksEmptyState(text: String) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -388,6 +403,11 @@ class TasksRootSection : Routes.Route() {
                 color = Color.White
             )
         }
+    }
+
+    @Composable
+    internal fun AphelionTasksEmptyState(text: String) {
+        TasksEmptyState(text)
     }
 
     override val topBarActions: @Composable (RowScope.() -> Unit) = {
@@ -445,7 +465,7 @@ class TasksRootSection : Routes.Route() {
     }
 
     @Composable
-    private fun TaskCard(modifier: Modifier, task: Task, pendingTask: PendingTask? = null) {
+    internal fun TaskCard(modifier: Modifier, task: Task, pendingTask: PendingTask? = null) {
         var taskStatus by remember { mutableStateOf(task.status) }
         var taskProgressLabel by remember { mutableStateOf<String?>(null) }
         var taskProgress by remember { mutableIntStateOf(-1) }
@@ -843,220 +863,22 @@ class TasksRootSection : Routes.Route() {
         }
     }
 
-    override val content: @Composable (NavBackStackEntry) -> Unit = {
-        val scrollState = rememberLazyListState()
-        val scope = rememberCoroutineScope()
-        recentTasks = remember { mutableStateListOf() }
-        var lastFetchedTaskId by remember { mutableStateOf(null as Long?) }
-        var showConfirmDialog by remember { mutableStateOf(false) }
-        var alsoDeleteFiles by remember { mutableStateOf(false) }
+    override val init: () -> Unit = {
+        recentTasks = mutableStateListOf()
+    }
 
-        fun fetchNewRecentTasks() {
-            scope.launch(Dispatchers.IO) {
-                val tasks = context.taskManager.fetchStoredTasks(lastFetchedTaskId ?: Long.MAX_VALUE, limit = 20)
-                if (tasks.isNotEmpty()) {
-                    lastFetchedTaskId = tasks.keys.last()
-                    val activeTaskIds = activeTasks.map { it.taskId }
-                    recentTasks.addAll(tasks.filter { it.key !in activeTaskIds }.values)
-                }
+    override val content: @Composable (NavBackStackEntry) -> Unit = { nav ->
+        val themeId by produceState(initialValue = context.config.root.global.uiSettings.managerTheme.get()) {
+            while (true) {
+                delay(300)
+                value = context.config.root.global.uiSettings.managerTheme.get()
             }
         }
 
-        LaunchedEffect(Unit) {
-            fetchActiveTasks(this)
-        }
-
-        DisposableEffect(Unit) {
-            onDispose {
-                taskSelection.clear()
+        key(themeId) {
+            with(ManagerTheme.fromId(themeId).theme) {
+                this@TasksRootSection.TasksScreen(nav)
             }
-        }
-
-        OnLifecycleEvent { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                fetchActiveTasks(scope)
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
-        ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                        .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
-                    shape = RoundedCornerShape(26.dp),
-                    color = Color.White.copy(alpha = 0.07f),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                    border = BorderStroke(
-                        1.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                            )
-                        )
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = context.translation["manager.routes.tasks"],
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 18.sp
-                            )
-                            Text(
-                                text = if (activeTasks.isNotEmpty()) {
-                                    translation.format(
-                                        "summary_active",
-                                        "active" to activeTasks.size.toString(),
-                                        "recent" to recentTasks.size.toString()
-                                    )
-                                } else {
-                                    translation.format(
-                                        "summary_idle",
-                                        "recent" to recentTasks.size.toString()
-                                    )
-                                },
-                                color = PurrfectPalette.textSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (taskSelection.size > 1 && taskSelection.all { it.second?.type?.contains("video") == true }) {
-                                Surface(
-                                    onClick = {
-                                        mergeSelection(
-                                            taskSelection.toList().also { taskSelection.clear() }
-                                                .map { it.first to it.second!! }
-                                        )
-                                    },
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = Color.White.copy(alpha = 0.08f),
-                                    tonalElevation = 0.dp,
-                                    shadowElevation = 0.dp,
-                                    border = BorderStroke(
-                                        1.dp,
-                                        Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))
-                                    )
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(Icons.Filled.Merge, contentDescription = translation["merge_button"], tint = Color.White)
-                                        Text(translation["merge_button"], color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                                    }
-                                }
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = Color.White.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(Icons.Filled.PlaylistAddCheckCircle, contentDescription = null, tint = Color.White)
-                                    Text(
-                                        text = translation.format("running_count", "count" to activeTasks.size.toString()),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                            IconButton(onClick = { showConfirmDialog = true }) {
-                                Icon(Icons.Filled.Delete, contentDescription = translation["clear_button_description"], tint = Color.White)
-                            }
-                        }
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White.copy(alpha = 0.04f),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                ) {
-                    LazyColumn(
-                        state = scrollState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 12.dp,
-                            end = 12.dp,
-                            top = 0.dp,
-                            bottom = routes.bottomPadding + 16.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        item {
-                            if (activeTasks.isEmpty() && recentTasks.isEmpty()) {
-                                TasksEmptyState(text = translation["no_tasks"])
-                            }
-                        }
-                        items(activeTasks, key = { it.taskId }) { pendingTask ->
-                            TaskCard(modifier = Modifier.fillMaxWidth(), pendingTask.task, pendingTask = pendingTask)
-                        }
-                        items(recentTasks, key = { it.hash }) { task ->
-                            TaskCard(modifier = Modifier.fillMaxWidth(), task)
-                        }
-                        item {
-                            Spacer(modifier = Modifier.height(40.dp))
-                            LaunchedEffect(remember { derivedStateOf { scrollState.firstVisibleItemIndex } }) {
-                                fetchNewRecentTasks()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (showConfirmDialog) {
-            val isSelection = taskSelection.isNotEmpty()
-            val titleText = if (isSelection) {
-                translation.format("remove_selected_tasks_confirm", "count" to taskSelection.size.toString())
-            } else {
-                translation["remove_all_tasks_confirm"]
-            }
-            val messageText = if (isSelection) translation["remove_selected_tasks_title"] else translation["remove_all_tasks_title"]
-
-            TaskDangerDialog(
-                visible = showConfirmDialog,
-                title = titleText,
-                message = messageText,
-                showDeleteFiles = isSelection,
-                deleteFilesChecked = alsoDeleteFiles,
-                onToggleDeleteFiles = { alsoDeleteFiles = it },
-                onConfirm = {
-                    showConfirmDialog = false
-                    clearTasks(alsoDeleteFiles, scope)
-                },
-                onDismiss = { showConfirmDialog = false }
-            )
         }
     }
 }

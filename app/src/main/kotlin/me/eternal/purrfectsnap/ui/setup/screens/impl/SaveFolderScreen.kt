@@ -37,6 +37,7 @@ import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.setup.screens.SetupScreen
 import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
 import me.eternal.purrfectsnap.ui.util.chooseFolder
+import me.eternal.purrfectsnap.ui.util.getFolderReadablePath
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 
@@ -103,8 +104,9 @@ class SaveFolderScreen : SetupScreen() {
                             fontSize = 13.sp,
                             color = PurrfectPalette.textSecondary
                         )
+                        val readablePath = remember(currentFolder) { getFolderReadablePath(context.androidContext, currentFolder) }
                         Text(
-                            text = if (currentFolder.isBlank()) context.translation["setup.save_folder.system_default_label"] else currentFolder,
+                            text = if (currentFolder.isBlank()) context.translation["setup.save_folder.system_default_label"] else (readablePath ?: currentFolder),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White,
