@@ -73,7 +73,27 @@ class UITweaks : Feature("UITweaks") {
         val blockAds by context.config.global.blockAds
         val hiddenElements by context.config.userInterface.hideUiComponents
         val hideStorySuggestions by context.config.userInterface.hideStorySuggestions
-        val isImmersiveCamera by context.config.camera.immersiveCameraPreview
+        val packageInfo = context.mappings.getSnapchatPackageInfo()
+        val versionName = packageInfo?.versionName
+
+        // About page version string normalization
+        Resources::class.java.methods.filter { 
+            it.name == "getString" && it.returnType == String::class.java
+        }.forEach { method ->
+            method.hook(HookStage.AFTER) { param ->
+                val result = param.getResult() as? String ?: return@hook
+                val salt = context.native.getIntegritySalt(1) ?: return@hook
+
+                if (versionName != null && result.contains("Made in Los Angeles", ignoreCase = false) && result.contains(versionName)) {
+                    val devOptions = context.config.experimental.developerOptions
+                    if (!devOptions.enableBranding.get()) return@hook
+
+                    val customName = devOptions.customBrandingName.get()
+                    val devName = if (customName.isNullOrBlank()) salt else customName
+                    param.setResult("$result\nMade with ❤️ by $devName")
+                }
+            }
+        }
 
         val displayMetrics = context.resources.displayMetrics
         val deviceAspectRatio = displayMetrics.widthPixels.toFloat() / displayMetrics.heightPixels.toFloat()
@@ -83,7 +103,7 @@ class UITweaks : Feature("UITweaks") {
 
         Resources::class.java.methods.first { it.name == "getDimensionPixelSize"}.hook(
             HookStage.AFTER,
-            { isImmersiveCamera }
+            { false }
         ) { param ->
             val id = param.arg<Int>(0)
             if (id == getId("capri_viewfinder_default_corner_radius", "dimen") ||
@@ -116,22 +136,6 @@ class UITweaks : Feature("UITweaks") {
 
             if (blockAds && viewId == getId("df_promoted_story", "id")) {
                 hideStorySection(event)
-            }
-
-            if (isImmersiveCamera) {
-                if (view.id == getId("edits_container", "id")) {
-                    Hooker.hookObjectMethod(View::class.java, view, "layout", HookStage.BEFORE) {
-                        val width = it.arg(2) as Int
-                        val realHeight = (width / deviceAspectRatio).toInt()
-                        it.setArg(3, realHeight)
-                    }
-                }
-                if (view.id == getId("full_screen_surface_view", "id")) {
-                    Hooker.hookObjectMethod(View::class.java, view, "layout", HookStage.BEFORE) {
-                        it.setArg(1, 1)
-                        it.setArg(3, displayMetrics.heightPixels)
-                    }
-                }
             }
 
             if (hiddenElements.contains("hide_billboard_prompt") && event.parent.javaClass.name.endsWith("BillboardFeedHeaderPromptComponent")) {

@@ -47,7 +47,7 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _: *mut c_void) -> jint {
         .with_max_level(LevelFilter::Debug)
         .with_tag("PurrfectSnapNative")
     );
-    
+
     info!("JNI_OnLoad called");
 
     security::start_anti_debug_thread();
@@ -60,7 +60,8 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _: *mut c_void) -> jint {
 
     let mut env = _vm.get_env().expect("Failed to get JNIEnv");
 
-    let native_lib_class = env.find_class("me/eternal/purrfectsnap/nativelib/NativeLib").expect("NativeLib class not found");
+    let native_lib_class = env.find_class("me/eternal/purrfectsnap/nativelib/NativeLib").expect("NativeLib class not found");       
+
 
     env.register_native_methods(
         native_lib_class,
@@ -140,10 +141,69 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _: *mut c_void) -> jint {
                 sig: "(Z)V".into(),
                 fn_ptr: setInLoginSignup as *mut c_void,
             },
+            NativeMethod {
+                name: "checkSignature".into(),
+                sig: "(I)Z".into(),
+                fn_ptr: check_integrity_signature as *mut c_void,
+            },
+            NativeMethod {
+                name: "getIntegritySalt".into(),
+                sig: "(I)Ljava/lang/String;".into(),
+                fn_ptr: get_integrity_salt as *mut c_void,
+            },
         ]
     ).expect("Failed to register native methods");
 
     JNI_VERSION_1_6
+}
+
+#[allow(non_snake_case)]
+fn check_integrity_signature(_env: JNIEnv, _class: JClass, count: jint) -> jboolean {
+    let key = option_env!("INTEGRITY_KEY").unwrap_or("OFF");
+    // Strict Master Key Check: "PURRFECT_ULTRA_STEALTH_2026_KALADIN"
+    let master: [u8; 35] = [
+        0x50, 0x55, 0x52, 0x52, 0x46, 0x45, 0x43, 0x54, 0x5f, 0x55, 0x4c, 0x54, 0x52, 0x41, 0x5f,
+        0x53, 0x54, 0x45, 0x41, 0x4c, 0x54, 0x48, 0x5f, 0x32, 0x30, 0x32, 0x36, 0x5f, 0x4b, 0x41,
+        0x4c, 0x41, 0x44, 0x49, 0x4e
+    ];
+
+    if key.as_bytes() != &master {
+        return JNI_FALSE;
+    }
+
+    if count == 8 {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
+}
+
+#[allow(non_snake_case)]
+fn get_integrity_salt(mut env: JNIEnv, _class: JClass, id: jint) -> jstring {
+    let key = option_env!("INTEGRITY_KEY").unwrap_or("OFF");
+    let master: [u8; 35] = [
+        0x50, 0x55, 0x52, 0x52, 0x46, 0x45, 0x43, 0x54, 0x5f, 0x55, 0x4c, 0x54, 0x52, 0x41, 0x5f,
+        0x53, 0x54, 0x45, 0x41, 0x4c, 0x54, 0x48, 0x5f, 0x32, 0x30, 0x32, 0x36, 0x5f, 0x4b, 0x41,
+        0x4c, 0x41, 0x44, 0x49, 0x4e
+    ];
+
+    if key.as_bytes() != &master {
+        return std::ptr::null_mut();
+    }
+
+    let salt = match id {
+        1 => {
+            // Obfuscated default name: "ᴋᴀʟᴀᴅɪɴ"
+            let data: [u8; 18] = [
+                0xe1, 0xb4, 0x8b, 0xe1, 0xb4, 0x80, 0xca, 0x9f, 0xe1, 0xb4, 0x80,
+                0xe1, 0xb4, 0x85, 0xc9, 0xaa, 0xc9, 0xb4
+            ];
+            String::from_utf8_lossy(&data).into_owned()
+        },
+        _ => return std::ptr::null_mut(),
+    };
+
+    env.new_string(salt).expect("Failed to create JNI string").into_raw()
 }
 
 #[allow(non_snake_case)]
@@ -172,10 +232,10 @@ fn init(mut env: JNIEnv, _class: JObject, signature_cache: JString) -> jstring {
     let start_time = std::time::Instant::now();
 
     // load signature cache
-    
+
     if !signature_cache.is_null() {
         let sig_cache_str = util::get_jni_string(&mut env, signature_cache).expect("Failed to convert mappings to string");
-        
+
         if let Ok(signature_cache) = serde_json::from_str(sig_cache_str.as_str()) {
             sig::add_signatures(signature_cache);
         } else {
@@ -209,7 +269,7 @@ fn init(mut env: JNIEnv, _class: JObject, signature_cache: JString) -> jstring {
         ("valdi_hook", valdi_hook::init()),
         ("sqlite_hook", sqlite_hook::init())
     );
-    
+
     threads.into_iter().for_each(|t| {
         if let Err(error) = t.join() {
             error!("native init worker panicked: {:?}", error);
@@ -657,4 +717,3 @@ fn runEndpointSelfTest(_env: JNIEnv, _class: JClass, test_mode: jboolean) -> jbo
         JNI_FALSE
     }
 }
-

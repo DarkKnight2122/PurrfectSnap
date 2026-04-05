@@ -14,6 +14,7 @@ import me.eternal.purrfectsnap.bridge.storage.FileHandleManager;
 import me.eternal.purrfectsnap.bridge.location.LocationManager;
 import me.eternal.purrfectsnap.bridge.call.CallDownloadSession;
 import me.eternal.purrfectsnap.bridge.task.TaskInterface;
+import me.eternal.purrfectsnap.bridge.AutoOpenInterface;
 
 interface BridgeInterface {
     /**

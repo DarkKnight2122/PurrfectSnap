@@ -8,47 +8,12 @@ import me.eternal.purrfectsnap.common.config.*
 import me.eternal.purrfectsnap.common.logger.AbstractLogger
 
 class Camera : ConfigContainer() {
-    companion object {
-        private val defaultResolutions = listOf("3264x2448", "3264x1840", "3264x1504", "2688x1512", "2560x1920", "2448x2448", "2340x1080", "2160x1080", "1920x1440", "1920x1080", "1600x1200", "1600x960", "1600x900", "1600x736", "1600x720", "1560x720", "1520x720", "1440x1080", "1440x720", "1280x720", "1080x1080", "1080x720", "960x720", "720x720", "720x480", "640x480", "352x288", "320x240", "176x144").toTypedArray()
-        private val customFrameRates = arrayOf("5", "10", "20", "25", "30", "48", "60", "90", "120")
-    }
+    private val customFrameRates = arrayOf("60", "120", "240")
 
-    private lateinit var _overrideFrontResolution: PropertyValue<String>
-    private lateinit var _overrideBackResolution: PropertyValue<String>
+    private val _overrideFrontResolution = string("override_front_resolution") { addNotices(FeatureNotice.UNSTABLE); inputCheck = { it.matches(Regex("\\d+x\\d+")) } }
+    private val _overrideBackResolution = string("override_back_resolution") { addNotices(FeatureNotice.UNSTABLE); inputCheck = { it.matches(Regex("\\d+x\\d+")) } }
 
-    override fun lateInit(context: Context) {
-        val backResolutions = mutableListOf<String>()
-        val frontResolutions = mutableListOf<String>()
-
-        context.getSystemService(CameraManager::class.java).apply {
-            if (context.packageName == Constants.SNAPCHAT_PACKAGE_NAME) return@apply // prevent snapchat from crashing
-
-            runCatching {
-                cameraIdList.forEach { cameraId ->
-                    val characteristics = getCameraCharacteristics(cameraId)
-                    val isSelfie = characteristics.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_FRONT
-
-                    (frontResolutions.takeIf { isSelfie } ?: backResolutions).addAll(
-                        characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)?.let {
-                            it.outputFormats.flatMap { format -> it.getOutputSizes(format).toList() }
-                        }?.sortedByDescending { it.width * it.height }?.map { "${it.width}x${it.height}" }?.distinct() ?: emptyList()
-                    )
-                }
-            }.onFailure {
-                AbstractLogger.directError("Failed to get camera resolutions", it)
-                backResolutions.addAll(defaultResolutions)
-                frontResolutions.addAll(defaultResolutions)
-            }
-        }
-
-        _overrideFrontResolution = unique("override_front_resolution", *frontResolutions.toTypedArray())
-            { addFlags(ConfigFlag.NO_TRANSLATE) }
-        _overrideBackResolution = unique("override_back_resolution", *backResolutions.toTypedArray())
-            { addFlags(ConfigFlag.NO_TRANSLATE) }
-    }
-
-    val disableCameras = multiple("disable_cameras", "front", "back") { addNotices(FeatureNotice.INTERNAL_BEHAVIOR); requireRestart() }
-    val immersiveCameraPreview = boolean("immersive_camera_preview") { addNotices(FeatureNotice.UNSTABLE); versionCheck = RES_OBF_VERSION_CHECK.copy(isDisabled = true) }
+    val disableCameras = multiple("disable_cameras", "front", "back") { requireRestart() }
     val blackPhotos = boolean("black_photos")
     val frontCustomFrameRate = unique("front_custom_frame_rate", *customFrameRates) { requireRestart(); addFlags(ConfigFlag.NO_TRANSLATE) }
     val backCustomFrameRate = unique("back_custom_frame_rate", *customFrameRates) { requireRestart(); addFlags(ConfigFlag.NO_TRANSLATE) }
@@ -58,6 +23,7 @@ class Camera : ConfigContainer() {
     val overrideFrontResolution get() = _overrideFrontResolution
     val overrideBackResolution get() = _overrideBackResolution
     val videoRecordTimer = boolean("video_record_timer")
+
     val unlockZoomLimit = boolean("unlock_zoom_limit") { requireRestart(); addNotices(FeatureNotice.UNSTABLE) }
     val maxZoomOverride = float("max_zoom_override", 120f) {
         requireRestart()

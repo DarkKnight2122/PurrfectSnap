@@ -207,64 +207,21 @@ class TasksRootSection : Routes.Route() {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item(key = "auto_open_card") {
-                            var queueItems by remember { mutableStateOf(listOf<Any>()) }
-                            var processedCount by remember { mutableIntStateOf(0) }
-                            
-                            LaunchedEffect(Unit) {
-                                while (true) {
-                                    runCatching {
-                                        val autoOpen = context.bridgeService?.messagingBridge?.getAutoOpenInterface()
-                                        processedCount = autoOpen?.processedCount ?: 0
-                                        val items = autoOpen?.queueItems ?: emptyList()
-                                        queueItems = items.mapNotNull { 
-                                            runCatching { context.gson.fromJson(it, Map::class.java) }.getOrNull()
-                                        }
-                                    }
-                                    kotlinx.coroutines.delay(2000)
-                                }
-                            }
-                            
-                            if (queueItems.isNotEmpty() || processedCount > 0) {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                    shape = MaterialTheme.shapes.large,
-                                    color = Color.White.copy(alpha = 0.05f),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(translation["auto_open_snaps.title"] ?: "Auto Open Snaps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                            IconButton(onClick = { 
-                                                runCatching { context.bridgeService?.messagingBridge?.getAutoOpenInterface()?.reset() }
-                                            }) {
-                                                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
-                                            }
-                                        }
-                                        Text(
-                                            "${translation["auto_open_snaps.queue_size"] ?: "Queue"}: ${queueItems.size} \u00b7 ${translation["auto_open_snaps.processed_count"] ?: "Opened"}: $processedCount",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = Color.White.copy(alpha = 0.6f)
-                                        )
-                                    }
-                                }
-                            }
+                            AutoOpenStatusCard()
                         }
 
-                        if (activeTasks.isEmpty() && recentTasks.isEmpty()) {
-                            item {
-                                AphelionTasksEmptyState(translation["no_tasks"])
+                        if (selectedTab == TaskTab.ACTIVE) {
+                            if (activeTasks.isEmpty() && recentTasks.isEmpty()) {
+                                item {
+                                    AphelionTasksEmptyState(translation["no_tasks"])
+                                }
                             }
-                        }
 
-                        // CONSOLIDATED SESSION VIEW: Group Auto-Open tasks by their persistent session task.
-                        // Non-AutoOpen tasks (Downloads, etc.) remain as individual cards.
-                        val groupedActiveTasks = activeTasks.distinctBy { it.task.hash }
+                            // CONSOLIDATED SESSION VIEW: Group Auto-Open tasks by their persistent session task.
+                            // Non-AutoOpen tasks (Downloads, etc.) remain as individual cards.
+                            val groupedActiveTasks = activeTasks.distinctBy { it.task.hash }
 
-                        items(groupedActiveTasks, key = { it.task.hash }) { pendingTask ->
+                            items(groupedActiveTasks, key = { it.task.hash }) { pendingTask ->
                             val isAutoOpen = pendingTask.task.isAutoOpen
                             val pulseAnimation = rememberInfiniteTransition(label = "pulse")
                             val pulseAlpha by pulseAnimation.animateFloat(
@@ -305,10 +262,12 @@ class TasksRootSection : Routes.Route() {
                                 task = task
                             )
                         }
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-            }
+                    } // closes if (selectedTab == TaskTab.ACTIVE)
+                } // closes LazyColumn
+            } // closes Surface
+            Spacer(Modifier.height(12.dp))
+        } // closes Column
+
 
             Column(modifier = Modifier.headerHeightTracker { controlsHeight = it }) {
                 me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar(
@@ -1111,6 +1070,55 @@ class TasksRootSection : Routes.Route() {
                     activeCount = activeCount,
                     scheduledCount = scheduledCount
                 )
+            }
+        }
+    }
+
+    @Composable
+    private fun AutoOpenStatusCard() {
+        var queueItems by remember { mutableStateOf(listOf<Any>()) }
+        var processedCount by remember { mutableIntStateOf(0) }
+
+        LaunchedEffect(Unit) {
+            while (true) {
+                runCatching {
+                    val autoOpen = context.bridgeService?.messagingBridge?.getAutoOpenInterface()
+                    processedCount = autoOpen?.processedCount ?: 0
+                    val items = autoOpen?.queueItems ?: emptyList()
+                    queueItems = items.mapNotNull {
+                        runCatching { context.gson.fromJson(it, Map::class.java) }.getOrNull()
+                    }
+                }
+                kotlinx.coroutines.delay(2000)
+            }
+        }
+
+        if (queueItems.isNotEmpty() || processedCount > 0) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                shape = RoundedCornerShape(22.dp),
+                color = Color.White.copy(alpha = 0.05f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(translation["auto_open_snaps.title"] ?: "Auto Open Snaps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        IconButton(onClick = {
+                            runCatching { context.bridgeService?.messagingBridge?.getAutoOpenInterface()?.reset() }
+                        }) {
+                            Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Text(
+                        "${translation["auto_open_snaps.queue_size"] ?: "Queue"}: ${queueItems.size} \u00b7 ${translation["auto_open_snaps.processed_count"] ?: "Opened"}: $processedCount",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
     }

@@ -1,5 +1,16 @@
 name: PurrfectSnap Debug CI
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 on:
+  push:
+    branches:
+      - dev
+      - test
+      - Kal
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
   workflow_dispatch:
     inputs:
       ci_upload:
@@ -54,6 +65,9 @@ jobs:
           } >> "${HOME}/.gradle/gradle.properties"
       - name: Build
         run: ./gradlew --configuration-cache assembleArmv8Debug
+        env:
+          NATIVE_KEY: ${{ secrets.NATIVE_KEY }}
+          INTEGRITY_KEY: ${{ secrets.INTEGRITY_KEY }}
       - name: Determine the latest Build Tools version installed
         shell: bash
         run: |
@@ -152,6 +166,9 @@ jobs:
           } >> "${HOME}/.gradle/gradle.properties"
       - name: Build
         run: ./gradlew --configuration-cache assembleArmv7Debug
+        env:
+          NATIVE_KEY: ${{ secrets.NATIVE_KEY }}
+          INTEGRITY_KEY: ${{ secrets.INTEGRITY_KEY }}
       - name: Determine the latest Build Tools version installed
         shell: bash
         run: |
@@ -203,3 +220,32 @@ jobs:
         with:
           name: purrfectsnap-armv7-debug
           path: app/build/outputs/apk/armv7/debug/*.apk
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [job_armv8, job_armv7]
+    if: success()
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: app/build/outputs/apk/
+          merge-multiple: true
+      - name: Run Telegram notification script
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
+        run: |
+          chmod +x .github/scripts/upload_telegram.sh
+          ./.github/scripts/upload_telegram.sh \
+            "${TELEGRAM_TOKEN}" \
+            "${TELEGRAM_TO}" \
+            "SUCCESS" \
+            "${{ github.repository }}" \
+            "${{ github.run_id }}" \
+            "${{ github.sha }}" \
+            "${{ github.ref_name }}"

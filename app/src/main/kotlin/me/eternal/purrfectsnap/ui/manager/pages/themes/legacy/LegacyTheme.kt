@@ -32,6 +32,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -53,10 +54,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.core.view.drawToBitmap
 import me.eternal.purrfectsnap.ui.manager.theme.aphelion.AphelionHaptics
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.drawToBitmap
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -85,6 +82,7 @@ import me.eternal.purrfectsnap.common.action.EnumAction
 import me.eternal.purrfectsnap.common.bridge.InternalFileHandleType
 import me.eternal.purrfectsnap.common.config.ConfigContainer
 import me.eternal.purrfectsnap.common.config.PropertyPair
+import me.eternal.purrfectsnap.common.config.toPropertyPair
 import me.eternal.purrfectsnap.common.data.SocialScope
 import me.eternal.purrfectsnap.common.ui.TopBarActionButton
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
@@ -98,6 +96,8 @@ import me.eternal.purrfectsnap.storage.setQuickTiles
 import me.eternal.purrfectsnap.ui.manager.ThemeContract
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
+import me.eternal.purrfectsnap.task.TaskType
+import me.eternal.purrfectsnap.ui.manager.pages.TasksRootSection.TaskTab
 import me.eternal.purrfectsnap.ui.manager.data.UpdateDownloader
 import me.eternal.purrfectsnap.ui.manager.data.Updater
 import me.eternal.purrfectsnap.ui.manager.data.Updater.Channel
@@ -166,7 +166,7 @@ object LegacyTheme : ThemeContract {
         @Composable
         fun RowScope.LocalHomeActionChips() {
             LocalTopBarActionChip(icon = Icons.Filled.BugReport, label = context.translation["manager.routes.home_logs"]) { routes.homeLogs.navigate() }
-            LocalTopBarActionChip(icon = Icons.Filled.Info, label = translation["manager.routes.home_about"]) { routes.about.navigate() }
+            LocalTopBarActionChip(icon = Icons.Filled.Settings, label = context.translation["manager.routes.home_settings"]) { routes.settings.navigate() }
         }
 
         @Composable
@@ -178,11 +178,7 @@ object LegacyTheme : ThemeContract {
             onUpdateAction: () -> Unit,
             channelLabel: String,
             isPurrAuraActive: Boolean,
-            onWebsiteClick: () -> Unit,
-            onTelegramClick: () -> Unit,
-            onGithubClick: () -> Unit,
             authorName: String,
-            onManageClick: () -> Unit,
             avenirNext: FontFamily
         ) {
             val heroShape = RoundedCornerShape(36.dp)
@@ -201,7 +197,7 @@ object LegacyTheme : ThemeContract {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("PurrfectSnap", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, fontFamily = avenirNext)
-                        Text("By ΞTΞRNAL", color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext)
+                        Text("By ᴋᴀʟᴀᴅɪɴ", color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext)
                         Text(text = translation["hero_tagline"] ?: "", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
                     }
                     FlowRow(
@@ -259,45 +255,54 @@ object LegacyTheme : ThemeContract {
                     }
 
                     Surface(
+                        modifier = Modifier.fillMaxWidth(),
                         color = Color.White.copy(alpha = 0.08f),
                         shape = RoundedCornerShape(24.dp),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
                         tonalElevation = 0.dp, shadowElevation = 0.dp
                     ) {
+                        val unifiedButtonWidth = 180.dp
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), tonalElevation = 0.dp, shadowElevation = 0.dp) {
-                                Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(50), 
+                                color = Color.White.copy(alpha = 0.12f), 
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)), 
+                                modifier = Modifier.width(unifiedButtonWidth).height(46.dp),
+                                tonalElevation = 0.dp, shadowElevation = 0.dp
+                            ) {
+                                Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                     Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(if (isPurrAuraActive) PurrfectPalette.glowPrimary else Color(0xFF8C8CA3)))
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
-                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
                                     )
                                 }
                             }
                             OutlinedButton(
-                                onClick = { routes.settings.navigate() },
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                                onClick = { routes.about.navigate() },
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
+                                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White.copy(alpha = 0.06f), contentColor = Color.White),
+                                modifier = Modifier.width(unifiedButtonWidth).height(46.dp)
                             ) {
-                                Icon(Icons.Filled.Settings, contentDescription = null, tint = Color.White)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(translation["open_settings_button"] ?: "")
+                                Icon(Icons.Filled.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(translation.getOrNull("about_meet_team_button") ?: "About Us", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             }
                         }
                     }
 
                     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), tonalElevation = 0.dp, shadowElevation = 0.dp) {
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app/", context.translation["toast_open_link_failed"]) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E))) {
+                            Button(modifier = Modifier.weight(1f).height(44.dp), onClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app/", context.translation["toast_open_link_failed"]) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E))) {
                                 Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Site", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(text = "Site", maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold))
                             }
-                            OutlinedButton(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://github.com/particle-box/PurrfectSnap", context.translation["toast_open_link_failed"]) }, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) {
+                            OutlinedButton(modifier = Modifier.weight(1f).height(44.dp), onClick = { context.androidContext.openLink("https://github.com/particle-box/PurrfectSnap", context.translation["toast_open_link_failed"]) }, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) {
                                 Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(text = translation["github_button"] ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = translation["github_button"] ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis, style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold))
                             }
                             ExternalLinkIcon(
                                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
@@ -310,6 +315,7 @@ object LegacyTheme : ThemeContract {
             }
         }
 
+        val haptic = LocalHapticFeedback.current
         val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
         val prefs = remember { context.sharedPreferences }
         val allQuickTileNames = remember(cards) { cards.keys.map { it.first } }
@@ -488,11 +494,7 @@ object LegacyTheme : ThemeContract {
                     onUpdateAction = onUpdateButtonClick,
                     channelLabel = channelLabel,
                     isPurrAuraActive = isPurrAuraActive,
-                    onWebsiteClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app/", context.translation["toast_open_link_failed"]) },
-                    onTelegramClick = { context.androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
-                    onGithubClick = { context.androidContext.openLink("https://github.com/particle-box/PurrfectSnap", context.translation["toast_open_link_failed"]) },
                     authorName = "ETERNAL",
-                    onManageClick = { routes.settings.navigate() },
                     avenirNext = avenirNext
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -581,80 +583,123 @@ object LegacyTheme : ThemeContract {
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // SIGNATURE BLOCK
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    var tapCount by remember { mutableIntStateOf(0) }
+                    var lastTapTime by remember { mutableLongStateOf(0L) }
+                    val tapTimeoutMs = 500L
+                    var showKaladdinMenu by remember { mutableStateOf(false) }
+
+                    PurrfectMarqueeText(
+                        text = translation.format("made_with_love", "author" to "ᴋᴀʟᴀᴅɪɴ"),
+                        color = Color.White.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                val now = System.currentTimeMillis()
+                                if (now - lastTapTime > tapTimeoutMs) {
+                                    tapCount = 0
+                                }
+                                tapCount++
+                                lastTapTime = now
+
+                                if (tapCount >= 8) {
+                                    tapCount = 0
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    context.config.root.experimental.developerOptions.developerMode.set(true)
+                                    context.config.writeConfig()
+                                    showKaladdinMenu = true
+                                    context.shortToast("Welcome back, ᴋᴀʟᴀᴅɪɴ")
+                                }
+                            }
+                    )
+
+                    if (showKaladdinMenu) {
+                        KaladinSecretMenuDialog(onDismiss = { showKaladdinMenu = false })
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(32.dp))
-        }
 
-        if (showChangelogDialog) {
-            AestheticDialog(
-                onDismissRequest = { showChangelogDialog = false },
-                title = translation["changelog_dialog_title"] ?: "Changelog",
-                text = "", icon = Icons.Filled.Info,
-                confirmButtonText = translation["changelog_dialog_update_button"] ?: "Update",
-                onConfirm = { showChangelogDialog = false; handleUpdateAction() },
-                dismissButtonText = translation["changelog_dialog_cancel_button"] ?: "Cancel",
-                onDismiss = { showChangelogDialog = false },
-                showCloseButton = false,
-                customContent = {
-                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (changelogLoading) CircularProgressIndicator(color = Color.White)
-                        else if (changelogError != null) Text(changelogError!!, color = Color.Red, fontSize = 14.sp)
-                        else Text(changelogText ?: translation["changelog_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
+            if (showChangelogDialog) {
+                AestheticDialog(
+                    onDismissRequest = { showChangelogDialog = false },
+                    title = translation["changelog_dialog_title"] ?: "Changelog",
+                    text = "", icon = Icons.Filled.Info,
+                    confirmButtonText = translation["changelog_dialog_update_button"] ?: "Update",
+                    onConfirm = { showChangelogDialog = false; handleUpdateAction() },
+                    dismissButtonText = translation["changelog_dialog_cancel_button"] ?: "Cancel",
+                    onDismiss = { showChangelogDialog = false },
+                    showCloseButton = false,
+                    customContent = {
+                        Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (changelogLoading) CircularProgressIndicator(color = Color.White)
+                            else if (changelogError != null) Text(changelogError!!, color = Color.Red, fontSize = 14.sp)
+                            else Text(changelogText ?: translation["changelog_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
+                        }
                     }
-                }
-            )
-        }
+                )
+            }
 
-        if (showAnnouncementsDialog) {
-            AestheticDialog(
-                onDismissRequest = { showAnnouncementsDialog = false },
-                title = translation["announcements_dialog_title"] ?: "Announcements",
-                text = "", icon = Icons.Filled.Notifications,
-                confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
-                onConfirm = { showAnnouncementsDialog = false },
-                showCloseButton = false,
-                customContent = {
-                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (announcementsLoading) CircularProgressIndicator(color = Color.White)
-                        else if (announcementsError != null) Text(announcementsError!!, color = Color.Red, fontSize = 14.sp)
-                        else Text(announcementsText ?: translation["announcements_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
+            if (showAnnouncementsDialog) {
+                AestheticDialog(
+                    onDismissRequest = { showAnnouncementsDialog = false },
+                    title = translation["announcements_dialog_title"] ?: "Announcements",
+                    text = "", icon = Icons.Filled.Notifications,
+                    confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
+                    onConfirm = { showAnnouncementsDialog = false },
+                    showCloseButton = false,
+                    customContent = {
+                        Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (announcementsLoading) CircularProgressIndicator(color = Color.White)
+                            else if (announcementsError != null) Text(announcementsError!!, color = Color.Red, fontSize = 14.sp)
+                            else Text(announcementsText ?: translation["announcements_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
+                        }
                     }
-                }
-            )
-        }
+                )
+            }
 
-        if (showFullChangelogDialog) {
-            AestheticDialog(
-                onDismissRequest = { showFullChangelogDialog = false },
-                title = translation["changelog_dialog_title"] ?: "Changelog",
-                text = "", icon = Icons.Filled.Description,
-                confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
-                onConfirm = { showFullChangelogDialog = false },
-                showCloseButton = false,
-                customContent = {
-                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (fullChangelogLoading) CircularProgressIndicator(color = Color.White)
-                        else if (fullChangelogError != null) Text(fullChangelogError!!, color = Color.Red, fontSize = 14.sp)
-                        else Text(fullChangelogText ?: translation["changelog_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
+            if (showFullChangelogDialog) {
+                AestheticDialog(
+                    onDismissRequest = { showFullChangelogDialog = false },
+                    title = translation["changelog_dialog_title"] ?: "Changelog",
+                    text = "", icon = Icons.Filled.Description,
+                    confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
+                    onConfirm = { showFullChangelogDialog = false },
+                    showCloseButton = false,
+                    customContent = {
+                        Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (fullChangelogLoading) CircularProgressIndicator(color = Color.White)
+                            else if (fullChangelogError != null) Text(fullChangelogError!!, color = Color.Red, fontSize = 14.sp)
+                            else Text(fullChangelogText ?: translation["changelog_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
+                        }
                     }
-                }
-            )
-        }
+                )
+            }
 
-        if (showQuickActionsMenu) {
-            QuickActionsDialog(
-                quickActions = cards,
-                selectedQuickActions = selectedTiles,
-                onDismiss = { showQuickActionsMenu = false },
-                onSave = { newList ->
-                    val removed = selectedTiles.filter { it !in newList }
-                    removed.forEach { clearTileSpan(it); clearTileOffset(it) }
-                    selectedTiles.clear(); selectedTiles.addAll(newList)
-                    context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
-                    showQuickActionsMenu = false
-                },
-                translation = translation
-            )
+            if (showQuickActionsMenu) {
+                QuickActionsDialog(
+                    quickActions = cards,
+                    selectedQuickActions = selectedTiles,
+                    onDismiss = { showQuickActionsMenu = false },
+                    onSave = { newList ->
+                        val removed = selectedTiles.filter { it !in newList }
+                        removed.forEach { clearTileSpan(it); clearTileOffset(it) }
+                        selectedTiles.clear(); selectedTiles.addAll(newList)
+                        context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
+                        showQuickActionsMenu = false
+                    },
+                    translation = translation
+                )
+            }
         }
     }
 
@@ -942,7 +987,7 @@ object LegacyTheme : ThemeContract {
         val bottomPadding = routes.bottomPadding + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
         val tapSource = remember { MutableInteractionSource() }
         val tapCount = remember { mutableIntStateOf(0) }
-        val lastTapTime = remember { mutableStateOf(0L) }
+        val lastTapTime = remember { mutableLongStateOf(0L) }
 
         Box(
             modifier = Modifier
@@ -1379,173 +1424,118 @@ object LegacyTheme : ThemeContract {
             }
         }
 
-        Box(
+        val activeList = remember(activeTasks) { activeTasks.filter { it.task.type != TaskType.SCHEDULED_SEND } }
+        val recentList = remember(recentTasks, activeList) { 
+            recentTasks.filter { task -> 
+                task.type != TaskType.SCHEDULED_SEND && activeList.none { it.task.hash == task.hash } 
+            } 
+        }
+
+        val scheduledActive = remember(activeTasks) { activeTasks.filter { it.task.type == TaskType.SCHEDULED_SEND } }
+        val scheduledRecent = remember(recentTasks, scheduledActive) { 
+            recentTasks.filter { task -> 
+                task.type == TaskType.SCHEDULED_SEND && scheduledActive.none { it.task.hash == task.hash } 
+            } 
+        }
+
+        val subtitle = if (activeTasks.isNotEmpty()) {
+            translation.format(
+                "tasks_summary_active",
+                "active" to activeTasks.size.toString(),
+                "recent" to recentTasks.size.toString()
+            )
+        } else {
+            translation.format(
+                "tasks_summary_idle",
+                "recent" to recentTasks.size.toString()
+            )
+        }
+
+        val canMergeSelection by rememberAsyncMutableState(defaultValue = false, keys = arrayOf(taskSelection.size)) {
+            taskSelection.size > 1 && taskSelection.all { it.second?.type?.contains("video") == true }
+        }
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(PurrfectPalette.backgroundGradient)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                        .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
-                    shape = RoundedCornerShape(26.dp),
-                    color = Color.White.copy(alpha = 0.07f),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                    border = BorderStroke(
-                        1.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                            )
-                        )
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = context.translation["manager.routes.tasks"],
-                                color = Color.White,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 18.sp
-                            )
-                            if (isRecentTasksInitialized()) {
-                                Text(
-                                    text = if (activeTasks.isNotEmpty()) {
-                                        translation.format(
-                                            "summary_active",
-                                            "active" to activeTasks.size.toString(),
-                                            "recent" to recentTasks.size.toString()
-                                        )
-                                    } else {
-                                        translation.format(
-                                            "summary_idle",
-                                            "recent" to recentTasks.size.toString()
-                                        )
-                                    },
-                                    color = PurrfectPalette.textSecondary,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (taskSelection.size > 1) {
-                                val canMergeSelection by rememberAsyncMutableState(defaultValue = false, keys = arrayOf(taskSelection.size)) {
-                                    taskSelection.all { it.second?.type?.contains("video") == true }
-                                }
-                                if (canMergeSelection) {
-                                    Surface(
-                                        onClick = {
-                                            if (context.config.root.global.uiSettings.hapticFeedback.get()) {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            }
-                                            mergeSelection(
-                                                taskSelection.toList()
-                                                    .also { taskSelection.clear() }
-                                                    .map { it.first to it.second!! }
-                                            )
-                                        },
-                                        shape = RoundedCornerShape(18.dp),
-                                        color = Color.White.copy(alpha = 0.08f),
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(Icons.Filled.Merge, contentDescription = translation["merge_button"], tint = Color.White, modifier = Modifier.size(16.dp))
-                                            Text(translation["merge_button"] ?: "Merge", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                        }
-                                    }
-                                }
-                            }
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = Color.White.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(Icons.Filled.PlaylistAddCheckCircle, contentDescription = null, tint = Color.White)
-                                    Text(
-                                        text = translation.format("running_count", "count" to activeTasks.size.toString()),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                            IconButton(onClick = { showConfirmDialog = true }) {
-                                Icon(Icons.Filled.Delete, contentDescription = translation["clear_button_description"], tint = Color.White)
-                            }
-                        }
-                    }
-                }
+            TasksHeader(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                activeCount = activeList.size + recentList.size,
+                scheduledCount = scheduledActive.size + scheduledRecent.size,
+                runningCount = activeTasks.size,
+                subtitle = subtitle,
+                onClear = { showConfirmDialog = true },
+                onMerge = {
+                    mergeSelection(taskSelection.toList().also {
+                        taskSelection.clear()
+                    }.map { it.first to it.second!! })
+                },
+                canMerge = canMergeSelection
+            )
 
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White.copy(alpha = 0.04f),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            Spacer(Modifier.height(12.dp))
+
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                shape = RoundedCornerShape(22.dp),
+                color = Color.White.copy(alpha = 0.04f),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 16.dp,
+                        bottom = routes.bottomPadding + 16.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 12.dp,
-                            end = 12.dp,
-                            top = 0.dp,
-                            bottom = routes.bottomPadding + 16.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        item {
-                            if (activeTasks.isEmpty() && (if (isRecentTasksInitialized()) recentTasks.isEmpty() else true)) {
-                                TasksEmptyState(text = translation["no_tasks"] ?: "No tasks")
-                            }
+                    if (selectedTab == TaskTab.ACTIVE) {
+                        if (activeList.isEmpty() && recentList.isEmpty()) {
+                            item { TasksEmptyState(text = translation["tasks_no_active_tasks"] ?: "No active tasks") }
                         }
 
-                        items(activeTasks, key = { it.taskId }) { pendingTask ->
+                        items(activeList, key = { it.taskId }) { pendingTask ->
                             TaskCard(modifier = Modifier.fillMaxWidth(), pendingTask.task, pendingTask = pendingTask)
                         }
 
-                        if (isRecentTasksInitialized()) {
-                            items(recentTasks, key = { it.hash }) { task ->
-                                TaskCard(modifier = Modifier.fillMaxWidth(), task)
-                            }
+                        items(recentList, key = { it.hash }) { task ->
+                            TaskCard(modifier = Modifier.fillMaxWidth(), task)
+                        }
+                    } else {
+                        if (scheduledActive.isEmpty() && scheduledRecent.isEmpty()) {
+                            item { TasksEmptyState(text = translation["tasks_no_scheduled_tasks"] ?: "No scheduled snaps") }
+                        }
+
+                        items(scheduledActive, key = { it.taskId }) { pendingTask ->
+                            TaskCard(modifier = Modifier.fillMaxWidth(), pendingTask.task, pendingTask = pendingTask)
+                        }
+
+                        items(scheduledRecent, key = { it.hash }) { task ->
+                            TaskCard(modifier = Modifier.fillMaxWidth(), task)
                         }
                     }
                 }
             }
+            Spacer(Modifier.height(12.dp))
         }
 
         if (showConfirmDialog) {
             val isSelection = taskSelection.isNotEmpty()
             val titleText = if (isSelection) {
-                translation.format("remove_selected_tasks_confirm", "count" to taskSelection.size.toString())
+                translation.format("tasks_remove_selected_tasks_confirm", "count" to taskSelection.size.toString())
             } else {
-                translation["remove_all_tasks_confirm"]
+                translation["tasks_remove_all_tasks_confirm"]
             }
             val messageText = if (isSelection) translation["remove_selected_tasks_title"] else translation["remove_all_tasks_title"]
 
@@ -1566,7 +1556,50 @@ object LegacyTheme : ThemeContract {
     }
 
     @Composable override fun FeaturesRootSection.FeaturesScreen(nav: NavBackStackEntry) {
-        Container(context.config.root, stateKey = "${routeInfo.id}:container:root")
+        val navState by routes.navController.currentBackStackEntryAsState()
+        val currentRoute = navState?.destination?.route
+        val containerName = navState?.arguments?.getString("name")
+        
+        val isExperimental = currentRoute == FeaturesRootSection.FEATURE_CONTAINER_ROUTE && containerName == "experimental"
+        
+        when (currentRoute) {
+            FeaturesRootSection.FEATURE_CONTAINER_ROUTE -> {
+                val propertyPair = allContainers[containerName!!]!!
+                Container(
+                    configContainer = propertyPair.value.get() as ConfigContainer,
+                    stateKey = "${routeInfo.id}:container:$containerName",
+                    sectionTitle = context.translation[propertyPair.key.propertyName()],
+                    sectionSubtitle = context.translation[propertyPair.key.propertyDescription()],
+                    includeHidden = isExperimental,
+                    onBack = { routes.navController.popBackStack() }
+                )
+            }
+            FeaturesRootSection.SEARCH_FEATURE_ROUTE -> {
+                val keyword = navState?.arguments?.getString("keyword").orEmpty()
+                val properties = allProperties.filter {
+                    isSearchVisibleProperty(it.key) && (
+                        it.key.name.contains(keyword, ignoreCase = true) ||
+                            context.translation[it.key.propertyName()].contains(keyword, ignoreCase = true) ||
+                            context.translation[it.key.propertyDescription()].contains(keyword, ignoreCase = true)
+                    )
+                }.map { (it.key to it.value).toPropertyPair() }
+
+                PropertiesView(
+                    properties = properties,
+                    stateKey = "${routeInfo.id}:search:$keyword",
+                    isSearchResults = true,
+                    searchKeyword = keyword,
+                    enableGlobalSearch = true,
+                    onBack = { navigateToMainRoot() }
+                )
+            }
+            else -> {
+                Container(
+                    configContainer = context.config.root,
+                    stateKey = "${routeInfo.id}:container:root"
+                )
+            }
+        }
     }
     @Composable override fun ScriptingRootSection.ScriptingScreen(nav: NavBackStackEntry) {
         val scriptingFolder by rememberAsyncMutableState(
@@ -1646,5 +1679,105 @@ object LegacyTheme : ThemeContract {
     @Composable
     override fun FriendTrackerManagerRoot.FriendTrackerScreen(nav: NavBackStackEntry) {
         TrackerScreenContent(nav)
+    }
+
+    @Composable
+    private fun HomeRootSection.KaladinSecretMenuDialog(
+        onDismiss: () -> Unit
+    ) {
+        val config = context.config.root.experimental.developerOptions
+        val haptic = LocalHapticFeedback.current
+        AestheticDialog(
+            onDismissRequest = onDismiss,
+            title = translation["kaladin_secret_menu.title"] ?: "ᴋᴀʟᴀᴅɪɴ Secret Menu",
+            text = translation["kaladin_secret_menu.subtitle"] ?: "Experimental hardware hooks and developer options.",
+            icon = Icons.Filled.Tune,
+            confirmButtonText = "Done",
+            onConfirm = { onDismiss() },
+            showCloseButton = false,
+            customContent = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    var cameraQualityEnabled by remember { mutableStateOf(config.enhancedCameraQuality.get()) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                cameraQualityEnabled = !cameraQualityEnabled
+                                config.enhancedCameraQuality.set(cameraQualityEnabled)
+                                context.config.writeConfig()
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(translation["kaladin_secret_menu.camera_quality_title"] ?: "Enhanced Camera Quality", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(translation["kaladin_secret_menu.camera_quality_desc"] ?: "", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        }
+                        Switch(checked = cameraQualityEnabled, onCheckedChange = { cameraQualityEnabled = it; config.enhancedCameraQuality.set(it); context.config.writeConfig() }, colors = purrfectSwitchColors())
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = 0.1f))
+                    var devModeEnabled by remember { mutableStateOf(config.developerMode.get()) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                devModeEnabled = !devModeEnabled
+                                config.developerMode.set(devModeEnabled)
+                                context.config.writeConfig()
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(translation["kaladin_secret_menu.developer_mode_title"] ?: "Developer Mode", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(translation["kaladin_secret_menu.developer_mode_desc"] ?: "", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        }
+                        Switch(checked = devModeEnabled, onCheckedChange = { devModeEnabled = it; config.developerMode.set(it); context.config.writeConfig() }, colors = purrfectSwitchColors())
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = 0.1f))
+                    var brandingEnabled by remember { mutableStateOf(config.enableBranding.get()) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                brandingEnabled = !brandingEnabled
+                                config.enableBranding.set(brandingEnabled)
+                                context.config.writeConfig()
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(translation["kaladin_secret_menu.enable_branding_title"] ?: "Enable Custom Branding", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(translation["kaladin_secret_menu.enable_branding_desc"] ?: "", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        }
+                        Switch(checked = brandingEnabled, onCheckedChange = { brandingEnabled = it; config.enableBranding.set(it); context.config.writeConfig() }, colors = purrfectSwitchColors())
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = 0.1f))
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(translation["kaladin_secret_menu.custom_name_title"] ?: "Custom Branding Name", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Spacer(Modifier.height(8.dp))
+                        var nameText by remember { mutableStateOf(config.customBrandingName.get().takeIf { it.isNotBlank() } ?: "ᴋᴀʟᴀᴅɪɴ") }
+                        OutlinedTextField(
+                            value = nameText,
+                            onValueChange = {
+                                nameText = it
+                                config.customBrandingName.set(it)
+                                context.config.writeConfig()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PurrfectPalette.glowPrimary,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                cursorColor = Color.White
+                            )
+                        )
+                    }
+                }
+            }
+        )
     }
 }

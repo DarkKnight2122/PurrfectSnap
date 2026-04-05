@@ -7,10 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +34,9 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
     var logReader by remember { mutableStateOf<me.eternal.purrfectsnap.LogReader?>(null) }
     val visibleLogs = remember { mutableStateListOf<me.eternal.purrfectsnap.LogLine>() }
     var isRefreshing by remember { mutableStateOf(false) }
+    
+    // FILTER STATE: Track the currently selected log category.
+    var selectedFilter by remember { mutableStateOf<String?>(null) }
 
     fun refreshLogs() {
         isRefreshing = true
@@ -44,8 +44,16 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
             val readerResult = runCatching {
                 context.log.newReader { line ->
                     if (shouldHideLog(line)) return@newReader
-                    coroutineScope.launch(Dispatchers.Main) {
-                        visibleLogs.add(line)
+                    
+                    // Apply Category Filter during real-time updates
+                    val passesFilter = selectedFilter?.let { filter ->
+                        line.message.contains(filter, ignoreCase = true)
+                    } ?: true
+                    
+                    if (passesFilter) {
+                        coroutineScope.launch(Dispatchers.Main) {
+                            visibleLogs.add(line)
+                        }
                     }
                 }
             }
@@ -55,7 +63,15 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
             readerResult.getOrNull()?.let { reader ->
                 logReader = reader
                 val filteredLogs = (0 until reader.lineCount).mapNotNull { index ->
-                    reader.getLogLine(index)?.takeUnless(::shouldHideLog)
+                    val line = reader.getLogLine(index) ?: return@mapNotNull null
+                    if (shouldHideLog(line)) return@mapNotNull null
+                    
+                    // Apply Category Filter to historical logs
+                    val passesFilter = selectedFilter?.let { filter ->
+                        line.message.contains(filter, ignoreCase = true)
+                    } ?: true
+                    
+                    if (passesFilter) line else null
                 }
                 withContext(Dispatchers.Main) {
                     visibleLogs.clear()
@@ -69,10 +85,8 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
         }
     }
 
-    LaunchedEffect(externalRefreshTick.value) {
-        if (externalRefreshTick.value > 0) {
-            refreshLogs()
-        }
+    LaunchedEffect(externalRefreshTick.value, selectedFilter) {
+        refreshLogs()
     }
 
     LaunchedEffect(Unit) {
@@ -111,7 +125,7 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                         bottom = routes.bottomPadding + 12.dp
                     )
                 ) {
-                    items(visibleLogs, key = { it.hashCode() }) { line ->
+                    items(visibleLogs) { line ->
                         LogEntryCard(line = line, composeContext = composeContext)
                     }
                 }
@@ -172,6 +186,57 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                 leadingIconColor = PurrfectPalette.glowSecondary
                             )
                         )
+                        
+                        var showFilterSubMenu by remember { mutableStateOf(false) }
+                        
+                        DropdownMenuItem(
+                            onClick = { showFilterSubMenu = true },
+                            leadingIcon = { Icon(Icons.Filled.FilterList, contentDescription = null, tint = Color.Cyan) },
+                            text = { Text("Filter Logs", color = Color.White) },
+                            trailingIcon = { Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.5f)) },
+                            colors = MenuDefaults.itemColors(
+                                textColor = Color.White,
+                                leadingIconColor = Color.Cyan
+                            )
+                        )
+
+                        if (showFilterSubMenu) {
+                            DropdownMenu(
+                                expanded = showFilterSubMenu,
+                                onDismissRequest = { 
+                                    showFilterSubMenu = false
+                                    showDropDown = false 
+                                },
+                                offset = DpOffset(180.dp, (-48).dp),
+                                containerColor = Color(0xFF1A1D29),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                val filters = listOf(
+                                    null to "Show All",
+                                    "[SPLIT]" to "Splitting",
+                                    "[AUTO-OPEN]" to "Auto-Open",
+                                    "[RESOURCE]" to "Resource Aware"
+                                )
+                                filters.forEach { (tag, label) ->
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            selectedFilter = tag
+                                            showFilterSubMenu = false
+                                            showDropDown = false
+                                        },
+                                        text = { 
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(label, color = if (selectedFilter == tag) Color.Cyan else Color.White)
+                                                if (selectedFilter == tag) {
+                                                    Spacer(Modifier.width(8.dp))
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.Cyan, modifier = Modifier.size(16.dp))
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

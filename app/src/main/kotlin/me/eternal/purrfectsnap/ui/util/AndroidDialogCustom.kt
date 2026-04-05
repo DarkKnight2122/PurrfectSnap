@@ -466,26 +466,22 @@ private class DialogWrapper(
         this.onDismissRequest = onDismissRequest
         this.properties = properties
         setLayoutDirection(layoutDirection)
-        val dialogWindow = window
-        val canUpdateWindowLayout = dialogWindow?.decorView?.let { decorView ->
-            isShowing && decorView.isAttachedToWindow && decorView.windowToken != null
-        } == true
-        if (canUpdateWindowLayout && properties.usePlatformDefaultWidth && !dialogLayout.usePlatformDefaultWidth) {
+        if (properties.usePlatformDefaultWidth && !dialogLayout.usePlatformDefaultWidth) {
             // Undo fixed size in internalOnLayout, which would suppress size changes when
             // usePlatformDefaultWidth is true.
-            dialogWindow.setLayout(
+            window?.setLayout(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT
             )
         }
         dialogLayout.usePlatformDefaultWidth = properties.usePlatformDefaultWidth
-        if (canUpdateWindowLayout && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             @OptIn(ExperimentalComposeUiApi::class)
             if (properties.decorFitsSystemWindows) {
-                dialogWindow?.setSoftInputMode(defaultSoftInputMode)
+                window?.setSoftInputMode(defaultSoftInputMode)
             } else {
                 @Suppress("DEPRECATION")
-                dialogWindow?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+                window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             }
         }
     }

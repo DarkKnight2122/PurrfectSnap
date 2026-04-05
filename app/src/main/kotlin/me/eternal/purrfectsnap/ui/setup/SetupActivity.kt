@@ -318,14 +318,10 @@ class SetupActivity : ComponentActivity() {
                 var showImportantDialog by rememberSaveable {
                     mutableStateOf(!setupPrefs.getBoolean("setup_important_notice_shown", false))
                 }
-                var importantTimeout by remember { mutableIntStateOf(5) }
+                var importantTimeout by remember { mutableIntStateOf(0) }
                 LaunchedEffect(showImportantDialog) {
                     if (showImportantDialog) {
-                        importantTimeout = 5
-                        while (importantTimeout > 0) {
-                            delay(1000)
-                            importantTimeout--
-                        }
+                        importantTimeout = 0
                     }
                 }
                 SideEffect {

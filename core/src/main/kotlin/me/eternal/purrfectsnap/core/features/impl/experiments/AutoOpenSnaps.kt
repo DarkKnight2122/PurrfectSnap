@@ -51,6 +51,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         private const val PREF_TOTAL_OPENED = "auto_open_total_opened"
         private const val PREF_SESSION_START = "auto_open_session_start"
         private const val PREF_SAVED_QUEUE = "auto_open_saved_queue"
+        private const val PREF_OPENED_SNAPS = "auto_open_opened_snaps"
     }
 
     private val gson = Gson()
@@ -129,6 +130,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         prefs.edit()
             .putLong(PREF_SESSION_START, System.currentTimeMillis())
             .remove(PREF_SAVED_QUEUE)
+            .remove(PREF_OPENED_SNAPS)
             .remove(PREF_TOTAL_OPENED)
             .apply()
 
@@ -314,6 +316,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
 
                     if (synchronized(queuedSnaps) { queuedSnaps.isEmpty() }) { 
                         currentStatusText = "Monitoring..."; updateStatusNotification()
+                        triggerLazySave() // Instant cleanup when queue hits 0
                         delay(50) 
                     }
                 }
@@ -334,8 +337,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             val contentType = message.messageContent?.contentType
             if (contentType != ContentType.SNAP && contentType != ContentType.EXTERNAL_MEDIA) return@subscribe
             
-            if (config.globalState != true) return@subscribe
-            
             // Whitelist Resilience: Robust rule check
             val ruleState = context.config.rules.getRuleState(ruleType)
             val isWhitelisted = getState(conversationId)
@@ -347,7 +348,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             synchronized(openedSnaps) {
                 if (openedSnaps.contains(clientMessageId)) return@subscribe
                 openedSnaps.add(clientMessageId)
-                if (openedSnaps.size > 5000) openedSnaps.clear()
+                if (openedSnaps.size > 10000) openedSnaps.clear()
             }
 
             val senderId = message.senderId?.toString() ?: "unknown"
@@ -458,12 +459,11 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                 val speedValue = if (remaining > 0) "${String.format("%.1f", speed)}/s" else "0.0/s"
                 append("└─ Speed: $speedNotion ($speedValue)\n\n")
 
-
                 if (config.showQueuePreview.get()) {
-                    append("\n\nQUEUE PREVIEW\n")
+                    append("QUEUE PREVIEW\n")
                     if (isWorking) {
                         recentSnaps.reversed().forEach { item ->
-                            append("• ${item.senderName} │ ${item.conversationType} (${item.contentType})\n")
+                            append("• ${item.senderName} │ ${item.conversationType}\n")
                         }
                     } else {
                         append("Monitoring snaps in background...")
@@ -509,23 +509,42 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             putInt(PREF_TOTAL_OPENED, totalProcessed.get())
             putLong(PREF_SESSION_START, sessionStartTime.get())
             synchronized(queuedSnaps) { putString(PREF_SAVED_QUEUE, gson.toJson(queuedSnaps)) }
+            putString(PREF_OPENED_SNAPS, gson.toJson(openedSnaps.toList()))
         }
     }
 
     private fun restorePersistence() {
         val savedStartTime = prefs.getLong(PREF_SESSION_START, 0)
         val now = System.currentTimeMillis()
+        
+        // 1-HOUR DEFINITIVE WIPE
         if (now - savedStartTime > 3600000) {
-            prefs.edit().remove(PREF_SAVED_QUEUE).remove(PREF_TOTAL_OPENED).apply(); return
+            prefs.edit().remove(PREF_SAVED_QUEUE).remove(PREF_OPENED_SNAPS).remove(PREF_TOTAL_OPENED).apply()
+            return
         }
+
         totalProcessed.set(prefs.getInt(PREF_TOTAL_OPENED, 0))
         sessionStartTime.set(savedStartTime)
-        val savedQueueJson = prefs.getString(PREF_SAVED_QUEUE, null)
-        if (!savedQueueJson.isNullOrBlank()) {
-            try {
-                val restored: List<SnapQueueItem> = gson.fromJson(savedQueueJson, object : TypeToken<List<SnapQueueItem>>() {}.type)
-                synchronized(queuedSnaps) { queuedSnaps.addAll(restored.filter { (now - it.timestamp) < 3600000 }) }
-            } catch (e: Exception) { prefs.edit().remove(PREF_SAVED_QUEUE).apply() }
+        
+        // Restore Queue
+        prefs.getString(PREF_SAVED_QUEUE, null)?.let { json ->
+            runCatching {
+                val type = object : TypeToken<List<SnapQueueItem>>() {}.type
+                val restored: List<SnapQueueItem> = gson.fromJson(json, type)
+                synchronized(queuedSnaps) { 
+                    queuedSnaps.clear()
+                    queuedSnaps.addAll(restored.filter { (now - it.timestamp) < 3600000 }) 
+                }
+            }
+        }
+
+        // Restore Memory (Seen Snaps)
+        prefs.getString(PREF_OPENED_SNAPS, null)?.let { json ->
+            runCatching {
+                val type = object : TypeToken<List<Long>>() {}.type
+                val restored: List<Long> = gson.fromJson(json, type)
+                openedSnaps.addAll(restored)
+            }
         }
     }
 

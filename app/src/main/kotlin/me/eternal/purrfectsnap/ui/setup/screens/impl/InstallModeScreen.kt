@@ -76,7 +76,7 @@ class InstallModeScreen(
         var choice by remember { mutableStateOf(selectedMode) }
         var skipSelected by remember { mutableStateOf(skipAutoSetup) }
         var showGuides by remember { mutableStateOf(true) }
-        var timeout by remember { mutableIntStateOf(15) }
+        var timeout by remember { mutableIntStateOf(0) }
 
         LaunchedEffect(choice, skipSelected) {
             selectedMode = choice
@@ -89,11 +89,7 @@ class InstallModeScreen(
 
         LaunchedEffect(showGuides) {
             if (showGuides) {
-                timeout = 15
-                while (timeout > 0) {
-                    delay(1000)
-                    timeout--
-                }
+                timeout = 0
             }
         }
 

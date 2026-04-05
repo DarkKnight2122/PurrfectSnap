@@ -58,17 +58,24 @@ class Experimental : ConfigContainer() {
         val autoBackupCurrentAccount = boolean("auto_backup_current_account", defaultValue = true)
     }
 
+    class DeveloperOptions : ConfigContainer() {
+        val enhancedCameraQuality = boolean("enhanced_camera_quality") { requireRestart() }
+        val developerMode = boolean("developer_mode", defaultValue = false)
+        val enableBranding = boolean("enable_custom_branding", defaultValue = true)
+        val customBrandingName = string("custom_branding_name", defaultValue = "ᴋᴀʟᴀᴅɪɴ")
+    }
+
     class AppLockConfig: ConfigContainer(hasGlobalState = true) {
         val lockOnResume = boolean("lock_on_resume", defaultValue = true)
     }
 
     val nativeHooks = container("native_hooks", NativeHooks()) { icon = Icons.Default.Memory; requireRestart() }
-    val spoof = container("spoof", Spoof()) { icon = Icons.Default.Fingerprint ; requireRestart() }
+    val spoof = container("spoof", Spoof()) { icon = Icons.Default.Fingerprint ; addNotices(FeatureNotice.BAN_RISK); requireRestart() }
+    val networkOptimization = boolean("network_optimization") { requireRestart() }
     val convertMessageLocally = boolean("convert_message_locally") { requireRestart() }
     val mediaFilePicker = boolean("media_file_picker") { requireRestart(); addNotices(FeatureNotice.UNSTABLE) }
     val storyLogger = boolean("story_logger") { requireRestart(); addNotices(FeatureNotice.UNSTABLE); }
     val accountSwitcher = container("account_switcher", AccountSwitcherConfig()) { requireRestart(); addNotices(FeatureNotice.UNSTABLE) }
-    val networkOptimization = boolean("network_optimization") { requireRestart() }
     val betterTranscript = container("better_transcript", BetterTranscriptConfig()) { requireRestart() }
     val voiceNoteAutoPlay = boolean("voice_note_auto_play") { requireRestart() }
     val friendNotes = boolean("friend_notes") { requireRestart() }
@@ -96,4 +103,8 @@ class Experimental : ConfigContainer() {
     ) { addNotices(FeatureNotice.BAN_RISK) }
     val preventForcedLogout = boolean("prevent_forced_logout") { requireRestart(); addNotices(FeatureNotice.BAN_RISK, FeatureNotice.INTERNAL_BEHAVIOR); }
     val snapScoreChanges = boolean("snapscore_changes") { requireRestart() }
+    val developerOptions = container("kaladin_menu", DeveloperOptions()) { 
+        icon = Icons.Default.Security 
+        addFlags(ConfigFlag.HIDDEN)
+    }
 }

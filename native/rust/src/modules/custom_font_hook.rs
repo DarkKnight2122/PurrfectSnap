@@ -80,4 +80,9 @@ pub fn init() {
     }
 
     dobby_hook_sym!("libc.so", "open", open_hook);
+    dobby_hook_sym!("libc.so", "open64", open_hook);
+    dobby_hook_sym!("libc.so", "__open_2", open_hook);
+    dobby_hook_sym!("libc.so", "__open64_2", open_hook);
+    dobby_hook_sym!("libc.so", "openat", open_hook);
+    dobby_hook_sym!("libc.so", "openat64", open_hook);
 }

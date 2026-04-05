@@ -5,14 +5,11 @@ import android.annotation.SuppressLint
 import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.media.MediaRecorder
-import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraCharacteristics.Key
 import android.hardware.camera2.CameraManager
 import android.media.Image
 import android.media.ImageReader
-import android.os.Build
 import android.util.Range
 import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.util.hook.HookStage
@@ -20,6 +17,9 @@ import me.eternal.purrfectsnap.core.util.hook.hook
 import me.eternal.purrfectsnap.core.util.ktx.setObjectField
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+
+import android.hardware.camera2.CaptureRequest
+import android.media.MediaRecorder
 
 class CameraTweaks : Feature("Camera Tweaks") {
     private fun parseResolution(resolution: String): IntArray? {
@@ -29,34 +29,59 @@ class CameraTweaks : Feature("Camera Tweaks") {
     @SuppressLint("MissingPermission", "DiscouragedApi")
     override fun init() {
         val config = context.config.camera
-        val skipUnstableStillCaptureTweaks = Build.MANUFACTURER.equals("samsung", ignoreCase = true) ||
-            Build.HARDWARE.contains("exynos", ignoreCase = true) ||
-            Build.BRAND.equals("samsung", ignoreCase = true)
+        val devOptions = context.config.experimental.developerOptions
 
-        // Toggle A: Audio & Video Optimizations (Bitrates)
+        // --- PART A: MediaRecorder (Video & Audio Data) ---
+
         if (config.audioVideoOptimizations.get()) {
             MediaRecorder::class.java.hook("setVideoEncodingBitRate", HookStage.BEFORE) { param ->
-                val currentRate = param.arg<Int>(0)
-                if (currentRate < 30_000_000) param.setArg(0, 30_000_000) 
+                val rate = if (devOptions.enhancedCameraQuality.get()) 30_000_000 else {
+                    val currentRate = param.arg<Int>(0)
+                    if (currentRate < 30_000_000) 30_000_000 else currentRate
+                }
+                param.setArg(0, rate)
             }
+
             MediaRecorder::class.java.hook("setAudioEncodingBitRate", HookStage.BEFORE) { param ->
-                param.setArg(0, 320_000)
+                val rate = if (devOptions.enhancedCameraQuality.get()) 320_000 else 128_000
+                param.setArg(0, rate)
             }
-            MediaRecorder::class.java.hook("setAudioSamplingRate", HookStage.BEFORE) { param ->
-                param.setArg(0, 48_000)
+
+            if (devOptions.enhancedCameraQuality.get()) {
+                MediaRecorder::class.java.hook("setAudioSamplingRate", HookStage.BEFORE) { param ->
+                    param.setArg(0, 48_000)
+                }
             }
         }
 
-        // Toggle B: Camera Optimizations (Hardware ISP - UNSTABLE)
-        if (config.cameraOptimizations.get() && !skipUnstableStillCaptureTweaks) {
-            CaptureRequest.Builder::class.java.hook("set", HookStage.BEFORE) { param ->
-                val key = param.arg<CaptureRequest.Key<*>>(0)
-                when (key) {
-                    CaptureRequest.EDGE_MODE -> param.setArg(1, CaptureRequest.EDGE_MODE_HIGH_QUALITY)
-                    CaptureRequest.NOISE_REDUCTION_MODE -> param.setArg(1, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY)
-                    CaptureRequest.HOT_PIXEL_MODE -> param.setArg(1, CaptureRequest.HOT_PIXEL_MODE_HIGH_QUALITY)
-                    CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE -> param.setArg(1, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY)
-                    CaptureRequest.CONTROL_AF_MODE -> param.setArg(1, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+        // --- PART B: CaptureRequest (ISP & Optics) ---
+
+        CaptureRequest.Builder::class.java.hook("set", HookStage.BEFORE) { param ->
+            val key = param.arg<CaptureRequest.Key<*>>(0)
+            val isExtreme = devOptions.enhancedCameraQuality.get()
+            val isGeneral = config.cameraOptimizations.get()
+
+            if (!isExtreme && !isGeneral) return@hook
+
+            when (key) {
+                CaptureRequest.EDGE_MODE -> param.setArg(1, CaptureRequest.EDGE_MODE_HIGH_QUALITY)
+                CaptureRequest.NOISE_REDUCTION_MODE -> param.setArg(1, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY)     
+                CaptureRequest.HOT_PIXEL_MODE -> param.setArg(1, CaptureRequest.HOT_PIXEL_MODE_HIGH_QUALITY)
+                CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE -> param.setArg(1, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY)
+                CaptureRequest.COLOR_CORRECTION_MODE -> param.setArg(1, CaptureRequest.COLOR_CORRECTION_MODE_HIGH_QUALITY)   
+                CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE -> {
+                    if (isExtreme) param.setArg(1, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON)
+                }
+                CaptureRequest.CONTROL_AF_MODE -> param.setArg(1, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                CaptureRequest.CONTROL_ENABLE_ZSL -> {
+                    if (isExtreme) {
+                        val flashMode = runCatching {
+                            param.thisObject<CaptureRequest.Builder>().get(CaptureRequest.FLASH_MODE)
+                        }.getOrNull()
+                        if (flashMode == null || flashMode == CaptureRequest.FLASH_MODE_OFF) {
+                            param.setArg(1, true)
+                        }
+                    }
                 }
             }
         }
@@ -111,7 +136,6 @@ class CameraTweaks : Feature("Camera Tweaks") {
 
             if (disabledCameras.size != 1) return@hook
 
-            // trick to replace unwanted camera with another one
             if ((disabledCameras.contains("front") && isLastCameraFront) || (disabledCameras.contains("back") && !isLastCameraFront)) {
                 param.setArg(0, cameraManager.cameraIdList.filterNot { it == cameraId }.firstOrNull() ?: return@hook)
                 isLastCameraFront = !isLastCameraFront
@@ -130,7 +154,6 @@ class CameraTweaks : Feature("Camera Tweaks") {
 
             if (key == CameraCharacteristics.LENS_FACING) {
                 val disabledCameras = config.disableCameras.get()
-                //FIXME: unexpected behavior when app is resumed
                 if (disabledCameras.size == 1) {
                     val isFrontCamera = param.getResult() as? Int == CameraCharacteristics.LENS_FACING_FRONT
                     if ((disabledCameras.contains("front") && isFrontCamera) || (disabledCameras.contains("back") && !isFrontCamera)) {
@@ -165,7 +188,6 @@ class CameraTweaks : Feature("Camera Tweaks") {
                 val image = param.thisObject() as? Image ?: return@hook
                 val planes = param.getResult() as? Array<*> ?: return@hook
                 planes.filterNotNull().forEach { plane ->
-                    // keep buffer size identical to the original to avoid crashes during copyPixelsFromBuffer
                     val buffer = runCatching {
                         plane.javaClass.getMethod("getBuffer").invoke(plane) as? ByteBuffer
                     }.getOrNull() ?: return@forEach

@@ -1876,6 +1876,7 @@ class FeaturesRootSection : Routes.Route() {
         sectionTitle: String? = null,
         sectionSubtitle: String? = null,
         searchKeyword: String? = null,
+        includeHidden: Boolean = false,
         onBack: (() -> Unit)? = null,
     ) {
         PropertiesView(

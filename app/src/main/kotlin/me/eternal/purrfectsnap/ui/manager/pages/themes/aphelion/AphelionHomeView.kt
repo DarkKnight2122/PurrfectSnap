@@ -66,12 +66,14 @@ import me.eternal.purrfectsnap.ui.manager.data.Updater.Channel
 import me.eternal.purrfectsnap.ui.manager.pages.home.HomeRootSection
 import me.eternal.purrfectsnap.ui.manager.pages.home.QuickActionsDialog
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.ui.util.purrfectSwitchColors
 import me.eternal.purrfectsnap.ui.util.Motion
 import me.eternal.purrfectsnap.ui.util.PurrfectMarqueeText
 import me.eternal.purrfectsnap.ui.util.headerHeightTracker
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
 import okhttp3.OkHttpClient
 import okhttp3.Request
+
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -231,7 +233,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         onAboutClick: () -> Unit,
         avenirNext: FontFamily,
         scrollOffset: () -> Int,
-        haptic: HapticFeedback
+        haptic: HapticFeedback,
+        authorName: String
     ) {
         val heroShape = RoundedCornerShape(36.dp)
         val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
@@ -260,7 +263,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         }
                     )
                     Text(
-                        text = "By \u039eT\u039eRNAL",
+                        text = "By $authorName",
                         color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - ((scrollOffset() - 300f) / 120f)).coerceIn(0f, 1f)
@@ -475,6 +478,11 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     var announcementsLoading by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var controlsHeight by remember { mutableStateOf(100.dp) }
+
+    var tapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
+    val tapTimeoutMs = 500L
+    var showKaladdinMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(scrollState.value) { routes.navigation?.globalScrollOffset = scrollState.value }
 
@@ -697,7 +705,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 onAboutClick = { routes.about.navigate() },
                 avenirNext = avenirNext,
                 scrollOffset = { scrollState.value },
-                haptic = haptic
+                haptic = haptic,
+                authorName = "ΞTΞRNAL"
             )
 
             Spacer(Modifier.height(12.dp))
@@ -803,8 +812,172 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // SIGNATURE BLOCK
+            Box(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), contentAlignment = Alignment.Center) {
+                PurrfectMarqueeText(
+                    text = translation.format("made_with_love", "author" to "ᴋᴀʟᴀᴅɪɴ"),
+                    style = TextStyle(
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center
+                    ),
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastTapTime > tapTimeoutMs) {
+                                tapCount = 0
+                            }
+                            tapCount++
+                            lastTapTime = now
+
+                            if (tapCount >= 8) {
+                                tapCount = 0
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                context.config.root.experimental.developerOptions.developerMode.set(true)
+                                context.config.writeConfig()
+                                showKaladdinMenu = true
+                                context.shortToast("Welcome back, ᴋᴀʟᴀᴅɪɴ")
+                            }
+                        }
+                )
+            }
         }
+    }
+
+    if (showKaladdinMenu) {
+        val remoteContext = this.context // Avoid shadowing 'context'
+        val devOptions = remoteContext.config.root.experimental.developerOptions
+        AestheticDialog(
+            onDismissRequest = { showKaladdinMenu = false },
+            title = translation["kaladin_secret_menu.title"] ?: "ᴋᴀʟᴀᴅɪɴ Secret Menu",
+            text = translation["kaladin_secret_menu.subtitle"] ?: "Experimental hardware hooks and developer options.",
+            icon = Icons.Filled.Tune,
+            confirmButtonText = "Close",
+            onConfirm = { showKaladdinMenu = false },
+            showCloseButton = false,
+            customContent = {
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                // 1. Enhanced Camera Quality
+                                var cameraQualityEnabled by remember { mutableStateOf(devOptions.enhancedCameraQuality.get()) }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp)
+                                        .clickable {
+                                            cameraQualityEnabled = !cameraQualityEnabled
+                                            devOptions.enhancedCameraQuality.set(cameraQualityEnabled)
+                                            remoteContext.config.writeConfig()
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        },
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(translation["kaladin_secret_menu.camera_quality_title"] ?: "Enhanced Camera Quality", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                        Text(translation["kaladin_secret_menu.camera_quality_desc"] ?: "Force 30Mbps & High-Quality ISP flags", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                                    }
+                                    Switch(
+                                        checked = cameraQualityEnabled,
+                                        onCheckedChange = {
+                                            cameraQualityEnabled = it
+                                            devOptions.enhancedCameraQuality.set(it)
+                                            remoteContext.config.writeConfig()
+                                        },
+                                        colors = purrfectSwitchColors()
+                                    )
+                                }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = 0.1f))
+
+                    // 2. Developer Mode
+                    var devModeEnabled by remember { mutableStateOf(devOptions.developerMode.get()) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp)
+                            .clickable {
+                                devModeEnabled = !devModeEnabled
+                                devOptions.developerMode.set(devModeEnabled)
+                                remoteContext.config.writeConfig()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(translation["kaladin_secret_menu.developer_mode_title"] ?: "Developer Mode", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(translation["kaladin_secret_menu.developer_mode_desc"] ?: "Enable internal debug tools", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = devModeEnabled,
+                            onCheckedChange = {
+                                devModeEnabled = it
+                                devOptions.developerMode.set(it)
+                                remoteContext.config.writeConfig()
+                            },
+                            colors = purrfectSwitchColors()
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = 0.1f))
+
+                    // 3. Enable Custom Branding
+                    var brandingEnabled by remember { mutableStateOf(devOptions.enableBranding.get()) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp)
+                            .clickable {
+                                brandingEnabled = !brandingEnabled
+                                devOptions.enableBranding.set(brandingEnabled)
+                                remoteContext.config.writeConfig()
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(translation["kaladin_secret_menu.enable_branding_title"] ?: "Enable Custom Branding", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(translation["kaladin_secret_menu.enable_branding_desc"] ?: "Show 'Made with ❤️' in Snapchat", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = brandingEnabled,
+                            onCheckedChange = {
+                                brandingEnabled = it
+                                devOptions.enableBranding.set(it)
+                                remoteContext.config.writeConfig()
+                            },
+                            colors = purrfectSwitchColors()
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), color = Color.White.copy(alpha = 0.1f))
+
+                    // 4. Custom Branding Name
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(translation["kaladin_secret_menu.custom_name_title"] ?: "Custom Branding Name", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Spacer(Modifier.height(8.dp))
+                        var nameText by remember { mutableStateOf(devOptions.customBrandingName.get().takeIf { it.isNotBlank() } ?: "ᴋᴀʟᴀᴅɪɴ") }
+                        OutlinedTextField(                            value = nameText,
+                            onValueChange = {
+                                nameText = it
+                                devOptions.customBrandingName.set(it)
+                                remoteContext.config.writeConfig()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PurrfectPalette.glowPrimary,
+                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
+                                cursorColor = Color.White
+                            )
+                        )
+                    }
+                }
+            }
+        )
     }
 
     if (showAnnouncementsDialog) {

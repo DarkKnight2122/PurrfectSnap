@@ -170,6 +170,8 @@ class NativeLib {
     private external fun setChecksums(checksums: String)
     external fun setTestMode(testMode: Boolean)
     external fun setInLoginSignup(inLoginSignup: Boolean)
+    external fun checkSignature(id: Int): Boolean
+    external fun getIntegritySalt(id: Int): String?
 
 
     fun evaluateEndpoint(uri: String, arg0: String, hasAttestation: Boolean): NativeDecision {

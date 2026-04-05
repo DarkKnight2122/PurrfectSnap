@@ -3,6 +3,7 @@ use std::{fs::File, os::unix::io::AsRawFd, sync::Mutex};
 use nix::libc;
 use procfs::process::MMPermissions;
 
+use log::{warn, debug};
 use crate::mapped_lib::MappedLib;
 
 
