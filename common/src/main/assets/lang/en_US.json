@@ -2736,6 +2736,28 @@
                     "snapscore_changes": {
                         "name": "Snapscore Changes",
                         "description": "Tracks changes in friends Snapscore\nUse this feature in newer versions of Snapchat only"
+                    },
+                    "kaladin_menu": {
+                        "name": "ᴋᴀʟᴀᴅɪɴ Menu",
+                        "description": "Experimental hardware hooks and developer options",
+                        "properties": {
+                            "enhanced_camera_quality": {
+                                "name": "Enhanced Camera Quality",
+                                "description": "Force 30Mbps & High-Quality ISP flags (Specific for S24 Ultra)"
+                            },
+                            "developer_mode": {
+                                "name": "Developer Mode",
+                                "description": "Enable internal debug tools"
+                            },
+                            "enable_custom_branding": {
+                                "name": "Enable Custom Branding",
+                                "description": "Show 'Made with ❤️' in Snapchat"
+                            },
+                            "custom_branding_name": {
+                                "name": "Custom Branding Name",
+                                "description": "Overrides the author signature name"
+                            }
+                        }
                     }
                 }
             },
@@ -4372,5 +4394,17 @@
     "tasks_remove_selected_tasks_title": "Are you sure you want to remove selected tasks?",
     "tasks_remove_all_tasks_title": "Are you sure you want to remove all tasks?",
     "tasks_remove_selected_tasks_confirm": "Remove {count} selected tasks?",
-    "tasks_remove_all_tasks_confirm": "This will stop all running tasks and clear the history."
+    "tasks_remove_all_tasks_confirm": "This will stop all running tasks and clear the history.",
+    "made_with_love": "Made with ❤️ by {author}",
+    "kaladin_secret_menu": {
+        "title": "ᴋᴀʟᴀᴅɪɴ Secret Menu",
+        "subtitle": "Experimental hardware hooks and developer options.",
+        "camera_quality_title": "Enhanced Camera Quality",
+        "camera_quality_desc": "Force 30Mbps & High-Quality ISP flags (Specific for S24 Ultra)",
+        "developer_mode_title": "Developer Mode",
+        "developer_mode_desc": "Enable internal debug tools",
+        "enable_branding_title": "Enable Custom Branding",
+        "enable_branding_desc": "Show 'Made with ❤️' in Snapchat",
+        "custom_name_title": "Custom Branding Name"
+    }
 }

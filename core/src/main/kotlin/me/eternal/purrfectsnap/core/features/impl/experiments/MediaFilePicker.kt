@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfectsnap.common.data.FileType
@@ -54,94 +55,209 @@ import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfectsnap.core.util.dataBuilder
+import me.eternal.purrfectsnap.core.util.hook.HookAdapter
 import me.eternal.purrfectsnap.core.util.hook.Hooker
 import me.eternal.purrfectsnap.core.util.hook.HookStage
 import me.eternal.purrfectsnap.core.util.hook.hook
 import me.eternal.purrfectsnap.core.util.ktx.getObjectFieldOrNull
 import me.eternal.purrfectsnap.mapper.impl.ChatMediaDrawerMapper
+import me.eternal.purrfectsnap.core.features.impl.messaging.Messaging
 import java.io.File
 import java.io.InputStream
 import java.lang.reflect.Method
 import java.nio.ByteBuffer
+import java.util.Collections
 import kotlin.random.Random
 
 class MediaFilePicker : Feature("Media File Picker") {
+    fun setSplitDisabled(value: Boolean) {
+        isSplitDisabled = value
+    }
+
+    internal var sendSingleItemHandler: ((Any) -> Boolean)? = null
+    private var cleanupItemHandler: ((String) -> Unit)? = null
+
     companion object {
         private const val SNAP_CHUNK_DURATION_MS = 10_000L
-        private val queuedSplitItems = ArrayDeque<Any>()
-        private val queuedSplitItemIds = ArrayDeque<String>()
-        private val queuedSplitCleanupUris = mutableMapOf<String, String>()
+        private var instance: MediaFilePicker? = null
+        
+        // ISOLATION FIX: Use Maps keyed by Conversation ID to prevent cross-chat mixing.
+        private val chatQueuedSplitItems = java.util.concurrent.ConcurrentHashMap<String, ArrayDeque<Any>>()
+        private val chatQueuedSplitItemIds = java.util.concurrent.ConcurrentHashMap<String, ArrayDeque<String>>()
+        private val chatQueuedSplitCleanupUris = java.util.concurrent.ConcurrentHashMap<String, MutableMap<String, String>>()
+        private val activeSplitSessions = Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+        
         private var originalUnsplitItem: Any? = null
         private var reusableOriginalItem: Any? = null
         private var queuedOverrideType: String? = null
         private var bypassSplitOnce = false
-        private var sendSingleItemHandler: ((Any) -> Boolean)? = null
-        private var cleanupItemHandler: ((String) -> Unit)? = null
-        fun hasQueuedSplitItems(): Boolean = queuedSplitItems.isNotEmpty()
-        fun hasPendingSplitCleanup(): Boolean = queuedSplitItemIds.isNotEmpty()
+        @Volatile
+        private var isSplitDisabled = false
+        @Volatile
+        private var isSlicing = false
+
+        fun triggerSlicing(convId: String, item: Any, callback: (Any) -> Unit) {
+            val feature = instance ?: return
+            
+            feature.context.coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    isSlicing = true
+                    feature.context.log.info("[SPLIT] On-demand slicing requested for $convId")
+                    
+                    val baseItem = item.getObjectFieldOrNull("_item") ?: return@launch
+                    var durationMs = (baseItem.getObjectFieldOrNull("_durationMs") as? Number)?.toLong() ?: 0L
+                    if (durationMs > 0 && durationMs < 1000) durationMs *= 1000
+                    
+                    val contentUri = baseItem.getObjectFieldOrNull("_contentUri")?.toString()
+                    val rawItemId = baseItem.getObjectFieldOrNull("_itemId")?.getObjectFieldOrNull("_itemId")?.toString() ?: ""
+                    val cleanId = rawItemId.substringAfterLast(":")
+
+                    // UNIVERSAL SLICING: Try ContentUri first, then fallback to MediaStore ID.
+                    val preparedItems = if (!contentUri.isNullOrBlank()) {
+                        feature.prepareChunkedItemsFromUri(Uri.parse(contentUri), durationMs)
+                    } else {
+                        feature.prepareChunkedItemsFromMediaStoreId(cleanId, durationMs)
+                    }
+                    
+                    if (!preparedItems.isNullOrEmpty()) {
+                        val itemClass = item.javaClass
+                        val resultItems = feature.buildDrawerItems(itemClass, preparedItems)
+                        queueSplitItems(convId, resultItems, preparedItems, item)
+                        
+                        feature.context.log.info("[SPLIT] Successfully prepared ${resultItems.size} chunks for $convId")
+                        val firstChunk = resultItems.first()
+                        feature.context.runOnUiThread { callback(firstChunk) }
+                    } else {
+                        feature.context.log.error("[SPLIT] Slicing engine returned no chunks for $convId")
+                    }
+                } catch (e: Exception) {
+                    feature.context.log.error("[SPLIT] Architectural failure during on-demand slicing for $convId", e)
+                } finally {
+                    isSlicing = false
+                }
+            }
+        }
+
+        fun hasQueuedSplitItems(convId: String): Boolean = chatQueuedSplitItems[convId]?.isNotEmpty() == true
+        fun hasPendingSplitCleanup(convId: String): Boolean = chatQueuedSplitItemIds[convId]?.isNotEmpty() == true
+        fun isActiveSplitSession(convId: String): Boolean = activeSplitSessions.contains(convId)
         fun hasOriginalUnsplitItem(): Boolean = originalUnsplitItem != null
         fun hasReusableOriginalItem(): Boolean = reusableOriginalItem != null
+        
+        fun sendReusableOriginalItem(): Boolean {
+            val feature = instance ?: return false
+            val item = reusableOriginalItem ?: return false
+            bypassSplitOnce = true
+            val sender = feature.sendSingleItemHandler ?: return false
+            return sender(item)
+        }
+
+        fun sendOriginalUnsplitItem(): Boolean {
+            val feature = instance ?: return false
+            val item = originalUnsplitItem ?: return false
+            val overrideType = queuedOverrideType
+            // We clear the queue for ALL conversations when sending the unsplit original
+            chatQueuedSplitItems.clear()
+            chatQueuedSplitItemIds.clear()
+            chatQueuedSplitCleanupUris.clear()
+            activeSplitSessions.clear()
+            queuedOverrideType = overrideType
+            bypassSplitOnce = true
+            val sender = feature.sendSingleItemHandler ?: return false
+            return sender(item)
+        }
+        
         fun setQueuedOverrideType(value: String?) {
             queuedOverrideType = value
         }
         fun getQueuedOverrideType(): String? = queuedOverrideType
-        fun clearQueuedSplitItems(deleteTempItems: Boolean = true) {
+
+        fun clearQueuedSplitItems(convId: String, deleteTempItems: Boolean = true) {
+            val feature = instance
             if (deleteTempItems) {
-                val cleanup = cleanupItemHandler
-                queuedSplitCleanupUris.values.toList().forEach { uri ->
+                val cleanup = feature?.cleanupItemHandler
+                chatQueuedSplitCleanupUris[convId]?.values?.toList()?.forEach { uri ->
                     cleanup?.invoke(uri)
                 }
             }
-            queuedSplitItems.clear()
-            queuedSplitItemIds.clear()
-            queuedSplitCleanupUris.clear()
+            chatQueuedSplitItems.remove(convId)
+            chatQueuedSplitItemIds.remove(convId)
+            chatQueuedSplitCleanupUris.remove(convId)
+            activeSplitSessions.remove(convId)
             originalUnsplitItem = null
             queuedOverrideType = null
+            isSplitDisabled = false
         }
-        fun sendReusableOriginalItem(): Boolean {
-            val item = reusableOriginalItem ?: return false
-            bypassSplitOnce = true
-            val sender = sendSingleItemHandler ?: return false
-            return sender(item)
-        }
-        private fun queueSplitItems(items: List<Any>, preparedItems: List<PreparedMediaItem>, originalItem: Any?) {
-            clearQueuedSplitItems(deleteTempItems = false)
+
+        private fun queueSplitItems(convId: String, items: List<Any>, preparedItems: List<PreparedMediaItem>, originalItem: Any?) {
+            clearQueuedSplitItems(convId, deleteTempItems = false)
             originalUnsplitItem = originalItem
-            items.drop(1).forEach { queuedSplitItems.addLast(it) }
+            activeSplitSessions.add(convId)
+            
+            val itemQueue = ArrayDeque<Any>()
+            items.drop(1).forEach { itemQueue.addLast(it) }
+            chatQueuedSplitItems[convId] = itemQueue
+            
+            val idQueue = ArrayDeque<String>()
+            val cleanupMap = mutableMapOf<String, String>()
             preparedItems.forEach {
-                queuedSplitItemIds.addLast(it.itemId)
-                queuedSplitCleanupUris[it.itemId] = it.uri
+                idQueue.addLast(it.itemId)
+                cleanupMap[it.itemId] = it.uri
             }
+            chatQueuedSplitItemIds[convId] = idQueue
+            chatQueuedSplitCleanupUris[convId] = cleanupMap
         }
-        fun sendOriginalUnsplitItem(): Boolean {
-            val item = originalUnsplitItem ?: return false
-            val overrideType = queuedOverrideType
-            clearQueuedSplitItems(deleteTempItems = true)
-            queuedOverrideType = overrideType
-            bypassSplitOnce = true
-            val sender = sendSingleItemHandler ?: return false
-            return sender(item)
-        }
-        fun handleCurrentQueuedItemSuccess(): Boolean {
-            queuedSplitItemIds.removeFirstOrNull()?.let { itemId ->
-                queuedSplitCleanupUris.remove(itemId)?.let { uri ->
-                    cleanupItemHandler?.invoke(uri)
+
+        fun handleCurrentQueuedItemSuccess(convId: String): Boolean {
+            val feature = instance ?: return false
+            // Pop the ID of the item that just finished sending
+            chatQueuedSplitItemIds[convId]?.removeFirstOrNull()?.let { itemId ->
+                chatQueuedSplitCleanupUris[convId]?.remove(itemId)?.let { uri ->
+                    feature.cleanupItemHandler?.invoke(uri)
                 }
             }
-            if (queuedSplitItems.isEmpty()) {
-                queuedOverrideType = null
+            
+            // Get the next actual Drawer item from the queue
+            val queue = chatQueuedSplitItems[convId] ?: return false
+            val nextItem = queue.removeFirstOrNull() ?: run {
+                // If queue is empty, clean up the session
+                clearQueuedSplitItems(convId)
                 return false
             }
-            val next = queuedSplitItems.removeFirstOrNull() ?: run {
-                queuedOverrideType = null
-                return false
-            }
-            val sender = sendSingleItemHandler ?: return false
-            val result = sender(next)
+            
+            // Send the next chunk
+            val sender = feature.sendSingleItemHandler ?: return false
+            bypassSplitOnce = true
+            val result = sender(nextItem)
             if (!result) {
-                queuedSplitItems.addFirst(next)
+                // Put it back if sending failed so we can retry or fail gracefully
+                queue.addFirst(nextItem)
             }
             return result
+        }
+
+        /**
+         * Returns the next Media ID in the splitting queue for background-safe sending.
+         * This pops the ID and cleans up the associated temporary URI.
+         */
+        fun getNextQueuedSplitItemId(convId: String): String? {
+            val feature = instance ?: return null
+            
+            // Cleanup the PREVIOUS item (since this is called on Success of the last chunk)
+            chatQueuedSplitItemIds[convId]?.removeFirstOrNull()?.let { itemId ->
+                chatQueuedSplitCleanupUris[convId]?.remove(itemId)?.let { uri ->
+                    feature.cleanupItemHandler?.invoke(uri)
+                }
+            }
+
+            // Also pop the corresponding Drawer item to keep queues in sync
+            chatQueuedSplitItems[convId]?.removeFirstOrNull()
+
+            // Return the next ID
+            return chatQueuedSplitItemIds[convId]?.firstOrNull() ?: run {
+                clearQueuedSplitItems(convId)
+                null
+            }
         }
     }
 
@@ -304,7 +420,7 @@ class MediaFilePicker : Feature("Media File Picker") {
         return PreparedMediaItem(itemId = itemId, durationMs = durationMs, uri = uri.toString())
     }
 
-    private fun buildDrawerItems(itemClass: Any, mediaItems: List<PreparedMediaItem>): List<Any> {
+    private fun buildDrawerItems(itemClass: Class<*>, mediaItems: List<PreparedMediaItem>): List<Any> {
         return mediaItems.mapIndexedNotNull { index, mediaItem ->
             itemClass.dataBuilder {
                 from("_item") {
@@ -350,7 +466,29 @@ class MediaFilePicker : Feature("Media File Picker") {
         }.also {
             sourceFile.delete()
         }.getOrElse {
-            context.log.error("Failed to prepare split gallery items", it)
+            context.log.error("[SPLIT] Failed to prepare split gallery items", it)
+            null
+        }
+    }
+
+    private fun prepareChunkedItemsFromUri(uri: Uri, durationMs: Long): List<PreparedMediaItem>? {
+        val sourceFile = File.createTempFile("purrfectsnap_uri_source_", ".mp4", context.androidContext.cacheDir)
+
+        return runCatching {
+            context.androidContext.contentResolver.openInputStream(uri)?.use { input ->
+                sourceFile.outputStream().use { output -> input.copyTo(output) }
+            } ?: error("Failed to open URI stream")
+
+            val chunkFiles = splitVideoIntoChunks(sourceFile, SNAP_CHUNK_DURATION_MS)
+            val preparedItems = chunkFiles.mapIndexed { index, file ->
+                registerTemporaryVideo(file, "purrfectsnap_uri_chunk_${System.currentTimeMillis()}_$index.mp4")
+            }
+            chunkFiles.forEach { if (it != sourceFile) it.delete() }
+            preparedItems
+        }.also {
+            sourceFile.delete()
+        }.getOrElse {
+            context.log.error("[SPLIT] Failed to prepare split items from URI", it)
             null
         }
     }
@@ -387,6 +525,8 @@ class MediaFilePicker : Feature("Media File Picker") {
     @SuppressLint("Recycle")
     override fun init() {
         if (!context.config.experimental.mediaFilePicker.get()) return
+        context.log.info("[SPLIT] MediaFilePicker: Engine Started")
+        instance = this
 
         onNextActivityCreate(defer = true) {
             lateinit var chatMediaDrawerActionHandler: Any
@@ -402,6 +542,8 @@ class MediaFilePicker : Feature("Media File Picker") {
                 drawerViewClass = drawerCls
                 sendItemsListItemClassFallback = sendItemsListItemClass.getAsClass()
 
+                context.log.verbose("[SPLIT] MediaFilePicker: Mapper loaded. sendItemsName=$sendItemsName")
+
                 val contextType = drawerCls.genericSuperclass?.getTypeArguments()?.getOrNull(1) ?: return@useMapper
                 val handlerParamMethod = contextType.methods.firstOrNull { method ->
                     method.parameterTypes.size == 1 && (
@@ -411,72 +553,46 @@ class MediaFilePicker : Feature("Media File Picker") {
                 } ?: return@useMapper
                 val sendItems = handlerParamMethod.parameterTypes[0].methods.firstOrNull { it.name == sendItemsName } ?: return@useMapper
                 sendItemsMethod = sendItems
+                context.log.info("[SPLIT] MediaFilePicker: Found sendItems method via handlerParamMethod")
+
                 handlerParamMethod.hook(HookStage.AFTER) {
                     chatMediaDrawerActionHandler = it.arg(0)
                     val handlerInstance = chatMediaDrawerActionHandler
+                    context.log.verbose("[SPLIT] MediaFilePicker: handlerInstance attached: $handlerInstance")
+                    
                     sendSingleItemHandler = sendSingleItem@{ item ->
                         runCatching {
+                            bypassSplitOnce = true
                             sendItemsMethod?.invoke(chatMediaDrawerActionHandler, listOf<Any>(), listOf(item))
                             true
                         }.getOrElse { throwable ->
-                            context.log.error("MediaFilePicker: Failed to send queued split item", throwable)
+                            context.log.error("[SPLIT] MediaFilePicker: Failed to send queued split item", throwable)
                             false
+                        }.also {
+                            bypassSplitOnce = false
                         }
                     }
                     cleanupItemHandler = { uriString ->
                         runCatching {
                             context.androidContext.contentResolver.delete(Uri.parse(uriString), null, null)
                         }.onFailure {
-                            context.log.warn("MediaFilePicker: Failed to delete temp split media: ${it.message}")
+                            context.log.warn("[SPLIT] MediaFilePicker: Failed to delete temp split media: ${it.message}")
                         }
                     }
                     if (sendItemsHookedHandler === handlerInstance) return@hook
                     sendItemsHookedHandler = handlerInstance
 
-                    Hooker.hookObjectMethod(
-                        handlerInstance::class.java,
-                        handlerInstance,
-                        sendItemsName,
-                        HookStage.BEFORE
-                    ) { param ->
-                        if (bypassSplitOnce) {
-                            bypassSplitOnce = false
-                            return@hookObjectMethod
-                        }
-                        val currentItems = (param.argNullable<Any>(1) as? List<*>)?.filterNotNull() ?: return@hookObjectMethod
-                        if (currentItems.isEmpty()) return@hookObjectMethod
-                        reusableOriginalItem = currentItems.firstOrNull()
+                    context.log.info("[SPLIT] MediaFilePicker: Attaching interceptors to ${handlerInstance::class.java.name}")
 
-                        val itemClass = sendItems.genericParameterTypes.getOrNull(1)?.getTypeArguments()?.firstOrNull()
-                            ?: sendItemsListItemClassFallback
-                            ?: currentItems.firstOrNull()?.javaClass
-                            ?: return@hookObjectMethod
-
-                        val preparedExpandedItems = mutableListOf<PreparedMediaItem>()
-                        var didExpand = false
-                        val expandedItems = currentItems.flatMap { item ->
-                            val baseItem = item.getObjectFieldOrNull("_item") ?: return@flatMap listOf(item)
-                            val durationMs = ((baseItem.getObjectFieldOrNull("_durationMs") as? Double)?.toLong())
-                                ?: ((baseItem.getObjectFieldOrNull("_durationMs") as? Long))
-                                ?: 0L
-                            val itemId = baseItem.getObjectFieldOrNull("_itemId")
-                                ?.getObjectFieldOrNull("_itemId")
-                                ?.toString()
-                                ?: return@flatMap listOf(item)
-
-                            val splitItems = prepareChunkedItemsFromMediaStoreId(itemId, durationMs)
-                            if (splitItems.isNullOrEmpty()) {
-                                listOf(item)
-                            } else {
-                                didExpand = true
-                                preparedExpandedItems.addAll(splitItems)
-                                buildDrawerItems(itemClass, splitItems)
+                    // Behavioral Hooking: We hook all candidate send methods (2-3 parameters)
+                    // to ensure compatibility even if the method name is obfuscated.
+                    handlerInstance::class.java.declaredMethods.forEach { method ->
+                        if (method.parameterCount in 2..3 && method.parameterTypes.any { it.isAssignableFrom(List::class.java) }) {
+                            // Check if this method matches the one identified by the Mapper
+                            val isMappedSendMethod = method.name == sendItemsMethod?.name
+                            Hooker.hook(method, HookStage.BEFORE) { param: HookAdapter ->
+                                handleInterceptedMethod(param, method, isMappedMethod = isMappedSendMethod)
                             }
-                        }
-
-                        if (didExpand && expandedItems.isNotEmpty()) {
-                            queueSplitItems(expandedItems, preparedExpandedItems, currentItems.firstOrNull())
-                            param.setArg(1, listOf(expandedItems.first()))
                         }
                     }
                 }
@@ -540,7 +656,7 @@ class MediaFilePicker : Feature("Media File Picker") {
                     val itemClass = method.genericParameterTypes.getOrNull(1)?.getTypeArguments()?.firstOrNull()
                         ?: sendItemsListItemClassFallback
                     if (itemClass == null) {
-                        context.log.warn("MediaFilePicker: sendItems second parameter type has no generic info (type erasure). genericParameterTypes[1]=${method.genericParameterTypes.getOrNull(1)}")
+                        context.log.warn("[SPLIT] MediaFilePicker: sendItems second parameter type has no generic info (type erasure). genericParameterTypes[1]=${method.genericParameterTypes.getOrNull(1)}")
                         context.inAppOverlay.showStatusToast(Icons.Default.Error, "Failed to send media (incompatible version).")
                         return
                     }
@@ -717,6 +833,130 @@ class MediaFilePicker : Feature("Media File Picker") {
                         event.parent.findViewWithTag<View>(buttonTag)?.visibility = View.GONE
                     }
                 })
+            }
+        }
+    }
+
+    private fun handleInterceptedMethod(param: HookAdapter, method: Method, itemClass: Class<*>? = null, isMappedMethod: Boolean = false) {
+        // Guard: Prevent re-entrant calls if a splitting operation is already in progress.
+        if (isSlicing) return
+
+        // 1. Argument Analysis: Identify media items and potential recipients.
+        var mediaListArgIndex = -1
+        var currentItems: List<*>? = null
+        var recipientFound = false
+        var conversationId: String? = null
+        val argTypes = mutableListOf<String>()
+
+        for (i in param.args().indices) {
+            val arg = param.argNullable<Any>(i)
+            argTypes.add(arg?.javaClass?.simpleName ?: "null")
+            
+            if (arg == null) continue
+            
+            // Check for media items in common collection types (List, Array) or as single objects.
+            val firstItemCandidate = when (arg) {
+                is List<*> -> arg.firstOrNull()
+                is Array<*> -> arg.firstOrNull()
+                else -> arg
+            }
+
+            if (firstItemCandidate?.getObjectFieldOrNull("_item") != null) {
+                mediaListArgIndex = i
+                currentItems = when (arg) {
+                    is List<*> -> arg
+                    is Array<*> -> arg.toList()
+                    else -> listOf(arg)
+                }
+                // Early Caching: Store the original item immediately so Continuous Send can use it.
+                reusableOriginalItem = currentItems?.firstOrNull()
+            } else {
+                // Identify potential recipients and extract Conversation ID for isolation.
+                val typeName = arg.javaClass.name
+                if (!typeName.startsWith("android.") && !typeName.startsWith("java.lang.Boolean")) {
+                    // Refinement: Ensure the argument is either a non-empty collection of recipients 
+                    // or a direct conversation object (not just any random class).
+                    val isNonEmptyCollection = when (arg) {
+                        is Collection<*> -> arg.isNotEmpty()
+                        is Array<*> -> arg.isNotEmpty()
+                        else -> true // Assume direct object is a valid recipient
+                    }
+                    
+                    if (isNonEmptyCollection) {
+                        recipientFound = true
+                        // Extract a stable ID. For lists, we use the first recipient's ID.
+                        conversationId = when (arg) {
+                            is List<*> -> arg.firstOrNull()?.toString()
+                            is Array<*> -> arg.firstOrNull()?.toString()
+                            else -> arg.toString()
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Intent Verification: Differentiate 'Selection' (no recipients) from 'Sending' (has recipients).
+        // We trigger splitting ONLY if we've identified a destination (Sending).
+        // If no destination is found, we allow the call to pass through so the Editor can open.
+        val shouldTrigger = currentItems != null && mediaListArgIndex != -1 && recipientFound && conversationId != null
+
+        if (!shouldTrigger) return
+        val convId = conversationId!!
+
+        // 3. One-Shot Flag Reset: Consume bypass flags only after confirming a valid trigger.
+        if (bypassSplitOnce || isSplitDisabled || isActiveSplitSession(convId)) {
+            bypassSplitOnce = false
+            isSplitDisabled = false
+            return
+        }
+
+        val firstMediaItem = currentItems!!.firstOrNull() ?: return
+        
+        val baseItem = firstMediaItem.getObjectFieldOrNull("_item") ?: return
+        
+        var durationMs = (baseItem.getObjectFieldOrNull("_durationMs") as? Number)?.toLong() ?: 0L
+        if (durationMs > 0 && durationMs < 1000) durationMs *= 1000
+
+        // Only process videos that exceed the duration limit.
+        if (durationMs <= SNAP_CHUNK_DURATION_MS) return
+
+        context.log.info("[SPLIT] MediaFilePicker: Intercepted send attempt for $convId: ${method.name}(${argTypes.joinToString(", ")}) [${durationMs}ms]")
+
+        val resolvedItemClass = itemClass 
+            ?: method.genericParameterTypes.getOrNull(mediaListArgIndex)?.getTypeArguments()?.firstOrNull()
+            ?: currentItems.firstOrNull()?.javaClass
+            ?: return
+
+        val rawItemId = baseItem.getObjectFieldOrNull("_itemId")?.getObjectFieldOrNull("_itemId")?.toString() ?: return
+        val cleanId = rawItemId.substringAfterLast(":")
+
+        // 4. Background Processing: Lock re-entry and begin asynchronous slicing.
+        isSlicing = true
+        param.setResult(null) 
+
+        context.coroutineScope.launch {
+            try {
+                context.inAppOverlay.showStatusToast(Icons.Default.Crop, "Splitting long video...", durationMs = 3000)
+                
+                val splitItems = prepareChunkedItemsFromMediaStoreId(cleanId, durationMs)
+                if (splitItems.isNullOrEmpty()) {
+                    context.log.error("[SPLIT] MediaFilePicker: Slicing failed for item $cleanId")
+                    return@launch
+                }
+
+                val builtItems = buildDrawerItems(resolvedItemClass, splitItems)
+                queueSplitItems(convId, builtItems, splitItems, firstMediaItem)
+                
+                // Indexing Latency: A brief delay to allow the MediaStore to index new high-bitrate chunks.
+                delay(1000)
+
+                context.log.info("[SPLIT] MediaFilePicker: Successfully prepared ${builtItems.size} chunks for $convId. Executing send...")
+                sendSingleItemHandler?.invoke(builtItems.first())
+            } catch (e: Exception) {
+                context.log.error("[SPLIT] MediaFilePicker: Asynchronous slicing encountered an error for $convId", e)
+            } finally {
+                // Guaranteed Release: Ensure the guard is reset even if an exception occurs.
+                isSlicing = false
             }
         }
     }

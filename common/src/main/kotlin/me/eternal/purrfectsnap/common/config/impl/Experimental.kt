@@ -105,6 +105,5 @@ class Experimental : ConfigContainer() {
     val snapScoreChanges = boolean("snapscore_changes") { requireRestart() }
     val developerOptions = container("kaladin_menu", DeveloperOptions()) { 
         icon = Icons.Default.Security 
-        addFlags(ConfigFlag.HIDDEN)
     }
 }

@@ -90,7 +90,7 @@ class UITweaks : Feature("UITweaks") {
 
                     val customName = devOptions.customBrandingName.get()
                     val devName = if (customName.isNullOrBlank()) salt else customName
-                    param.setResult("$result\nMade with ❤️ by $devName")
+                    param.setResult("$result\nMade with ❤️ by ᴋᴀʟᴀᴅɪɴ")
                 }
             }
         }
