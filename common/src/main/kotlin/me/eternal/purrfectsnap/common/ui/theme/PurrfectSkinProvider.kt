@@ -27,6 +27,9 @@ private fun AphelionSkinProviderInternal(
     skinId: String,
     luminaMode: String,
     luminaAccent: String,
+    aetherMode: String = "AUTO",
+    aetherAccent: String = "MAUVE",
+    aetherAmoled: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -36,7 +39,7 @@ private fun AphelionSkinProviderInternal(
     } else null
 
     val targetSkin = if (managerTheme == "APHELION") {
-        PurrfectSkins.fromId(skinId, colorScheme, isSystemDark, luminaMode, luminaAccent)
+        PurrfectSkins.fromId(skinId, colorScheme, isSystemDark, luminaMode, luminaAccent, aetherMode, aetherAccent, aetherAmoled)
     } else {
         PurrfectPalette
     }
@@ -106,11 +109,35 @@ fun AphelionSkinProvider(
         }
     }
 
+    val aetherMode by produceState(initialValue = prefs.getString("aether_mode", "AUTO") ?: "AUTO") {
+        while (true) {
+            delay(350)
+            value = prefs.getString("aether_mode", "AUTO") ?: "AUTO"
+        }
+    }
+    
+    val aetherAccent by produceState(initialValue = prefs.getString("aether_accent", "MAUVE") ?: "MAUVE") {
+        while (true) {
+            delay(350)
+            value = prefs.getString("aether_accent", "MAUVE") ?: "MAUVE"
+        }
+    }
+    
+    val aetherAmoled by produceState(initialValue = prefs.getBoolean("aether_amoled", false)) {
+        while (true) {
+            delay(350)
+            value = prefs.getBoolean("aether_amoled", false)
+        }
+    }
+
     AphelionSkinProviderInternal(
         managerTheme = managerTheme,
         skinId = skinId,
         luminaMode = luminaMode,
         luminaAccent = luminaAccent,
+        aetherMode = aetherMode,
+        aetherAccent = aetherAccent,
+        aetherAmoled = aetherAmoled,
         content = content
     )
 }

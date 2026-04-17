@@ -79,8 +79,8 @@ fun AphelionSkinPicker(
         SkinOption(
             id = "AETHER",
             name = "Aether",
-            description = "Celestial Glass",
-            previewColors = listOf(Color.Black, Color(0xFF0A0A0A), Color.White),
+            description = "Solid Material 3 Expressive",
+            previewColors = listOf(Color(0xFFCA9EE6), Color(0xFF85C1DC), Color(0xFFF4B8E4)),
             available = true
         )
     )

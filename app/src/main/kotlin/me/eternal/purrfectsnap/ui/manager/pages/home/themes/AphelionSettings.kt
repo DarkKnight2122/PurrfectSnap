@@ -65,6 +65,8 @@ import java.net.URLEncoder
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
 import me.eternal.purrfectsnap.ui.manager.pages.home.themes.components.AphelionSkinPicker
 
@@ -284,7 +286,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
 
                                     // Accent Ribbon
                                     val currentAccent = context.config.root.global.uiSettings.luminaAccent.get()
-                                    val accents = me.eternal.purrfectsnap.common.ui.theme.Catppuccin.mocha.accents
+                                    val accents = me.eternal.purrfectsnap.common.ui.theme.Catppuccin.mocha.accents.filter { it.first != "Espresso" && it.first != "Forest" }
                                     
                                     Row(
                                         modifier = Modifier
@@ -326,6 +328,134 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                     }
                                 }
                             }
+
+                            // AETHER CUSTOMIZATION
+                            AnimatedVisibility(
+                                visible = currentSkinId == "AETHER",
+                                enter = androidx.compose.animation.expandVertically() + fadeIn(),
+                                exit = androidx.compose.animation.shrinkVertically() + fadeOut()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 14.dp),
+                                        color = skin.textPrimary.copy(alpha = 0.08f)
+                                    )
+
+                                    // Mode Switcher
+                                    val currentMode = context.config.root.global.uiSettings.aetherMode.get()
+                                    val isAmoled = context.config.root.global.uiSettings.aetherAmoled.get()
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        listOf("AUTO", "LIGHT", "DARK").forEach { mode ->
+                                            val isSelected = currentMode == mode
+                                            Surface(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(38.dp)
+                                                    .clickable {
+                                                        context.config.root.global.uiSettings.aetherMode.set(mode)
+                                                        context.config.writeConfig()
+                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                    },
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = if (isSelected) skin.glowPrimary.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.05f),
+                                                border = if (isSelected) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        text = mode,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // AMOLED Toggle
+                                        if (currentMode != "LIGHT") {
+                                            Surface(
+                                                modifier = Modifier
+                                                    .size(38.dp)
+                                                    .clickable {
+                                                        context.config.root.global.uiSettings.aetherAmoled.set(!isAmoled)
+                                                        context.config.writeConfig()
+                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                    },
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = if (isAmoled) Color.Black else skin.textPrimary.copy(alpha = 0.05f),
+                                                border = if (isAmoled) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = if (isAmoled) Icons.Default.BrightnessLow else Icons.Default.BrightnessHigh,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp),
+                                                        tint = if (isAmoled) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.5f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Accent Ribbon (Aether Specific)
+                                    val currentAccent = context.config.root.global.uiSettings.aetherAccent.get()
+                                    val aetherAccents = me.eternal.purrfectsnap.common.ui.theme.Catppuccin.frappe.accents.filter { 
+                                        listOf("MAUVE", "PINK", "SAPPHIRE", "TEAL", "PEACH", "ESPRESSO", "FOREST").contains(it.first.uppercase())
+                                    }
+                                    
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState())
+                                            .padding(horizontal = 14.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        aetherAccents.forEach { (name, color) ->
+                                            val isSelected = currentAccent.equals(name, ignoreCase = true)
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(34.dp)
+                                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                                    .background(color)
+                                                    .border(
+                                                        width = if (isSelected) 2.dp else 1.dp,
+                                                        color = if (isSelected) skin.textPrimary else Color.Transparent,
+                                                        shape = androidx.compose.foundation.shape.CircleShape
+                                                    )
+                                                    .clickable {
+                                                        context.config.root.global.uiSettings.aetherAccent.set(name.uppercase())
+                                                        context.config.writeConfig()
+                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                         }
                     }
 

@@ -36,7 +36,9 @@ object Catppuccin {
         val sky: Color,
         val sapphire: Color,
         val blue: Color,
-        val lavender: Color
+        val lavender: Color,
+        val espresso: Color,
+        val forest: Color
     ) {
         fun getAccent(name: String): Color = when (name.uppercase()) {
             "ROSEWATER" -> rosewater
@@ -53,6 +55,8 @@ object Catppuccin {
             "SAPPHIRE"  -> sapphire
             "BLUE"      -> blue
             "LAVENDER"  -> lavender
+            "ESPRESSO"  -> espresso
+            "FOREST"    -> forest
             else        -> mauve
         }
 
@@ -60,7 +64,7 @@ object Catppuccin {
             "Rosewater" to rosewater, "Flamingo" to flamingo, "Pink" to pink, "Mauve" to mauve,
             "Red" to red, "Maroon" to maroon, "Peach" to peach, "Yellow" to yellow,
             "Green" to green, "Teal" to teal, "Sky" to sky, "Sapphire" to sapphire,
-            "Blue" to blue, "Lavender" to lavender
+            "Blue" to blue, "Lavender" to lavender, "Espresso" to espresso, "Forest" to forest
         )
     }
 
@@ -73,7 +77,8 @@ object Catppuccin {
         mauve = Color(0xFFCBA6F7), red = Color(0xFFF38BA8), maroon = Color(0xFFEBA0AC),
         peach = Color(0xFFFAB387), yellow = Color(0xFFF9E2AF), green = Color(0xFFA6E3A1),
         teal = Color(0xFF94E2D5), sky = Color(0xFF89DCEB), sapphire = Color(0xFF74C7EC),
-        blue = Color(0xFF89B4FA), lavender = Color(0xFFB4BEFE)
+        blue = Color(0xFF89B4FA), lavender = Color(0xFFB4BEFE),
+        espresso = Color(0xFFDDB69E), forest = Color(0xFF719686)
     )
 
     val macchiato = Flavor(
@@ -85,7 +90,8 @@ object Catppuccin {
         mauve = Color(0xFFC6A0F6), red = Color(0xFFED8796), maroon = Color(0xFFEE99A0),
         peach = Color(0xFFF5A97F), yellow = Color(0xFFEED49F), green = Color(0xFFA6DA95),
         teal = Color(0xFF8BD5CA), sky = Color(0xFF91D7E3), sapphire = Color(0xFF7DC4E4),
-        blue = Color(0xFF8AADF4), lavender = Color(0xFFB7BDF8)
+        blue = Color(0xFF8AADF4), lavender = Color(0xFFB7BDF8),
+        espresso = Color(0xFFDDB69E), forest = Color(0xFF719686)
     )
 
     val frappe = Flavor(
@@ -97,7 +103,8 @@ object Catppuccin {
         mauve = Color(0xFFCA9EE6), red = Color(0xFFE78284), maroon = Color(0xFFEA999C),
         peach = Color(0xFFEF9F76), yellow = Color(0xFFE5C890), green = Color(0xFFA6D189),
         teal = Color(0xFF81C8BE), sky = Color(0xFF99D1DB), sapphire = Color(0xFF85C1DC),
-        blue = Color(0xFF8CAAEE), lavender = Color(0xFFBABBF1)
+        blue = Color(0xFF8CAAEE), lavender = Color(0xFFBABBF1),
+        espresso = Color(0xFFDDB69E), forest = Color(0xFF719686)
     )
 
     val latte = Flavor(
@@ -109,6 +116,7 @@ object Catppuccin {
         mauve = Color(0xFF8839EF), red = Color(0xFFD20F39), maroon = Color(0xFFE64553),
         peach = Color(0xFFFE640B), yellow = Color(0xFFDF8E1D), green = Color(0xFF40A02B),
         teal = Color(0xFF179299), sky = Color(0xFF04A5E5), sapphire = Color(0xFF209FB5),
-        blue = Color(0xFF1E66F5), lavender = Color(0xFF7287FD)
+        blue = Color(0xFF1E66F5), lavender = Color(0xFF7287FD),
+        espresso = Color(0xFFAC765D), forest = Color(0xFF5D824E)
     )
 }

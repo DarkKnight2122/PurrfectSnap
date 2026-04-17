@@ -12,6 +12,15 @@ import androidx.compose.ui.graphics.SolidColor
  */
 object PurrfectSkins {
 
+    private fun Color.darken(factor: Float): Color {
+        return Color(
+            red = red * (1 - factor),
+            green = green * (1 - factor),
+            blue = blue * (1 - factor),
+            alpha = 1.0f
+        )
+    }
+
     // Helper to generate the Stepped Depth stack based on a Catppuccin flavor
     private fun steppedDepth(flavor: Catppuccin.Flavor, isDark: Boolean, id: String): PurrfectColorSet {
         return PurrfectColorSet(
@@ -88,51 +97,72 @@ object PurrfectSkins {
         )
     }
 
-    // —— AETHER (Material 3 Expressive Crystal) ———————————————————————————————————————
-    fun aether(isSystemDark: Boolean): PurrfectColorSet {
-        val flavor = if (isSystemDark) Catppuccin.frappe else Catppuccin.latte
+    // —— AETHER (Material 3 Expressive Solid) ———————————————————————————————————————
+    fun aether(
+        mode: String,
+        accentName: String,
+        isAmoled: Boolean,
+        isSystemDark: Boolean
+    ): PurrfectColorSet {
+        val forceDark = mode == "DARK"
+        val forceLight = mode == "LIGHT"
+        val isDark = if (forceDark) true else if (forceLight) false else isSystemDark
         
-        // Aether uses a special Prismatic gradient for its glow
-        val prismaticGlow = Brush.linearGradient(
-            listOf(flavor.mauve, flavor.pink, flavor.sapphire)
-        )
+        val flavor = if (isDark) Catppuccin.frappe else Catppuccin.latte
+        val accent = flavor.getAccent(accentName)
 
-        return steppedDepth(flavor, isSystemDark, "AETHER").copy(
-            // Page Contrast Overrides
-            backgroundGradient = Brush.verticalGradient(listOf(flavor.base, flavor.mantle)),
-            panelGradient = Brush.linearGradient(listOf(flavor.surface0, flavor.base)),
-            
-            // Ultra-Refractive Glass Settings
-            vibrancyFactor = 1.35f,
-            refractionIntensity = 1.4f,
-            specularAlpha = if (isSystemDark) 0.25f else 0.85f,
-            
-            // Prismatic Accents
-            glowPrimary = flavor.mauve, // Primary color fallback
-            glowSecondary = flavor.sapphire,
-            laserBorder = flavor.mauve.copy(alpha = 0.4f),
-            
-            // Text Overrides for High Hierarchy
+        val backgroundColor = if (isAmoled && isDark) {
+            Color.Black
+        } else if (isDark) {
+            accent.darken(0.9f)
+        } else {
+            if (accentName == "MAUVE" || accentName == "PINK" || accentName == "ESPRESSO") 
+                Color(0xFFFBF8FF) 
+            else 
+                Color(0xFFFFF8F6)
+        }
+
+        return PurrfectColorSet(
+            id = "AETHER",
+            isDark = isDark,
+            backgroundGradient = SolidColor(backgroundColor),
+            panelGradient = SolidColor(backgroundColor),
+            cardOverlay = SolidColor(flavor.surface0),
+            cardOverlayColor = flavor.surface0,
+            glassSurface = Color.Transparent,
+            glassBorder = accent,
+            glassSpecular = Color.Transparent,
+            blurTint = backgroundColor,
+            refractiveColor = backgroundColor,
+            vibrancyFactor = 1.0f,
+            refractionIntensity = 0.0f,
+            laserBorder = accent,
+            glowPrimary = accent,
+            glowSecondary = flavor.pink,
             textPrimary = flavor.text,
-            textSecondary = flavor.subtext0
+            textSecondary = flavor.subtext0,
+            iconTint = flavor.text
         )
     }
 
     /**
      * Returns the correct [PurrfectColorSet] for the given skin ID.
-     * Modified to pass through user Lumina preferences.
+     * Modified to pass through user Lumina and Aether preferences.
      */
     fun fromId(
         skinId: String,
         colorScheme: ColorScheme? = null,
         isSystemDark: Boolean = true,
         luminaMode: String = "AUTO",
-        luminaAccent: String = "MAUVE"
+        luminaAccent: String = "MAUVE",
+        aetherMode: String = "AUTO",
+        aetherAccent: String = "MAUVE",
+        aetherAmoled: Boolean = false
     ): PurrfectColorSet = when (skinId) {
         "NOX"    -> nox
         "LUX"    -> lux
         "LUMINA" -> lumina(luminaMode, luminaAccent, isSystemDark)
-        "AETHER" -> aether(isSystemDark)
+        "AETHER" -> aether(aetherMode, aetherAccent, aetherAmoled, isSystemDark)
         else     -> umbra
     }
 }
