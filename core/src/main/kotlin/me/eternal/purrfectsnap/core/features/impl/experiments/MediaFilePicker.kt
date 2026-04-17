@@ -1,5 +1,9 @@
 package me.eternal.purrfectsnap.core.features.impl.experiments
 
+import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ContentUris
@@ -51,7 +55,6 @@ import me.eternal.purrfectsnap.common.util.ktx.getTypeArguments
 import me.eternal.purrfectsnap.core.event.events.impl.ActivityResultEvent
 import me.eternal.purrfectsnap.core.event.events.impl.AddViewEvent
 import me.eternal.purrfectsnap.core.features.Feature
-import me.eternal.purrfectsnap.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfectsnap.core.util.dataBuilder
 import me.eternal.purrfectsnap.core.util.hook.Hooker
@@ -644,7 +647,8 @@ class MediaFilePicker : Feature("Media File Picker") {
                             } != null) return
                         event.parent.addView(
                             createComposeView(context.mainActivity!!) {
-                                PurrfectOverlayTheme {
+                                PurrfectOverlayTheme(context) {
+                                    val skin = LocalPurrfectSkin.current
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -658,15 +662,15 @@ class MediaFilePicker : Feature("Media File Picker") {
                                                 .shadow(
                                                     elevation = 16.dp,
                                                     shape = shape,
-                                                    spotColor = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.28f),
-                                                    ambientColor = PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.20f)
+                                                    spotColor = skin.glowPrimary.copy(alpha = 0.28f),
+                                                    ambientColor = skin.glowSecondary.copy(alpha = 0.20f)
                                                 )
                                                 .clip(shape)
                                                 .background(
                                                     brush = Brush.linearGradient(
                                                         listOf(
-                                                            PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.35f),
-                                                            PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.18f)
+                                                            skin.glowPrimary.copy(alpha = 0.35f),
+                                                            skin.glowSecondary.copy(alpha = 0.18f)
                                                         )
                                                     ),
                                                     shape = shape
@@ -675,8 +679,8 @@ class MediaFilePicker : Feature("Media File Picker") {
                                                     1.dp,
                                                     Brush.linearGradient(
                                                         listOf(
-                                                            PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.7f),
-                                                            PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.55f)
+                                                            skin.glowPrimary.copy(alpha = 0.7f),
+                                                            skin.glowSecondary.copy(alpha = 0.55f)
                                                         )
                                                     ),
                                                     shape = shape

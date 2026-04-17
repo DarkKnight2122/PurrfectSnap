@@ -40,12 +40,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.util.Motion
 
 @Composable
@@ -66,13 +68,14 @@ fun AestheticDialog(
     showIcon: Boolean = true,
     showTitle: Boolean = true
 ) {
+    val skin = LocalPurrfectSkin.current
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
     val surfaceColor = if (opaque) {
-        PurrfectPalette.cardOverlayColor.copy(alpha = 1f)
+        skin.cardOverlayColor.copy(alpha = 1f)
     } else {
-        PurrfectPalette.cardOverlayColor
+        skin.cardOverlayColor
     }
 
     Dialog(onDismissRequest = onDismissRequest) {
@@ -84,12 +87,12 @@ fun AestheticDialog(
             val shape = RoundedCornerShape(22.dp)
             Card(
                 shape = shape,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
                 colors = CardDefaults.cardColors(containerColor = surfaceColor)
             ) {
                 Box(
                     modifier = Modifier
-                        .background(PurrfectPalette.cardOverlay, shape)
+                        .background(skin.cardOverlay, shape)
                         .padding(20.dp)
                 ) {
                     Column(
@@ -103,22 +106,22 @@ fun AestheticDialog(
                                     .background(
                                         Brush.linearGradient(
                                             listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.3f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                                                skin.glowPrimary.copy(alpha = 0.3f),
+                                                skin.glowSecondary.copy(alpha = 0.28f)
                                             )
                                         ),
                                         CircleShape
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
+                                Icon(icon, contentDescription = null, tint = skin.textPrimary, modifier = Modifier.size(30.dp))
                             }
                         }
                         if (showTitle && title.isNotBlank()) {
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                                color = Color.White,
+                                color = skin.textPrimary,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -126,7 +129,7 @@ fun AestheticDialog(
                             Text(
                                 text = text,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = PurrfectPalette.textSecondary,
+                                color = skin.textSecondary,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -139,8 +142,8 @@ fun AestheticDialog(
                             Button(
                                 onClick = onDismiss,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White.copy(alpha = 0.08f),
-                                    contentColor = Color.White
+                                    containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                    contentColor = skin.textPrimary
                                 )
                             ) { Text(dismissButtonText) }
                         }
@@ -148,17 +151,17 @@ fun AestheticDialog(
                             onClick = onConfirm,
                             enabled = confirmEnabled && !loading,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
-                                contentColor = Color.White,
-                                disabledContainerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.22f),
-                                disabledContentColor = Color.White.copy(alpha = 0.75f)
+                                containerColor = skin.glowPrimary.copy(alpha = 0.34f),
+                                contentColor = skin.textPrimary,
+                                disabledContainerColor = skin.glowPrimary.copy(alpha = 0.22f),
+                                disabledContentColor = skin.textPrimary.copy(alpha = 0.75f)
                             )
                         ) {
                             if (loading) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                         strokeWidth = 2.dp,
-                                        color = Color.White
+                                        color = skin.textPrimary
                                     )
                                 } else {
                                     Text(confirmButtonText)
@@ -168,10 +171,10 @@ fun AestheticDialog(
                     }
                     if (showCloseButton) {
                         IconButton(
-                            onClick = onDismissRequest,
+                            onClick = { onDismissRequest() },
                             modifier = Modifier.align(Alignment.TopEnd)
                         ) {
-                            Icon(Icons.Default.Close, contentDescription = null, tint = Color.White)
+                            Icon(Icons.Default.Close, contentDescription = null, tint = skin.textPrimary)
                         }
                     }
                 }
@@ -179,3 +182,4 @@ fun AestheticDialog(
         }
     }
 }
+

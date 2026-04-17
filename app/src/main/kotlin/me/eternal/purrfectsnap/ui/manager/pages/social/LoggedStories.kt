@@ -14,6 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -23,6 +25,7 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import coil.annotation.ExperimentalCoilApi
 import coil.compose.rememberAsyncImagePainter
 import me.eternal.purrfectsnap.bridge.DownloadCallback
@@ -210,7 +213,7 @@ class LoggedStories : Routes.Route() {
         }
 
         if (stories.isEmpty()) {
-            Text(text = translation["no_stories"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            Text(text = translation["no_stories"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Color.White)
         }
 
         LazyVerticalGrid(
@@ -232,7 +235,7 @@ class LoggedStories : Routes.Route() {
                     verticalArrangement = Arrangement.Center,
                 ) {
                     if (hasFailed) {
-                        Text(text = translation["story_failed_to_load"], Modifier.padding(8.dp), fontSize = 10.sp)
+                        Text(text = translation["story_failed_to_load"], Modifier.padding(8.dp), fontSize = 10.sp, color = Color.White)
                     } else {
                         Image(
                             painter = rememberAsyncImagePainter(

@@ -1,9 +1,10 @@
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+﻿@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 package me.eternal.purrfectsnap.ui.manager.pages.home
 
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +46,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -66,13 +68,35 @@ import me.eternal.purrfectsnap.common.logger.LogChannel
 import me.eternal.purrfectsnap.common.logger.LogLevel
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
 import me.eternal.purrfectsnap.ui.util.pullrefresh.PullRefreshIndicator
 import me.eternal.purrfectsnap.ui.util.pullrefresh.pullRefresh
 import me.eternal.purrfectsnap.ui.util.pullrefresh.rememberPullRefreshState
 import me.eternal.purrfectsnap.ui.util.saveFile
 import me.eternal.purrfectsnap.common.util.ktx.copyToClipboard
+import me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette
+
+private object LogsSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else PurrfectPalette.panelGradient
+}
+
 
 class HomeLogs : Routes.Route() {
     internal val logListState = LazyListState()
@@ -82,7 +106,7 @@ class HomeLogs : Routes.Route() {
         activityLauncherHelper = ActivityLauncherHelper(context.activity!!)
     }
 
-    internal fun clearLogsAndReload() {
+    fun clearLogsAndReload() {
         context.coroutineScope.launch {
             context.log.clearLogs()
             withContext(Dispatchers.Main) {
@@ -91,7 +115,7 @@ class HomeLogs : Routes.Route() {
         }
     }
 
-    internal fun exportLogs() {
+    fun exportLogs() {
         activityLauncherHelper.saveFile("purrfectsnap-logs-${System.currentTimeMillis()}.zip", "application/zip") { uri ->
             context.coroutineScope.launch {
                 context.shortToast(translation["saving_logs_toast"])
@@ -108,7 +132,103 @@ class HomeLogs : Routes.Route() {
         }
     }
 
-    override val topBarActions: @Composable (RowScope.() -> Unit) = {}
+    override val topBarActions: @Composable (RowScope.() -> Unit) = {
+        var showFilterDialog by remember { mutableStateOf(false) }
+        if (showFilterDialog) {
+            LogFilterDialog { showFilterDialog = false }
+        }
+        IconButton(onClick = { showFilterDialog = true }) {
+            Icon(
+                imageVector = Icons.Filled.FilterList,
+                contentDescription = "Filter Logs",
+                tint = LogsSkinPalette.glowSecondary
+            )
+        }
+    }
+
+    @Composable
+    fun LogFilterDialog(onDismiss: () -> Unit) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = LogsSkinPalette.cardOverlayColor,
+                tonalElevation = 0.dp,
+                shadowElevation = 12.dp,
+                border = BorderStroke(
+                    1.dp,
+                    Brush.linearGradient(
+                        listOf(
+                            LogsSkinPalette.glowPrimary.copy(alpha = 0.5f),
+                            LogsSkinPalette.glowSecondary.copy(alpha = 0.3f)
+                        )
+                    )
+                )
+            ) {
+                Box(modifier = Modifier.background(LogsSkinPalette.cardOverlay)) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = translation["filter_logs_title"] ?: "Filter Log Categories",
+                            color = LogsSkinPalette.textPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            LogCategory.entries.forEach { category ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            enabledCategories[category] = !(enabledCategories[category] ?: true)
+                                            externalRefreshTick.value++
+                                        }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Checkbox(
+                                        checked = enabledCategories[category] == true,
+                                        onCheckedChange = { checked ->
+                                            enabledCategories[category] = checked
+                                            externalRefreshTick.value++
+                                        },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = LogsSkinPalette.glowPrimary,
+                                            uncheckedColor = LogsSkinPalette.textPrimary.copy(alpha = 0.4f),
+                                            checkmarkColor = Color.White
+                                        )
+                                    )
+                                    Text(
+                                        text = translation[category.translationKey] ?: category.name,
+                                        color = LogsSkinPalette.textPrimary,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                Text(translation["filter_logs_done_button"] ?: "Done", color = LogsSkinPalette.glowPrimary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     override val content: @Composable (NavBackStackEntry) -> Unit = { nav ->
         val themeId by produceState(initialValue = context.config.root.global.uiSettings.managerTheme.get()) {
             while (true) { delay(300); value = context.config.root.global.uiSettings.managerTheme.get() }
@@ -124,17 +244,17 @@ class HomeLogs : Routes.Route() {
             val firstVisibleItem by remember { derivedStateOf { logListState.firstVisibleItemIndex } }
             val layoutInfo by remember { derivedStateOf { logListState.layoutInfo } }
             val floatingButtonColors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = PurrfectPalette.cardOverlayColor,
-                contentColor = Color.White,
-                disabledContainerColor = Color.White.copy(alpha = 0.08f),
-                disabledContentColor = Color.White.copy(alpha = 0.35f)
+                containerColor = LogsSkinPalette.cardOverlayColor,
+                contentColor = LogsSkinPalette.textPrimary,
+                disabledContainerColor = LogsSkinPalette.textPrimary.copy(alpha = 0.08f),
+                disabledContentColor = LogsSkinPalette.textPrimary.copy(alpha = 0.35f)
             )
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = Color.White.copy(alpha = 0.08f),
+                color = LogsSkinPalette.textPrimary.copy(alpha = 0.08f),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                border = BorderStroke(1.dp, LogsSkinPalette.textPrimary.copy(alpha = 0.12f))
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -168,7 +288,7 @@ class HomeLogs : Routes.Route() {
     }
 
     @Composable
-    internal fun LogsFloatingBar(
+    fun LogsFloatingBar(
         isRefreshing: Boolean,
         onRefresh: () -> Unit,
         onFilter: () -> Unit,
@@ -182,15 +302,15 @@ class HomeLogs : Routes.Route() {
                 .padding(horizontal = 14.dp, vertical = 12.dp)
                 .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
             shape = RoundedCornerShape(26.dp),
-            color = Color.White.copy(alpha = 0.07f),
+            color = LogsSkinPalette.textPrimary.copy(alpha = 0.07f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                        LogsSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                        LogsSkinPalette.glowSecondary.copy(alpha = 0.35f)
                     )
                 )
             )
@@ -210,12 +330,12 @@ class HomeLogs : Routes.Route() {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = translation["common.back"],
-                            tint = Color.White
+                            tint = LogsSkinPalette.textPrimary
                         )
                     }
                     Text(
                         text = translation["manager.routes.home_logs"] ?: "Logs",
-                        color = Color.White,
+                        color = LogsSkinPalette.textPrimary,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp
                     )
@@ -228,7 +348,7 @@ class HomeLogs : Routes.Route() {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = Color.White
+                            color = LogsSkinPalette.textPrimary
                         )
                     }
                     IconButton(onClick = onFilter) {
@@ -242,7 +362,7 @@ class HomeLogs : Routes.Route() {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
                             contentDescription = translation["refresh_button_description"],
-                            tint = Color.White
+                            tint = LogsSkinPalette.textPrimary
                         )
                     }
                     Box {
@@ -250,7 +370,7 @@ class HomeLogs : Routes.Route() {
                             Icon(
                                 imageVector = Icons.Filled.MoreVert,
                                 contentDescription = null,
-                                tint = Color.White
+                                tint = LogsSkinPalette.textPrimary
                             )
                         }
                         DropdownMenu(
@@ -267,10 +387,10 @@ class HomeLogs : Routes.Route() {
                                     Icon(
                                         imageVector = Icons.Filled.Download,
                                         contentDescription = null,
-                                        tint = PurrfectPalette.glowPrimary
+                                        tint = LogsSkinPalette.glowPrimary
                                     )
                                 },
-                                text = { Text(text = translation["export_logs_button"] ?: "Export Logs", color = Color.White) },
+                                text = { Text(text = translation["export_logs_button"] ?: "Export Logs", color = LogsSkinPalette.textPrimary) },
                                 onClick = {
                                     onExport()
                                     showMenu = false
@@ -284,7 +404,7 @@ class HomeLogs : Routes.Route() {
                                         tint = Color(0xFFFF9CAB)
                                     )
                                 },
-                                text = { Text(text = translation["clear_logs_button"] ?: "Clear Logs", color = Color.White) },
+                                text = { Text(text = translation["clear_logs_button"] ?: "Clear Logs", color = LogsSkinPalette.textPrimary) },
                                 onClick = {
                                     onClear()
                                     showMenu = false
@@ -298,7 +418,7 @@ class HomeLogs : Routes.Route() {
     }
 
     @Composable
-    internal fun EmptyLogsState() {
+    fun EmptyLogsState() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -308,29 +428,29 @@ class HomeLogs : Routes.Route() {
         ) {
             Surface(
                 shape = RoundedCornerShape(50),
-                color = Color.White.copy(alpha = 0.1f),
+                color = LogsSkinPalette.textPrimary.copy(alpha = 0.1f),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+                border = BorderStroke(1.dp, LogsSkinPalette.textPrimary.copy(alpha = 0.18f))
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = LogsSkinPalette.textPrimary,
                     modifier = Modifier.padding(14.dp)
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = translation["no_logs_hint"],
-                color = PurrfectPalette.textPrimary,
+                color = LogsSkinPalette.textPrimary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = translation["refresh_hint"],
-                color = PurrfectPalette.textSecondary,
+                color = LogsSkinPalette.textSecondary,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 6.dp)
@@ -339,7 +459,7 @@ class HomeLogs : Routes.Route() {
     }
 
     @Composable
-    internal fun LogEntryCard(line: LogLine, composeContext: android.content.Context) {
+    fun LogEntryCard(line: LogLine, composeContext: android.content.Context) {
         val normalizedMessage = remember(line.message) {
             val cleaned = line.message.replace("\r", "")
             val fragments = cleaned.lines()
@@ -362,7 +482,7 @@ class HomeLogs : Routes.Route() {
                     )
                 },
             shape = RoundedCornerShape(18.dp),
-            color = Color.White.copy(alpha = 0.05f),
+            color = LogsSkinPalette.textPrimary.copy(alpha = 0.05f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(1.dp, levelColor.copy(alpha = 0.4f))
@@ -426,21 +546,21 @@ class HomeLogs : Routes.Route() {
                             Text(
                                 text = LogChannel.fromChannel(line.tag)?.shortName ?: line.tag,
                                 fontWeight = FontWeight.SemiBold,
-                                color = PurrfectPalette.textPrimary,
+                                color = LogsSkinPalette.textPrimary,
                                 fontSize = 13.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = line.dateTime,
-                                color = PurrfectPalette.textSecondary,
+                                color = LogsSkinPalette.textSecondary,
                                 fontSize = 11.sp
                             )
                         }
                     }
                     Text(
                         text = normalizedMessage,
-                        color = Color.White,
+                        color = LogsSkinPalette.textPrimary,
                         lineHeight = 16.sp,
                         fontSize = 12.sp,
                         modifier = Modifier.fillMaxWidth()
@@ -450,14 +570,15 @@ class HomeLogs : Routes.Route() {
         }
     }
 
-    internal fun logLevelColor(logLevel: LogLevel): Color = when (logLevel) {
-        LogLevel.DEBUG -> PurrfectPalette.glowSecondary
+    @Composable
+    fun logLevelColor(logLevel: LogLevel): Color = when (logLevel) {
+        LogLevel.DEBUG -> LogsSkinPalette.glowSecondary
         LogLevel.INFO, LogLevel.VERBOSE -> Color(0xFFA3F0C2)
         LogLevel.WARN -> Color(0xFFFFD782)
         LogLevel.ERROR, LogLevel.ASSERT -> Color(0xFFFF9CAB)
     }
 
-    internal fun logLevelLabel(logLevel: LogLevel): String = when (logLevel) {
+    fun logLevelLabel(logLevel: LogLevel): String = when (logLevel) {
         LogLevel.DEBUG -> "Debug"
         LogLevel.INFO -> "Info"
         LogLevel.VERBOSE -> "Verbose"
@@ -466,7 +587,7 @@ class HomeLogs : Routes.Route() {
         LogLevel.ASSERT -> "Assert"
     }
 
-    internal fun logLevelIcon(logLevel: LogLevel) = when (logLevel) {
+    fun logLevelIcon(logLevel: LogLevel) = when (logLevel) {
         LogLevel.DEBUG -> Icons.Outlined.BugReport
         LogLevel.ERROR, LogLevel.ASSERT -> Icons.Outlined.Report
         LogLevel.INFO, LogLevel.VERBOSE -> Icons.Outlined.Info

@@ -1,4 +1,4 @@
-package me.eternal.purrfectsnap.ui.manager.pages.tracker
+﻿package me.eternal.purrfectsnap.ui.manager.pages.tracker
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -48,13 +48,31 @@ import me.eternal.purrfectsnap.storage.*
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
-import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
-import me.eternal.purrfectsnap.ui.util.coil.BitmojiImage
-import me.eternal.purrfectsnap.ui.util.openFile
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfectsnap.ui.util.purrfectSwitchColors
-import me.eternal.purrfectsnap.ui.util.pagerTabIndicatorOffset
+import me.eternal.purrfectsnap.ui.util.coil.BitmojiImage
+import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
+import me.eternal.purrfectsnap.ui.util.openFile
 
+internal object TrackerSkinPalette {
+    @Composable
+    internal fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 class FriendTrackerManagerRoot : Routes.Route() {
@@ -81,21 +99,23 @@ class FriendTrackerManagerRoot : Routes.Route() {
         onClick: () -> Unit
     ) {
         val shape = RoundedCornerShape(14.dp)
-        val backgroundBrush = remember {
+        val glowPrimary = TrackerSkinPalette.glowPrimary
+        val glowSecondary = TrackerSkinPalette.glowSecondary
+        val backgroundBrush = remember(glowPrimary, glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.24f)
+                    glowPrimary.copy(alpha = 0.28f),
+                    glowSecondary.copy(alpha = 0.24f)
                 )
             )
         }
         Surface(
             onClick = onClick,
             shape = shape,
-            color = Color.White.copy(alpha = 0.06f),
+            color = TrackerSkinPalette.textPrimary.copy(alpha = 0.06f),
             tonalElevation = 0.dp,
             shadowElevation = 12.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+            border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f)),
             modifier = modifier.size(46.dp)
         ) {
             Box(
@@ -104,7 +124,7 @@ class FriendTrackerManagerRoot : Routes.Route() {
                     .fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = contentDescription, tint = Color.White)
+                Icon(icon, contentDescription = contentDescription, tint = TrackerSkinPalette.textPrimary)
             }
         }
     }
@@ -117,11 +137,13 @@ class FriendTrackerManagerRoot : Routes.Route() {
         modifier: Modifier = Modifier
     ) {
         val shape = RoundedCornerShape(22.dp)
-        val backgroundBrush = remember {
+        val glowPrimary = TrackerSkinPalette.glowPrimary
+        val glowSecondary = TrackerSkinPalette.glowSecondary
+        val backgroundBrush = remember(glowPrimary, glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.3f)
+                    glowPrimary.copy(alpha = 0.34f),
+                    glowSecondary.copy(alpha = 0.3f)
                 )
             )
         }
@@ -131,7 +153,7 @@ class FriendTrackerManagerRoot : Routes.Route() {
             color = Color.Transparent,
             tonalElevation = 0.dp,
             shadowElevation = 16.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+            border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.14f)),
             modifier = modifier
         ) {
             Box(
@@ -144,8 +166,8 @@ class FriendTrackerManagerRoot : Routes.Route() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(icon, contentDescription = label, tint = Color.White)
-                    Text(label, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Icon(icon, contentDescription = label, tint = TrackerSkinPalette.textPrimary)
+                    Text(label, color = TrackerSkinPalette.textPrimary, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -159,11 +181,13 @@ class FriendTrackerManagerRoot : Routes.Route() {
         modifier: Modifier = Modifier
     ) {
         val shape = RoundedCornerShape(18.dp)
-        val backgroundBrush = remember {
+        val glowPrimary = TrackerSkinPalette.glowPrimary
+        val glowSecondary = TrackerSkinPalette.glowSecondary
+        val backgroundBrush = remember(glowPrimary, glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.26f)
+                    glowPrimary.copy(alpha = 0.32f),
+                    glowSecondary.copy(alpha = 0.26f)
                 )
             )
         }
@@ -173,7 +197,7 @@ class FriendTrackerManagerRoot : Routes.Route() {
             color = Color.Transparent,
             tonalElevation = 0.dp,
             shadowElevation = 12.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+            border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f)),
             modifier = modifier
         ) {
             Row(
@@ -183,8 +207,8 @@ class FriendTrackerManagerRoot : Routes.Route() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(icon, contentDescription = label, tint = Color.White)
-                Text(label, color = Color.White, fontWeight = FontWeight.SemiBold)
+                Icon(icon, contentDescription = label, tint = TrackerSkinPalette.textPrimary)
+                Text(label, color = TrackerSkinPalette.textPrimary, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -201,13 +225,16 @@ class FriendTrackerManagerRoot : Routes.Route() {
                 title = translation["export_dialog_title"],
                 text = translation["export_logs_dialog_confirm_text"],
                 icon = Icons.Default.SaveAlt,
-                confirmButtonText = translation["export_button"],
+                confirmButtonText = translation["bulk_export_button"],
                 onConfirm = {
                     showExportDialog = false
                     routes.friendTrackerConfigExport.navigate()
                 },
-                dismissButtonText = translation["button.cancel"],
-                onDismiss = { showExportDialog = false },
+                dismissButtonText = translation["individual_export_button"],
+                onDismiss = {
+                    showExportDialog = false
+                    showSingleExportDialog = true
+                },
                 opaque = true,
                 showCloseButton = false
             )
@@ -359,10 +386,10 @@ class FriendTrackerManagerRoot : Routes.Route() {
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = TrackerSkinPalette.textPrimary.copy(alpha = 0.08f),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f))
                 ) {
                     Box(
                         modifier = Modifier
@@ -370,18 +397,18 @@ class FriendTrackerManagerRoot : Routes.Route() {
                             .background(
                                 Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                                        TrackerSkinPalette.glowPrimary.copy(alpha = 0.32f),
+                                        TrackerSkinPalette.glowSecondary.copy(alpha = 0.28f)
                                     )
                                 ),
                                 CircleShape
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.AutoGraph, contentDescription = text, tint = Color.White)
+                        Icon(Icons.Filled.AutoGraph, contentDescription = text, tint = TrackerSkinPalette.textPrimary)
                     }
                 }
-                Text(text, color = Color.White, fontWeight = FontWeight.ExtraBold)
+                Text(text, color = TrackerSkinPalette.textPrimary, fontWeight = FontWeight.ExtraBold)
             }
         }
 
@@ -412,6 +439,16 @@ class FriendTrackerManagerRoot : Routes.Route() {
                     }
 
                     val ruleShape = RoundedCornerShape(20.dp)
+                    val glowPrimary = TrackerSkinPalette.glowPrimary
+                    val glowSecondary = TrackerSkinPalette.glowSecondary
+                    val borderBrush = remember(glowPrimary, glowSecondary) {
+                        Brush.linearGradient(
+                            listOf(
+                                glowPrimary.copy(alpha = 0.5f),
+                                glowSecondary.copy(alpha = 0.4f)
+                            )
+                        )
+                    }
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -425,30 +462,22 @@ class FriendTrackerManagerRoot : Routes.Route() {
                         color = Color.Transparent,
                         tonalElevation = 0.dp,
                         shadowElevation = 12.dp,
-                        border = BorderStroke(
-                            1.dp,
-                            Brush.linearGradient(
-                                listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
-                                )
-                            )
-                        )
+                        border = BorderStroke(1.dp, borderBrush)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(PurrfectPalette.cardOverlay, ruleShape)
+                                .background(TrackerSkinPalette.cardOverlay, ruleShape)
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.08f),
+                                color = TrackerSkinPalette.textPrimary.copy(alpha = 0.08f),
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp,
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+                                border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.18f))
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -456,22 +485,22 @@ class FriendTrackerManagerRoot : Routes.Route() {
                                         .background(
                                             Brush.linearGradient(
                                                 listOf(
-                                                    PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                                                    PurrfectPalette.glowSecondary.copy(alpha = 0.3f)
+                                                    glowPrimary.copy(alpha = 0.35f),
+                                                    glowSecondary.copy(alpha = 0.3f)
                                                 )
                                             ),
                                             CircleShape
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.AutoMirrored.Filled.Rule, contentDescription = null, tint = Color.White)
+                                    Icon(Icons.AutoMirrored.Filled.Rule, contentDescription = null, tint = TrackerSkinPalette.textPrimary)
                                 }
                             }
                             Column(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Text(ruleName, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                                Text(ruleName, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TrackerSkinPalette.textPrimary)
                                 Text(
                                     buildString {
                                         append(eventCount)
@@ -486,7 +515,7 @@ class FriendTrackerManagerRoot : Routes.Route() {
                                     },
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = PurrfectPalette.textSecondary
+                                    color = TrackerSkinPalette.textSecondary
                                 )
                                 if (scopeCount > 0) {
                                     val scopesBitmoji = rememberAsyncMutableStateList(defaultValue = emptyList()) {
@@ -514,14 +543,14 @@ class FriendTrackerManagerRoot : Routes.Route() {
                                         if (scopeCount > scopesBitmoji.size) {
                                             Surface(
                                                 shape = CircleShape,
-                                                color = Color.White.copy(alpha = 0.08f),
+                                                color = TrackerSkinPalette.textPrimary.copy(alpha = 0.08f),
                                                 tonalElevation = 0.dp,
                                                 shadowElevation = 0.dp,
-                                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                                                border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f))
                                             ) {
                                                 Text(
                                                     text = "+${scopeCount - scopesBitmoji.size}",
-                                                    color = Color.White,
+                                                    color = TrackerSkinPalette.textPrimary,
                                                     fontWeight = FontWeight.Bold,
                                                     modifier = Modifier
                                                         .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -537,12 +566,12 @@ class FriendTrackerManagerRoot : Routes.Route() {
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color.White.copy(alpha = 0.06f),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                                    color = TrackerSkinPalette.textPrimary.copy(alpha = 0.06f),
+                                    border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.1f))
                                 ) {
                                     Text(
                                         text = translation[if (enabled) "enabled_label" else "disabled_label"],
-                                        color = Color.White,
+                                        color = TrackerSkinPalette.textPrimary,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
@@ -566,7 +595,7 @@ class FriendTrackerManagerRoot : Routes.Route() {
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    internal fun TrackerScreenContent(nav: NavBackStackEntry) {
+    internal fun FriendTrackerScreen(nav: NavBackStackEntry) {
         val coroutineScope = rememberCoroutineScope()
         val pagerState = rememberPagerState(initialPage = 0) { titles.size }
         currentPage = pagerState.currentPage
@@ -599,27 +628,29 @@ class FriendTrackerManagerRoot : Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(TrackerSkinPalette.backgroundGradient)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
+                val glowPrimary = TrackerSkinPalette.glowPrimary
+                val glowSecondary = TrackerSkinPalette.glowSecondary
+                val topBorderBrush = remember(glowPrimary, glowSecondary) {
+                    Brush.linearGradient(
+                        listOf(
+                            glowPrimary.copy(alpha = 0.55f),
+                            glowSecondary.copy(alpha = 0.35f)
+                        )
+                    )
+                }
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                         .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
                     shape = RoundedCornerShape(26.dp),
-                    color = PurrfectPalette.cardOverlayColor,
+                    color = TrackerSkinPalette.cardOverlayColor,
                     tonalElevation = 0.dp,
                     shadowElevation = 10.dp,
-                    border = BorderStroke(
-                        1.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                            )
-                        )
-                    )
+                    border = BorderStroke(1.dp, topBorderBrush)
                 ) {
                     Row(
                         modifier = Modifier
@@ -631,13 +662,13 @@ class FriendTrackerManagerRoot : Routes.Route() {
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = context.translation["manager.routes.friend_tracker"],
-                                color = Color.White,
+                                color = TrackerSkinPalette.textPrimary,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 20.sp
                             )
                             Text(
                                 text = titles.getOrNull(pagerState.currentPage) ?: "",
-                                color = PurrfectPalette.textSecondary,
+                                color = TrackerSkinPalette.textSecondary,
                                 fontSize = 14.sp
                             )
                         }
@@ -669,10 +700,10 @@ class FriendTrackerManagerRoot : Routes.Route() {
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp),
                     shape = RoundedCornerShape(22.dp),
-                    color = Color.White.copy(alpha = 0.04f),
+                    color = TrackerSkinPalette.textPrimary.copy(alpha = 0.04f),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                    border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.08f))
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Row(
@@ -683,13 +714,16 @@ class FriendTrackerManagerRoot : Routes.Route() {
                         ) {
                             titles.forEachIndexed { i, text ->
                                 val selected = pagerState.currentPage == i
+                                val indicatorBrush = remember(glowPrimary, glowSecondary) {
+                                    Brush.linearGradient(listOf(glowPrimary, glowSecondary))
+                                }
                                 Surface(
                                     modifier = Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).clickable {
                                         coroutineScope.launch { pagerState.animateScrollToPage(i) }
                                     },
                                     shape = RoundedCornerShape(18.dp),
-                                    color = if (selected) Color.White.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.06f),
-                                    border = if (selected) BorderStroke(1.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))) else BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+                                    color = if (selected) TrackerSkinPalette.textPrimary.copy(alpha = 0.14f) else TrackerSkinPalette.textPrimary.copy(alpha = 0.06f),
+                                    border = if (selected) BorderStroke(1.dp, indicatorBrush) else BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.16f)),
                                     tonalElevation = 0.dp,
                                     shadowElevation = 0.dp
                                 ) {
@@ -698,7 +732,7 @@ class FriendTrackerManagerRoot : Routes.Route() {
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.Center
                                     ) {
-                                        Text(text = text, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                        Text(text = text, color = TrackerSkinPalette.textPrimary, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -826,7 +860,7 @@ private fun SelectRuleDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(translation["manager.friend_tracker.select_rule_to_export_title"], style = MaterialTheme.typography.headlineSmall)
+                Text(translation["manager.friend_tracker.select_rule_to_export_title"] ?: "Select Rule", style = MaterialTheme.typography.headlineSmall)
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -844,7 +878,7 @@ private fun SelectRuleDialog(
                     }
                 }
                 TextButton(onClick = onDismissRequest) {
-                    Text(translation["button.cancel"])
+                    Text(translation["button.cancel"] ?: "Cancel")
                 }
             }
         }
@@ -860,23 +894,25 @@ private fun ChoiceDialog(
 ) {
     Dialog(onDismissRequest = onDismissRequest) {
         val shape = RoundedCornerShape(20.dp)
+        val glowPrimary = TrackerSkinPalette.glowPrimary
+        val glowSecondary = TrackerSkinPalette.glowSecondary
+        val borderBrush = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.6f),
+                    glowSecondary.copy(alpha = 0.5f)
+                )
+            )
+        }
         Surface(
             shape = shape,
             color = Color.Transparent,
             shadowElevation = 20.dp,
-            border = BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.5f)
-                    )
-                )
-            )
+            border = BorderStroke(1.dp, borderBrush)
         ) {
             Column(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, shape)
+                    .background(TrackerSkinPalette.cardOverlay, shape)
                     .padding(horizontal = 18.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -884,7 +920,7 @@ private fun ChoiceDialog(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                    color = Color.White,
+                    color = TrackerSkinPalette.textPrimary,
                     textAlign = TextAlign.Center
                 )
                 choices.forEachIndexed { index, (text, icon) ->

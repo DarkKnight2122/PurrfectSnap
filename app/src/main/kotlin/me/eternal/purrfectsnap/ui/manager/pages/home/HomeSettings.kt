@@ -1,4 +1,4 @@
-package me.eternal.purrfectsnap.ui.manager.pages.home
+﻿package me.eternal.purrfectsnap.ui.manager.pages.home
 
 import android.content.SharedPreferences
 import android.net.Uri
@@ -55,7 +55,10 @@ import me.eternal.purrfectsnap.task.UpdateCheckWorker
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfectsnap.common.ui.util.*
+import me.eternal.purrfectsnap.common.ui.util.G2RoundedRectangle
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfectsnap.ui.setup.Requirements
 import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
 import me.eternal.purrfectsnap.ui.util.AlertDialogs
@@ -66,6 +69,26 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+
+internal object SettingsSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.glowPrimary
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.glowSecondary
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.backgroundGradient
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.cardOverlay
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.textPrimary
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.textSecondary
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.cardOverlayColor
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.panelGradient else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.panelGradient
+}
+
 
 class HomeSettings : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.sections.home_settings") }
@@ -153,13 +176,13 @@ class HomeSettings : Routes.Route() {
     }
 
     @Composable
-    internal fun RowTitle(title: String) {
+    fun RowTitle(title: String) {
         Text(
             text = title,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = SettingsSkinPalette.textPrimary
         )
     }
 
@@ -236,7 +259,7 @@ class HomeSettings : Routes.Route() {
     }
 
     @Composable
-    internal fun PreferenceToggle(sharedPreferences: SharedPreferences, key: String, text: String) {
+    fun PreferenceToggle(sharedPreferences: SharedPreferences, key: String, text: String) {
         val realKey = "debug_$key"
         var value by remember { mutableStateOf(sharedPreferences.getBoolean(realKey, false)) }
         val hapticFeedback = LocalHapticFeedback.current
@@ -268,7 +291,7 @@ class HomeSettings : Routes.Route() {
     }
 
     @Composable
-    internal fun RowAction(key: String, requireConfirmation: Boolean = false, action: () -> Unit) {
+    fun RowAction(key: String, requireConfirmation: Boolean = false, action: () -> Unit) {
         var confirmationDialog by remember {
             mutableStateOf(false)
         }
@@ -318,7 +341,7 @@ class HomeSettings : Routes.Route() {
     }
 
     @Composable
-    internal fun ShiftedRow(
+    fun ShiftedRow(
         modifier: Modifier = Modifier,
         horizontalArrangement: Arrangement.Horizontal = Arrangement.Start,
         verticalAlignment: Alignment.Vertical = Alignment.Top,
@@ -332,18 +355,25 @@ class HomeSettings : Routes.Route() {
     }
 
     @Composable
-    internal fun GlassCard(
+    fun GlassCard(
         modifier: Modifier = Modifier,
         content: @Composable ColumnScope.() -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
+        val isAether = skin.id == "AETHER"
+        val shape = if (isAether) me.eternal.purrfectsnap.common.ui.util.G2RoundedRectangle(28.dp) else RoundedCornerShape(22.dp)
+        
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(22.dp),
-            color = Color.White.copy(alpha = 0.04f),
+            shape = shape,
+            color = if (isAether) skin.cardOverlayColor else SettingsSkinPalette.textPrimary.copy(alpha = 0.04f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
-            contentColor = Color.White
+            border = BorderStroke(
+                1.dp, 
+                if (isAether) skin.laserBorder.copy(alpha = 0.4f) else SettingsSkinPalette.textPrimary.copy(alpha = 0.08f)
+            ),
+            contentColor = SettingsSkinPalette.textPrimary
         ) {
             Column(
                 modifier = Modifier
@@ -358,7 +388,7 @@ class HomeSettings : Routes.Route() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    internal fun AestheticDropdownField(
+    fun AestheticDropdownField(
         value: String,
         expanded: Boolean,
         modifier: Modifier = Modifier,
@@ -368,14 +398,14 @@ class HomeSettings : Routes.Route() {
         Row(
             modifier = modifier
                 .clip(shape)
-                .background(Color.White.copy(alpha = 0.06f))
-                .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
+                .background(SettingsSkinPalette.textPrimary.copy(alpha = 0.06f))
+                .border(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.16f), shape)
                 .clickable { onClick() }
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = value, color = Color.White)
+            Text(text = value, color = SettingsSkinPalette.textPrimary)
             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
         }
     }

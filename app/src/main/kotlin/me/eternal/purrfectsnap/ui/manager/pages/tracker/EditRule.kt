@@ -48,7 +48,9 @@ import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfectsnap.storage.*
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfectsnap.ui.manager.pages.social.AddFriendDialog
 
 class EditRule : Routes.Route() {
@@ -69,11 +71,13 @@ class EditRule : Routes.Route() {
         content: @Composable ColumnScope.() -> Unit
     ) {
         val shape = RoundedCornerShape(22.dp)
-        val border = remember {
+        val glowPrimary = TrackerSkinPalette.glowPrimary
+        val glowSecondary = TrackerSkinPalette.glowSecondary
+        val border = remember(glowPrimary, glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.42f)
+                    glowPrimary.copy(alpha = 0.5f),
+                    glowSecondary.copy(alpha = 0.42f)
                 )
             )
         }
@@ -87,7 +91,7 @@ class EditRule : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, shape)
+                    .background(TrackerSkinPalette.cardOverlay, shape)
                     .padding(contentPadding)
             ) {
                 Column(content = content)
@@ -114,7 +118,7 @@ class EditRule : Routes.Route() {
                 checked = checked.value,
                 onCheckedChange = { checked.value = it; onChanged(it) },
                 colors = CheckboxDefaults.colors(
-                    checkedColor = PurrfectPalette.glowPrimary,
+                    checkedColor = TrackerSkinPalette.glowPrimary,
                     uncheckedColor = Color.White.copy(alpha = 0.8f),
                     checkmarkColor = Color.Black
                 )
@@ -188,66 +192,54 @@ class EditRule : Routes.Route() {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                         val eventLabel = context.translation["tracker_events.${currentEventType.value}"]
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
+                        Surface(
+                            onClick = { expanded.value = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White.copy(alpha = 0.08f)
                         ) {
-                            OutlinedTextField(
-                                modifier = Modifier
-                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                    .wrapContentWidth(),
-                                value = eventLabel,
-                                onValueChange = {},
-                                readOnly = true,
-                                textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center, color = Color.White),
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded.value) },
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = PurrfectPalette.cardOverlayColor,
-                                    unfocusedContainerColor = PurrfectPalette.cardOverlayColor,
-                                    focusedIndicatorColor = Color.White.copy(alpha = 0.18f),
-                                    unfocusedIndicatorColor = Color.White.copy(alpha = 0.14f),
-                                    cursorColor = Color.Transparent,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White
-                                )
-                            )
+                            Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(eventLabel, color = Color.White)
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded.value)
+                            }
                         }
                         ExposedDropdownMenu(
                             expanded = expanded.value,
-                            onDismissRequest = { expanded.value = false },
-                            modifier = Modifier.wrapContentWidth(),
-                            containerColor = Color(0xFF121528),
-                            shape = RoundedCornerShape(14.dp)
+                            onDismissRequest = { expanded.value = false }
                         ) {
-                            TrackerEventType.entries.forEach { eventType ->
+                            TrackerEventType.entries.forEach { type ->
                                 DropdownMenuItem(
+                                    text = { Text(context.translation["tracker_events.${type.key}"]) },
                                     onClick = {
-                                        currentEventType.value = eventType.key
+                                        currentEventType.value = type.key
                                         expanded.value = false
-                                    },
-                                    text = { Text(context.translation["tracker_events.${eventType.key}"], color = Color.White) }
+                                    }
                                 )
                             }
                         }
                     }
-                    Text(
-                        translation["triggers_title"],
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Text(translation["actions_title"], color = Color.White, fontWeight = FontWeight.Bold)
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         TrackerRuleAction.entries.forEach { action ->
-                            ActionCheckbox(
-                                context.translation["tracker_actions.${action.key}"],
-                                checked = remember { mutableStateOf(addEventActions.value.contains(action)) }
-                            ) {
-                                if (it) addEventActions.value += action else addEventActions.value -= action
-                            }
+                            val selected = action in addEventActions.value
+                            FilterChip(
+                                selected = selected,
+                                onClick = {
+                                    addEventActions.value = if (selected) addEventActions.value - action else addEventActions.value + action
+                                },
+                                label = { Text(context.translation["tracker_actions.${action.key}"]) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.4f),
+                                    selectedLabelColor = Color.White,
+                                    labelColor = Color.White.copy(alpha = 0.7f)
+                                )
+                            )
                         }
                     }
                     Text(
@@ -272,7 +264,7 @@ class EditRule : Routes.Route() {
                         },
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
+                            containerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.35f),
                             contentColor = Color.White
                         )
                     ) { Text(translation["add_button"]) }
@@ -422,7 +414,7 @@ class EditRule : Routes.Route() {
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     shape = topShape,
-                    color = PurrfectPalette.cardOverlayColor,
+                    color = TrackerSkinPalette.cardOverlayColor,
                     shadowElevation = 12.dp,
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
                 ) {
@@ -451,7 +443,7 @@ class EditRule : Routes.Route() {
                             )
                             Text(
                                 translation["rule_subtitle"] ?: "",
-                                color = PurrfectPalette.textSecondary,
+                                color = TrackerSkinPalette.textSecondary,
                                 fontSize = 12.sp
                             )
                         }
@@ -493,7 +485,7 @@ class EditRule : Routes.Route() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(PurrfectPalette.backgroundGradient)
+                    .background(TrackerSkinPalette.backgroundGradient)
                     .padding(padding)
             ) {
                 val contentBottomPadding = routes.bottomPadding + 12.dp
@@ -520,7 +512,7 @@ class EditRule : Routes.Route() {
                         TextField(
                             value = ruleName.value,
                             onValueChange = { ruleName.value = it },
-                            label = { Text(translation["rule_name_label"], color = PurrfectPalette.textSecondary) },
+                            label = { Text(translation["rule_name_label"], color = TrackerSkinPalette.textSecondary) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
@@ -531,9 +523,11 @@ class EditRule : Routes.Route() {
                                 unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
-                                cursorColor = PurrfectPalette.glowPrimary,
+                                cursorColor = TrackerSkinPalette.glowPrimary,
                                 focusedLabelColor = Color.White,
-                                unfocusedLabelColor = PurrfectPalette.textSecondary
+                                unfocusedLabelColor = TrackerSkinPalette.textSecondary,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
                             ),
                             textStyle = LocalTextStyle.current.copy(color = Color.White)
                         )
@@ -541,7 +535,7 @@ class EditRule : Routes.Route() {
                         TextField(
                             value = authorName.value,
                             onValueChange = { authorName.value = it },
-                            label = { Text(translation["author_name_label"], color = PurrfectPalette.textSecondary) },
+                            label = { Text(translation["author_name_label"], color = TrackerSkinPalette.textSecondary) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
@@ -552,9 +546,11 @@ class EditRule : Routes.Route() {
                                 unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
-                                cursorColor = PurrfectPalette.glowPrimary,
+                                cursorColor = TrackerSkinPalette.glowPrimary,
                                 focusedLabelColor = Color.White,
-                                unfocusedLabelColor = PurrfectPalette.textSecondary
+                                unfocusedLabelColor = TrackerSkinPalette.textSecondary,
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White
                             ),
                             textStyle = LocalTextStyle.current.copy(color = Color.White)
                         )
@@ -602,11 +598,13 @@ class EditRule : Routes.Route() {
                             scopeOptions.forEach { (index, label) ->
                                 val selected = selectedScopeIndex == index
                                 val optionShape = RoundedCornerShape(16.dp)
-                                val optionBrush = remember {
+                                val glowPrimary = TrackerSkinPalette.glowPrimary
+                                val glowSecondary = TrackerSkinPalette.glowSecondary
+                                val optionBrush = remember(glowPrimary, glowSecondary) {
                                     Brush.linearGradient(
                                         listOf(
-                                            PurrfectPalette.glowPrimary.copy(alpha = if (selected) 0.22f else 0.12f),
-                                            PurrfectPalette.glowSecondary.copy(alpha = if (selected) 0.18f else 0.1f)
+                                            glowPrimary.copy(alpha = if (selected) 0.22f else 0.12f),
+                                            glowSecondary.copy(alpha = if (selected) 0.18f else 0.1f)
                                         )
                                     )
                                 }
@@ -618,7 +616,7 @@ class EditRule : Routes.Route() {
                                     color = Color.Transparent,
                                     border = BorderStroke(
                                         1.dp,
-                                        if (selected) PurrfectPalette.glowPrimary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.12f)
+                                        if (selected) TrackerSkinPalette.glowPrimary.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.12f)
                                     ),
                                     tonalElevation = 0.dp,
                                     shadowElevation = if (selected) 10.dp else 0.dp
@@ -661,11 +659,21 @@ class EditRule : Routes.Route() {
                         }
                         if (scopes.isNotEmpty()) {
                             val selectorShape = RoundedCornerShape(18.dp)
-                        val selectorBrush = remember {
-                            Brush.linearGradient(
-                                listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                            val glowPrimary = TrackerSkinPalette.glowPrimary
+                            val glowSecondary = TrackerSkinPalette.glowSecondary
+                            val selectorBrush = remember(glowPrimary, glowSecondary) {
+                                Brush.linearGradient(
+                                    listOf(
+                                        glowPrimary.copy(alpha = 0.32f),
+                                        glowSecondary.copy(alpha = 0.28f)
+                                    )
+                                )
+                            }
+                            val borderBrush = remember(glowPrimary, glowSecondary) {
+                                Brush.linearGradient(
+                                    listOf(
+                                        glowPrimary.copy(alpha = 0.45f),
+                                        glowSecondary.copy(alpha = 0.38f)
                                     )
                                 )
                             }
@@ -680,15 +688,7 @@ class EditRule : Routes.Route() {
                                 color = Color.Transparent,
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp,
-                                border = BorderStroke(
-                                    1.dp,
-                                    Brush.linearGradient(
-                                        listOf(
-                                            PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                            PurrfectPalette.glowSecondary.copy(alpha = 0.38f)
-                                        )
-                                    )
-                                )
+                                border = BorderStroke(1.dp, borderBrush)
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -750,7 +750,7 @@ class EditRule : Routes.Route() {
                                         .padding(10.dp)
                                         .fillMaxWidth(),
                                     textAlign = TextAlign.Center,
-                                    color = PurrfectPalette.textSecondary
+                                    color = TrackerSkinPalette.textSecondary
                                 )
                             }
                             events.forEach { event ->
@@ -796,7 +796,7 @@ class EditRule : Routes.Route() {
                                                         overflow = TextOverflow.Ellipsis,
                                                         maxLines = 1,
                                                         lineHeight = 14.sp,
-                                                        color = PurrfectPalette.textSecondary
+                                                        color = TrackerSkinPalette.textSecondary
                                                     )
                                                 }
                                             }

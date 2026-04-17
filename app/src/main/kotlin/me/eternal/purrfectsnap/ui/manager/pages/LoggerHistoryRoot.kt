@@ -3,19 +3,7 @@ package me.eternal.purrfectsnap.ui.manager.pages
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
@@ -24,15 +12,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -71,12 +51,31 @@ import me.eternal.purrfectsnap.download.DownloadProcessor
 import me.eternal.purrfectsnap.storage.findFriend
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import java.net.URLDecoder
 import java.text.DateFormat
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 
+internal object LoggerSkinPalette {
+    @Composable
+    internal fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+}
 
 class LoggerHistoryRoot : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("logger_history") }
@@ -85,7 +84,7 @@ class LoggerHistoryRoot : Routes.Route() {
     private var stringFilter by mutableStateOf("")
     private var reverseOrder by mutableStateOf(true)
 
-    private inline fun decodeMessage(message: LoggedMessage, result: (contentType: ContentType, messageReader: ProtoReader, attachments: List<DecodedAttachment>) -> Unit) {
+    private inline fun decodeMessage(message: LoggedMessage, result: (contentType: ContentType, messageReader: ProtoReader, attachments: List<DecodedAttachment>) -> Unit) {   
         runCatching {
             val messageObject = JsonParser.parseString(String(message.messageData, Charsets.UTF_8)).asJsonObject
             val messageContent = messageObject.getAsJsonObject("mMessageContent")
@@ -138,23 +137,25 @@ class LoggerHistoryRoot : Routes.Route() {
             Spacer(modifier = Modifier.height(30.dp))
         }) }
 
+        val glowPrimary = LoggerSkinPalette.glowPrimary
+        val glowSecondary = LoggerSkinPalette.glowSecondary
+        val borderBrush = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.45f),
+                    glowSecondary.copy(alpha = 0.35f)
+                )
+            )
+        }
         Surface(
             modifier = Modifier
                 .padding(vertical = 4.dp)
                 .fillMaxWidth(),
             shape = RoundedCornerShape(18.dp),
-            color = PurrfectPalette.cardOverlayColor,
+            color = LoggerSkinPalette.cardOverlayColor,
             tonalElevation = 0.dp,
             shadowElevation = 12.dp,
-            border = BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                    )
-                )
-            )
+            border = BorderStroke(1.dp, borderBrush)
         ) {
             Row(
                 modifier = Modifier
@@ -171,10 +172,10 @@ class LoggerHistoryRoot : Routes.Route() {
                             fun ContentHeader() {
                                 val date = remember { DateFormat.getDateTimeInstance().format(message.sendTimestamp) }
                                 Text(
-                                    translation.format("log_header_format", "username" to message.username, "type" to contentType.toString().lowercase(), "date" to date),
+                                    translation.format("log_header_format", "username" to message.username, "type" to contentType.toString().lowercase(), "date" to date),     
                                     modifier = Modifier.padding(end = 4.dp),
                                     fontWeight = FontWeight.ExtraLight,
-                                    color = PurrfectPalette.textSecondary
+                                    color = LoggerSkinPalette.textSecondary
                                 )
                             }
 
@@ -211,7 +212,7 @@ class LoggerHistoryRoot : Routes.Route() {
                                                 fontWeight = FontWeight.Light,
                                                 fontStyle = FontStyle.Italic,
                                                 fontSize = 12.sp,
-                                                color = PurrfectPalette.textSecondary
+                                                color = LoggerSkinPalette.textSecondary
                                             )
                                         }
                                         ContentHeader()
@@ -242,7 +243,7 @@ class LoggerHistoryRoot : Routes.Route() {
                                                     }
                                                 },
                                                 colors = ButtonDefaults.buttonColors(
-                                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
+                                                    containerColor = glowPrimary.copy(alpha = 0.28f),
                                                     contentColor = Color.White
                                                 )
                                             ) {
@@ -287,7 +288,7 @@ class LoggerHistoryRoot : Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(LoggerSkinPalette.backgroundGradient)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 FloatingTopBar(
@@ -303,14 +304,14 @@ class LoggerHistoryRoot : Routes.Route() {
                     .fillMaxWidth()
                     .padding(top = 4.dp, bottom = 10.dp),
                 shape = RoundedCornerShape(22.dp),
-                color = PurrfectPalette.cardOverlayColor,
+                color = LoggerSkinPalette.cardOverlayColor,
                 tonalElevation = 0.dp,
                 shadowElevation = 10.dp,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
             ) {
                 Column(
                     modifier = Modifier
-                        .background(PurrfectPalette.cardOverlay, RoundedCornerShape(22.dp))
+                        .background(LoggerSkinPalette.cardOverlay, RoundedCornerShape(22.dp))
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -354,7 +355,7 @@ class LoggerHistoryRoot : Routes.Route() {
                                 unfocusedContainerColor = Color.White.copy(alpha = 0.06f),
                                 focusedTextColor = Color.White,
                                 unfocusedTextColor = Color.White,
-                                cursorColor = PurrfectPalette.glowSecondary
+                                cursorColor = LoggerSkinPalette.glowSecondary
                             )
                         )
 
@@ -394,14 +395,14 @@ class LoggerHistoryRoot : Routes.Route() {
                         placeholder = {
                             Text(
                                 text = context.translation["manager.dialogs.add_friend.search_hint"] ?: "Search",
-                                color = PurrfectPalette.textSecondary
+                                color = LoggerSkinPalette.textSecondary
                             )
                         },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Filled.Search,
                                 contentDescription = null,
-                                tint = PurrfectPalette.textSecondary
+                                tint = LoggerSkinPalette.textSecondary
                             )
                         },
                         trailingIcon = if (stringFilter.isNotBlank()) {
@@ -410,7 +411,7 @@ class LoggerHistoryRoot : Routes.Route() {
                                     Icon(
                                         imageVector = Icons.Filled.Close,
                                         contentDescription = translation["close_button_description"],
-                                        tint = PurrfectPalette.textSecondary
+                                        tint = LoggerSkinPalette.textSecondary
                                     )
                                 }
                             }
@@ -422,7 +423,7 @@ class LoggerHistoryRoot : Routes.Route() {
                             unfocusedContainerColor = Color.White.copy(alpha = 0.06f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            cursorColor = PurrfectPalette.glowSecondary
+                            cursorColor = LoggerSkinPalette.glowSecondary
                         )
                     )
 
@@ -433,14 +434,14 @@ class LoggerHistoryRoot : Routes.Route() {
                     ) {
                         Text(
                             translation["reverse_order_checkbox"],
-                            color = PurrfectPalette.textSecondary,
+                            color = LoggerSkinPalette.textSecondary,
                             fontSize = 13.sp
                         )
                         Checkbox(
                             checked = reverseOrder,
                             onCheckedChange = { reverseOrder = it },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = PurrfectPalette.glowPrimary,
+                                checkedColor = LoggerSkinPalette.glowPrimary,
                                 checkmarkColor = Color.White,
                                 uncheckedColor = Color.White.copy(alpha = 0.35f)
                             )
@@ -464,7 +465,7 @@ class LoggerHistoryRoot : Routes.Route() {
                         if (hasReachedEnd) {
                             Text(translation["no_more_messages"], modifier = Modifier
                                 .padding(8.dp)
-                                .fillMaxWidth(), textAlign = TextAlign.Center)
+                                .fillMaxWidth(), textAlign = TextAlign.Center, color = Color.White)
                         } else {
                             Row(
                                 horizontalArrangement = Arrangement.Center,
@@ -474,7 +475,7 @@ class LoggerHistoryRoot : Routes.Route() {
                                     modifier = Modifier
                                         .height(20.dp)
                                         .padding(8.dp),
-                                    color = PurrfectPalette.glowSecondary,
+                                    color = LoggerSkinPalette.glowSecondary,
                                     strokeWidth = 2.dp
                                 )
                             }

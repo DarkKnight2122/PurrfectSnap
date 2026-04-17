@@ -88,6 +88,9 @@ class Global : ConfigContainer() {
         val hapticFeedback = boolean("haptic_feedback", true)
         val useSystemToasts = boolean("use_system_toasts", false)
         val managerTheme = unique("manager_theme", "LEGACY", "APHELION") { requireRestart() }.apply { set("LEGACY") }
+        val aphelionSkin = unique("aphelion_skin", "UMBRA", "NOX", "LUX", "IRIS", "LUMINA", "AETHER") { requireRestart() }.apply { set("UMBRA") }
+        val luminaMode = unique("lumina_mode", "AUTO", "LIGHT", "DARK") { requireRestart() }.apply { set("AUTO") }
+        val luminaAccent = unique("lumina_accent", "MAUVE", "ROSEWATER", "FLAMINGO", "PINK", "RED", "MAROON", "PEACH", "YELLOW", "GREEN", "TEAL", "SKY", "SAPPHIRE", "BLUE", "LAVENDER") { requireRestart() }.apply { set("MAUVE") }
     }
 
     val updateSettings = container("update_settings", UpdateSettings()) { addFlags(ConfigFlag.HIDDEN) }

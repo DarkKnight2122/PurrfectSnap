@@ -48,7 +48,9 @@ import me.eternal.purrfectsnap.storage.*
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfectsnap.ui.util.AlertDialogs
 import me.eternal.purrfectsnap.ui.util.Dialog
 import me.eternal.purrfectsnap.ui.util.purrfectSwitchColors
@@ -56,6 +58,26 @@ import me.eternal.purrfectsnap.ui.util.coil.BitmojiImage
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+
+private object ManageScopeSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else Brush.verticalGradient(listOf(Color(0xFF5C4B99), Color(0xFF322B5E), Color(0xFF1B1836)))
+}
+
 
 class ManageScope: Routes.Route() {
     private val dialogs by lazy { AlertDialogs(context.translation) }
@@ -108,7 +130,7 @@ class ManageScope: Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(ManageScopeSkinPalette.backgroundGradient)
         ) {
             FloatingTopBar(
                 title = titleText ?: translation["manage_scope_title"],
@@ -291,8 +313,8 @@ class ManageScope: Routes.Route() {
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.3f)
+                        ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.4f),
+                        ManageScopeSkinPalette.glowSecondary.copy(alpha = 0.3f)
                     )
                 )
             )
@@ -300,7 +322,7 @@ class ManageScope: Routes.Route() {
             CompositionLocalProvider(LocalContentColor provides Color.White) {
                 Column(
                     modifier = Modifier
-                        .background(PurrfectPalette.cardOverlay, shape)
+                        .background(ManageScopeSkinPalette.cardOverlay, shape)
                         .padding(12.dp)
                         .fillMaxWidth()
                 ) {
@@ -469,8 +491,8 @@ class ManageScope: Routes.Route() {
                                             .background(
                                                 Brush.linearGradient(
                                                     listOf(
-                                                        PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                                                        PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
+                                                        ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.5f),
+                                                        ManageScopeSkinPalette.glowSecondary.copy(alpha = 0.4f)
                                                     )
                                                 ),
                                                 RoundedCornerShape(14.dp)
@@ -496,7 +518,7 @@ class ManageScope: Routes.Route() {
                                     )
                                     Text(
                                         text = translation["e2ee_subtitle"],
-                                        color = PurrfectPalette.textSecondary,
+                                        color = ManageScopeSkinPalette.textSecondary,
                                         fontSize = 12.sp
                                     )
                                 }
@@ -510,8 +532,8 @@ class ManageScope: Routes.Route() {
                                         icon = Icons.Filled.Lock,
                                         accent = Brush.horizontalGradient(
                                             listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.55f)
+                                                ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.6f),
+                                                ManageScopeSkinPalette.glowSecondary.copy(alpha = 0.55f)
                                             )
                                         ),
                                         onClick = {
@@ -576,7 +598,7 @@ class ManageScope: Routes.Route() {
                 maxLines = 1,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Light,
-                color = PurrfectPalette.textSecondary
+                color = ManageScopeSkinPalette.textSecondary
             )
         }
 
@@ -589,7 +611,7 @@ class ManageScope: Routes.Route() {
                     routes.loggedStories.navigate {
                         put("id", id)
                     }
-                }, colors = ButtonDefaults.buttonColors(containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f), contentColor = Color.White)) {
+                }, colors = ButtonDefaults.buttonColors(containerColor = ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.34f), contentColor = Color.White)) {
                     Text(translation["logged_stories_button"])
                 }
             }
@@ -673,7 +695,7 @@ class ManageScope: Routes.Route() {
                 maxLines = 1,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Light,
-                color = PurrfectPalette.textSecondary
+                color = ManageScopeSkinPalette.textSecondary
             )
         }
     }

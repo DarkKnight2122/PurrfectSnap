@@ -1,5 +1,9 @@
 package me.eternal.purrfectsnap.core.features.impl.experiments
 
+import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+
 import android.annotation.SuppressLint
 import android.graphics.Canvas
 import android.graphics.Paint
@@ -310,12 +314,15 @@ class EndToEndEncryption : MessagingRuleFeature(
 
                     if (publicKey != null || secret != null) {
                         createComposeView(viewGroup.context) {
-                            PurrfectOverlayTheme {
+                            PurrfectOverlayTheme(context) {
+                val skin = LocalPurrfectSkin.current
+
+
                                 val actionShape = RoundedCornerShape(22.dp)
                                 val borderBrush = Brush.linearGradient(
                                     listOf(
-                                        PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.70f),
-                                        PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.55f),
+                                        skin.glowPrimary.copy(alpha = 0.70f),
+                                        skin.glowSecondary.copy(alpha = 0.55f),
                                     )
                                 )
 
@@ -328,14 +335,14 @@ class EndToEndEncryption : MessagingRuleFeature(
                                     Box(
                                         modifier = Modifier
                                             .clip(actionShape)
-                                            .background(PurrfectOverlayPalette.cardOverlay, actionShape)
+                                            .background(skin.cardOverlay, actionShape)
                                             .border(1.15.dp, borderBrush, actionShape)
                                             .padding(horizontal = 18.dp, vertical = 11.dp)
                                     ) {
                                         if (publicKey != null) {
                                             Text(
                                                 text = translation["accept_public_key_button"],
-                                                color = PurrfectOverlayPalette.textPrimary,
+                                                color = skin.textPrimary,
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.SemiBold
                                             )
@@ -343,7 +350,7 @@ class EndToEndEncryption : MessagingRuleFeature(
                                         if (secret != null) {
                                             Text(
                                                 text = translation["accept_secret_button"],
-                                                color = PurrfectOverlayPalette.textPrimary,
+                                                color = skin.textPrimary,
                                                 fontSize = 15.sp,
                                                 fontWeight = FontWeight.SemiBold
                                             )
@@ -626,3 +633,4 @@ class EndToEndEncryption : MessagingRuleFeature(
 
     override fun getRuleState() = RuleState.WHITELIST
 }
+

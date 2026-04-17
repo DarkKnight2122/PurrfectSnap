@@ -49,7 +49,6 @@ import me.eternal.purrfectsnap.storage.getTrackerRuleByName
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticEmptyState
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -144,7 +143,7 @@ class FriendTrackerCatalog : Routes.Route() {
                         Button(
                             onClick = { routes.manageFriendTrackerRepos.navigate() },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
+                                containerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.34f),
                                 contentColor = Color.White
                             )
                         ) {
@@ -247,15 +246,15 @@ class FriendTrackerCatalog : Routes.Route() {
                             .fillMaxWidth()
                             .animateContentSize(),
                         shape = shape,
-                        color = PurrfectPalette.cardOverlayColor,
+                        color = TrackerSkinPalette.cardOverlayColor,
                         tonalElevation = 0.dp,
                         shadowElevation = 10.dp,
                         border = BorderStroke(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                    TrackerSkinPalette.glowPrimary.copy(alpha = 0.45f),
+                                    TrackerSkinPalette.glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
                         )
@@ -263,14 +262,14 @@ class FriendTrackerCatalog : Routes.Route() {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(PurrfectPalette.cardOverlay, shape)
+                                .background(TrackerSkinPalette.cardOverlay, shape)
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f),
+                                color = TrackerSkinPalette.glowPrimary.copy(alpha = 0.18f),
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp
                             ) {
@@ -298,7 +297,7 @@ class FriendTrackerCatalog : Routes.Route() {
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         fontSize = 12.sp,
-                                        color = PurrfectPalette.textSecondary
+                                        color = TrackerSkinPalette.textSecondary
                                     )
                                 }
                                 entry.description?.takeIf { it.isNotBlank() }?.let {
@@ -307,7 +306,7 @@ class FriendTrackerCatalog : Routes.Route() {
                                         fontSize = 12.sp,
                                         maxLines = 3,
                                         overflow = TextOverflow.Ellipsis,
-                                        color = PurrfectPalette.textSecondary
+                                        color = TrackerSkinPalette.textSecondary
                                     )
                                 }
                             }
@@ -315,10 +314,10 @@ class FriendTrackerCatalog : Routes.Route() {
                                 onClick = { importRule(repoUrl, entry) },
                                 enabled = !isImported,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
+                                    containerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.34f),
                                     contentColor = Color.White,
                                     disabledContainerColor = Color.White.copy(alpha = 0.08f),
-                                    disabledContentColor = PurrfectPalette.textSecondary
+                                    disabledContentColor = TrackerSkinPalette.textSecondary
                                 )
                             ) {
                                 Text(if (isImported) translation["imported_button"] else translation["import_button"])
@@ -338,7 +337,7 @@ class FriendTrackerCatalog : Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(TrackerSkinPalette.backgroundGradient)
         ) {
             FloatingTopBar(
                 title = translation["title"],

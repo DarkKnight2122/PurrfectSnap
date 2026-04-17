@@ -48,9 +48,9 @@ class ChatActionMenu : AbstractMenu() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                this@ChatActionMenu.context.userInterface.apply {
-                    background = createRoundedBackground(actionSheetBackground, 16F, true)
-                }
+                val skinId = this@ChatActionMenu.context.androidContext.getSharedPreferences("prefs", 0).getString("aphelion_skin", "UMBRA") ?: "UMBRA"
+                val skin = me.eternal.purrfectsnap.common.ui.theme.PurrfectSkins.fromId(skinId, null, true)
+                background = createRoundedBackground(skin.cardOverlayColor.value.toInt(), 16F, true)
                 setMargins(chatActionMenuItemMargin, 0, chatActionMenuItemMargin, defaultGap)
             }
         }
@@ -73,6 +73,10 @@ class ChatActionMenu : AbstractMenu() {
     override fun inject(parent: ViewGroup, view: View, viewConsumer: (View) -> Unit) {
         val viewGroup = parent.parent.parent as? ViewGroup ?: return
         if (viewTagState[viewGroup]) return
+        
+        val skinId = context.androidContext.getSharedPreferences("prefs", 0).getString("aphelion_skin", "UMBRA") ?: "UMBRA"
+        val skin = me.eternal.purrfectsnap.common.ui.theme.PurrfectSkins.fromId(skinId, null, true)
+
         //close the action menu using a touch event
         val closeActionMenu = {
             context.runOnUiThread {
@@ -94,16 +98,15 @@ class ChatActionMenu : AbstractMenu() {
                     ).apply {
                         height = 1
                     }
-                    setBackgroundColor(0x1A000000)
+                    setBackgroundColor(skin.textPrimary.copy(alpha = 0.1f).value.toInt())
                 })
             }
 
             with(button) {
-                this@ChatActionMenu.context.userInterface.apply {
-                    background = createRoundedBackground(actionSheetBackground, 16F, true)
-                    setTextColor(colorPrimary)
-                    typeface = this@ChatActionMenu.context.userInterface.avenirNextTypeface
-                }
+                background = createRoundedBackground(skin.cardOverlayColor.value.toInt(), 16F, true)
+                setTextColor(skin.textPrimary.value.toInt())
+                typeface = this@ChatActionMenu.context.userInterface.avenirNextTypeface
+                
                 isAllCaps = false
                 setShadowLayer(0F, 0F, 0F, 0)
                 setPadding(chatActionMenuItemMargin, 0, 0, 0)

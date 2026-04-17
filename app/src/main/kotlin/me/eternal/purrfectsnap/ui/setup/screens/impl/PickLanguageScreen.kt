@@ -6,6 +6,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,7 +48,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import java.util.Locale
 import me.eternal.purrfectsnap.common.bridge.wrapper.LocaleWrapper
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.setup.screens.SetupScreen
 import me.eternal.purrfectsnap.ui.util.Motion
 import me.eternal.purrfectsnap.ui.util.ObservableMutableState
@@ -99,164 +101,134 @@ class PickLanguageScreen : SetupScreen() {
         val deviceLocale = remember { Locale.getDefault().toString() }
         var isDialog by remember { mutableStateOf(false) }
 
-        fun select(locale: String) {
-            selectedLocale.value = locale
-            isDialog = false
-        }
-
         SetupCard {
             StepTitle(
-                title = context.translation["setup.dialogs.select_language"],
-                subtitle = null,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
+                title = context.translation["setup.activity.language_title"] ?: "Choose Language",
+                subtitle = context.translation["setup.activity.language_subtitle"] ?: "Select your preferred language",
                 textAlign = TextAlign.Center
             )
+
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
                 shape = RoundedCornerShape(22.dp),
-                color = Color.White.copy(alpha = 0.05f),
-                border = BorderStroke(
-                    1.dp,
-                    Brush.linearGradient(
-                        listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
-                        )
-                    )
-                )
+                color = Color.White.copy(alpha = 0.06f),
+                border = BorderStroke(1.dp, Brush.linearGradient(listOf(glowPrimary.copy(alpha = 0.5f), glowSecondary.copy(alpha = 0.4f)))),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp
             ) {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .clickable { isDialog = true }
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Surface(
-                        modifier = Modifier.size(38.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f)
+                        shape = RoundedCornerShape(12.dp),
+                        color = glowPrimary.copy(alpha = 0.16f)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            androidx.compose.material3.Icon(
-                                imageVector = Icons.Filled.Language,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-                        }
+                        Icon(
+                            Icons.Default.Language,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.padding(10.dp)
+                        )
                     }
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = context.translation["setup.pick_language.current_selection"],
-                            fontSize = 14.sp,
-                            color = PurrfectPalette.textSecondary
+                            text = getLocaleDisplayName(selectedLocale.value),
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
                         )
                         Text(
-                            text = remember(selectedLocale.value) { getLocaleDisplayName(selectedLocale.value) },
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = context.translation["setup.dialogs.select_language"] ?: "Change language",
+                            color = textSecondary,
+                            fontSize = 12.sp
                         )
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            val browseSrc = remember { MutableInteractionSource() }
-            Button(
-                onClick = { isDialog = true },
-                interactionSource = browseSrc,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .scaleOnPress(browseSrc),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                    contentColor = Color.White
-                )
-            ) {
-                Text(text = context.translation["setup.pick_language.browse_languages"])
-            }
-            DialogText(text = context.translation["setup.pick_language.change_anytime_hint"])
         }
 
         if (isDialog) {
             Dialog(onDismissRequest = { isDialog = false }) {
-                AnimatedVisibility(
-                    visible = true,
-                    enter = fadeIn(animationSpec = Motion.tweenFloatSpec(200)) + scaleIn(animationSpec = Motion.tweenFloatSpec(220)),
-                    exit = fadeOut(animationSpec = Motion.tweenFloatSpec(150)) + scaleOut(animationSpec = Motion.tweenFloatSpec(180))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.95f)
+                        .padding(vertical = 40.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, Brush.linearGradient(listOf(glowPrimary.copy(alpha = 0.6f), glowSecondary.copy(alpha = 0.4f))))
                 ) {
-                    SetupCard(
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier
+                            .background(cardOverlayColor)
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        StepTitle(
-                            title = context.translation["setup.pick_language.available_languages"],
-                            subtitle = null,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        Text(
+                            text = context.translation["setup.dialogs.select_language"] ?: "Select Language",
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 20.sp,
+                            modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center
                         )
+
                         LazyColumn(
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(320.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(availableLocales) { locale ->
-                                val label = remember(locale) { getLocaleDisplayName(locale) }
                                 val isSelected = selectedLocale.value == locale
-                                val rowSrc = remember { MutableInteractionSource() }
+                                val interactionSource = remember { MutableInteractionSource() }
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp)
-                                        .scaleOnPress(rowSrc),
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = if (isSelected) PurrfectPalette.glowPrimary.copy(alpha = 0.14f) else Color.White.copy(
-                                        alpha = 0.05f
-                                    ),
+                                        .scaleOnPress(interactionSource)
+                                        .clickable(
+                                            interactionSource = interactionSource,
+                                            indication = null
+                                        ) {
+                                            selectedLocale.value = locale
+                                            isDialog = false
+                                        },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = if (isSelected) glowPrimary.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.05f),
                                     border = BorderStroke(
                                         1.dp,
-                                        if (isSelected) PurrfectPalette.glowPrimary.copy(alpha = 0.55f) else Color.White.copy(
-                                            alpha = 0.1f
-                                        )
-                                    ),
-                                    tonalElevation = if (isSelected) 8.dp else 0.dp,
-                                    onClick = { select(locale) }
+                                        if (isSelected) glowPrimary.copy(alpha = 0.55f) else Color.White.copy(alpha = 0.1f)
+                                    )
                                 ) {
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        modifier = Modifier.padding(16.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                            Text(
-                                                text = label,
-                                                fontWeight = FontWeight.Medium,
-                                                color = Color.White,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Text(
-                                                text = locale,
-                                                fontSize = 11.sp,
-                                                color = PurrfectPalette.textSecondary
-                                            )
-                                        }
+                                        Text(
+                                            text = getLocaleDisplayName(locale),
+                                            color = Color.White,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            modifier = Modifier.weight(1f)
+                                        )
                                         if (isSelected) {
-                                            androidx.compose.material3.Icon(
-                                                imageVector = Icons.Filled.Check,
-                                                contentDescription = null,
-                                                tint = PurrfectPalette.glowSecondary
-                                            )
+                                            Icon(Icons.Default.Check, null, tint = glowSecondary)
                                         }
                                     }
                                 }
                             }
+                        }
+
+                        TextButton(
+                            onClick = { isDialog = false },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Text(context.translation["button.cancel"] ?: "Cancel", color = textSecondary)
                         }
                     }
                 }

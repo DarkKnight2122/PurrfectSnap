@@ -54,7 +54,6 @@ import me.eternal.purrfectsnap.common.data.ExportType
 import me.eternal.purrfectsnap.storage.getTrackerRule
 import me.eternal.purrfectsnap.storage.getTrackerRulesDesc
 import me.eternal.purrfectsnap.ui.manager.Routes
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.util.saveFile
 import org.json.JSONArray
 
@@ -92,15 +91,15 @@ class FriendTrackerConfigExportScreen : Routes.Route() {
                     actions = {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = PurrfectPalette.glowPrimary.copy(alpha = 0.22f),
+                            color = TrackerSkinPalette.glowPrimary.copy(alpha = 0.22f),
                             tonalElevation = 0.dp,
                             shadowElevation = 10.dp,
                             border = BorderStroke(
                                 1.dp,
                                 Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
+                                        TrackerSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                                        TrackerSkinPalette.glowSecondary.copy(alpha = 0.4f)
                                     )
                                 )
                             )

@@ -30,7 +30,6 @@ import kotlinx.coroutines.*
 import me.eternal.purrfectsnap.common.util.ktx.openLink
 import me.eternal.purrfectsnap.storage.getRepositories
 import me.eternal.purrfectsnap.ui.manager.components.AestheticEmptyState
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -64,7 +63,7 @@ fun ScriptCatalog(root: ScriptingRootSection) {
             withContext(Dispatchers.Main) {
                 repositories = repos
             }
-            
+
             if (repos.isNotEmpty()) {
                 val newIndexes = mutableMapOf<String, ScriptRepoManifest>()
                 repos.forEach { repoRoot ->
@@ -75,7 +74,7 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                             if (response.isSuccessful) {
                                 response.body?.charStream()?.let { reader ->
                                     val parsed = gson.fromJson(reader, ScriptRepoManifest::class.java)
-                                    if (!parsed.scripts.isNullOrEmpty()) {
+                                    if (parsed?.scripts != null && parsed.scripts.isNotEmpty()) {
                                         newIndexes[repoRoot] = parsed
                                     }
                                 }
@@ -183,12 +182,12 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                     Button(
                         onClick = {
                             context.androidContext.openLink(
-                                "https://github.com/particle-box/PurrfectSnap/blob/dev/app/src/main/kotlin/me/eternal/purrfectsnap/ui/manager/pages/scripting/ScriptRepos.md",
+                                "https://github.com/particle-box/PurrfectSnap/blob/dev/app/src/main/kotlin/me/eternal/purrfectsnap/ui/manager/pages/scripting/ScriptRepos.md", 
                                 context.translation["toast_open_link_failed"]
                             )
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
+                            containerColor = ScriptingSkinPalette.glowPrimary.copy(alpha = 0.34f),
                             contentColor = Color.White
                         )
                     ) {
@@ -212,20 +211,22 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                             .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
+                        val glowPrimary = ScriptingSkinPalette.glowPrimary
+                        val glowSecondary = ScriptingSkinPalette.glowSecondary
+                        val borderBrush = remember(glowPrimary, glowSecondary) {
+                            Brush.linearGradient(
+                                listOf(
+                                    glowPrimary.copy(alpha = 0.45f),
+                                    glowSecondary.copy(alpha = 0.30f)
+                                )
+                            )
+                        }
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = Color.White.copy(alpha = 0.06f),
                             tonalElevation = 0.dp,
                             shadowElevation = 0.dp,
-                            border = BorderStroke(
-                                1.dp,
-                                Brush.linearGradient(
-                                    listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.30f)
-                                    )
-                                )
-                            )
+                            border = BorderStroke(1.dp, borderBrush)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -272,11 +273,13 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                 }
 
                 val shape = RoundedCornerShape(20.dp)
-                val border = remember {
+                val glowPrimary = ScriptingSkinPalette.glowPrimary
+                val glowSecondary = ScriptingSkinPalette.glowSecondary
+                val borderBrush = remember(glowPrimary, glowSecondary) {
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                            glowPrimary.copy(alpha = 0.45f),
+                            glowSecondary.copy(alpha = 0.35f)
                         )
                     )
                 }
@@ -285,22 +288,22 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                         .fillMaxWidth()
                         .animateContentSize(),
                     shape = shape,
-                    color = PurrfectPalette.cardOverlayColor,
+                    color = ScriptingSkinPalette.cardOverlayColor,
                     tonalElevation = 0.dp,
                     shadowElevation = 10.dp,
-                    border = BorderStroke(1.dp, border)
+                    border = BorderStroke(1.dp, borderBrush)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(PurrfectPalette.cardOverlay, shape)
+                            .background(ScriptingSkinPalette.cardOverlay, shape)
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f),
+                            color = ScriptingSkinPalette.glowPrimary.copy(alpha = 0.18f),
                             tonalElevation = 0.dp,
                             shadowElevation = 0.dp
                         ) {
@@ -328,7 +331,7 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     fontSize = 12.sp,
-                                    color = PurrfectPalette.textSecondary
+                                    color = ScriptingSkinPalette.textSecondary
                                 )
                             }
                             entry.description?.takeIf { it.isNotBlank() }?.let {
@@ -337,7 +340,7 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                                     fontSize = 12.sp,
                                     maxLines = 3,
                                     overflow = TextOverflow.Ellipsis,
-                                    color = PurrfectPalette.textSecondary
+                                    color = ScriptingSkinPalette.textSecondary
                                 )
                             }
                             Surface(
@@ -368,10 +371,10 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
+                                containerColor = ScriptingSkinPalette.glowPrimary.copy(alpha = 0.34f),
                                 contentColor = Color.White,
                                 disabledContainerColor = Color.White.copy(alpha = 0.08f),
-                                disabledContentColor = PurrfectPalette.textSecondary
+                                disabledContentColor = ScriptingSkinPalette.textSecondary
                             )
                         ) {
                             when {

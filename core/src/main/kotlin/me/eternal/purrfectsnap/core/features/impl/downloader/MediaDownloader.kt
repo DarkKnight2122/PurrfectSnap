@@ -1,5 +1,9 @@
 package me.eternal.purrfectsnap.core.features.impl.downloader
 
+import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -250,25 +254,26 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
         modCtx.runOnUiThread {
             val mainActivity = modCtx.mainActivity ?: return@runOnUiThread
             createComposeAlertDialog(mainActivity) { alertDialog ->
-                PurrfectOverlayTheme {
+                PurrfectOverlayTheme(modCtx) {
+                    val skin = LocalPurrfectSkin.current
                     val selected = remember { mutableStateListOf<Int>().apply { add(currentIndex) } }
                     PurrfectGlassCard(title = tr["title"] ?: "Select", modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 320.dp).background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp, max = 320.dp).background(skin.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(14.dp)).padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 itemsIndexed((0 until totalCount).toList()) { index, _ ->
                                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Checkbox(checked = selected.contains(index), onCheckedChange = { if (it) selected.add(index) else selected.remove(index) }, colors = CheckboxDefaults.colors(checkedColor = PurrfectOverlayPalette.glowPrimary))
-                                        Text(tr.format("snap_item", "index" to (index + 1).toString(), "total" to totalCount.toString()), style = MaterialTheme.typography.bodyMedium, color = PurrfectOverlayPalette.textPrimary)
+                                        Checkbox(checked = selected.contains(index), onCheckedChange = { if (it) selected.add(index) else selected.remove(index) }, colors = CheckboxDefaults.colors(checkedColor = skin.glowPrimary))
+                                        Text(tr.format("snap_item", "index" to (index + 1).toString(), "total" to totalCount.toString()), style = MaterialTheme.typography.bodyMedium, color = skin.textPrimary)
                                     }
                                 }
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked = selected.size == totalCount, onCheckedChange = { if (it) { selected.clear(); selected.addAll(0 until totalCount) } else selected.clear() }, colors = CheckboxDefaults.colors(checkedColor = PurrfectOverlayPalette.glowPrimary))
-                                Text(tr["select_all"] ?: "Select All", style = MaterialTheme.typography.bodyMedium, color = PurrfectOverlayPalette.textPrimary)
+                                Checkbox(checked = selected.size == totalCount, onCheckedChange = { if (it) { selected.clear(); selected.addAll(0 until totalCount) } else selected.clear() }, colors = CheckboxDefaults.colors(checkedColor = skin.glowPrimary))
+                                Text(tr["select_all"] ?: "Select All", style = MaterialTheme.typography.bodyMedium, color = skin.textPrimary)
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedButton(onClick = { alertDialog.dismiss() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) { Text(cancelStr) }
-                                Button(onClick = { if (selected.isNotEmpty()) { startBatchDownload(selected.sorted().toMutableList(), allowDuplicate); alertDialog.dismiss() } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = PurrfectOverlayPalette.glowPrimary)) { Text(downloadStr) }
+                                OutlinedButton(onClick = { alertDialog.dismiss() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) { Text(cancelStr, color = skin.textPrimary) }
+                                Button(onClick = { if (selected.isNotEmpty()) { startBatchDownload(selected.sorted().toMutableList(), allowDuplicate); alertDialog.dismiss() } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = skin.glowPrimary)) { Text(downloadStr, color = skin.cardOverlayColor) }
                             }
                         }
                     }
@@ -602,3 +607,4 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
         modCtx.coroutineScope.launch { downloadMessageId(messaging.lastFocusedMessageId, forceAllowDuplicate, isPreviewMode) }
     }
 }
+

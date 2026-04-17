@@ -1,5 +1,9 @@
 package me.eternal.purrfectsnap.core
 
+import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+
 import android.system.Os
 import android.view.ViewGroup
 import androidx.compose.foundation.BorderStroke
@@ -42,7 +46,6 @@ import me.eternal.purrfectsnap.common.config.VersionRequirement
 import me.eternal.purrfectsnap.common.ui.createComposeView
 import me.eternal.purrfectsnap.core.event.events.impl.UnaryCallEvent
 import me.eternal.purrfectsnap.core.ui.CustomComposable
-import me.eternal.purrfectsnap.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfectsnap.core.util.dataBuilder
 import me.eternal.purrfectsnap.core.util.hook.HookStage
@@ -71,6 +74,7 @@ class SecurityFeatures(
 
     @Composable
     private fun LoginSignupHelpButton(onClick: () -> Unit) {
+        val skin = LocalPurrfectSkin.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -85,14 +89,14 @@ class SecurityFeatures(
                     .background(
                         Brush.horizontalGradient(
                             listOf(
-                                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.92f),
-                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.62f)
+                                skin.glowPrimary.copy(alpha = 0.92f),
+                                skin.glowSecondary.copy(alpha = 0.62f)
                             )
                         ),
                         RoundedCornerShape(999.dp)
                     )
                     .border(
-                        BorderStroke(1.dp, PurrfectOverlayPalette.textPrimary.copy(alpha = 0.18f)),
+                        BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.18f)),
                         RoundedCornerShape(999.dp)
                     )
                     .clickable(onClick = onClick)
@@ -104,7 +108,7 @@ class SecurityFeatures(
                         .size(32.dp)
                         .clip(CircleShape)
                         .background(Color.Black.copy(alpha = 0.16f))
-                        .border(BorderStroke(1.dp, PurrfectOverlayPalette.textPrimary.copy(alpha = 0.28f)), CircleShape)
+                        .border(BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.28f)), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.HelpOutline,
@@ -115,7 +119,7 @@ class SecurityFeatures(
                 }
                 Text(
                     text = "Can't Login?",
-                    color = Color.White,
+                    color = skin.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
                 )
@@ -126,7 +130,8 @@ class SecurityFeatures(
     @Composable
     private fun LoginSignupHelpDialog(onDismiss: () -> Unit) {
         Dialog(onDismissRequest = onDismiss) {
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(context) {
+                val skin = LocalPurrfectSkin.current
                 val shape = RoundedCornerShape(20.dp)
                 Surface(
                     modifier = Modifier
@@ -138,8 +143,8 @@ class SecurityFeatures(
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f)
+                                skin.glowPrimary.copy(alpha = 0.55f),
+                                skin.glowSecondary.copy(alpha = 0.35f)
                             )
                         )
                     ),
@@ -148,7 +153,7 @@ class SecurityFeatures(
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(PurrfectOverlayPalette.cardOverlay, shape)
+                            .background(skin.cardOverlay, shape)
                             .padding(20.dp)
                     ) {
                         Column(
@@ -160,7 +165,7 @@ class SecurityFeatures(
                             Icon(
                                 Icons.Filled.Info,
                                 contentDescription = null,
-                                tint = PurrfectOverlayPalette.textPrimary,
+                                tint = skin.textPrimary,
                                 modifier = Modifier
                                     .align(Alignment.CenterHorizontally)
                                     .size(28.dp)
@@ -169,7 +174,7 @@ class SecurityFeatures(
                                 text = context.translation["setup.mappings.notice_title"],
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = PurrfectOverlayPalette.textPrimary,
+                                color = skin.textPrimary,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -187,37 +192,37 @@ class SecurityFeatures(
                                 ) {
                                     Text(
                                         text = context.translation["setup.mappings.notice_intro"],
-                                        color = PurrfectOverlayPalette.textSecondary,
+                                        color = skin.textSecondary,
                                         textAlign = TextAlign.Start
                                     )
                                     Text(
                                         text = "For non-rooted users:",
-                                        color = PurrfectOverlayPalette.textPrimary,
+                                        color = skin.textPrimary,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         text = context.translation["setup.mappings.notice_step_1"],
-                                        color = PurrfectOverlayPalette.textSecondary,
+                                        color = skin.textSecondary,
                                         textAlign = TextAlign.Start
                                     )
                                     Text(
                                         text = context.translation["setup.mappings.notice_step_2"],
-                                        color = PurrfectOverlayPalette.textSecondary,
+                                        color = skin.textSecondary,
                                         textAlign = TextAlign.Start
                                     )
                                     Text(
                                         text = context.translation["setup.mappings.notice_step_3"],
-                                        color = PurrfectOverlayPalette.textSecondary,
+                                        color = skin.textSecondary,
                                         textAlign = TextAlign.Start
                                     )
                                     Text(
                                         text = context.translation["setup.mappings.notice_rooted_title"],
-                                        color = PurrfectOverlayPalette.textPrimary,
+                                        color = skin.textPrimary,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         text = context.translation["setup.mappings.notice_rooted_body"],
-                                        color = PurrfectOverlayPalette.textSecondary,
+                                        color = skin.textSecondary,
                                         textAlign = TextAlign.Start
                                     )
                                 }
@@ -231,7 +236,7 @@ class SecurityFeatures(
                                         .align(Alignment.CenterEnd)
                                         .width(4.dp)
                                         .fillMaxHeight()
-                                        .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(999.dp))
+                                        .background(skin.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(999.dp))
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -239,7 +244,7 @@ class SecurityFeatures(
                                             .fillMaxHeight(if (maxScroll > 0) 0.28f else 1f)
                                             .offset(y = (320.dp * thumbRatio))
                                             .background(
-                                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.75f),
+                                                skin.glowSecondary.copy(alpha = 0.75f),
                                                 RoundedCornerShape(999.dp)
                                             )
                                     )
@@ -248,12 +253,12 @@ class SecurityFeatures(
                             Button(
                                 onClick = onDismiss,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.92f),
-                                    contentColor = Color.Black
+                                    containerColor = skin.glowPrimary.copy(alpha = 0.92f),
+                                    contentColor = skin.cardOverlayColor
                                 ),
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
                             ) {
-                                Text("OK")
+                                Text("OK", color = skin.cardOverlayColor)
                             }
                         }
                     }

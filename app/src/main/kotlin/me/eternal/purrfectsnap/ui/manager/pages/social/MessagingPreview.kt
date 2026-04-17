@@ -29,10 +29,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,9 +60,27 @@ import me.eternal.purrfectsnap.storage.getFriendInfo
 import me.eternal.purrfectsnap.storage.getGroupInfo
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.util.Dialog
 import me.eternal.purrfectsnap.ui.util.purrfectSwitchColors
+
+private object MessagingPreviewSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+}
 
 class MessagingPreview: Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.sections.social.messaging_preview") }
@@ -87,19 +107,24 @@ class MessagingPreview: Routes.Route() {
         danger: Boolean = false,
         onClick: () -> Unit,
     ) {
+        val glowPrimary = MessagingPreviewSkinPalette.glowPrimary
+        val glowSecondary = MessagingPreviewSkinPalette.glowSecondary
+        val cardOverlayColor = MessagingPreviewSkinPalette.cardOverlayColor
+        val textSecondary = MessagingPreviewSkinPalette.textSecondary
+
         val shape = RoundedCornerShape(18.dp)
         val border = if (danger) {
             Brush.linearGradient(
                 listOf(
                     Color(0xFFFF5C8A).copy(alpha = 0.7f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    glowSecondary.copy(alpha = 0.35f)
                 )
             )
         } else {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    glowPrimary.copy(alpha = 0.55f),
+                    glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
@@ -107,7 +132,7 @@ class MessagingPreview: Routes.Route() {
         Surface(
             onClick = onClick,
             shape = shape,
-            color = PurrfectPalette.cardOverlayColor.copy(alpha = 0.85f),
+            color = cardOverlayColor.copy(alpha = 0.85f),
             border = BorderStroke(1.dp, border),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
@@ -124,8 +149,8 @@ class MessagingPreview: Routes.Route() {
                         .background(
                             Brush.linearGradient(
                                 listOf(
-                                    (if (danger) Color(0xFFFF5C8A) else PurrfectPalette.glowPrimary).copy(alpha = 0.32f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.18f)
+                                    (if (danger) Color(0xFFFF5C8A) else glowPrimary).copy(alpha = 0.32f),
+                                    glowSecondary.copy(alpha = 0.18f)
                                 )
                             ),
                             RoundedCornerShape(14.dp)
@@ -153,7 +178,7 @@ class MessagingPreview: Routes.Route() {
                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = subtitle,
-                            color = PurrfectPalette.textSecondary,
+                            color = textSecondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -169,6 +194,10 @@ class MessagingPreview: Routes.Route() {
         onChoose: (Array<ContentType>) -> Unit,
         onDismiss: () -> Unit
     ) {
+        val glowPrimary = MessagingPreviewSkinPalette.glowPrimary
+        val glowSecondary = MessagingPreviewSkinPalette.glowSecondary
+        val cardOverlayColor = MessagingPreviewSkinPalette.cardOverlayColor
+
         val selectedTypes = remember { mutableStateListOf<ContentType>() }
         var selectAllState by remember { mutableStateOf(false) }
         val availableTypes = remember { arrayOf(
@@ -191,7 +220,7 @@ class MessagingPreview: Routes.Route() {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(PurrfectPalette.cardOverlayColor)
+                .background(cardOverlayColor)
                 .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp)),
             shape = RoundedCornerShape(22.dp),
             color = Color.Transparent
@@ -201,7 +230,7 @@ class MessagingPreview: Routes.Route() {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                Text(context.translation["manager.dialogs.messaging_action.title"], color = Color.White)
+                Text(context.translation["manager.dialogs.messaging_action.title"] ?: "Select Filters", color = Color.White)
                 Spacer(modifier = Modifier.height(5.dp))
                 availableTypes.forEach { contentType ->
                     Row(
@@ -219,12 +248,12 @@ class MessagingPreview: Routes.Route() {
                             enabled = !selectAllState,
                             onCheckedChange = { toggleContentType(contentType) },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = PurrfectPalette.glowSecondary,
+                                checkedColor = glowSecondary,
                                 uncheckedColor = Color.White.copy(alpha = 0.85f),
                                 checkmarkColor = Color.Black
                             )
                         )
-                        Text(text = contentTypeTranslation[contentType.name], color = Color.White)
+                        Text(text = contentTypeTranslation[contentType.name] ?: contentType.name, color = Color.White)
                     }
                 }
                 Row(
@@ -241,7 +270,7 @@ class MessagingPreview: Routes.Route() {
                         },
                         colors = purrfectSwitchColors()
                     )
-                    Text(text = context.translation["manager.dialogs.messaging_action.select_all_button"], color = Color.White)
+                    Text(text = context.translation["manager.dialogs.messaging_action.select_all_button"] ?: "Select All", color = Color.White)
                 }
                 Row(
                     modifier = Modifier
@@ -255,7 +284,7 @@ class MessagingPreview: Routes.Route() {
                             contentColor = Color.White
                         )
                     ) {
-                        Text(context.translation["button.cancel"], color = Color.White)
+                        Text(context.translation["button.cancel"] ?: "Cancel", color = Color.White)
                     }
                     Button(
                         onClick = {
@@ -265,11 +294,11 @@ class MessagingPreview: Routes.Route() {
                             )
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
+                            containerColor = glowPrimary.copy(alpha = 0.34f),
                             contentColor = Color.White
                         )
                     ) {
-                        Text(context.translation["button.ok"], color = Color.White)
+                        Text(context.translation["button.ok"] ?: "Apply", color = Color.White)
                     }
                 }
             }
@@ -285,6 +314,10 @@ class MessagingPreview: Routes.Route() {
         friendDisplayName: String?,
         fetchNewMessages: () -> Unit,
     ) {
+        val glowPrimary = MessagingPreviewSkinPalette.glowPrimary
+        val glowSecondary = MessagingPreviewSkinPalette.glowSecondary
+        val textSecondary = MessagingPreviewSkinPalette.textSecondary
+
         DisposableEffect(Unit) {
             onDispose {
                 selectedMessages.clear()
@@ -308,8 +341,8 @@ class MessagingPreview: Routes.Route() {
                 val borderBrush = if (isSelected) {
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.85f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.75f)
+                            glowPrimary.copy(alpha = 0.85f),
+                            glowSecondary.copy(alpha = 0.75f)
                         )
                     )
                 } else {
@@ -323,20 +356,20 @@ class MessagingPreview: Routes.Route() {
 
                 val senderDisplayName by rememberAsyncMutableState<String?>(null, keys = arrayOf(senderId, myUserId, scope.key, scopeId, friendDisplayName)) {
                     when {
-                        senderId == null -> translation["sender_unknown"]
-                        senderId == myUserId -> translation["sender_you"]
+                        senderId == null -> translation["sender_unknown"] ?: "Unknown"
+                        senderId == myUserId -> translation["sender_you"] ?: "You"
                         scope == SocialScope.FRIEND -> friendDisplayName
                             ?: context.database.getFriendInfo(scopeId)?.displayName
                             ?: context.database.getFriendInfo(scopeId)?.mutableUsername
-                            ?: translation["sender_friend"]
+                            ?: translation["sender_friend"] ?: "Friend"
                         else -> context.database.getFriendInfo(senderId)?.displayName
                             ?: context.database.getFriendInfo(senderId)?.mutableUsername
-                            ?: translation["sender_unknown"]
+                            ?: translation["sender_unknown"] ?: "Unknown"
                     }
                 }
 
                 val contentTypeLabel = remember(contentType) {
-                    contentType?.let { contentTypeTranslation.getOrNull(it.name) ?: it.name } ?: translation["sender_unknown"]
+                    contentType?.let { contentTypeTranslation[it.name] ?: it.name } ?: translation["sender_unknown"] ?: "Unknown"
                 }
                 val bodyText = remember(message.contentType) { messageReader.getString(2, 1)?.trim().orEmpty() }
 
@@ -356,7 +389,7 @@ class MessagingPreview: Routes.Route() {
                         ) {
                             Text(
                                 text = "[$contentTypeLabel] ${bodyText.ifBlank { "—" }}",
-                                color = PurrfectPalette.textSecondary,
+                                color = textSecondary,
                                 fontSize = 12.sp,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
@@ -393,7 +426,7 @@ class MessagingPreview: Routes.Route() {
                         horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
                     ) {
                         Text(
-                            text = senderDisplayName ?: translation["sender_unknown"],
+                            text = senderDisplayName ?: translation["sender_unknown"] ?: "Unknown",
                             color = Color.White.copy(alpha = 0.82f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -409,16 +442,16 @@ class MessagingPreview: Routes.Route() {
                                     elevation = if (isSelected) 10.dp else 6.dp,
                                     shape = bubbleShape,
                                     clip = true,
-                                    ambientColor = PurrfectPalette.glowSecondary.copy(alpha = 0.18f),
-                                    spotColor = PurrfectPalette.glowPrimary.copy(alpha = 0.16f),
+                                    ambientColor = glowSecondary.copy(alpha = 0.18f),
+                                    spotColor = glowPrimary.copy(alpha = 0.16f),
                                 )
                                 .clip(bubbleShape)
                                 .background(
                                     brush = if (isMine) {
                                         Brush.linearGradient(
                                             listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.30f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.16f)
+                                                glowPrimary.copy(alpha = 0.30f),
+                                                glowSecondary.copy(alpha = 0.16f)
                                             )
                                         )
                                     } else {
@@ -444,7 +477,7 @@ class MessagingPreview: Routes.Route() {
                                     ) {
                                         Text(
                                             text = contentTypeLabel,
-                                            color = PurrfectPalette.textSecondary,
+                                            color = textSecondary,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1,
@@ -472,7 +505,7 @@ class MessagingPreview: Routes.Route() {
                             .padding(40.dp),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text(translation["no_message_hint"], color = PurrfectPalette.textSecondary)
+                        Text(translation["no_message_hint"] ?: "No messages loaded", color = textSecondary)
                     }
                 }
                 Spacer(modifier = Modifier.height(20.dp))
@@ -489,6 +522,8 @@ class MessagingPreview: Routes.Route() {
 
     @Composable
     private fun LoadingRow() {
+        val glowSecondary = MessagingPreviewSkinPalette.glowSecondary
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -500,13 +535,19 @@ class MessagingPreview: Routes.Route() {
                     .padding()
                     .size(30.dp),
                 strokeWidth = 3.dp,
-                color = PurrfectPalette.glowSecondary
+                color = glowSecondary
             )
         }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override val content: @Composable (NavBackStackEntry) -> Unit = { navBackStackEntry ->
+        val backgroundGradient = MessagingPreviewSkinPalette.backgroundGradient
+        val textSecondary = MessagingPreviewSkinPalette.textSecondary
+        val glowPrimary = MessagingPreviewSkinPalette.glowPrimary
+        val glowSecondary = MessagingPreviewSkinPalette.glowSecondary
+        val cardOverlayColor = MessagingPreviewSkinPalette.cardOverlayColor
+
         val scope = remember { SocialScope.getByName(navBackStackEntry.arguments?.getString("scope")!!) }
         val id = remember { navBackStackEntry.arguments?.getString("id")!! }
 
@@ -545,11 +586,7 @@ class MessagingPreview: Routes.Route() {
                         context.log.verbose("Failed to process messages: ${it.message}")
                         return@invokeOnCompletion
                     }
-                    val toastText = translation.getOrNull("processed_message_toast")?.let {
-                        translation.format("processed_message_toast", "count" to processMessageCount.intValue.toString())
-                    } ?: translation.getOrNull("processed_messages_toast")?.let {
-                        translation.format("processed_messages_toast", "count" to processMessageCount.intValue.toString())
-                    } ?: translation.format("processed_messages_toast", "count" to processMessageCount.intValue.toString())
+                    val toastText = translation.format("processed_messages_toast", "count" to processMessageCount.intValue.toString())
                     context.longToast(toastText)
                 }
             }
@@ -561,11 +598,7 @@ class MessagingPreview: Routes.Route() {
             onSuccess: (Message) -> Unit = {},
         ) {
             if (messagingBridge == null) {
-                context.longToast(
-                    translation.getOrNull("bridge_connection_error")
-                        ?: translation.getOrNull("bridge_connection_failed")
-                        ?: translation["bridge_connection_error"]
-                )
+                context.longToast(translation["bridge_connection_error"] ?: "Snapchat not connected")
                 return
             }
             actionsOpen = false
@@ -617,23 +650,22 @@ class MessagingPreview: Routes.Route() {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(cardOverlayColor, RoundedCornerShape(20.dp))
                         .padding(15.dp)
-                        .border(1.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(20.dp)),
+                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp)),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    val processedText = translation.getOrNull("processed_messages_text")?.let {
-                        translation.format("processed_messages_text", "count" to processMessageCount.intValue.toString())
-                    } ?: translation.format("processed_messages_text", "count" to processMessageCount.intValue.toString())
-                    Text(processedText)
+                    val processedText = translation.format("processed_messages_text", "count" to processMessageCount.intValue.toString())
+                    Text(processedText, color = Color.White)
                     if (activeTask?.hasFixedGoal() == true) {
                         LinearProgressIndicator(
                             progress = { processMessageCount.intValue.toFloat() / selectedMessages.size.toFloat() },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(5.dp),
-                            color = MaterialTheme.colorScheme.primary,
+                            color = glowSecondary,
+                            trackColor = Color.White.copy(alpha = 0.1f)
                         )
                     } else {
                         CircularProgressIndicator(
@@ -641,7 +673,7 @@ class MessagingPreview: Routes.Route() {
                                 .padding()
                                 .size(30.dp),
                             strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = glowSecondary
                         )
                     }
                 }
@@ -663,9 +695,7 @@ class MessagingPreview: Routes.Route() {
                     }
                 }.onFailure {
                     context.log.error("Failed to fetch messages", it)
-                    context.shortToast(
-                        translation.getOrNull("message_fetch_failed") ?: translation["message_fetch_failed"]
-                    )
+                    context.shortToast(translation["message_fetch_failed"] ?: "Failed to fetch messages")
                 }
             }
         }
@@ -694,9 +724,7 @@ class MessagingPreview: Routes.Route() {
                 }
                 fetchNewMessages()
             }.onFailure {
-                context.longToast(
-                    translation.getOrNull("bridge_init_failed") ?: translation["bridge_init_failed"]
-                )
+                context.longToast(translation["bridge_init_failed"] ?: "Messaging engine error")
                 context.log.error("Failed to initialize messaging bridge", it)
             }
         }
@@ -733,18 +761,14 @@ class MessagingPreview: Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(backgroundGradient)
         ) {
             FloatingTopBar(
-                title = titleText ?: translation["title"],
+                title = titleText ?: translation["title"] ?: "Preview",
                 subtitle = if (selectedMessages.isNotEmpty()) {
                     "${selectedMessages.size} selected"
                 } else {
-                    translation["subtitle"]
-                        .substringBefore("•")
-                        .substringBefore("·")
-                        .substringBefore("|")
-                        .trim()
+                    translation["subtitle"]?.substringBefore("•")?.trim() ?: ""
                 },
                 onBack = { routes.navController.popBackStack() },
                 actions = {
@@ -756,7 +780,7 @@ class MessagingPreview: Routes.Route() {
                         IconButton(onClick = { selectedMessages.clear() }) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
-                                contentDescription = translation.getOrNull("close_button_description"),
+                                contentDescription = null,
                                 tint = Color.White
                             )
                         }
@@ -781,9 +805,7 @@ class MessagingPreview: Routes.Route() {
             ) {
                 if (hasBridgeError) {
                     Text(
-                        translation.getOrNull("bridge_connection_error")
-                            ?: translation.getOrNull("bridge_connection_failed")
-                            ?: translation["bridge_connection_error"],
+                        translation["bridge_connection_error"] ?: "Snapchat connection lost",
                         modifier = Modifier.padding(16.dp),
                         color = Color.White
                     )
@@ -816,22 +838,22 @@ class MessagingPreview: Routes.Route() {
                     val selectionSubtitle = if (hasSelection) {
                         "${selectedMessages.size} selected"
                     } else {
-                        translation["choose_message_types_subtitle"]
+                        translation["choose_message_types_subtitle"] ?: "Action filters"
                     }
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                brush = PurrfectPalette.cardOverlay,
+                                color = cardOverlayColor,
                                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
                             )
                             .border(
                                 1.dp,
                                 Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.3f)
+                                        glowPrimary.copy(alpha = 0.5f),
+                                        glowSecondary.copy(alpha = 0.3f)
                                     )
                                 ),
                                 RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
@@ -847,7 +869,7 @@ class MessagingPreview: Routes.Route() {
                         )
                         Spacer(Modifier.height(14.dp))
                         Text(
-                            text = translation["actions_title"],
+                            text = translation["actions_title"] ?: "Conversation Actions",
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp,
@@ -857,7 +879,7 @@ class MessagingPreview: Routes.Route() {
                         Spacer(Modifier.height(2.dp))
                         Text(
                             text = selectionSubtitle,
-                            color = PurrfectPalette.textSecondary,
+                            color = textSecondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -865,38 +887,29 @@ class MessagingPreview: Routes.Route() {
                         Spacer(Modifier.height(14.dp))
 
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            val saveKey = if (hasSelection) "save_selection_option" else "save_all_option"
-                            val unsaveKey = if (hasSelection) "unsave_selection_option" else "unsave_all_option"
-                            val markKey = if (hasSelection) "mark_selection_as_seen_option" else "mark_all_as_seen_option"
-                            val deleteKey = if (hasSelection) "delete_selection_option" else "delete_all_option"
-
                             ActionsSheetItem(
-                                title = translation[saveKey],
-                                subtitle = if (hasSelection) translation["save_selected_messages_subtitle"] else translation["save_by_content_type_subtitle"],
+                                title = translation[if (hasSelection) "save_selection_option" else "save_all_option"] ?: "Save Messages",
+                                subtitle = if (hasSelection) "Save selected items" else "Filter by type",
                                 icon = Icons.Rounded.BookmarkAdded
                             ) {
                                 launchMessagingTask(MessagingTaskType.SAVE)
                                 if (hasSelection) runCurrentTask() else selectConstraintsDialog = true
                             }
                             ActionsSheetItem(
-                                title = translation[unsaveKey],
-                                subtitle = if (hasSelection) translation["unsave_selected_messages_subtitle"] else translation["unsave_by_content_type_subtitle"],
+                                title = translation[if (hasSelection) "unsave_selection_option" else "unsave_all_option"] ?: "Unsave Messages",
+                                subtitle = if (hasSelection) "Unsave selected items" else "Filter by type",
                                 icon = Icons.Rounded.BookmarkBorder
                             ) {
                                 launchMessagingTask(MessagingTaskType.UNSAVE)
                                 if (hasSelection) runCurrentTask() else selectConstraintsDialog = true
                             }
                             ActionsSheetItem(
-                                title = translation[markKey],
-                                subtitle = translation["mark_as_seen_subtitle"],
+                                title = translation[if (hasSelection) "mark_selection_as_seen_option" else "mark_all_as_seen_option"] ?: "Mark as Seen",
+                                subtitle = "Clear notification dot",
                                 icon = Icons.Rounded.RemoveRedEye
                             ) {
                                 if (messagingBridge == null) {
-                                    context.longToast(
-                                        translation.getOrNull("bridge_connection_error")
-                                            ?: translation.getOrNull("bridge_connection_failed")
-                                            ?: translation["bridge_connection_error"]
-                                    )
+                                    context.longToast(translation["bridge_connection_error"] ?: "Snapchat not connected")
                                     return@ActionsSheetItem
                                 }
                                 launchMessagingTask(
@@ -909,17 +922,13 @@ class MessagingPreview: Routes.Route() {
                                 runCurrentTask()
                             }
                             ActionsSheetItem(
-                                title = translation[deleteKey],
-                                subtitle = if (hasSelection) translation["delete_selected_messages_subtitle"] else translation["delete_by_content_type_subtitle"],
+                                title = translation[if (hasSelection) "delete_selection_option" else "delete_all_option"] ?: "Delete Messages",
+                                subtitle = "Permanent removal",
                                 icon = Icons.Rounded.DeleteForever,
                                 danger = true
                             ) {
                                 if (messagingBridge == null) {
-                                    context.longToast(
-                                        translation.getOrNull("bridge_connection_error")
-                                            ?: translation.getOrNull("bridge_connection_failed")
-                                            ?: translation["bridge_connection_error"]
-                                    )
+                                    context.longToast(translation["bridge_connection_error"] ?: "Snapchat not connected")
                                     return@ActionsSheetItem
                                 }
                                 launchMessagingTask(

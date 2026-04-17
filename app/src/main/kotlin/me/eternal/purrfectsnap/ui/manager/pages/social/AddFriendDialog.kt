@@ -29,7 +29,6 @@ import me.eternal.purrfectsnap.common.data.MessagingGroupInfo
 import me.eternal.purrfectsnap.common.util.snap.BitmojiSelfie
 import me.eternal.purrfectsnap.storage.getFriends
 import me.eternal.purrfectsnap.storage.getGroups
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.util.coil.BitmojiImage
 
 class AddFriendDialog(
@@ -66,6 +65,13 @@ class AddFriendDialog(
         val coroutineScope = rememberCoroutineScope()
 
         val cardShape = RoundedCornerShape(18.dp)
+        val glowPrimary = SocialSkinPalette.glowPrimary
+        val glowSecondary = SocialSkinPalette.glowSecondary
+        val textPrimary = SocialSkinPalette.textPrimary
+        val borderBrush = remember(glowPrimary, glowSecondary, currentState, textPrimary) {
+            if (currentState) Brush.linearGradient(listOf(glowPrimary, glowSecondary))
+            else SolidColor(textPrimary.copy(alpha = 0.08f))
+        }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -79,16 +85,11 @@ class AddFriendDialog(
             color = Color.Transparent,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(
-                1.dp,
-                if (currentState) Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))
-                else SolidColor(Color.White.copy(alpha = 0.08f))
-            )
+            border = BorderStroke(1.dp, borderBrush)
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(SocialSkinPalette.cardOverlay, cardShape)
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -112,7 +113,7 @@ class AddFriendDialog(
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Color.White
+                        color = SocialSkinPalette.textPrimary
                     )
 
                     participantsCount?.let {
@@ -120,7 +121,7 @@ class AddFriendDialog(
                             text = translation.format("participants_text", "count" to it.toString()),
                             fontSize = 12.sp,
                             lineHeight = 12.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = SocialSkinPalette.textSecondary
                         )
                     }
                 }
@@ -133,9 +134,9 @@ class AddFriendDialog(
                     },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.8f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.2f)
+                        checkedTrackColor = glowPrimary.copy(alpha = 0.6f),
+                        uncheckedThumbColor = SocialSkinPalette.textPrimary.copy(alpha = 0.8f),
+                        uncheckedTrackColor = SocialSkinPalette.textPrimary.copy(alpha = 0.2f)
                     )
                 )
             }
@@ -144,16 +145,21 @@ class AddFriendDialog(
 
     @Composable
     private fun DialogHeader(searchKeyword: MutableState<String>) {
+        val glowPrimary = SocialSkinPalette.glowPrimary
+        val glowSecondary = SocialSkinPalette.glowSecondary
+        val headerBrush = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.4f),
+                    glowSecondary.copy(alpha = 0.35f)
+                )
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    brush = Brush.linearGradient(
-                        listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                        )
-                    ),
+                    brush = headerBrush,
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                 )
                 .padding(horizontal = 16.dp, vertical = 18.dp)
@@ -162,17 +168,18 @@ class AddFriendDialog(
                 text = translation["title"],
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = SocialSkinPalette.textPrimary
             )
         }
 
+        val cardOverlayColor = SocialSkinPalette.cardOverlayColor
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             shape = RoundedCornerShape(18.dp),
-            color = PurrfectPalette.cardOverlayColor,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+            color = cardOverlayColor,
+            border = BorderStroke(1.dp, SocialSkinPalette.textPrimary.copy(alpha = 0.12f)),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
@@ -180,7 +187,7 @@ class AddFriendDialog(
                 value = searchKeyword.value,
                 onValueChange = { searchKeyword.value = it },
                 placeholder = {
-                    Text(text = translation["search_hint"], color = PurrfectPalette.textSecondary)
+                    Text(text = translation["search_hint"], color = SocialSkinPalette.textSecondary)
                 },
                 modifier = Modifier
                     .fillMaxWidth(),
@@ -190,19 +197,19 @@ class AddFriendDialog(
                     Icon(Icons.Filled.Search, contentDescription = translation["search_icon_description"])
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = PurrfectPalette.cardOverlayColor.copy(alpha = 0.9f),
-                    unfocusedContainerColor = PurrfectPalette.cardOverlayColor.copy(alpha = 0.8f),
+                    focusedContainerColor = cardOverlayColor.copy(alpha = 0.9f),
+                    unfocusedContainerColor = cardOverlayColor.copy(alpha = 0.8f),
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = Color.White,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedLeadingIconColor = Color.White,
-                    unfocusedLeadingIconColor = Color.White.copy(alpha = 0.85f),
-                    focusedPlaceholderColor = PurrfectPalette.textSecondary,
-                    unfocusedPlaceholderColor = PurrfectPalette.textSecondary
+                    cursorColor = SocialSkinPalette.textPrimary,
+                    focusedTextColor = SocialSkinPalette.textPrimary,
+                    unfocusedTextColor = SocialSkinPalette.textPrimary,
+                    focusedLeadingIconColor = SocialSkinPalette.textPrimary,
+                    unfocusedLeadingIconColor = SocialSkinPalette.textPrimary.copy(alpha = 0.85f),
+                    focusedPlaceholderColor = SocialSkinPalette.textSecondary,
+                    unfocusedPlaceholderColor = SocialSkinPalette.textSecondary
                 ),
-                textStyle = LocalTextStyle.current.copy(color = Color.White)
+                textStyle = LocalTextStyle.current.copy(color = SocialSkinPalette.textPrimary)
             )
         }
     }
@@ -303,10 +310,10 @@ class AddFriendDialog(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 shape = dialogShape,
-                color = PurrfectPalette.cardOverlayColor,
+                color = SocialSkinPalette.cardOverlayColor,
                 tonalElevation = 0.dp,
                 shadowElevation = 12.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                border = BorderStroke(1.dp, SocialSkinPalette.textPrimary.copy(alpha = 0.12f))
             ) {
                 Column {
                     if (cachedGroups == null || cachedFriends == null) {
@@ -322,14 +329,14 @@ class AddFriendDialog(
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(bottom = 10.dp, top = 10.dp),
-                                    color = Color.White
+                                    color = SocialSkinPalette.textPrimary
                                 )
                             } else {
                                 CircularProgressIndicator(
                                     modifier = Modifier
                                         .size(32.dp),
                                     strokeWidth = 3.dp,
-                                    color = PurrfectPalette.glowSecondary
+                                    color = SocialSkinPalette.glowSecondary
                                 )
                             }
                         }
@@ -371,7 +378,7 @@ class AddFriendDialog(
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier
                                         .padding(bottom = 8.dp, top = 8.dp),
-                                    color = Color.White
+                                    color = SocialSkinPalette.textPrimary
                                 )
                             }
                         }
@@ -401,7 +408,7 @@ class AddFriendDialog(
                                         text = translation["category_friends"],
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White
+                                        color = SocialSkinPalette.textPrimary
                                     )
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         TextButton(
@@ -415,12 +422,13 @@ class AddFriendDialog(
                                             },
                                             enabled = !allFriendsSelected
                                         ) {
+                                            val glowSecondary = SocialSkinPalette.glowSecondary
                                             Text(
                                                 text = context.translation["manager.dialogs.messaging_action.select_all_button"],
                                                 color = if (allFriendsSelected) {
-                                                    Color.White.copy(alpha = 0.45f)
+                                                    SocialSkinPalette.textPrimary.copy(alpha = 0.45f)
                                                 } else {
-                                                    PurrfectPalette.glowSecondary
+                                                    glowSecondary
                                                 }
                                             )
                                         }
@@ -435,12 +443,13 @@ class AddFriendDialog(
                                             },
                                             enabled = hasFriendsSelected
                                         ) {
+                                            val glowPrimary = SocialSkinPalette.glowPrimary
                                             Text(
                                                 text = translation["unselect_all_button"],
                                                 color = if (hasFriendsSelected) {
-                                                    PurrfectPalette.glowPrimary
+                                                    glowPrimary
                                                 } else {
-                                                    Color.White.copy(alpha = 0.45f)
+                                                    SocialSkinPalette.textPrimary.copy(alpha = 0.45f)
                                                 }
                                             )
                                         }

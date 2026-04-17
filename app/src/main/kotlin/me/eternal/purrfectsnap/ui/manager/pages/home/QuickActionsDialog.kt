@@ -40,9 +40,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import me.eternal.purrfectsnap.common.bridge.wrapper.LocaleWrapper
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfectsnap.ui.util.purrfectSwitchColors
 import androidx.compose.ui.window.Dialog
+
+internal object QuickActionsSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+    val panelGradient: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+}
+
 
 @Composable
 fun QuickActionsDialog(
@@ -68,15 +90,15 @@ fun QuickActionsDialog(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                        QuickActionsSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                        QuickActionsSkinPalette.glowSecondary.copy(alpha = 0.45f)
                     )
                 )
             )
         ) {
             Column(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, dialogShape)
+                    .background(QuickActionsSkinPalette.cardOverlay, dialogShape)
                     .padding(horizontal = 18.dp, vertical = 16.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -93,8 +115,8 @@ fun QuickActionsDialog(
                             .background(
                                 Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                        QuickActionsSkinPalette.glowPrimary.copy(alpha = 0.4f),
+                                        QuickActionsSkinPalette.glowSecondary.copy(alpha = 0.35f)
                                     )
                                 )
                             ),
@@ -103,7 +125,7 @@ fun QuickActionsDialog(
                         Icon(
                             imageVector = Icons.Filled.AutoAwesome,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = QuickActionsSkinPalette.textPrimary,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -114,13 +136,13 @@ fun QuickActionsDialog(
                         Text(
                             text = translation["manager.dialogs.quick_actions_dialog.title"],
                             style = MaterialTheme.typography.titleLarge,
-                            color = Color.White,
+                            color = QuickActionsSkinPalette.textPrimary,
                             fontWeight = FontWeight.ExtraBold
                         )
                         Text(
                             text = translation["manager.dialogs.quick_actions_dialog.subtitle"],
                             style = MaterialTheme.typography.bodyMedium,
-                            color = PurrfectPalette.textSecondary
+                            color = QuickActionsSkinPalette.textSecondary
                         )
                     }
                 }
@@ -134,10 +156,10 @@ fun QuickActionsDialog(
                                 if (isSelected) selected.remove(name) else selected.add(name)
                             },
                         shape = RoundedCornerShape(16.dp),
-                        color = PurrfectPalette.cardOverlayColor,
+                        color = QuickActionsSkinPalette.cardOverlayColor,
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp,
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                        border = BorderStroke(1.dp, QuickActionsSkinPalette.textPrimary.copy(alpha = 0.08f))
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -146,14 +168,14 @@ fun QuickActionsDialog(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f),
+                                color = QuickActionsSkinPalette.glowPrimary.copy(alpha = 0.18f),
                                 tonalElevation = 0.dp
                             ) {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = name,
                                     modifier = Modifier.padding(10.dp),
-                                    tint = Color.White
+                                    tint = QuickActionsSkinPalette.textPrimary
                                 )
                             }
                             Column(
@@ -162,12 +184,12 @@ fun QuickActionsDialog(
                             ) {
                                 Text(
                                     name,
-                                    color = Color.White,
+                                    color = QuickActionsSkinPalette.textPrimary,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = if (isSelected) translation["enabled"] else translation["disabled"],
-                                    color = PurrfectPalette.textSecondary,
+                                    color = QuickActionsSkinPalette.textSecondary,
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -188,13 +210,13 @@ fun QuickActionsDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(translation["button.cancel"], color = PurrfectPalette.textSecondary)
+                        Text(translation["button.cancel"], color = QuickActionsSkinPalette.textSecondary)
                     }
                     Button(
                         onClick = { onSave(selected.toList()) },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                            contentColor = Color.White
+                            containerColor = QuickActionsSkinPalette.glowPrimary.copy(alpha = 0.35f),
+                            contentColor = QuickActionsSkinPalette.textPrimary
                         )
                     ) {
                         Text(translation["button.save"])

@@ -3,6 +3,7 @@ package me.eternal.purrfectsnap.ui.manager.pages.location
 import android.os.Parcel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,11 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.eternal.purrfectsnap.ui.util.DialogProperties
 import androidx.navigation.NavBackStackEntry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,14 +43,31 @@ import me.eternal.purrfectsnap.storage.addOrUpdateLocationCoordinate
 import me.eternal.purrfectsnap.storage.getLocationCoordinates
 import me.eternal.purrfectsnap.storage.removeLocationCoordinate
 import me.eternal.purrfectsnap.ui.manager.Routes
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.util.AlertDialogs
-import me.eternal.purrfectsnap.ui.util.DialogProperties
 import me.eternal.purrfectsnap.ui.util.purrfectSwitchColors
 import me.eternal.purrfectsnap.ui.util.coil.BitmojiImage
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+
+internal object LocationSkinPalette {
+    @Composable
+    internal fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+}
 
 class BetterLocationRoot : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.sections.better_location") }
@@ -57,25 +78,28 @@ class BetterLocationRoot : Routes.Route() {
         modifier: Modifier = Modifier,
         content: @Composable ColumnScope.() -> Unit
     ) {
-        Surface(
-            modifier = modifier,
-            shape = RoundedCornerShape(22.dp),
-            color = Color.White.copy(alpha = 0.06f),
-            tonalElevation = 0.dp,
-            shadowElevation = 12.dp,
-            border = BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                    )
+        val shape = RoundedCornerShape(22.dp)
+        val glowPrimary = LocationSkinPalette.glowPrimary
+        val glowSecondary = LocationSkinPalette.glowSecondary
+        val borderBrush = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.45f),
+                    glowSecondary.copy(alpha = 0.35f)
                 )
             )
+        }
+        Surface(
+            modifier = modifier,
+            shape = shape,
+            color = LocationSkinPalette.textPrimary.copy(alpha = 0.06f),
+            tonalElevation = 0.dp,
+            shadowElevation = 12.dp,
+            border = BorderStroke(1.dp, borderBrush)
         ) {
             Column(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay)
+                    .background(LocationSkinPalette.cardOverlay, shape)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -115,13 +139,13 @@ class BetterLocationRoot : Routes.Route() {
                             ?: friendLocation.username,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.White
+                        color = LocationSkinPalette.textPrimary
                     )
                     Text(
                         text = friendLocation.localityPieces.joinToString(", "),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = PurrfectPalette.textSecondary,
+                        color = LocationSkinPalette.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -133,13 +157,13 @@ class BetterLocationRoot : Routes.Route() {
                         ),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Light,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = LocationSkinPalette.textPrimary.copy(alpha = 0.8f)
                     )
                 }
                 Icon(
                     imageVector = Icons.Default.Navigation,
                     contentDescription = null,
-                    tint = PurrfectPalette.glowSecondary
+                    tint = LocationSkinPalette.glowSecondary
                 )
             }
         }
@@ -171,19 +195,20 @@ class BetterLocationRoot : Routes.Route() {
                     fontWeight = FontWeight.ExtraBold,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
-                    color = Color.White
+                    color = LocationSkinPalette.textPrimary
                 )
+                val glowSecondary = LocationSkinPalette.glowSecondary
                 OutlinedTextField(
                     modifier = Modifier.fillMaxWidth(),
                     value = search,
                     onValueChange = { search = it },
                     label = { Text(translation["search_bar"]) },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        focusedContainerColor = LocationSkinPalette.textPrimary.copy(alpha = 0.08f),
+                        unfocusedContainerColor = LocationSkinPalette.textPrimary.copy(alpha = 0.05f),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        cursorColor = PurrfectPalette.glowSecondary
+                        cursorColor = glowSecondary
                     ),
                     singleLine = true
                 )
@@ -197,7 +222,7 @@ class BetterLocationRoot : Routes.Route() {
                                 fontSize = 16.sp,
                                 modifier = Modifier.padding(16.dp),
                                 fontWeight = FontWeight.Light,
-                                color = PurrfectPalette.textSecondary,
+                                color = LocationSkinPalette.textSecondary,
                                 textAlign = TextAlign.Center
                             )
                         } else if (filteredFriendsLocation.isEmpty()) {
@@ -206,7 +231,7 @@ class BetterLocationRoot : Routes.Route() {
                                 fontSize = 16.sp,
                                 modifier = Modifier.padding(16.dp),
                                 fontWeight = FontWeight.Light,
-                                color = PurrfectPalette.textSecondary,
+                                color = LocationSkinPalette.textSecondary,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -231,7 +256,7 @@ class BetterLocationRoot : Routes.Route() {
             modifier = Modifier.size(42.dp),
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = accent.copy(alpha = 0.22f),
-                contentColor = Color.White
+                contentColor = LocationSkinPalette.textPrimary
             )
         ) {
             Icon(icon, contentDescription = description)
@@ -305,7 +330,7 @@ class BetterLocationRoot : Routes.Route() {
              }
          }
          if (showApiKeyDialog) {
-             me.eternal.purrfectsnap.ui.util.Dialog(onDismissRequest = { 
+             me.eternal.purrfectsnap.ui.util.Dialog(onDismissRequest = {
                  showApiKeyDialog = false
                  context.config.writeConfig()
                  currentApiKey = context.config.root.global.betterLocation.googleMapsApiKey.getNullable() ?: ""
@@ -321,6 +346,7 @@ class BetterLocationRoot : Routes.Route() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(LocationSkinPalette.backgroundGradient)
         ) {
             GlassPanel(
                 modifier = Modifier
@@ -330,13 +356,13 @@ class BetterLocationRoot : Routes.Route() {
                 Text(
                     translation.format(
                         "spoofed_coordinates_title",
-                        "latitude" to ((spoofedCoordinates?.first as? Double)?.toFloat() ?: "0.0").toString(),
-                        "longitude" to ((spoofedCoordinates?.second as? Double)?.toFloat() ?: "0.0").toString()
+                        "latitude" to ((spoofedCoordinates.first as? Double)?.toFloat() ?: "0.0").toString(),
+                        "longitude" to ((spoofedCoordinates.second as? Double)?.toFloat() ?: "0.0").toString()
                     ),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     textAlign = TextAlign.Center,
-                    color = Color.White,
+                    color = LocationSkinPalette.textPrimary,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -368,22 +394,25 @@ class BetterLocationRoot : Routes.Route() {
                 me.eternal.purrfectsnap.ui.util.Dialog(
                     onDismissRequest = { showMap = false },
                     content = {
-                        Surface(
-                            shape = RoundedCornerShape(24.dp),
-                            color = Color.White.copy(alpha = 0.06f),
-                            tonalElevation = 0.dp,
-                            shadowElevation = 16.dp,
-                            border = BorderStroke(
-                                1.dp,
-                                Brush.linearGradient(
-                                    listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                                    )
+                        val shape = RoundedCornerShape(24.dp)
+                        val glowPrimary = LocationSkinPalette.glowPrimary
+                        val glowSecondary = LocationSkinPalette.glowSecondary
+                        val borderBrush = remember(glowPrimary, glowSecondary) {
+                            Brush.linearGradient(
+                                listOf(
+                                    glowPrimary.copy(alpha = 0.45f),
+                                    glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
+                        }
+                        Surface(
+                            shape = shape,
+                            color = LocationSkinPalette.textPrimary.copy(alpha = 0.06f),
+                            tonalElevation = 0.dp,
+                            shadowElevation = 16.dp,
+                            border = BorderStroke(1.dp, borderBrush)
                         ) {
-                            Box(modifier = Modifier.background(PurrfectPalette.cardOverlay)) {
+                            Box(modifier = Modifier.background(LocationSkinPalette.cardOverlay, shape)) {
                                 alertDialogs.ChooseLocationDialog(
                                     property = coordinatesProperty,
                                     marker = marker,
@@ -411,7 +440,8 @@ class BetterLocationRoot : Routes.Route() {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clipToBounds()
+                    .clipToBounds(),
+                contentPadding = PaddingValues(bottom = routes.bottomPadding)
             ) {
 
                 item {
@@ -422,10 +452,10 @@ class BetterLocationRoot : Routes.Route() {
                         onCheckedChange: (Boolean) -> Unit
                     ) {
                         Row(
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = text)
+                            Text(text = text, color = LocationSkinPalette.textPrimary)
                             Spacer(modifier = Modifier.weight(1f))
                             Switch(
                                 checked = state.value,
@@ -459,10 +489,10 @@ class BetterLocationRoot : Routes.Route() {
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = text, modifier = Modifier.weight(1f))
+                            Text(text = text, modifier = Modifier.weight(1f), color = LocationSkinPalette.textPrimary)
                             Text(
                                 text = value,
-                                color = PurrfectPalette.textSecondary,
+                                color = LocationSkinPalette.textSecondary,
                                 fontSize = 14.sp,
                                 modifier = Modifier.padding(start = 8.dp)
                             )
@@ -501,8 +531,8 @@ class BetterLocationRoot : Routes.Route() {
                                 onClick = { showMap = true },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                                    contentColor = Color.White
+                                    containerColor = LocationSkinPalette.glowPrimary.copy(alpha = 0.28f),
+                                    contentColor = LocationSkinPalette.textPrimary
                                 )
                             ) {
                                 Icon(Icons.Filled.Map, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -513,8 +543,8 @@ class BetterLocationRoot : Routes.Route() {
                                 onClick = { showTeleportDialog = true },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowSecondary.copy(alpha = 0.28f),
-                                    contentColor = Color.White
+                                    containerColor = LocationSkinPalette.glowSecondary.copy(alpha = 0.28f),
+                                    contentColor = LocationSkinPalette.textPrimary
                                 )
                             ) {
                                 Icon(Icons.Filled.Navigation, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -540,19 +570,19 @@ class BetterLocationRoot : Routes.Route() {
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     lineHeight = 22.sp,
-                                    color = Color.White
+                                    color = LocationSkinPalette.textPrimary
                                 )
                                 Text(
                                     translation["saved_coordinates_subtitle"],
                                     fontSize = 12.sp,
-                                    color = PurrfectPalette.textSecondary
+                                    color = LocationSkinPalette.textSecondary
                                 )
                             }
                             FilledIconButton(
                                 onClick = { addSavedCoordinateDialog = true },
                                 colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = Color.White.copy(alpha = 0.12f),
-                                    contentColor = Color.White
+                                    containerColor = LocationSkinPalette.textPrimary.copy(alpha = 0.12f),
+                                    contentColor = LocationSkinPalette.textPrimary
                                 )
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = translation["add_icon_description"])
@@ -568,7 +598,7 @@ class BetterLocationRoot : Routes.Route() {
                             modifier = Modifier
                                 .padding(start = 20.dp, top = 8.dp),
                             fontWeight = FontWeight.Light,
-                            color = PurrfectPalette.textSecondary
+                            color = LocationSkinPalette.textSecondary
                         )
                     }
                 }
@@ -634,6 +664,9 @@ class BetterLocationRoot : Routes.Route() {
                         )
                     }
 
+                    val glowPrimary = LocationSkinPalette.glowPrimary
+                    val glowSecondary = LocationSkinPalette.glowSecondary
+
                     GlassPanel(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -667,7 +700,7 @@ class BetterLocationRoot : Routes.Route() {
                                     fontSize = 16.sp,
                                     lineHeight = 20.sp,
                                     overflow = TextOverflow.Ellipsis,
-                                    color = Color.White
+                                    color = LocationSkinPalette.textPrimary
                                 )
                                 Text(
                                     text = remember(mutableCoordinates) { "(${mutableCoordinates.latitude.toFloat()}, ${mutableCoordinates.longitude.toFloat()})" },
@@ -675,20 +708,20 @@ class BetterLocationRoot : Routes.Route() {
                                     fontSize = 12.sp,
                                     lineHeight = 15.sp,
                                     overflow = TextOverflow.Ellipsis,
-                                    color = PurrfectPalette.textSecondary
+                                    color = LocationSkinPalette.textSecondary
                                 )
                             }
                             CoordinateActionButton(
                                 icon = Icons.Default.Edit,
                                 description = translation["edit_icon_description"],
-                                accent = PurrfectPalette.glowPrimary
+                                accent = glowPrimary
                             ) {
                                 showEditDialog = true
                             }
                             CoordinateActionButton(
                                 icon = Icons.Default.DeleteOutline,
                                 description = translation["delete_icon_description"],
-                                accent = PurrfectPalette.glowSecondary
+                                accent = glowSecondary
                             ) {
                                 showDeleteDialog = true
                             }

@@ -46,8 +46,27 @@ import me.eternal.purrfectsnap.common.util.snap.BitmojiSelfie
 import me.eternal.purrfectsnap.storage.*
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.util.coil.BitmojiImage
+import androidx.compose.ui.platform.LocalContext
+
+internal object SocialSkinPalette {
+    @Composable
+    internal fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+}
 
 class SocialRootSection : Routes.Route() {
     internal var friendList: List<MessagingFriendInfo> by mutableStateOf(emptyList())
@@ -170,20 +189,25 @@ class SocialRootSection : Routes.Route() {
             shape = RoundedCornerShape(20.dp),
             elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp, pressedElevation = 0.dp)
         ) {
+            val glowPrimary = SocialSkinPalette.glowPrimary
+            val glowSecondary = SocialSkinPalette.glowSecondary
+            val borderBrush = remember(glowPrimary, glowSecondary) {
+                Brush.linearGradient(listOf(glowPrimary, glowSecondary))
+            }
             Box(
                 modifier = Modifier
                     .size(64.dp)
                     .background(
-                        brush = Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary)),
+                        brush = borderBrush,
                         shape = RoundedCornerShape(18.dp)
                     )
-                    .border(1.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(18.dp)),
+                    .border(1.dp, SocialSkinPalette.textPrimary.copy(alpha = 0.22f), RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = SocialSkinPalette.textPrimary,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -214,18 +238,23 @@ class SocialRootSection : Routes.Route() {
         onPreview: () -> Unit,
         remainingHours: Int
     ) {
-        val cardGradient = Brush.linearGradient(
-            listOf(
-                PurrfectPalette.glowPrimary.copy(alpha = 0.22f),
-                PurrfectPalette.glowSecondary.copy(alpha = 0.16f)
+        val glowPrimary = SocialSkinPalette.glowPrimary
+        val glowSecondary = SocialSkinPalette.glowSecondary
+        val cardGradient = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.22f),
+                    glowSecondary.copy(alpha = 0.16f)
+                )
             )
-        )
+        }
+        val shape = RoundedCornerShape(20.dp)
         ElevatedCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 88.dp)
-                .border(1.dp, cardGradient, RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
+                .border(1.dp, cardGradient, shape),
+            shape = shape,
             onClick = onManage,
             colors = CardDefaults.elevatedCardColors(
                 containerColor = Color.Transparent
@@ -233,7 +262,7 @@ class SocialRootSection : Routes.Route() {
         ) {
             Row(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, RoundedCornerShape(20.dp))
+                    .background(SocialSkinPalette.cardOverlay, shape)
                     .padding(horizontal = 12.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -243,13 +272,13 @@ class SocialRootSection : Routes.Route() {
                         val groupInfo = group ?: return@Row
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = Color.White.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+                            color = SocialSkinPalette.textPrimary.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, SocialSkinPalette.textPrimary.copy(alpha = 0.16f))
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Groups,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = SocialSkinPalette.textPrimary,
                                 modifier = Modifier.padding(12.dp)
                             )
                         }
@@ -262,12 +291,12 @@ class SocialRootSection : Routes.Route() {
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
+                                color = SocialSkinPalette.textPrimary,
                                 fontSize = 15.sp
                             )
                             Text(
                                 text = translation["groups_tab"],
-                                color = PurrfectPalette.textSecondary,
+                                color = SocialSkinPalette.textSecondary,
                                 fontSize = 12.sp
                             )
                         }
@@ -297,7 +326,7 @@ class SocialRootSection : Routes.Route() {
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
+                                color = SocialSkinPalette.textPrimary,
                                 fontSize = 15.sp
                             )
                             Text(
@@ -305,7 +334,7 @@ class SocialRootSection : Routes.Route() {
                                 maxLines = 1,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Light,
-                                color = PurrfectPalette.textSecondary
+                                color = SocialSkinPalette.textSecondary
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 streaks?.takeIf { it.notify }?.let { streaks ->
@@ -315,7 +344,7 @@ class SocialRootSection : Routes.Route() {
                                         modifier = Modifier.height(18.dp),
                                         tint = if (streaks.isAboutToExpire(remainingHours))
                                             Color(0xFFFF6B9B)
-                                        else PurrfectPalette.glowSecondary
+                                        else SocialSkinPalette.glowSecondary
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Text(
@@ -326,7 +355,7 @@ class SocialRootSection : Routes.Route() {
                                         ),
                                         maxLines = 1,
                                         fontWeight = FontWeight.Medium,
-                                        color = PurrfectPalette.textSecondary,
+                                        color = SocialSkinPalette.textSecondary,
                                         fontSize = 12.sp
                                     )
                                 }
@@ -338,21 +367,24 @@ class SocialRootSection : Routes.Route() {
                 Surface(
                     onClick = onPreview,
                     shape = RoundedCornerShape(16.dp),
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = SocialSkinPalette.textPrimary.copy(alpha = 0.08f),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+                    border = BorderStroke(1.dp, SocialSkinPalette.textPrimary.copy(alpha = 0.16f))
                 ) {
+                    val previewGradient = remember(glowPrimary, glowSecondary) {
+                        Brush.linearGradient(
+                            listOf(
+                                glowPrimary.copy(alpha = 0.22f),
+                                glowSecondary.copy(alpha = 0.2f)
+                            )
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.22f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.2f)
-                                    )
-                                ),
+                                previewGradient,
                                 RoundedCornerShape(16.dp)
                             ),
                         contentAlignment = Alignment.Center
@@ -360,7 +392,7 @@ class SocialRootSection : Routes.Route() {
                         Icon(
                             imageVector = Icons.Filled.RemoveRedEye,
                             contentDescription = null,
-                            tint = Color.White
+                            tint = SocialSkinPalette.textPrimary
                         )
                     }
                 }
@@ -378,24 +410,26 @@ class SocialRootSection : Routes.Route() {
         searchActive: Boolean,
         onSearchToggle: () -> Unit
     ) {
+        val glowPrimary = SocialSkinPalette.glowPrimary
+        val glowSecondary = SocialSkinPalette.glowSecondary
+        val topBorderBrush = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.55f),
+                    glowSecondary.copy(alpha = 0.35f)
+                )
+            )
+        }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp)
                 .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
             shape = RoundedCornerShape(26.dp),
-            color = Color.White.copy(alpha = 0.07f),
+            color = SocialSkinPalette.textPrimary.copy(alpha = 0.07f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                    )
-                )
-            )
+            border = BorderStroke(1.dp, topBorderBrush)
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -412,7 +446,7 @@ class SocialRootSection : Routes.Route() {
                     ) {
                         Text(
                             text = translation["manager.routes.social"],
-                            color = Color.White,
+                            color = SocialSkinPalette.textPrimary,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp
                         )
@@ -428,7 +462,7 @@ class SocialRootSection : Routes.Route() {
                             Icon(
                                 imageVector = if (searchActive) Icons.Filled.Close else Icons.Filled.Search,
                                 contentDescription = if (searchActive) translation["close_search_button_description"] else translation["search_button_description"],
-                                tint = Color.White
+                                tint = SocialSkinPalette.textPrimary
                             )
                         }
                     }
@@ -448,18 +482,23 @@ class SocialRootSection : Routes.Route() {
         pagerState: androidx.compose.foundation.pager.PagerState,
         onTabSelected: (Int) -> Unit
     ) {
+        val glowPrimary = SocialSkinPalette.glowPrimary
+        val glowSecondary = SocialSkinPalette.glowSecondary
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             titles.forEachIndexed { index, title ->
                 val selected = pagerState.currentPage == index
+                val indicatorBrush = remember(glowPrimary, glowSecondary) {
+                    Brush.linearGradient(listOf(glowPrimary, glowSecondary))
+                }
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = if (selected) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.06f),
-                    border = if (selected) BorderStroke(1.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))) else BorderStroke(
+                    color = if (selected) SocialSkinPalette.textPrimary.copy(alpha = 0.12f) else SocialSkinPalette.textPrimary.copy(alpha = 0.06f),
+                    border = if (selected) BorderStroke(1.dp, indicatorBrush) else BorderStroke(     
                         1.dp,
-                        Color.White.copy(alpha = 0.12f)
+                        SocialSkinPalette.textPrimary.copy(alpha = 0.12f)
                     ),
                     modifier = Modifier.weight(1f)
                 ) {
@@ -473,11 +512,11 @@ class SocialRootSection : Routes.Route() {
                         Icon(
                             imageVector = if (index == 0) Icons.Filled.People else Icons.Filled.Groups,
                             contentDescription = null,
-                            tint = Color.White
+                            tint = SocialSkinPalette.textPrimary
                         )
                         Text(
                             text = title,
-                            color = Color.White,
+                            color = SocialSkinPalette.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             fontWeight = FontWeight.Medium
@@ -494,15 +533,16 @@ class SocialRootSection : Routes.Route() {
             SocialScope.FRIEND -> translation.getOrNull("friends_empty_title") ?: translation["empty_hint"]
             SocialScope.GROUP -> translation.getOrNull("groups_empty_title") ?: translation["empty_hint"]
         }
+        val glowSecondary = SocialSkinPalette.glowSecondary
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
             shape = RoundedCornerShape(20.dp),
-            color = Color.White.copy(alpha = 0.05f),
+            color = SocialSkinPalette.textPrimary.copy(alpha = 0.05f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+            border = BorderStroke(1.dp, SocialSkinPalette.textPrimary.copy(alpha = 0.12f))
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
@@ -512,18 +552,18 @@ class SocialRootSection : Routes.Route() {
                 Icon(
                     imageVector = if (scope == SocialScope.FRIEND) Icons.Filled.People else Icons.Filled.Groups,
                     contentDescription = null,
-                    tint = PurrfectPalette.glowSecondary,
+                    tint = glowSecondary,
                     modifier = Modifier.size(26.dp)
                 )
                 Text(
                     text = title ?: "",
-                    color = Color.White,
+                    color = SocialSkinPalette.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp
                 )
                 Text(
                     text = translation["social_empty_hint"] ?: "",
-                    color = PurrfectPalette.textSecondary,
+                    color = SocialSkinPalette.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -534,8 +574,8 @@ class SocialRootSection : Routes.Route() {
     internal fun StatPill(label: String, value: Int) {
         Surface(
             shape = RoundedCornerShape(50),
-            color = Color.White.copy(alpha = 0.08f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+            color = SocialSkinPalette.textPrimary.copy(alpha = 0.08f),
+            border = BorderStroke(1.dp, SocialSkinPalette.textPrimary.copy(alpha = 0.16f)),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
@@ -546,12 +586,12 @@ class SocialRootSection : Routes.Route() {
             ) {
                 Text(
                     text = value.toString(),
-                    color = Color.White,
+                    color = SocialSkinPalette.textPrimary,
                     fontWeight = FontWeight.ExtraBold
                 )
                 Text(
                     text = label,
-                    color = PurrfectPalette.textSecondary,
+                    color = SocialSkinPalette.textSecondary,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -560,7 +600,3 @@ class SocialRootSection : Routes.Route() {
         }
     }
 }
-
-
-
-

@@ -1,5 +1,9 @@
 package me.eternal.purrfectsnap.core.features.impl.messaging
 
+import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -23,7 +27,6 @@ import me.eternal.purrfectsnap.common.ui.createComposeAlertDialog
 import me.eternal.purrfectsnap.core.event.events.impl.AddViewEvent
 import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.ui.PurrfectGlassCard
-import me.eternal.purrfectsnap.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfectsnap.core.ui.ViewAppearanceHelper
 import me.eternal.purrfectsnap.core.ui.children
@@ -37,14 +40,14 @@ class CallButtonsOverride : Feature("CallButtonsOverride") {
         if (motionEvent.action != MotionEvent.ACTION_UP) return
         param.setResult(true)
         createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(context) {
+                val skin = LocalPurrfectSkin.current
                 PurrfectGlassCard(
                     modifier = Modifier.fillMaxWidth(),
                     title = context.translation["call_start_confirmation.dialog_title"],
                     subtitle = context.translation["call_start_confirmation.dialog_message"],
                     icon = Icons.Default.Call
                 ) {
-                    val actionShape = RoundedCornerShape(16.dp)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp, androidx.compose.ui.Alignment.CenterHorizontally)
@@ -53,11 +56,11 @@ class CallButtonsOverride : Feature("CallButtonsOverride") {
                             modifier = Modifier.width(120.dp),
                             onClick = { alertDialog.dismiss() },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White.copy(alpha = 0.08f),
-                                contentColor = Color.White
+                                containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                contentColor = skin.textPrimary
                             )
                         ) {
-                            Text(context.translation["button.negative"])
+                            Text(context.translation["button.negative"], color = skin.textPrimary)
                         }
                         Button(
                             modifier = Modifier.width(120.dp),
@@ -66,11 +69,11 @@ class CallButtonsOverride : Feature("CallButtonsOverride") {
                                 onConfirm()
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.26f),
-                                contentColor = Color.White
+                                containerColor = skin.glowPrimary.copy(alpha = 0.26f),
+                                contentColor = skin.textPrimary
                             )
                         ) {
-                            Text(context.translation["button.positive"])
+                            Text(context.translation["button.positive"], color = skin.textPrimary)
                         }
                     }
                 }

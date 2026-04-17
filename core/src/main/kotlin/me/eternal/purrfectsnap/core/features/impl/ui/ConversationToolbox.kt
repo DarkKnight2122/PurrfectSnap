@@ -1,5 +1,9 @@
 package me.eternal.purrfectsnap.core.features.impl.ui
 
+import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.view.Gravity
@@ -101,6 +105,7 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                     it.hasInterface(EnumScriptInterface.CONVERSATION_TOOLBOX)
                 } ?: return@eachModule
                 addComposable("\uD83D\uDCDC ${moduleInfo.displayName}") { alertDialog, conversationId ->
+                    val skin = LocalPurrfectSkin.current
                     ScriptInterface(remember {
                         interfaceManager.buildInterface(EnumScriptInterface.CONVERSATION_TOOLBOX, mapOf(
                             "alertDialog" to alertDialog,
@@ -119,7 +124,8 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
         }
 
         createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(context) {
+                val skin = LocalPurrfectSkin.current
                 val shape = RoundedCornerShape(24.dp)
                 Column(
                     modifier = Modifier
@@ -129,13 +135,13 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                             max = LocalConfiguration.current.screenHeightDp * 0.8f.dp
                         )
                         .clip(shape)
-                        .background(PurrfectOverlayPalette.cardOverlay, shape)
+                        .background(skin.cardOverlay, shape)
                         .border(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                                    PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f)
+                                    skin.glowPrimary.copy(alpha = 0.55f),
+                                    skin.glowSecondary.copy(alpha = 0.35f)
                                 )
                             ),
                             shape
@@ -150,7 +156,7 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                             .fillMaxWidth()
                             .padding(10.dp),
                         textAlign = TextAlign.Center,
-                        color = PurrfectOverlayPalette.textPrimary
+                        color = skin.textPrimary
                     )
                     Spacer(modifier = Modifier.height(10.dp))
 
@@ -162,8 +168,8 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(itemShape)
-                                .background(Color.White.copy(alpha = 0.06f), itemShape)
-                                .border(1.dp, Color.White.copy(alpha = 0.10f), itemShape)
+                                .background(skin.textPrimary.copy(alpha = 0.06f), itemShape)
+                                .border(1.dp, skin.textPrimary.copy(alpha = 0.10f), itemShape)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -179,13 +185,13 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                                 Image(
                                     imageVector = if (expanded) Icons.Filled.KeyboardArrowDown else Icons.Filled.KeyboardArrowUp,
                                     contentDescription = null,
-                                    colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.9f)),
+                                    colorFilter = ColorFilter.tint(skin.textPrimary.copy(alpha = 0.9f)),
                                 )
                                 Text(
                                     title,
                                     fontSize = 15.sp,
                                     fontStyle = FontStyle.Italic,
-                                    color = Color.White,
+                                    color = skin.textPrimary,
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -203,7 +209,7 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                                                 "conversation_toolbox.failed_to_load",
                                                 "message" to (throwable.message ?: "unknown error")
                                             ),
-                                            color = PurrfectOverlayPalette.textSecondary,
+                                            color = skin.textSecondary,
                                             fontSize = 12.sp
                                         )
                                         context.log.error("Failed to load composable: ${throwable.message}", throwable)

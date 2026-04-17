@@ -72,8 +72,29 @@ import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.components.AestheticEmptyState
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import okhttp3.OkHttpClient
+
+private object ManageScriptReposSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else Brush.verticalGradient(listOf(Color(0xFF5C4B99), Color(0xFF322B5E), Color(0xFF1B1836)))
+}
 
 class ManageScriptReposSection : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.scripting.repos") }
@@ -109,7 +130,7 @@ class ManageScriptReposSection : Routes.Route() {
 
         ExtendedFloatingActionButton(
             onClick = { showAddDialog = true },
-            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
+            containerColor = ManageScriptReposSkinPalette.glowPrimary.copy(alpha = 0.34f),
             contentColor = Color.White,
             shape = RoundedCornerShape(18.dp),
             elevation = FloatingActionButtonDefaults.elevation(
@@ -141,15 +162,15 @@ class ManageScriptReposSection : Routes.Route() {
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                                ManageScriptReposSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                                ManageScriptReposSkinPalette.glowSecondary.copy(alpha = 0.45f)
                             )
                         )
                     )
                 ) {
                     Column(
                         modifier = Modifier
-                            .background(PurrfectPalette.cardOverlay, RoundedCornerShape(24.dp))
+                            .background(ManageScriptReposSkinPalette.cardOverlay, RoundedCornerShape(24.dp))
                             .padding(horizontal = 18.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -159,7 +180,7 @@ class ManageScriptReposSection : Routes.Route() {
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f)
+                                color = ManageScriptReposSkinPalette.glowPrimary.copy(alpha = 0.18f)
                             ) {
                                 Icon(
                                     Icons.Default.Public,
@@ -179,7 +200,7 @@ class ManageScriptReposSection : Routes.Route() {
                                     text = translation["manager.dialogs.scripting.repo_hint"]
                                         ?: translation["repo_url_label"]
                                         ?: "",
-                                    color = PurrfectPalette.textSecondary,
+                                    color = ManageScriptReposSkinPalette.textSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -191,16 +212,16 @@ class ManageScriptReposSection : Routes.Route() {
                                 .onGloballyPositioned { focusRequester.requestFocus() },
                             value = url,
                             onValueChange = { url = it },
-                            label = { Text(translation["repo_url_label"], color = PurrfectPalette.textSecondary) },
+                            label = { Text(translation["repo_url_label"], color = ManageScriptReposSkinPalette.textSecondary) },
                             singleLine = true,
                             colors = TextFieldDefaults.colors(
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
                                 focusedContainerColor = Color.White.copy(alpha = 0.08f),
                                 unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                                cursorColor = PurrfectPalette.glowSecondary,
-                                focusedLabelColor = PurrfectPalette.textSecondary,
-                                unfocusedLabelColor = PurrfectPalette.textSecondary
+                                cursorColor = ManageScriptReposSkinPalette.glowSecondary,
+                                focusedLabelColor = ManageScriptReposSkinPalette.textSecondary,
+                                unfocusedLabelColor = ManageScriptReposSkinPalette.textSecondary
                             )
                         )
                         LaunchedEffect(Unit) {
@@ -211,7 +232,7 @@ class ManageScriptReposSection : Routes.Route() {
                             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
                         ) {
                             TextButton(onClick = { showAddDialog = false }) {
-                                Text(translation["button.cancel"], color = PurrfectPalette.textSecondary)
+                                Text(translation["button.cancel"], color = ManageScriptReposSkinPalette.textSecondary)
                             }
                             Button(
                                 enabled = !loading && url.isNotBlank(),
@@ -261,7 +282,7 @@ class ManageScriptReposSection : Routes.Route() {
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.3f),
+                                    containerColor = ManageScriptReposSkinPalette.glowPrimary.copy(alpha = 0.3f),
                                     contentColor = Color.White
                                 )
                             ) {
@@ -289,7 +310,7 @@ class ManageScriptReposSection : Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(ManageScriptReposSkinPalette.backgroundGradient)
         ) {
             FloatingTopBar(
                 title = routeInfo.translatedKey?.value ?: translation["title"],
@@ -332,15 +353,15 @@ class ManageScriptReposSection : Routes.Route() {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
-                            color = PurrfectPalette.cardOverlayColor,
+                            color = ManageScriptReposSkinPalette.cardOverlayColor,
                             tonalElevation = 0.dp,
                             shadowElevation = 10.dp,
                             border = BorderStroke(
                                 1.dp,
                                 Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                        ManageScriptReposSkinPalette.glowPrimary.copy(alpha = 0.45f),
+                                        ManageScriptReposSkinPalette.glowSecondary.copy(alpha = 0.35f)
                                     )
                                 )
                             )
@@ -354,7 +375,7 @@ class ManageScriptReposSection : Routes.Route() {
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f)
+                                    color = ManageScriptReposSkinPalette.glowPrimary.copy(alpha = 0.18f)
                                 ) {
                                     Icon(
                                         Icons.Default.Public,
@@ -376,14 +397,14 @@ class ManageScriptReposSection : Routes.Route() {
                                     Text(
                                         text = author,
                                         fontSize = 13.sp,
-                                        color = PurrfectPalette.textSecondary
+                                        color = ManageScriptReposSkinPalette.textSecondary
                                     )
                                 }
 
                                 Button(
                                     onClick = { showRemoveDialog = true },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.22f),
+                                        containerColor = ManageScriptReposSkinPalette.glowPrimary.copy(alpha = 0.22f),
                                         contentColor = Color.White
                                     )
                                 ) {

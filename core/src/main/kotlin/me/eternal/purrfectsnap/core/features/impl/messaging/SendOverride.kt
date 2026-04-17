@@ -39,8 +39,8 @@ import me.eternal.purrfectsnap.core.event.events.impl.UnaryCallEvent
 import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.features.impl.experiments.MediaFilePicker
 import me.eternal.purrfectsnap.core.messaging.MessageSender
-import me.eternal.purrfectsnap.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.core.wrapper.impl.MessageContent
 import me.eternal.purrfectsnap.core.wrapper.impl.MessageDestinations
 import me.eternal.purrfectsnap.core.util.ktx.getObjectFieldOrNull
@@ -100,7 +100,7 @@ class SendOverride : Feature("Send Override") {
             return result
         }
     }
-    
+
     private var selectedType by mutableStateOf("SNAP")
     private var disableSplitForCurrentSend by mutableStateOf(false)
     private var customDuration by mutableFloatStateOf(10f)
@@ -163,7 +163,7 @@ class SendOverride : Feature("Send Override") {
             false
         }
     }
-    
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
@@ -176,7 +176,7 @@ class SendOverride : Feature("Send Override") {
             notificationManager.createNotificationChannel(channel)
         }
     }
-    
+
     private fun showNotification(title: String, content: String) {
         val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
         val builder = NotificationCompat.Builder(context.androidContext, NOTIFICATION_CHANNEL_ID)
@@ -866,31 +866,25 @@ class SendOverride : Feature("Send Override") {
 
             context.runOnUiThread {
                 val recipientNameForTask = recipientName
-                                val mediaCount = messageProtoReader.followPath(3)?.getCount(3) ?: 0
+                val mediaCount = messageProtoReader.followPath(3)?.getCount(3) ?: 0
                 
                 createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
-                    PurrfectOverlayTheme {
+                    PurrfectOverlayTheme(context) {
+                        val skin = LocalPurrfectSkin.current
                         val mainTranslation = remember {
                             context.translation.getCategory("send_override_dialog")
                         }
                         val dialogShape = RoundedCornerShape(24.dp)
-                        val dialogSurfaceColor = Color(0xFF2A2452)
-                        val border = remember {
+                        val dialogSurfaceColor = skin.cardOverlayColor
+                        val border = remember(skin) {
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                                    PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f)
+                                    skin.glowPrimary.copy(alpha = 0.55f),
+                                    skin.glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
                         }
-                        val dialogBackground = remember {
-                            Brush.linearGradient(
-                                listOf(
-                                    Color(0xFF2A2452),
-                                    Color(0xFF1A143A)
-                                )
-                            )
-                        }
+                        val dialogBackground = skin.cardOverlay
 
                         @Composable
                         fun ActionTile(
@@ -906,10 +900,10 @@ class SendOverride : Feature("Send Override") {
                                 shape = RoundedCornerShape(18.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 4.dp else 1.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (selected) Color(0xFF3E3478) else Color(0xFF2F2A5B),
-                                    contentColor = Color.White
+                                    containerColor = if (selected) skin.glowPrimary.copy(alpha = 0.15f) else skin.textPrimary.copy(alpha = 0.04f),
+                                    contentColor = skin.textPrimary
                                 ),
-                                border = if (selected) BorderStroke(1.dp, PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.6f)) else null
+                                border = if (selected) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.6f)) else null
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -922,13 +916,14 @@ class SendOverride : Feature("Send Override") {
                                         icon,
                                         contentDescription = title,
                                         modifier = Modifier.size(28.dp),
-                                        tint = if (selected) PurrfectOverlayPalette.glowSecondary else Color.White.copy(alpha = 0.9f)
+                                        tint = if (selected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.9f)
                                     )
                                     Spacer(Modifier.height(6.dp))
                                     Text(
                                         title,
                                         modifier = Modifier.fillMaxWidth(),
                                         fontSize = 12.sp,
+                                        color = skin.textPrimary,
                                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                         softWrap = true,
                                         lineHeight = 14.sp,
@@ -963,6 +958,7 @@ class SendOverride : Feature("Send Override") {
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Medium,
                                     text = "Send as ${translation[selectedType]}",
+                                    color = skin.textPrimary,
                                     modifier = Modifier.padding(5.dp)
                                 )
                                 Row(
@@ -1033,9 +1029,10 @@ class SendOverride : Feature("Send Override") {
                                         checked = disableSplitForCurrentSend,
                                         onCheckedChange = {
                                             disableSplitForCurrentSend = it
-                                        }
+                                        },
+                                        colors = CheckboxDefaults.colors(checkedColor = skin.glowPrimary)
                                     )
-                                    Text(text = mainTranslation["single_send_hint"], lineHeight = 15.sp)
+                                    Text(text = mainTranslation["single_send_hint"], color = skin.textPrimary, lineHeight = 15.sp)
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth().clickable {
@@ -1048,9 +1045,10 @@ class SendOverride : Feature("Send Override") {
                                         checked = selectedType == "SAVEABLE_SNAP",
                                         onCheckedChange = {
                                             toggleSaveable()
-                                        }
+                                        },
+                                        colors = CheckboxDefaults.colors(checkedColor = skin.glowPrimary)
                                     )
-                                    Text(text = mainTranslation["saveable_snap_hint"], lineHeight = 15.sp)
+                                    Text(text = mainTranslation["saveable_snap_hint"], color = skin.textPrimary, lineHeight = 15.sp)
                                 }
                                 Column(
                                     modifier = Modifier.padding(start = 8.dp)
@@ -1058,7 +1056,8 @@ class SendOverride : Feature("Send Override") {
                                     Text(
                                         text = mainTranslation.format("duration",
                                             "duration" to (convertDuration(customDuration)?.toDuration(DurationUnit.MILLISECONDS)?.toString(DurationUnit.SECONDS, 2) ?: mainTranslation["unlimited_duration"])
-                                        )
+                                        ),
+                                        color = skin.textPrimary
                                     )
                                     Slider(
                                         modifier = Modifier.fillMaxWidth(),
@@ -1068,6 +1067,7 @@ class SendOverride : Feature("Send Override") {
                                             customDuration = it
                                         },
                                         valueRange = -2f..11f,
+                                        colors = SliderDefaults.colors(thumbColor = skin.glowPrimary, activeTrackColor = skin.glowPrimary)
                                     )
                                 }
                             }
@@ -1084,9 +1084,10 @@ class SendOverride : Feature("Send Override") {
                                 checked = continuousSendEnabled,
                                 onCheckedChange = {
                                     continuousSendEnabled = it
-                                }
+                                },
+                                colors = CheckboxDefaults.colors(checkedColor = skin.glowPrimary)
                             )
-                            Text(text = mainTranslation["continuous_send_toggle"], lineHeight = 15.sp)
+                            Text(text = mainTranslation["continuous_send_toggle"], color = skin.textPrimary, lineHeight = 15.sp)
                         }
 
                         if (continuousSendEnabled) {
@@ -1097,15 +1098,16 @@ class SendOverride : Feature("Send Override") {
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
-                                label = { Text(mainTranslation["continuous_send_count_label"]) },
-                                placeholder = { Text(mainTranslation["continuous_send_count_placeholder"]) },
+                                label = { Text(mainTranslation["continuous_send_count_label"], color = skin.textPrimary) },
+                                placeholder = { Text(mainTranslation["continuous_send_count_placeholder"], color = skin.textSecondary) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                keyboardActions = KeyboardActions.Default
+                                keyboardActions = KeyboardActions.Default,
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = skin.glowPrimary, focusedLabelColor = skin.glowPrimary, cursorColor = skin.glowPrimary)
                             )
                             Text(
                                 text = mainTranslation["continuous_send_hint"],
                                 fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.72f)
+                                color = skin.textSecondary
                             )
                         }
 
@@ -1119,11 +1121,12 @@ class SendOverride : Feature("Send Override") {
                                 onCheckedChange = {
                                     scheduleEnabled = it
                                     if (!it) scheduledTime = null
-                                }
+                                },
+                                colors = CheckboxDefaults.colors(checkedColor = skin.glowPrimary)
                             )
-                            Text(text = mainTranslation["schedule"], modifier = Modifier.weight(1f))
+                            Text(text = mainTranslation["schedule"], color = skin.textPrimary, modifier = Modifier.weight(1f))
                             if (scheduleEnabled) {
-                                Button(onClick = { showClockPicker = true }) {
+                                Button(onClick = { showClockPicker = true }, colors = ButtonDefaults.buttonColors(containerColor = skin.glowPrimary, contentColor = skin.cardOverlayColor)) {
                                     scheduledTime?.let { time ->
                                         Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(time))
                                     } ?: Text(context.translation["select"])
@@ -1148,12 +1151,12 @@ class SendOverride : Feature("Send Override") {
                                     onDismissRequest = { showDatePickerDialog = false },
                                     confirmButton = {
                                         TextButton(onClick = { showDatePickerDialog = false }) {
-                                            Text(context.translation["button.ok"])
+                                            Text(context.translation["button.ok"], color = skin.glowPrimary)
                                         }
                                     },
                                     dismissButton = {
                                         TextButton(onClick = { showDatePickerDialog = false }) {
-                                            Text(context.translation["button.cancel"])
+                                            Text(context.translation["button.cancel"], color = skin.textSecondary)
                                         }
                                     }
                                 ) {
@@ -1170,12 +1173,12 @@ class SendOverride : Feature("Send Override") {
                                             clockPickerMinute = timePickerState.minute
                                             showTimePickerDialog = false 
                                         }) {
-                                            Text(context.translation["button.ok"])
+                                            Text(context.translation["button.ok"], color = skin.glowPrimary)
                                         }
                                     },
                                     dismissButton = {
                                         TextButton(onClick = { showTimePickerDialog = false }) {
-                                            Text(context.translation["button.cancel"])
+                                            Text(context.translation["button.cancel"], color = skin.textSecondary)
                                         }
                                     },
                                     text = {
@@ -1186,7 +1189,8 @@ class SendOverride : Feature("Send Override") {
                             
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium
+                                shape = MaterialTheme.shapes.medium,
+                                colors = CardDefaults.cardColors(containerColor = skin.textPrimary.copy(alpha = 0.05f))
                             ) {
                                 Column(
                                     modifier = Modifier.padding(16.dp),
@@ -1195,12 +1199,14 @@ class SendOverride : Feature("Send Override") {
                                     Text(
                                         mainTranslation["select_time"], 
                                         fontWeight = FontWeight.Bold,
+                                        color = skin.textPrimary,
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     
                                     OutlinedButton(
                                         onClick = { showDatePickerDialog = true },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
                                     ) {
                                         Icon(Icons.Default.CalendarToday, contentDescription = null)
                                         Spacer(Modifier.width(8.dp))
@@ -1213,7 +1219,8 @@ class SendOverride : Feature("Send Override") {
                                     
                                     OutlinedButton(
                                         onClick = { showTimePickerDialog = true },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
                                     ) {
                                         Icon(Icons.Default.Schedule, contentDescription = null)
                                         Spacer(Modifier.width(8.dp))
@@ -1224,7 +1231,7 @@ class SendOverride : Feature("Send Override") {
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceEvenly
                                     ) {
-                                        OutlinedButton(onClick = { showClockPicker = false }) {
+                                        OutlinedButton(onClick = { showClockPicker = false }, colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textSecondary)) {
                                             Text(context.translation["button.cancel"])
                                         }
                                         Button(onClick = {
@@ -1254,7 +1261,7 @@ class SendOverride : Feature("Send Override") {
                                             
                                             scheduledTime = calendar.timeInMillis
                                             showClockPicker = false
-                                        }) {
+                                        }, colors = ButtonDefaults.buttonColors(containerColor = skin.glowPrimary, contentColor = skin.cardOverlayColor)) {
                                             Text(context.translation["button.ok"])
                                         }
                                     }
@@ -1269,7 +1276,7 @@ class SendOverride : Feature("Send Override") {
                         ) {
                             OutlinedButton(onClick = {
                                 alertDialog.dismiss()
-                            }) {
+                            }, colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textSecondary)) {
                                 Text(context.translation["button.cancel"])
                             }
                             Button(onClick = {
@@ -1429,7 +1436,7 @@ class SendOverride : Feature("Send Override") {
                                         )
                                     }
                                 }
-                            }) {
+                            }, colors = ButtonDefaults.buttonColors(containerColor = skin.glowPrimary, contentColor = skin.cardOverlayColor)) {
                                 Text(if (scheduledTime != null) mainTranslation["schedule"] else context.translation["button.send"])
                             }
                         }

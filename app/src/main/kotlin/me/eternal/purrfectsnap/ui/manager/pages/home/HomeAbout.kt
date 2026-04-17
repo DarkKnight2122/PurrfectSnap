@@ -1,4 +1,4 @@
-package me.eternal.purrfectsnap.ui.manager.pages.home
+﻿package me.eternal.purrfectsnap.ui.manager.pages.home
 
 import android.os.SystemClock
 import androidx.compose.foundation.BorderStroke
@@ -31,9 +31,31 @@ import kotlinx.coroutines.delay
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfectsnap.ui.util.PurrfectMarqueeText
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
+
+private object AboutSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+    val panelGradient: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+}
+
 
 class HomeAbout : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.sections.home_about") }
@@ -88,8 +110,8 @@ class HomeAbout : Routes.Route() {
             modifier = modifier.scaleOnPress(tapSource),
             interactionSource = tapSource,
             shape = RoundedCornerShape(22.dp),
-            color = Color.White.copy(alpha = 0.06f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+            color = AboutSkinPalette.textPrimary.copy(alpha = 0.06f),
+            border = BorderStroke(1.dp, AboutSkinPalette.textPrimary.copy(alpha = 0.1f)),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
@@ -102,7 +124,7 @@ class HomeAbout : Routes.Route() {
                     modifier = Modifier.size(64.dp),
                     shape = CircleShape,
                     color = Color.Transparent,
-                    border = BorderStroke(2.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary)))
+                    border = BorderStroke(2.dp, Brush.linearGradient(listOf(AboutSkinPalette.glowPrimary, AboutSkinPalette.glowSecondary)))
                 ) {
                     Image(
                         painter = painterResource(id = imageRes),
@@ -113,7 +135,7 @@ class HomeAbout : Routes.Route() {
                 }
                 PurrfectMarqueeText(
                     text = name,
-                    color = Color.White,
+                    color = AboutSkinPalette.textPrimary,
                     style = TextStyle(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
@@ -124,3 +146,4 @@ class HomeAbout : Routes.Route() {
         }
     }
 }
+

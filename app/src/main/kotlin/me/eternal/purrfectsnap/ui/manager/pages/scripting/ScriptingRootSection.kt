@@ -1,4 +1,4 @@
-package me.eternal.purrfectsnap.ui.manager.pages.scripting
+﻿package me.eternal.purrfectsnap.ui.manager.pages.scripting
 
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
@@ -49,13 +49,32 @@ import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.components.AestheticEmptyState
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
 import me.eternal.purrfectsnap.ui.util.chooseFolder
 import me.eternal.purrfectsnap.ui.util.purrfectSwitchColors
 import me.eternal.purrfectsnap.ui.util.pullrefresh.PullRefreshIndicator
 import me.eternal.purrfectsnap.ui.util.pullrefresh.pullRefresh
 import me.eternal.purrfectsnap.ui.util.pullrefresh.rememberPullRefreshState
+import androidx.compose.ui.platform.LocalContext
+
+internal object ScriptingSkinPalette {
+    @Composable
+    internal fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+}
 
 class ScriptingRootSection : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.scripting") }
@@ -112,10 +131,10 @@ class ScriptingRootSection : Routes.Route() {
 
         AestheticDialog(
             onDismissRequest = dismiss,
-            title = translation["import_script_from_url_title"],
-            text = translation["import_script_warning"],
+            title = translation["import_script_from_url_title"] ?: "Import script from URL",
+            text = translation["import_script_warning"] ?: "Are you sure you want to import this script?",
             icon = Icons.Default.Link,
-            confirmButtonText = translation["import_button"],
+            confirmButtonText = translation["import_button"] ?: "Import",
             dismissButtonText = translation["button.cancel"],
             onDismiss = dismiss,
             loading = isLoading,
@@ -126,7 +145,7 @@ class ScriptingRootSection : Routes.Route() {
                 context.coroutineScope.launch {
                     runCatching {
                         if (isScriptInstalledByUrl(url)) {
-                            context.shortToast(translation["script_already_installed"])
+                            context.shortToast(translation["script_already_installed"] ?: "Script already installed")
                             withContext(Dispatchers.Main) {
                                 dismiss()
                             }
@@ -151,22 +170,22 @@ class ScriptingRootSection : Routes.Route() {
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text(text = translation["enter_url_label"]) },
+                    label = { Text(text = translation["enter_url_label"] ?: "Enter URL") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester)
                         .onGloballyPositioned { focusRequester.requestFocus() },
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.White.copy(alpha = 0.06f),
-                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        focusedIndicatorColor = PurrfectPalette.glowSecondary.copy(alpha = 0.5f),
-                        unfocusedIndicatorColor = Color.White.copy(alpha = 0.12f),
-                        cursorColor = PurrfectPalette.glowSecondary,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedContainerColor = ScriptingSkinPalette.textPrimary.copy(alpha = 0.06f),
+                        unfocusedContainerColor = ScriptingSkinPalette.textPrimary.copy(alpha = 0.05f),
+                        focusedIndicatorColor = ScriptingSkinPalette.glowSecondary.copy(alpha = 0.5f),
+                        unfocusedIndicatorColor = ScriptingSkinPalette.textPrimary.copy(alpha = 0.12f),
+                        cursorColor = ScriptingSkinPalette.glowSecondary,
+                        focusedTextColor = ScriptingSkinPalette.textPrimary,
+                        unfocusedTextColor = ScriptingSkinPalette.textPrimary,
                         focusedLabelColor = Color.White,
-                        unfocusedLabelColor = PurrfectPalette.textSecondary
+                        unfocusedLabelColor = ScriptingSkinPalette.textSecondary
                     )
                 )
             }
@@ -179,56 +198,37 @@ class ScriptingRootSection : Routes.Route() {
         canUpdate: Boolean,
         dismiss: () -> Unit
     ) {
-        Dialog(onDismissRequest = dismiss) {
-            ElevatedCard(modifier = Modifier.fillMaxWidth().padding(2.dp)) {
-                val actions = remember {
+        val coroutineScope = rememberCoroutineScope()
+        AestheticDialog(
+            onDismissRequest = dismiss,
+            title = script.displayName ?: script.name,
+            text = script.description ?: "",
+            icon = Icons.Default.Extension,
+            confirmButtonText = "",
+            onConfirm = {},
+            opaque = true,
+            showCloseButton = true,
+            customContent = {
+                val actions = remember(script, canUpdate) {
                     mutableMapOf<Pair<String, ImageVector>, suspend () -> Unit>().apply {
                         if (canUpdate) {
-                            put(translation["update_module_button"] to Icons.Default.Download) {
-                                dismiss()
-                                context.shortToast(translation.format("updating_script", "name" to script.name))
-                                runCatching {
-                                    val modulePath = context.scriptManager.getModulePath(script.name) ?: throw Exception(translation["module_not_found"])
-                                    context.scriptManager.unloadScript(modulePath)
-                                    val moduleInfo = context.scriptManager.importFromUrl(script.updateUrl!!, filepath = modulePath)
-                                    context.shortToast(translation.format("updated_script", "name" to script.name, "version" to moduleInfo.version))
-                                    context.database.setScriptEnabled(script.name, false)
-                                    withContext(context.database.executor.asCoroutineDispatcher()) {
-                                        reloadDispatcher.dispatch()
+                            put(translation["update_script_button"] to Icons.Default.Update) {
+                                script.updateUrl?.let { downloadScript(it, dismiss) }
+                            }
+                        }
+                        put(translation["open_in_external_editor"] to Icons.Default.OpenInNew) {
+                            context.scriptManager.getModulePath(script.name)?.let { path ->
+                                context.scriptManager.getScriptsFolder()?.findFile(path)?.uri?.let { uri ->
+                                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(uri, "text/javascript")
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
-                                }.onFailure {
-                                    context.log.error("Failed to update module", it)
-                                    context.shortToast(translation["update_module_failed"])
+                                    context.androidContext.startActivity(Intent.createChooser(intent, translation["choose_editor_title"]))
                                 }
                             }
                         }
-                        put(translation["edit_module_button"] to Icons.Default.Edit) {
-                            runCatching {
-                                val modulePath = context.scriptManager.getModulePath(script.name)!!
-                                context.androidContext.startActivity(
-                                    Intent(Intent.ACTION_VIEW).apply {
-                                        data = context.scriptManager.getScriptsFolder()!!.findFile(modulePath)!!.uri
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                    }
-                                )
-                                dismiss()
-                            }.onFailure {
-                                context.log.error("Failed to open module file", it)
-                                context.shortToast(translation["open_module_failed"])
-                            }
-                        }
-                        put(translation["clear_module_data_button"] to Icons.Default.Save) {
-                            runCatching {
-                                context.scriptManager.getModuleDataFolder(script.name).deleteRecursively()
-                                context.shortToast(translation["module_data_cleared"])
-                                dismiss()
-                            }.onFailure {
-                                context.log.error("Failed to clear module data", it)
-                                context.shortToast(translation["clear_module_data_failed"])
-                            }
-                        }
-                        put(translation["delete_module_button"] to Icons.Default.DeleteOutline) {
-                            context.scriptManager.apply {
+                        put(translation["delete_script_button"] to Icons.Default.DeleteForever) {
+                           context.scriptManager.apply {
                                 runCatching {
                                     val modulePath = getModulePath(script.name)!!
                                     unloadScript(modulePath)
@@ -252,6 +252,7 @@ class ScriptingRootSection : Routes.Route() {
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(16.dp).fillMaxWidth(),
                             textAlign = TextAlign.Center,
+                            color = ScriptingSkinPalette.textPrimary
                         )
                     }
                     items(actions.size) { index ->
@@ -261,14 +262,15 @@ class ScriptingRootSection : Routes.Route() {
                                 .clickable { context.coroutineScope.launch { action.value(); dismiss() } }
                                 .fillMaxWidth(),
                             leadingContent = {
-                                Icon(action.key.second, action.key.first)
+                                Icon(action.key.second, action.key.first, tint = ScriptingSkinPalette.textPrimary)
                             },
-                            headlineContent = { Text(action.key.first) }
+                            headlineContent = { Text(action.key.first, color = ScriptingSkinPalette.textPrimary) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                     }
                 }
             }
-        }
+        )
     }
 
     @Composable
@@ -293,6 +295,13 @@ class ScriptingRootSection : Routes.Route() {
         }
 
         val cardShape = RoundedCornerShape(20.dp)
+        val glowPrimary = ScriptingSkinPalette.glowPrimary
+        val glowSecondary = ScriptingSkinPalette.glowSecondary
+        val textPrimary = ScriptingSkinPalette.textPrimary
+        val borderBrush = remember(glowPrimary, glowSecondary, enabled, textPrimary) {
+            if (enabled) Brush.linearGradient(listOf(glowPrimary, glowSecondary))
+            else SolidColor(textPrimary.copy(alpha = 0.08f))
+        }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -301,17 +310,13 @@ class ScriptingRootSection : Routes.Route() {
             color = Color.Transparent,
             tonalElevation = 0.dp,
             shadowElevation = 8.dp,
-            border = BorderStroke(
-                1.dp,
-                if (enabled) Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))
-                else SolidColor(Color.White.copy(alpha = 0.08f))
-            )
+            border = BorderStroke(1.dp, borderBrush)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(enabled = enabled) { if (enabled) openSettings = !openSettings }
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(ScriptingSkinPalette.cardOverlay, cardShape)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
@@ -327,18 +332,18 @@ class ScriptingRootSection : Routes.Route() {
                             .background(
                                 Brush.radialGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
+                                        glowPrimary.copy(alpha = 0.35f),
                                         Color.Transparent
                                     )
                                 )
                             )
-                            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(14.dp)),
+                            .border(1.dp, ScriptingSkinPalette.textPrimary.copy(alpha = 0.16f), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Extension,
                             contentDescription = null,
-                            tint = Color.White
+                            tint = ScriptingSkinPalette.textPrimary
                         )
                     }
                     Column(
@@ -349,14 +354,14 @@ class ScriptingRootSection : Routes.Route() {
                             text = script.displayName ?: script.name,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            color = ScriptingSkinPalette.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = script.description ?: translation["no_description"],
                             fontSize = 13.sp,
-                            color = PurrfectPalette.textSecondary,
+                            color = ScriptingSkinPalette.textSecondary,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -365,11 +370,12 @@ class ScriptingRootSection : Routes.Route() {
                                 AssistChip(
                                     onClick = { },
                                     enabled = false,
-                                    leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = PurrfectPalette.glowSecondary) },
+                                    leadingIcon = { Icon(Icons.Default.Star, contentDescription = null, tint = glowSecondary) },
                                     label = { Text(translation.format("update_available", "version" to it.version)) },
                                     colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = Color.White.copy(alpha = 0.08f),
-                                        labelColor = Color.White
+                                        containerColor = ScriptingSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                        labelColor = Color.White,
+                                        disabledLabelColor = Color.White
                                     )
                                 )
                             }
@@ -380,15 +386,16 @@ class ScriptingRootSection : Routes.Route() {
                                     label = { Text(translation["actions_button"]) },
                                     leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
                                     colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = Color.White.copy(alpha = 0.06f),
-                                        labelColor = Color.White
+                                        containerColor = ScriptingSkinPalette.textPrimary.copy(alpha = 0.06f),
+                                        labelColor = Color.White,
+                                        disabledLabelColor = Color.White
                                     )
                                 )
                             }
                         }
                     }
                     IconButton(onClick = { openActions = !openActions }) {
-                        Icon(Icons.Default.Build, translation["actions_button"], tint = Color.White)
+                        Icon(Icons.Default.Build, translation["actions_button"], tint = ScriptingSkinPalette.textPrimary)
                     }
                     Switch(
                         checked = enabled,
@@ -419,7 +426,7 @@ class ScriptingRootSection : Routes.Route() {
                     )
                 }
                 if (openSettings) {
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                    HorizontalDivider(color = ScriptingSkinPalette.textPrimary.copy(alpha = 0.08f))
                     ScriptSettings(script)
                 }
             }
@@ -440,21 +447,23 @@ class ScriptingRootSection : Routes.Route() {
                 .padding(horizontal = 16.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {
+            val glowPrimary = ScriptingSkinPalette.glowPrimary
+            val glowSecondary = ScriptingSkinPalette.glowSecondary
+            val borderBrush = remember(glowPrimary, glowSecondary) {
+                Brush.linearGradient(
+                    listOf(
+                        glowPrimary.copy(alpha = 0.7f),
+                        glowSecondary.copy(alpha = 0.65f)
+                    )
+                )
+            }
             Surface(
                 modifier = Modifier.size(78.dp),
                 shape = CircleShape,
-                color = PurrfectPalette.cardOverlayColor.copy(alpha = 0.9f),
+                color = ScriptingSkinPalette.cardOverlayColor.copy(alpha = 0.9f),
                 tonalElevation = 0.dp,
                 shadowElevation = 14.dp,
-                border = BorderStroke(
-                    1.5.dp,
-                    Brush.linearGradient(
-                        listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.7f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.65f)
-                        )
-                    )
-                )
+                border = BorderStroke(1.5.dp, borderBrush)
             ) {
                 Box(
                     modifier = Modifier
@@ -464,19 +473,19 @@ class ScriptingRootSection : Routes.Route() {
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.42f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.34f)
+                                    glowPrimary.copy(alpha = 0.42f),
+                                    glowSecondary.copy(alpha = 0.34f)
                                 )
                             )
                         )
-                        .border(1.dp, Color.White.copy(alpha = 0.14f), CircleShape)
+                        .border(1.dp, ScriptingSkinPalette.textPrimary.copy(alpha = 0.14f), CircleShape)
                         .clickable(onClick = onClick),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = label,
-                        tint = Color.White,
+                        tint = ScriptingSkinPalette.textPrimary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -495,10 +504,60 @@ class ScriptingRootSection : Routes.Route() {
             Text(
                 text = translation["no_settings_for_module"],
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.padding(8.dp),
+                color = ScriptingSkinPalette.textPrimary.copy(alpha = 0.7f)
             )
         } else {
             ScriptInterface(interfaceBuilder = settingsInterface)
+        }
+    }
+
+    @Composable
+    internal fun ScriptingScreen(nav: NavBackStackEntry) {
+        val scriptingFolder = rememberAsyncMutableState(defaultValue = null, updateDispatcher = reloadDispatcher) {
+            context.scriptManager.getScriptsFolder()
+        }
+        val titles = listOf(translation["installed_tab"], translation["catalog_tab"])
+        var showImportDialog by remember { mutableStateOf(false) }
+        val coroutineScope = rememberCoroutineScope()
+
+        if (showImportDialog) {
+            ImportRemoteScript(dismiss = { showImportDialog = false })
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ScriptingSkinPalette.backgroundGradient)
+        ) {
+            ScriptingHeader(
+                titles = titles,
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                onImport = { showImportDialog = true },
+                onOpenFolder = {
+                    activityLauncherHelper.chooseFolder {
+                        context.config.root.scripting.moduleFolder.set(it)
+                        context.config.writeConfig()
+                        coroutineScope.launch { reloadDispatcher.dispatch() }
+                    }
+                },
+                onManageRepos = { routes.navController.navigate("manage_repos") },
+                onDocs = {
+                    context.androidContext.openLink(
+                        "https://github.com/particle-box/PurrfectSnap/wiki/Scripting",
+                        context.translation["toast_open_link_failed"]
+                    )
+                },
+                folderSelected = scriptingFolder.value != null
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            when (selectedTab) {
+                0 -> InstalledTabContent(scriptingFolder.value)
+                1 -> CatalogTabContent(scriptingFolder.value)
+            }
         }
     }
 
@@ -550,10 +609,10 @@ class ScriptingRootSection : Routes.Route() {
         ) {
             Surface(
                 shape = RoundedCornerShape(22.dp),
-                color = Color.White.copy(alpha = 0.04f),
+                color = ScriptingSkinPalette.textPrimary.copy(alpha = 0.04f),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                border = BorderStroke(1.dp, ScriptingSkinPalette.textPrimary.copy(alpha = 0.08f))
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
@@ -572,18 +631,23 @@ class ScriptingRootSection : Routes.Route() {
                                         .heightIn(min = 260.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
+                                    val glowPrimary = ScriptingSkinPalette.glowPrimary
+                                    val glowSecondary = ScriptingSkinPalette.glowSecondary
+                                    val borderBrush = remember(glowPrimary, glowSecondary) {
+                                        Brush.linearGradient(
+                                            listOf(
+                                                glowPrimary.copy(alpha = 0.6f),
+                                                glowSecondary.copy(alpha = 0.45f)
+                                            )
+                                        )
+                                    }
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(24.dp),
-                                        color = Color.White.copy(alpha = 0.05f),
+                                        color = ScriptingSkinPalette.textPrimary.copy(alpha = 0.05f),
                                         border = BorderStroke(
                                             1.dp,
-                                            Brush.linearGradient(
-                                                listOf(
-                                                    PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                                                    PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
-                                                )
-                                            )
+                                            borderBrush
                                         )
                                     ) {
                                         Column(
@@ -597,13 +661,13 @@ class ScriptingRootSection : Routes.Route() {
                                                 modifier = Modifier
                                                     .size(58.dp)
                                                     .clip(RoundedCornerShape(18.dp))
-                                                    .background(Color.White.copy(alpha = 0.08f)),
+                                                    .background(ScriptingSkinPalette.textPrimary.copy(alpha = 0.08f)),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.FolderOpen,
                                                     contentDescription = null,
-                                                    tint = PurrfectPalette.glowSecondary,
+                                                    tint = glowSecondary,
                                                     modifier = Modifier.size(28.dp)
                                                 )
                                             }
@@ -612,13 +676,13 @@ class ScriptingRootSection : Routes.Route() {
                                                 style = MaterialTheme.typography.headlineSmall,
                                                 fontWeight = FontWeight.ExtraBold,
                                                 textAlign = TextAlign.Center,
-                                                color = Color.White
+                                                color = ScriptingSkinPalette.textPrimary
                                             )
                                             Text(
                                                 text = translation["select_scripts_folder_toast"],
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 textAlign = TextAlign.Center,
-                                                color = PurrfectPalette.textSecondary,
+                                                color = ScriptingSkinPalette.textSecondary,
                                                 lineHeight = 18.sp
                                             )
                                             SelectFolderButton(
@@ -651,7 +715,7 @@ class ScriptingRootSection : Routes.Route() {
                                 }
                             }
                         }
-                        items(scriptModules.size, key = { scriptModules[it].hashCode() }) { index ->
+                        items(scriptModules.size, key = { scriptModules[it].name.hashCode() }) { index ->
                             ModuleItem(scriptModules[index])
                         }
                     }
@@ -680,63 +744,68 @@ class ScriptingRootSection : Routes.Route() {
                     timeout--
                 }
             }
-            AestheticDialog(
-                onDismissRequest = { if (timeout == 0) scriptingWarning = false },
-                title = context.translation["manager.dialogs.scripting_warning.title"],
-                text = context.translation["manager.dialogs.scripting_warning.content"],
-                icon = Icons.Default.Warning,
-                confirmButtonText = translation["button.ok"],
-                onConfirm = { if (timeout == 0) scriptingWarning = false },
-                loading = timeout > 0,
-                showCloseButton = false,
-                customContent = {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = PurrfectPalette.cardOverlayColor,
-                        tonalElevation = 0.dp,
-                        shadowElevation = 0.dp,
-                        border = BorderStroke(
-                            1.dp,
-                            Brush.linearGradient(
-                                listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                                )
-                            )
-                        )
+        val glowPrimary = ScriptingSkinPalette.glowPrimary
+        val glowSecondary = ScriptingSkinPalette.glowSecondary
+        val borderBrush = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.55f),
+                    glowSecondary.copy(alpha = 0.35f)
+                )
+            )
+        }
+        AestheticDialog(
+            onDismissRequest = { if (timeout == 0) scriptingWarning = false },
+            title = context.translation["manager.dialogs.scripting_warning.title"] ?: "Scripting Warning",
+            text = context.translation["manager.dialogs.scripting_warning.content"] ?: "Be careful with third-party scripts.",
+            icon = Icons.Default.Warning,
+            confirmButtonText = translation["button.ok"],
+            onConfirm = { if (timeout == 0) scriptingWarning = false },
+            loading = timeout > 0,
+            showCloseButton = false,
+            customContent = {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = ScriptingSkinPalette.cardOverlayColor,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
+                    border = BorderStroke(
+                        1.dp,
+                        borderBrush
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .background(
-                                        Brush.radialGradient(
-                                            listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.25f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.18f)
-                                            )
-                                        ),
-                                        shape = RoundedCornerShape(18.dp)
+                                .size(64.dp)
+                                .background(
+                                    Brush.radialGradient(
+                                        listOf(
+                                            glowPrimary.copy(alpha = 0.25f),
+                                            glowSecondary.copy(alpha = 0.18f)
+                                        )
                                     ),
-                                contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = timeout.toString(),
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 20.sp
-                                    )
-                                }
-                        }
+                                    shape = RoundedCornerShape(18.dp)
+                                ),
+                            contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = timeout.toString(),
+                                    color = ScriptingSkinPalette.textPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp
+                                )
+                            }
                     }
                 }
-            )
+            }
+        )
         }
     }
 
@@ -752,10 +821,10 @@ class ScriptingRootSection : Routes.Route() {
         ) {
             Surface(
                 shape = RoundedCornerShape(22.dp),
-                color = Color.White.copy(alpha = 0.04f),
+                color = ScriptingSkinPalette.textPrimary.copy(alpha = 0.04f),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                border = BorderStroke(1.dp, ScriptingSkinPalette.textPrimary.copy(alpha = 0.08f))
             ) {
                 if (scriptingFolder == null) {
                     AestheticEmptyState(
@@ -784,24 +853,26 @@ class ScriptingRootSection : Routes.Route() {
         onDocs: () -> Unit,
         folderSelected: Boolean
     ) {
+        val glowPrimary = ScriptingSkinPalette.glowPrimary
+        val glowSecondary = ScriptingSkinPalette.glowSecondary
+        val borderBrush = remember(glowPrimary, glowSecondary) {
+            Brush.linearGradient(
+                listOf(
+                    glowPrimary.copy(alpha = 0.55f),
+                    glowSecondary.copy(alpha = 0.35f)
+                )
+            )
+        }
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp)
                 .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
             shape = RoundedCornerShape(26.dp),
-            color = Color.White.copy(alpha = 0.07f),
+            color = ScriptingSkinPalette.textPrimary.copy(alpha = 0.07f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                    )
-                )
-            )
+            border = BorderStroke(1.dp, borderBrush)
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -818,7 +889,7 @@ class ScriptingRootSection : Routes.Route() {
                     ) {
                         Text(
                             text = translation["manager.routes.scripts"],
-                            color = Color.White,
+                            color = ScriptingSkinPalette.textPrimary,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp
                         )
@@ -829,16 +900,16 @@ class ScriptingRootSection : Routes.Route() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = onDocs) {
-                            Icon(Icons.Default.CollectionsBookmark, contentDescription = translation["documentation_button"], tint = Color.White)
+                            Icon(Icons.Default.CollectionsBookmark, contentDescription = translation["documentation_button"], tint = ScriptingSkinPalette.textPrimary)
                         }
                         IconButton(onClick = onManageRepos) {
-                            Icon(Icons.Default.Public, contentDescription = translation["manage_repos_button"], tint = Color.White)
+                            Icon(Icons.Default.Public, contentDescription = translation["manage_repos_button"], tint = ScriptingSkinPalette.textPrimary)
                         }
                         IconButton(onClick = onOpenFolder) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = translation["open_scripts_folder_button"], tint = Color.White)
+                            Icon(Icons.Default.FolderOpen, contentDescription = translation["open_scripts_folder_button"], tint = ScriptingSkinPalette.textPrimary)
                         }
                         IconButton(onClick = onImport, enabled = folderSelected) {
-                            Icon(Icons.Default.Link, contentDescription = translation["import_from_url_button"], tint = if (folderSelected) Color.White else Color.White.copy(alpha = 0.4f))
+                            Icon(Icons.Default.Link, contentDescription = translation["import_from_url_button"], tint = if (folderSelected) Color.White else ScriptingSkinPalette.textPrimary.copy(alpha = 0.4f))
                         }
                     }
                 }
@@ -857,19 +928,24 @@ class ScriptingRootSection : Routes.Route() {
         selectedTab: Int,
         onTabSelected: (Int) -> Unit
     ) {
+        val glowPrimary = ScriptingSkinPalette.glowPrimary
+        val glowSecondary = ScriptingSkinPalette.glowSecondary
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             titles.forEachIndexed { index, title ->
                 val isSelected = selectedTab == index
+                val indicatorBrush = remember(glowPrimary, glowSecondary) {
+                    Brush.linearGradient(listOf(glowPrimary, glowSecondary))
+                }
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = if (isSelected) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.06f),
+                    color = if (isSelected) ScriptingSkinPalette.textPrimary.copy(alpha = 0.12f) else ScriptingSkinPalette.textPrimary.copy(alpha = 0.06f),
                     border = if (isSelected) BorderStroke(
                         1.dp,
-                        Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))
-                    ) else BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        indicatorBrush
+                    ) else BorderStroke(1.dp, ScriptingSkinPalette.textPrimary.copy(alpha = 0.12f)),
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
@@ -882,11 +958,11 @@ class ScriptingRootSection : Routes.Route() {
                         Icon(
                             imageVector = if (index == 0) Icons.Default.Extension else Icons.Default.Public,
                             contentDescription = null,
-                            tint = Color.White
+                            tint = ScriptingSkinPalette.textPrimary
                         )
                         Text(
                             text = title,
-                            color = Color.White,
+                            color = ScriptingSkinPalette.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             fontWeight = FontWeight.Medium
@@ -899,7 +975,3 @@ class ScriptingRootSection : Routes.Route() {
 
     override val topBarActions: @Composable() (RowScope.() -> Unit) = {}
 }
-
-
-
-

@@ -1,5 +1,9 @@
 package me.eternal.purrfectsnap.core.features.impl.ui
 
+import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,7 +32,6 @@ import me.eternal.purrfectsnap.common.util.ktx.copyToClipboard
 import me.eternal.purrfectsnap.core.event.events.impl.BindViewEvent
 import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.features.impl.messaging.Messaging
-import me.eternal.purrfectsnap.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfectsnap.core.util.hook.HookStage
 import me.eternal.purrfectsnap.core.util.hook.hook
@@ -174,6 +177,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
             }
 
             context.inAppOverlay.addCustomComposable {
+                val skin = LocalPurrfectSkin.current
                 var info by remember { mutableStateOf<CreatorInfo?>(null) }
                 var inSpotlight by remember { mutableStateOf(false) }
                 var showDialog by remember { mutableStateOf(false) }
@@ -216,6 +220,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
 
     @Composable
     private fun InfoIconOverlay(onClick: () -> Unit) {
+        val skin = LocalPurrfectSkin.current
         val translation = remember { context.translation.getCategory("spotlight_creator_info") }
         Box(
             modifier = Modifier
@@ -230,7 +235,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                     .clickable(onClick = onClick),
                 shape = CircleShape,
                 color = Color.Transparent,
-                border = BorderStroke(1.dp, PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.6f)),
+                border = BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.6f)),
                 shadowElevation = 8.dp
             ) {
                 Box(
@@ -240,8 +245,8 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                         .background(
                             Brush.radialGradient(
                                 listOf(
-                                    PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.4f),
-                                    PurrfectOverlayPalette.cardOverlayColor
+                                    skin.glowPrimary.copy(alpha = 0.4f),
+                                    skin.cardOverlayColor
                                 )
                             ),
                             CircleShape
@@ -250,7 +255,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = translation.getOrNull("creator_info") ?: "Creator Info",
-                        tint = PurrfectOverlayPalette.textPrimary,
+                        tint = skin.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -284,7 +289,8 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
         }
 
         Dialog(onDismissRequest = onDismiss) {
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(context) {
+                val skin = LocalPurrfectSkin.current
                 val shape = RoundedCornerShape(20.dp)
                 Surface(
                     modifier = Modifier
@@ -296,8 +302,8 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f)
+                                skin.glowPrimary.copy(alpha = 0.55f),
+                                skin.glowSecondary.copy(alpha = 0.35f)
                             )
                         )
                     ),
@@ -306,7 +312,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(PurrfectOverlayPalette.cardOverlay, shape)
+                            .background(skin.cardOverlay, shape)
                             .padding(20.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -319,19 +325,19 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     text = translation.getOrNull("title") ?: "Creator Info",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = PurrfectOverlayPalette.textPrimary
+                                    color = skin.textPrimary
                                 )
                                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = translation.getOrNull("close") ?: "Close",
                                         modifier = Modifier.size(20.dp),
-                                        tint = PurrfectOverlayPalette.textSecondary
+                                        tint = skin.textSecondary
                                     )
                                 }
                             }
 
-                            HorizontalDivider(color = PurrfectOverlayPalette.textSecondary.copy(alpha = 0.2f))
+                            HorizontalDivider(color = skin.textSecondary.copy(alpha = 0.2f))
 
                             creatorInfo.timestamp?.let { ts ->
                                 InfoRow(
@@ -356,12 +362,12 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(18.dp),
                                         strokeWidth = 2.dp,
-                                        color = PurrfectOverlayPalette.glowPrimary
+                                        color = skin.glowPrimary
                                     )
                                     Text(
                                         translation.getOrNull("loading_username") ?: "Loading…",
                                         fontSize = 13.sp,
-                                        color = PurrfectOverlayPalette.textSecondary
+                                        color = skin.textSecondary
                                     )
                                 }
                             } else {
@@ -424,6 +430,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
         label: String,
         value: String
     ) {
+        val skin = LocalPurrfectSkin.current
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -433,19 +440,19 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                 imageVector = icon,
                 contentDescription = label,
                 modifier = Modifier.size(20.dp),
-                tint = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.9f)
+                tint = skin.glowPrimary.copy(alpha = 0.9f)
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = label,
                     fontSize = 11.sp,
-                    color = PurrfectOverlayPalette.textSecondary
+                    color = skin.textSecondary
                 )
                 Text(
                     text = value,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = PurrfectOverlayPalette.textPrimary
+                    color = skin.textPrimary
                 )
             }
         }
@@ -459,6 +466,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
         canCopy: Boolean,
         onCopy: () -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -468,19 +476,19 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                 imageVector = icon,
                 contentDescription = label,
                 modifier = Modifier.size(20.dp),
-                tint = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.9f)
+                tint = skin.glowPrimary.copy(alpha = 0.9f)
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = label,
                     fontSize = 11.sp,
-                    color = PurrfectOverlayPalette.textSecondary
+                    color = skin.textSecondary
                 )
                 Text(
                     text = value,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = PurrfectOverlayPalette.textPrimary
+                    color = skin.textPrimary
                 )
             }
             if (canCopy) {
@@ -489,7 +497,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                         Icons.Default.ContentCopy,
                         contentDescription = "Copy",
                         modifier = Modifier.size(18.dp),
-                        tint = PurrfectOverlayPalette.glowSecondary
+                        tint = skin.glowSecondary
                     )
                 }
             }

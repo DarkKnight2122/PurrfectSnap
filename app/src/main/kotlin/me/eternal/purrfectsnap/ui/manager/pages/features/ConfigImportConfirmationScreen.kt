@@ -53,10 +53,32 @@ import me.eternal.purrfectsnap.bridge.location.LocationCoordinates
 import me.eternal.purrfectsnap.storage.addOrUpdateLocationCoordinate
 import me.eternal.purrfectsnap.storage.getLocationCoordinates
 import me.eternal.purrfectsnap.ui.manager.Routes
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
+
+internal object ConfigImportSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else Brush.verticalGradient(listOf(Color(0xFF5C4B99), Color(0xFF322B5E), Color(0xFF1B1836)))
+}
+
 
 class ConfigImportConfirmationScreen : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.features.config_import") }
@@ -237,7 +259,7 @@ class ConfigImportConfirmationScreen : Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(ConfigImportSkinPalette.backgroundGradient)
         ) {
             Column(
                 modifier = Modifier
@@ -256,22 +278,22 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                                ConfigImportSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                                ConfigImportSkinPalette.glowSecondary.copy(alpha = 0.45f)
                             )
                         )
                     )
                 ) {
                     Row(
                         modifier = Modifier
-                            .background(PurrfectPalette.cardOverlay, RoundedCornerShape(24.dp))
+                            .background(ConfigImportSkinPalette.cardOverlay, RoundedCornerShape(24.dp))
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Button(
                             onClick = { routes.navController.popBackStack() },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
+                                containerColor = ConfigImportSkinPalette.glowPrimary.copy(alpha = 0.28f),
                                 contentColor = Color.White
                             )
                         ) {
@@ -319,7 +341,7 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.3f),
+                                containerColor = ConfigImportSkinPalette.glowPrimary.copy(alpha = 0.3f),
                                 contentColor = Color.White
                             )
                         ) {
@@ -347,15 +369,15 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                             .fillMaxWidth()
                             .clickable { expandedState[category] = !isExpanded },
                         shape = RoundedCornerShape(18.dp),
-                        color = PurrfectPalette.cardOverlayColor,
+                        color = ConfigImportSkinPalette.cardOverlayColor,
                         tonalElevation = 0.dp,
                         shadowElevation = 10.dp,
                         border = BorderStroke(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.32f)
+                                    ConfigImportSkinPalette.glowPrimary.copy(alpha = 0.4f),
+                                    ConfigImportSkinPalette.glowSecondary.copy(alpha = 0.32f)
                                 )
                             )
                         )
@@ -409,7 +431,7 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                                                                 NumberBubble(itemIndex + 1)
                                                                 Text(
                                                                     text = item.toString(),
-                                                                    color = PurrfectPalette.textSecondary
+                                                                    color = ConfigImportSkinPalette.textSecondary
                                                                 )
                                                             }
                                                         }
@@ -431,7 +453,7 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                                                     )
                                                     Text(
                                                         text = parsedValue,
-                                                        color = PurrfectPalette.glowSecondary,
+                                                        color = ConfigImportSkinPalette.glowSecondary,
                                                         textAlign = TextAlign.Start,
                                                     )
                                                 }
@@ -462,8 +484,8 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
+                        ConfigImportSkinPalette.glowPrimary.copy(alpha = 0.5f),
+                        ConfigImportSkinPalette.glowSecondary.copy(alpha = 0.4f)
                     )
                 )
             )
