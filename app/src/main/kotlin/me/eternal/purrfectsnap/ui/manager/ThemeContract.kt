@@ -8,6 +8,7 @@ import me.eternal.purrfectsnap.ui.manager.pages.home.HomeAbout
 import me.eternal.purrfectsnap.ui.manager.pages.home.HomeRootSection
 import me.eternal.purrfectsnap.ui.manager.pages.home.HomeSettings
 import me.eternal.purrfectsnap.ui.manager.pages.home.HomeLogs
+import me.eternal.purrfectsnap.ui.manager.pages.home.HomeState
 import me.eternal.purrfectsnap.ui.manager.pages.scripting.ScriptingRootSection
 import me.eternal.purrfectsnap.ui.manager.pages.social.SocialRootSection
 import me.eternal.purrfectsnap.ui.manager.pages.tracker.FriendTrackerManagerRoot
@@ -16,7 +17,7 @@ import me.eternal.purrfectsnap.ui.manager.pages.tracker.FriendTrackerManagerRoot
  * ThemeContract defines the visual layout contract every theme must fulfill.
  */
 interface ThemeContract {
-    @Composable fun HomeRootSection.HomeScreen(nav: NavBackStackEntry)
+    @Composable fun HomeRootSection.HomeScreen(nav: NavBackStackEntry, state: HomeState)
     @Composable fun HomeSettings.SettingsScreen(nav: NavBackStackEntry)
     @Composable fun HomeAbout.AboutScreen(nav: NavBackStackEntry)
     @Composable fun HomeLogs.LogsScreen(nav: NavBackStackEntry)

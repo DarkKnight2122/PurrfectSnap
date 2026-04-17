@@ -94,7 +94,6 @@ import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.SharedContextHolder
 import me.eternal.purrfectsnap.common.ui.AppMaterialTheme
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.setup.screens.SetupScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.InstallModeScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.InstallMode
@@ -105,6 +104,7 @@ import me.eternal.purrfectsnap.ui.setup.screens.impl.PatchSnapchatScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.RootInstallSnapchatScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.SaveFolderScreen
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
+import me.eternal.purrfectsnap.common.ui.theme.*
 import kotlinx.coroutines.delay
 
 private data class SetupStepMeta(
@@ -198,276 +198,289 @@ class SetupActivity : ComponentActivity() {
             screen.init()
         }
 
-            if (!isFirstRunFlow) {
-                clearProgress()
-                skipPatchChoice.value = false
-                installModeChoice.value = null
-            }
+        if (!isFirstRunFlow) {
+            clearProgress()
+            skipPatchChoice.value = false
+            installModeChoice.value = null
+        }
 
         setContent {
-            val context = LocalContext.current
-            val translation = setupContext.translation
-            val navController = rememberNavController()
-            var canGoNext by remember { mutableStateOf(false) }
-            var lastRoute by rememberSaveable { mutableStateOf("") }
-            var currentRoute by rememberSaveable {
-                mutableStateOf(
-                    persistedRoute?.takeIf { route -> requiredScreens.any { it.route == route } }
-                        ?: requiredScreens.first().route
-                )
-            }
-            val skipPatch by rememberSaveable { skipPatchChoice }
-            val installMode by installModeChoice
-            val shouldShowAbiWarning = remember {
-                val deviceIsArm64 = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it.startsWith("arm64") }
-                val libDir = context.applicationInfo.nativeLibraryDir.orEmpty()
-                val appIsArm64 = libDir.contains("arm64")
-                deviceIsArm64 && !appIsArm64
-            }
-            if (shouldShowAbiWarning) {
-                AestheticDialog(
-                    onDismissRequest = {},
-                    title = translation["setup.activity.wrong_apk_title"],
-                    text = "",
-                    icon = Icons.Filled.Warning,
-                    confirmButtonText = translation["setup.activity.close_button"],
-                    onConfirm = { (context as? Activity)?.finishAffinity() },
-                    showCloseButton = false,
-                    opaque = true,
-                    customContent = {
-                        Text(
-                            text = translation["setup.activity.wrong_apk_message"],
-                            color = PurrfectPalette.textSecondary,
-                            lineHeight = 18.sp
-                        )
-                    }
-                )
-            }
-            val visibleScreens = remember(skipPatch, installMode) {
-                requiredScreens.filterNot { screen ->
-                    if (skipPatch && (screen is PatchSnapchatScreen || screen is RootInstallSnapchatScreen)) {
-                        return@filterNot true
-                    }
-                    if (installMode == null && (screen is PatchSnapchatScreen || screen is RootInstallSnapchatScreen)) {
-                        return@filterNot true
-                    }
-                    if (installMode == InstallMode.ROOT && screen is PatchSnapchatScreen) {
-                        return@filterNot true
-                    }
-                    if (installMode == InstallMode.NON_ROOT && screen is RootInstallSnapchatScreen) {
-                        return@filterNot true
-                    }
-                    false
-                }
-            }
-            val stepMeta = remember(skipPatch, installMode) { visibleScreens.map { it.meta(setupContext) } }
-            val currentStepIndex = visibleScreens.indexOfFirst { it.route == currentRoute }.let {
-                if (it == -1) 0 else it
-            }
-            val animatedProgress by animateFloatAsState(
-                targetValue = (currentStepIndex + 1f) / stepMeta.size.toFloat(),
-                label = "SetupProgress"
-            )
-            LaunchedEffect(skipPatch) {
-                val adjustedRoute = visibleScreens.firstOrNull { it.route == currentRoute }?.route
-                    ?: run {
-                        val currentIndex = requiredScreens.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
-                        val nextVisible = requiredScreens.drop(currentIndex + 1)
-                            .firstOrNull { screen -> visibleScreens.any { it.route == screen.route } }
-                        nextVisible?.route ?: visibleScreens.firstOrNull()?.route
-                    }
-                adjustedRoute?.let {
-                    if (it != currentRoute) currentRoute = it
-                }
-            }
+            AphelionSkinProvider(setupContext.androidContext) {
+                val skin = me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin.current
+                val isAphelion = setupContext.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+                
+                val glowPrimary = if (isAphelion) skin.glowPrimary else Color(0xFF8C7BFF)
+                val glowSecondary = if (isAphelion) skin.glowSecondary else Color(0xFF5FD8FF)
+                val backgroundGradient = if (isAphelion) skin.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+                val textSecondary = if (isAphelion) skin.textSecondary else Color(0xFFD9D3FF)
 
-            LaunchedEffect(currentRoute, skipPatch, installMode) {
-                persistProgress(currentRoute, skipPatch, installMode, true)
-                if (navController.currentDestination?.route != currentRoute) {
-                    navController.navigate(currentRoute) {
-                        popUpTo(requiredScreens.first().route) { inclusive = false }
-                        launchSingleTop = true
-                    }
+                val context = LocalContext.current
+                val translation = setupContext.translation
+                val navController = rememberNavController()
+                var canGoNext by remember { mutableStateOf(false) }
+                var lastRoute by rememberSaveable { mutableStateOf("") }
+                var currentRoute by rememberSaveable {
+                    mutableStateOf(
+                        persistedRoute?.takeIf { route -> requiredScreens.any { it.route == route } }
+                            ?: requiredScreens.first().route
+                    )
                 }
-                if (lastRoute != currentRoute) {
-                    canGoNext = false
-                    lastRoute = currentRoute
+                val skipPatch by rememberSaveable { skipPatchChoice }
+                val installMode by installModeChoice
+                val shouldShowAbiWarning = remember {
+                    val deviceIsArm64 = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it.startsWith("arm64") }
+                    val libDir = context.applicationInfo.nativeLibraryDir.orEmpty()
+                    val appIsArm64 = libDir.contains("arm64")
+                    deviceIsArm64 && !appIsArm64
                 }
-            }
-
-            fun nextScreen() {
-                if (!canGoNext) return
-                canGoNext = false
-                val currentScreen = visibleScreens.getOrNull(currentStepIndex)
-                val proceed = {
-                    currentScreen?.onLeave()
-                    if (currentStepIndex < visibleScreens.lastIndex) {
-                        val nextRoute = visibleScreens[currentStepIndex + 1].route
-                        currentRoute = nextRoute
-                    } else {
-                        clearProgress()
-                        endActivity()
-                    }
-                }
-                currentScreen?.onNext { proceed() } ?: proceed()
-            }
-
-            AppMaterialTheme {
-                val view = LocalView.current
-                val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                var showImportantDialog by rememberSaveable {
-                    mutableStateOf(!setupPrefs.getBoolean("setup_important_notice_shown", false))
-                }
-                var importantTimeout by remember { mutableIntStateOf(5) }
-                LaunchedEffect(showImportantDialog) {
-                    if (showImportantDialog) {
-                        importantTimeout = 5
-                        while (importantTimeout > 0) {
-                            delay(1000)
-                            importantTimeout--
-                        }
-                    }
-                }
-                SideEffect {
-                    val window = (view.context as Activity).window
-                    WindowCompat.setDecorFitsSystemWindows(window, false)
-                    @Suppress("DEPRECATION")
-                    window.statusBarColor = Color.Transparent.toArgb()
-                    @Suppress("DEPRECATION")
-                    window.navigationBarColor = Color.Transparent.toArgb()
-                    val insetsController = WindowInsetsControllerCompat(window, window.decorView)
-                    insetsController.isAppearanceLightStatusBars = false
-                    insetsController.isAppearanceLightNavigationBars = false
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Transparent)
-                ) {
-                    if (showImportantDialog) {
-                        val confirmLabel = if (importantTimeout > 0) {
-                            translation.format(
-                                "setup.activity.important_confirm_timeout",
-                                "seconds" to importantTimeout.toString()
+                if (shouldShowAbiWarning) {
+                    AestheticDialog(
+                        onDismissRequest = {},
+                        title = translation["setup.activity.wrong_apk_title"],
+                        text = "",
+                        icon = Icons.Filled.Warning,
+                        confirmButtonText = translation["setup.activity.close_button"],
+                        onConfirm = { (context as? Activity)?.finishAffinity() },
+                        showCloseButton = false,
+                        opaque = true,
+                        customContent = {
+                            Text(
+                                text = translation["setup.activity.wrong_apk_message"],
+                                color = textSecondary,
+                                lineHeight = 18.sp
                             )
-                        } else {
-                            translation["setup.activity.important_confirm"]
                         }
-                        AestheticDialog(
-                            onDismissRequest = {
-                                if (importantTimeout == 0) {
-                                    showImportantDialog = false
-                                    setupPrefs.edit().putBoolean("setup_important_notice_shown", true).apply()
-                                }
-                            },
-                            title = translation["setup.activity.important_title"],
-                            text = "",
-                            icon = Icons.Filled.Warning,
-                            confirmButtonText = confirmLabel,
-                            onConfirm = {
-                                if (importantTimeout == 0) {
-                                    showImportantDialog = false
-                                    setupPrefs.edit().putBoolean("setup_important_notice_shown", true).apply()
-                                }
-                            },
-                            confirmEnabled = importantTimeout == 0,
-                            showCloseButton = false,
-                            customContent = {
-                                Text(
-                                    text = translation["setup.activity.important_message"],
-                                    color = PurrfectPalette.textSecondary,
-                                    lineHeight = 18.sp
-                                )
-                            },
-                            opaque = true
-                        )
+                    )
+                }
+                val visibleScreens = remember(skipPatch, installMode) {
+                    requiredScreens.filterNot { screen ->
+                        if (skipPatch && (screen is PatchSnapchatScreen || screen is RootInstallSnapchatScreen)) {
+                            return@filterNot true
+                        }
+                        if (installMode == null && (screen is PatchSnapchatScreen || screen is RootInstallSnapchatScreen)) {
+                            return@filterNot true
+                        }
+                        if (installMode == InstallMode.ROOT && screen is PatchSnapchatScreen) {
+                            return@filterNot true
+                        }
+                        if (installMode == InstallMode.NON_ROOT && screen is RootInstallSnapchatScreen) {
+                            return@filterNot true
+                        }
+                        false
                     }
-                    SetupAuroraBackground()
-                    SetupTopBar()
-                    val bottomPadding = 118.dp + navBarPadding
-                    Column(
+                }
+                val stepMeta = remember(skipPatch, installMode) { visibleScreens.map { it.meta(setupContext) } }
+                val currentStepIndex = visibleScreens.indexOfFirst { it.route == currentRoute }.let {
+                    if (it == -1) 0 else it
+                }
+                val animatedProgress by animateFloatAsState(
+                    targetValue = (currentStepIndex + 1f) / stepMeta.size.toFloat(),
+                    label = "SetupProgress"
+                )
+                LaunchedEffect(skipPatch) {
+                    val adjustedRoute = visibleScreens.firstOrNull { it.route == currentRoute }?.route
+                        ?: run {
+                            val currentIndex = requiredScreens.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
+                            val nextVisible = requiredScreens.drop(currentIndex + 1)
+                                .firstOrNull { screen -> visibleScreens.any { it.route == screen.route } }
+                            nextVisible?.route ?: visibleScreens.firstOrNull()?.route
+                        }
+                    adjustedRoute?.let {
+                        if (it != currentRoute) currentRoute = it
+                    }
+                }
+
+                LaunchedEffect(currentRoute, skipPatch, installMode) {
+                    persistProgress(currentRoute, skipPatch, installMode, true)
+                    if (navController.currentDestination?.route != currentRoute) {
+                        navController.navigate(currentRoute) {
+                            popUpTo(requiredScreens.first().route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                    if (lastRoute != currentRoute) {
+                        canGoNext = false
+                        lastRoute = currentRoute
+                    }
+                }
+
+                fun nextScreen() {
+                    if (!canGoNext) return
+                    canGoNext = false
+                    val currentScreen = visibleScreens.getOrNull(currentStepIndex)
+                    val proceed = {
+                        currentScreen?.onLeave()
+                        if (currentStepIndex < visibleScreens.lastIndex) {
+                            val nextRoute = visibleScreens[currentStepIndex + 1].route
+                            currentRoute = nextRoute
+                        } else {
+                            clearProgress()
+                            endActivity()
+                        }
+                    }
+                    currentScreen?.onNext { proceed() } ?: proceed()
+                }
+
+                AppMaterialTheme {
+                    val view = LocalView.current
+                    val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    var showImportantDialog by rememberSaveable {
+                        mutableStateOf(!setupPrefs.getBoolean("setup_important_notice_shown", false))
+                    }
+                    var importantTimeout by remember { mutableIntStateOf(5) }
+                    LaunchedEffect(showImportantDialog) {
+                        if (showImportantDialog) {
+                            importantTimeout = 5
+                            while (importantTimeout > 0) {
+                                delay(1000)
+                                importantTimeout--
+                            }
+                        }
+                    }
+                    SideEffect {
+                        val window = (view.context as Activity).window
+                        WindowCompat.setDecorFitsSystemWindows(window, false)
+                        @Suppress("DEPRECATION")
+                        window.statusBarColor = Color.Transparent.toArgb()
+                        @Suppress("DEPRECATION")
+                        window.navigationBarColor = Color.Transparent.toArgb()
+                        val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+                        insetsController.isAppearanceLightStatusBars = false
+                        insetsController.isAppearanceLightNavigationBars = false
+                    }
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = 110.dp,
-                                bottom = bottomPadding
-                            )
-                            .statusBarsPadding(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                            .background(backgroundGradient)
                     ) {
-                        SetupHeader(
-                            currentStep = stepMeta[currentStepIndex],
-                            currentIndex = currentStepIndex,
-                            total = stepMeta.size
-                        )
-                        SetupProgressBar(animatedProgress)
-                        val scrollState = rememberScrollState()
-                        Box(
+                        if (showImportantDialog) {
+                            val confirmLabel = if (importantTimeout > 0) {
+                                translation.format(
+                                    "setup.activity.important_confirm_timeout",
+                                    "seconds" to importantTimeout.toString()
+                                )
+                            } else {
+                                translation["setup.activity.important_confirm"]
+                            }
+                            AestheticDialog(
+                                onDismissRequest = {
+                                    if (importantTimeout == 0) {
+                                        showImportantDialog = false
+                                        setupPrefs.edit().putBoolean("setup_important_notice_shown", true).apply()
+                                    }
+                                },
+                                title = translation["setup.activity.important_title"],
+                                text = "",
+                                icon = Icons.Filled.Warning,
+                                confirmButtonText = confirmLabel,
+                                onConfirm = {
+                                    if (importantTimeout == 0) {
+                                        showImportantDialog = false
+                                        setupPrefs.edit().putBoolean("setup_important_notice_shown", true).apply()
+                                    }
+                                },
+                                confirmEnabled = importantTimeout == 0,
+                                showCloseButton = false,
+                                customContent = {
+                                    Text(
+                                        text = translation["setup.activity.important_message"],
+                                        color = textSecondary,
+                                        lineHeight = 18.sp
+                                    )
+                                },
+                                opaque = true
+                            )
+                        }
+                        SetupAuroraBackground(glowPrimary)
+                        SetupTopBar(glowPrimary, glowSecondary)
+                        val bottomPadding = 118.dp + navBarPadding
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .padding(horizontal = 4.dp)
+                                .fillMaxSize()
+                                .padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = 110.dp,
+                                    bottom = bottomPadding
+                                )
+                                .statusBarsPadding(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            NavHost(
-                                navController = navController,
-                                startDestination = requiredScreens.first().route,
-                                enterTransition = { fadeIn() },
-                                exitTransition = { fadeOut() },
-                                popEnterTransition = { fadeIn() },
-                                popExitTransition = { fadeOut() }
+                            SetupHeader(
+                                currentStep = stepMeta[currentStepIndex],
+                                currentIndex = currentStepIndex,
+                                total = stepMeta.size,
+                                glowPrimary = glowPrimary
+                            )
+                            SetupProgressBar(animatedProgress, glowPrimary, glowSecondary)
+                            val scrollState = rememberScrollState()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(horizontal = 4.dp)
                             ) {
-                                requiredScreens.forEach { screen ->
-                                    val screenRoute = screen.route
-                                    screen.allowNext = allowNext@{ canGoNextFlag ->
-                                        if (screenRoute != currentRoute) return@allowNext
-                                        canGoNext = canGoNextFlag
-                                    }
-                                    screen.goNext = goNext@{
-                                        if (screenRoute != currentRoute) return@goNext
-                                        canGoNext = true
-                                        nextScreen()
-                                    }
-                                    composable(
-                                        screen.route,
-                                        enterTransition = { slideInHorizontally { it } },
-                                        exitTransition = { slideOutHorizontally { -it } },
-                                        popEnterTransition = { slideInHorizontally { -it } },
-                                        popExitTransition = { slideOutHorizontally { it } }
-                                    ) {
-                                        BackHandler(true) {}
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 10.dp, vertical = 10.dp),
-                                            contentAlignment = Alignment.Center
+                                NavHost(
+                                    navController = navController,
+                                    startDestination = requiredScreens.first().route,
+                                    enterTransition = { fadeIn() },
+                                    exitTransition = { fadeOut() },
+                                    popEnterTransition = { fadeIn() },
+                                    popExitTransition = { fadeOut() }
+                                ) {
+                                    requiredScreens.forEach { screen ->
+                                        val screenRoute = screen.route
+                                        screen.allowNext = allowNext@{ canGoNextFlag ->
+                                            if (screenRoute != currentRoute) return@allowNext
+                                            canGoNext = canGoNextFlag
+                                        }
+                                        screen.goNext = goNext@{
+                                            if (screenRoute != currentRoute) return@goNext
+                                            canGoNext = true
+                                            nextScreen()
+                                        }
+                                        composable(
+                                            screen.route,
+                                            enterTransition = { slideInHorizontally { it } },
+                                            exitTransition = { slideOutHorizontally { -it } },
+                                            popEnterTransition = { slideInHorizontally { -it } },
+                                            popExitTransition = { slideOutHorizontally { it } }
                                         ) {
-                                            Column(
+                                            BackHandler(true) {}
+                                            Box(
                                                 modifier = Modifier
-                                                    .widthIn(max = 560.dp)
-                                                    .verticalScroll(scrollState),
-                                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally
+                                                    .fillMaxSize()
+                                                    .padding(horizontal = 10.dp, vertical = 10.dp),
+                                                contentAlignment = Alignment.Center
                                             ) {
-                                                screen.Content()
+                                                Column(
+                                                    modifier = Modifier
+                                                        .widthIn(max = 560.dp)
+                                                        .verticalScroll(scrollState),
+                                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    screen.Content()
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    NextButton(
-                        enabled = canGoNext,
-                        isFinalStep = currentStepIndex >= stepMeta.lastIndex,
-                        onClick = { nextScreen() },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
-                            .padding(bottom = 32.dp)
-                    )
+                        NextButton(
+                            enabled = canGoNext,
+                            isFinalStep = currentStepIndex >= stepMeta.lastIndex,
+                            onClick = { nextScreen() },
+                            glowPrimary = glowPrimary,
+                            glowSecondary = glowSecondary,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
+                                .padding(bottom = 32.dp)
+                        )
+                    }
                 }
             }
         }
@@ -531,7 +544,7 @@ private fun SetupScreen.meta(context: RemoteSideContext): SetupStepMeta {
 }
 
 @Composable
-private fun SetupAuroraBackground() {
+private fun SetupAuroraBackground(glowPrimary: Color) {
     val infiniteTransition = rememberInfiniteTransition(label = "setupAurora")
     val driftX by infiniteTransition.animateFloat(
         initialValue = -90f,
@@ -555,11 +568,8 @@ private fun SetupAuroraBackground() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PurrfectPalette.backgroundGradient)
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val primaryGlow = PurrfectPalette.glowPrimary.copy(alpha = 0.36f)
-            val secondaryGlow = PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
             drawRect(
                 brush = Brush.linearGradient(
                     colors = listOf(
@@ -574,7 +584,7 @@ private fun SetupAuroraBackground() {
             drawRect(
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.12f),
+                        glowPrimary.copy(alpha = 0.12f),
                         Color.Transparent
                     ),
                     start = Offset(x = 0f, y = size.height * 0.72f),
@@ -587,7 +597,7 @@ private fun SetupAuroraBackground() {
 }
 
 @Composable
-private fun SetupTopBar() {
+private fun SetupTopBar(glowPrimary: Color, glowSecondary: Color) {
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Surface(
         modifier = Modifier
@@ -602,8 +612,8 @@ private fun SetupTopBar() {
             1.dp,
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                    glowPrimary.copy(alpha = 0.6f),
+                    glowSecondary.copy(alpha = 0.45f)
                 )
             )
         )
@@ -617,7 +627,7 @@ private fun SetupTopBar() {
         ) {
             Text(
                 text = "PurrfectSnap",
-                color = PurrfectPalette.textPrimary,
+                color = Color.White,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 18.sp
             )
@@ -629,7 +639,8 @@ private fun SetupTopBar() {
 private fun SetupHeader(
     currentStep: SetupStepMeta,
     currentIndex: Int,
-    total: Int
+    total: Int,
+    glowPrimary: Color
 ) {
     val translation = SharedContextHolder.remote(LocalContext.current).translation
     Column(
@@ -670,8 +681,8 @@ private fun SetupHeader(
             }
             Surface(
                 shape = RoundedCornerShape(30),
-                color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, PurrfectPalette.glowPrimary.copy(alpha = 0.35f))
+                color = glowPrimary.copy(alpha = 0.16f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, glowPrimary.copy(alpha = 0.35f))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -697,117 +708,12 @@ private fun SetupHeader(
     }
 }
 
-private enum class StepState { COMPLETE, ACTIVE, UPCOMING }
-
 @Composable
-private fun StepBadgesRow(steps: List<SetupStepMeta>, currentStep: Int) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        steps.forEachIndexed { index, step ->
-            val state = when {
-                index < currentStep -> StepState.COMPLETE
-                index == currentStep -> StepState.ACTIVE
-                else -> StepState.UPCOMING
-            }
-            StepBadge(step, state)
-            if (index < steps.lastIndex) {
-                Box(
-                    modifier = Modifier
-                        .height(3.dp)
-                        .width(28.dp)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color.White.copy(alpha = 0.05f),
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                    Color.White.copy(alpha = 0.05f)
-                                )
-                            ),
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepBadge(step: SetupStepMeta, state: StepState) {
-    val translation = SharedContextHolder.remote(LocalContext.current).translation
-    val baseColor = when (state) {
-        StepState.COMPLETE -> PurrfectPalette.glowSecondary
-        StepState.ACTIVE -> PurrfectPalette.glowPrimary
-        StepState.UPCOMING -> Color.White.copy(alpha = 0.35f)
-    }
-    val background = when (state) {
-        StepState.UPCOMING -> Color.White.copy(alpha = 0.05f)
-        StepState.COMPLETE -> Color.White.copy(alpha = 0.08f)
-        StepState.ACTIVE -> Color.White.copy(alpha = 0.12f)
-    }
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = background,
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            baseColor.copy(alpha = 0.5f)
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Surface(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape),
-                color = baseColor.copy(alpha = 0.22f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = step.icon,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.widthIn(min = 0.dp, max = 160.dp)
-            ) {
-                Text(
-                    text = step.title,
-                    color = Color.White,
-                    fontWeight = if (state == StepState.ACTIVE) FontWeight.Bold else FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                val hint = when (state) {
-                    StepState.COMPLETE -> translation["setup.activity.step_complete"]
-                    StepState.ACTIVE -> translation["setup.activity.step_active"]
-                    StepState.UPCOMING -> translation["setup.activity.step_upcoming"]
-                }
-                Text(
-                    text = hint,
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 11.sp
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SetupProgressBar(progress: Float) {
+private fun SetupProgressBar(progress: Float, glowPrimary: Color, glowSecondary: Color) {
     val gradient = Brush.horizontalGradient(
         listOf(
-            PurrfectPalette.glowSecondary,
-            PurrfectPalette.glowPrimary
+            glowSecondary,
+            glowPrimary
         )
     )
     Surface(
@@ -834,60 +740,20 @@ private fun SetupProgressBar(progress: Float) {
 }
 
 @Composable
-private fun SetupContentCard(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(34.dp),
-        color = Color.White.copy(alpha = 0.04f),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            Brush.linearGradient(
-                listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                )
-            )
-        ),
-        shadowElevation = 16.dp,
-        tonalElevation = 0.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .background(PurrfectPalette.cardOverlay)
-                .border(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        listOf(
-                            Color.White.copy(alpha = 0.06f),
-                            Color.Transparent,
-                            Color.White.copy(alpha = 0.06f)
-                        )
-                    ),
-                    shape = RoundedCornerShape(34.dp)
-                )
-                .padding(horizontal = 16.dp, vertical = 16.dp)
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
 private fun NextButton(
     enabled: Boolean,
     isFinalStep: Boolean,
     onClick: () -> Unit,
+    glowPrimary: Color,
+    glowSecondary: Color,
     modifier: Modifier = Modifier
 ) {
     val translation = SharedContextHolder.remote(LocalContext.current).translation
     val alpha by animateFloatAsState(targetValue = if (enabled) 1f else 0.6f, label = "NextButtonAlpha")
     val gradient = Brush.horizontalGradient(
         listOf(
-            PurrfectPalette.glowSecondary,
-            PurrfectPalette.glowPrimary
+            glowSecondary,
+            glowPrimary
         )
     )
     val interactionSource = remember { MutableInteractionSource() }

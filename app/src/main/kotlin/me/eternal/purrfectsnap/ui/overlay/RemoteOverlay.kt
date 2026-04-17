@@ -34,7 +34,7 @@ import me.eternal.purrfectsnap.common.ui.ThemeMode
 import me.eternal.purrfectsnap.common.ui.createComposeView
 import me.eternal.purrfectsnap.ui.manager.Navigation
 import me.eternal.purrfectsnap.ui.manager.Routes
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.*
 
 
 class RemoteOverlay(
@@ -125,24 +125,26 @@ class RemoteOverlay(
                             LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(color = Color.White))
                         ) {
                             val overlayShape = MaterialTheme.shapes.large
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(start = 12.dp, end = 12.dp)
-                                    .clip(overlayShape),
-                                shape = overlayShape,
-                                color = Color.Transparent,
-                                contentColor = Color.White,
-                                tonalElevation = 0.dp,
-                                shadowElevation = 10.dp
-                            ) {
-                                Box(
+                            me.eternal.purrfectsnap.common.ui.theme.AphelionSkinProvider(context.androidContext) {
+                                Surface(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .clip(overlayShape)
-                                        .background(PurrfectPalette.backgroundGradient)
+                                        .padding(start = 12.dp, end = 12.dp)
+                                        .clip(overlayShape),
+                                    shape = overlayShape,
+                                    color = Color.Transparent,
+                                    contentColor = Color.White,
+                                    tonalElevation = 0.dp,
+                                    shadowElevation = 10.dp
                                 ) {
-                                    OverlayContent(route)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(overlayShape)
+                                            .background(me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin.current.backgroundGradient)
+                                    ) {
+                                        OverlayContent(route)
+                                    }
                                 }
                             }
                         }
