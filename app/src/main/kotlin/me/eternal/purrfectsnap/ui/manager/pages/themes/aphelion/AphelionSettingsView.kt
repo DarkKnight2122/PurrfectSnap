@@ -45,7 +45,7 @@ import me.eternal.purrfectsnap.storage.setAllScopeNotes
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.manager.pages.home.HomeSettings
 import me.eternal.purrfectsnap.ui.manager.theme.aphelion.AphelionHaptics
 import me.eternal.purrfectsnap.ui.util.headerHeightTracker
@@ -92,7 +92,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PurrfectPalette.backgroundGradient)
+            .background(LocalPurrfectSkin.current.backgroundGradient)
     ) {
         if (showResetSetupDialog) {
             AestheticDialog(

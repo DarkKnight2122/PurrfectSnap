@@ -24,9 +24,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavBackStackEntry
 import me.eternal.purrfectsnap.ui.manager.components.FloatingTopBar
 import me.eternal.purrfectsnap.ui.manager.pages.home.HomeLogs
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
-import me.eternal.purrfectsnap.core.ui.PurrfectGlassCard
-import me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.util.headerHeightTracker
 import me.eternal.purrfectsnap.ui.util.Motion
 import kotlinx.coroutines.launch
@@ -77,8 +75,27 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
     @Composable
     fun LogFilterDialog() {
         Dialog(onDismissRequest = { showFilterDialog = false }) {
-            PurrfectOverlayTheme {
-                PurrfectGlassCard(title = translation["filter_logs_title"] ?: "Filter Log Categories", modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = Color(0xFF161821),
+                tonalElevation = 8.dp,
+                shadowElevation = 12.dp,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = translation["filter_logs_title"] ?: "Filter Log Categories",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         HomeLogs.LogCategory.entries.forEach { category ->
                             Row(
@@ -86,8 +103,7 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable {
-                                        enabledCategories.keys.forEach { enabledCategories[it] = false }
-                                        enabledCategories[category] = true
+                                        enabledCategories[category] = !(enabledCategories[category] ?: true)
                                         refreshLogs()
                                     }
                                     .padding(vertical = 4.dp),
@@ -101,7 +117,7 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                         refreshLogs()
                                     },
                                     colors = CheckboxDefaults.colors(
-                                        checkedColor = PurrfectPalette.glowPrimary,
+                                        checkedColor = LocalPurrfectSkin.current.glowPrimary,
                                         uncheckedColor = Color.White.copy(alpha = 0.4f),
                                         checkmarkColor = Color.White
                                     )
@@ -114,16 +130,14 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            Button(
-                                onClick = { showFilterDialog = false },
-                                shape = RoundedCornerShape(14.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = PurrfectPalette.glowPrimary)
-                            ) {
-                                Text(translation["filter_logs_done_button"] ?: "Done")
-                            }
+                    }
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(
+                            onClick = { showFilterDialog = false },
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Text(translation["filter_logs_done_button"] ?: "Done", color = LocalPurrfectSkin.current.glowPrimary)
                         }
                     }
                 }
@@ -132,7 +146,7 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
     }
 
     if (showFilterDialog) {
-        LogFilterDialog()
+        LogFilterDialog { showFilterDialog = false }
     }
 
     LaunchedEffect(externalRefreshTick.value) {
@@ -148,7 +162,7 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PurrfectPalette.backgroundGradient)
+            .background(LocalPurrfectSkin.current.backgroundGradient)
     ) {
         var showDropDown by remember { mutableStateOf(false) }
         
@@ -199,7 +213,7 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                     )
                 }
                 IconButton(onClick = { showFilterDialog = true }) {
-                    Icon(Icons.Filled.FilterList, contentDescription = "Filter Logs", tint = PurrfectPalette.glowSecondary)
+                    Icon(Icons.Filled.FilterList, contentDescription = "Filter Logs", tint = LocalPurrfectSkin.current.glowSecondary)
                 }
                 IconButton(onClick = { refreshLogs() }) {
                     Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = Color.White)
@@ -222,11 +236,11 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                 clearLogsAndReload()
                                 showDropDown = false
                             },
-                            leadingIcon = { Icon(Icons.Filled.DeleteSweep, contentDescription = null, tint = PurrfectPalette.glowPrimary) },
+                            leadingIcon = { Icon(Icons.Filled.DeleteSweep, contentDescription = null, tint = LocalPurrfectSkin.current.glowPrimary) },
                             text = { Text(translation["clear_logs_button"] ?: "Clear", color = Color.White) },
                             colors = MenuDefaults.itemColors(
                                 textColor = Color.White,
-                                leadingIconColor = PurrfectPalette.glowPrimary
+                                leadingIconColor = LocalPurrfectSkin.current.glowPrimary
                             )
                         )
                         DropdownMenuItem(
@@ -234,11 +248,11 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                 exportLogs()
                                 showDropDown = false
                             },
-                            leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null, tint = PurrfectPalette.glowSecondary) },
+                            leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null, tint = LocalPurrfectSkin.current.glowSecondary) },
                             text = { Text(translation["export_logs_button"] ?: "Export", color = Color.White) },
                             colors = MenuDefaults.itemColors(
                                 textColor = Color.White,
-                                leadingIconColor = PurrfectPalette.glowSecondary
+                                leadingIconColor = LocalPurrfectSkin.current.glowSecondary
                             )
                         )
                     }
