@@ -113,6 +113,7 @@ import me.eternal.purrfectsnap.ui.manager.pages.home.HomeSettings
 import me.eternal.purrfectsnap.ui.manager.pages.home.QuickActionsDialog
 import me.eternal.purrfectsnap.ui.manager.pages.scripting.ScriptingRootSection
 import me.eternal.purrfectsnap.ui.manager.pages.social.SocialRootSection
+import me.eternal.purrfectsnap.ui.manager.pages.social.sortSocialFriends
 import me.eternal.purrfectsnap.ui.manager.pages.tracker.FriendTrackerManagerRoot
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.setup.Requirements
@@ -1316,9 +1317,15 @@ object LegacyTheme : ThemeContract {
                 context.database.receiveMessagingDataCallback = { _, _ -> }
             }
         }
+        val sortByStreakLength by produceState(initialValue = context.config.root.userInterface.sortSocialTabByStreakLength.get()) {
+            while (true) {
+                delay(300)
+                value = context.config.root.userInterface.sortSocialTabByStreakLength.get()
+            }
+        }
         val normalizedQuery = remember(searchQuery) { searchQuery.trim() }
-        val filteredFriends = remember(friendList, normalizedQuery) {
-            if (normalizedQuery.isBlank()) {
+        val filteredFriends = remember(friendList, normalizedQuery, sortByStreakLength) {
+            val matchingFriends = if (normalizedQuery.isBlank()) {
                 friendList
             } else {
                 friendList.filter {
@@ -1326,6 +1333,8 @@ object LegacyTheme : ThemeContract {
                         it.displayName?.contains(normalizedQuery, ignoreCase = true) == true
                 }
             }
+
+            context.sortSocialFriends(matchingFriends)
         }
         val filteredGroups = remember(groupList, normalizedQuery) {
             if (normalizedQuery.isBlank()) {

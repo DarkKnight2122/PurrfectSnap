@@ -166,6 +166,9 @@ android {
             val releaseKeyAlias = gradleOrEnv("PS_RELEASE_KEY_ALIAS", providers)
             if (releaseStore.exists() && !releaseStorePass.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank()) {
                 signingConfig = signingConfigs.getByName("release")
+            } else {
+                // Keep local release builds installable when private release credentials are unavailable.
+                signingConfig = signingConfigs.getByName("debug")
             }
         }
         debug {

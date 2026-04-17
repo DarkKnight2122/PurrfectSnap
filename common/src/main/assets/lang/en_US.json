@@ -1156,6 +1156,10 @@
                         "name": "Show Streak Expiration Info",
                         "description": "Shows a Streak Expiration timer next to the Streaks counter"
                     },
+                    "sort_social_tab_by_streak_length": {
+                        "name": "Sort Social Tab by Streak Length",
+                        "description": "Shows friends with streaks first, ordered from the longest streak to the shortest in the social tab and friend picker"
+                    },
                     "hide_friend_feed_entry": {
                         "name": "Hide Friend Feed Entry",
                         "description": "Hides a specific friend from the Friend Feed\nUse the social tab to manage this feature"

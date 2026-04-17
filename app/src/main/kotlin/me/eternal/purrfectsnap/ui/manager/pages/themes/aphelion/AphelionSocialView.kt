@@ -39,10 +39,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.common.data.SocialScope
 import me.eternal.purrfectsnap.ui.manager.pages.social.SocialRootSection
+import me.eternal.purrfectsnap.ui.manager.pages.social.sortSocialFriends
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -68,9 +70,15 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
             context.database.receiveMessagingDataCallback = { _, _ -> }
         }
     }
+    val sortByStreakLength by produceState(initialValue = context.config.root.userInterface.sortSocialTabByStreakLength.get()) {
+        while (true) {
+            delay(300)
+            value = context.config.root.userInterface.sortSocialTabByStreakLength.get()
+        }
+    }
     val normalizedQuery = remember(searchQuery) { searchQuery.trim() }
-    val filteredFriends = remember(friendList, normalizedQuery) {
-        if (normalizedQuery.isBlank()) {
+    val filteredFriends = remember(friendList, normalizedQuery, sortByStreakLength) {
+        val matchingFriends = if (normalizedQuery.isBlank()) {
             friendList
         } else {
             friendList.filter {
@@ -78,6 +86,8 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
                     it.displayName?.contains(normalizedQuery, ignoreCase = true) == true
             }
         }
+
+        context.sortSocialFriends(matchingFriends)
     }
     val filteredGroups = remember(groupList, normalizedQuery) {
         if (normalizedQuery.isBlank()) {
