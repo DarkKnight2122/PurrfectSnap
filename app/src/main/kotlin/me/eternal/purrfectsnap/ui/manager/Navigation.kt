@@ -103,11 +103,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import me.eternal.purrfectsnap.RemoteSideContext
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.PurrfectColorSet
 import me.eternal.purrfectsnap.ui.manager.theme.aphelion.ThemeRevealState
 import kotlin.math.round
 import kotlin.math.PI
 import kotlin.math.sin
+
+import me.eternal.purrfectsnap.ui.manager.theme.aetherGlass
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -123,6 +127,10 @@ class Navigation(
     private val translation by lazy { context.translation.getCategory("manager.navigation") }
     var openBottomBarCustomization by mutableStateOf(false)
     var globalScrollOffset by mutableIntStateOf(0)
+    var pendingTransmission by mutableStateOf<String?>(null)
+    var isFirstUnlock by mutableStateOf(false)
+    var showCinematic by mutableStateOf(false)
+    var showGame by mutableStateOf(false)
     val themeRevealState = ThemeRevealState()
 
     @Composable
@@ -132,16 +140,44 @@ class Navigation(
         if (currentRoute?.routeInfo?.hasOwnTopBar == true) return
 
         val shrinkThreshold = me.eternal.purrfectsnap.ui.util.Motion.HEADER_MORPH_THRESHOLD
-        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val isAphelion by produceState(
+            initialValue = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        ) {
+            while (true) {
+                kotlinx.coroutines.delay(350)
+                value = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+            }
+        }
+        val skin = if (isAphelion) LocalPurrfectSkin.current else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette
         val focusFactor = if (isAphelion) (globalScrollOffset / shrinkThreshold).coerceIn(0f, 1f) else 0f
-        val headerHeight = lerp(64.dp, 48.dp, focusFactor)
+        
+        // Spring-based physics for Aether
+        val springFocusFactor by animateFloatAsState(
+            targetValue = focusFactor,
+            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow),
+            label = "aetherSpring"
+        )
+        val activeFocus = if (skin.id == "AETHER") springFocusFactor else focusFactor
+        
+        val headerHeight = lerp(64.dp, 48.dp, activeFocus)
 
         val canGoBack = remember(navBackStackEntry) {
             currentRoute?.let { !it.routeInfo.primary || it.routeInfo.childIds.contains(routes.currentDestination) } == true
         }
         val haptic = LocalHapticFeedback.current
         TopAppBar(
-            modifier = Modifier.height(headerHeight),
+            modifier = Modifier
+                .height(headerHeight)
+                .then(
+                    if (skin.id == "AETHER") {
+                        Modifier.aetherGlass(
+                            skin = skin,
+                            bottomStart = 22.dp,
+                            bottomEnd = 22.dp,
+                            focusFactor = activeFocus
+                        )
+                    } else Modifier
+                ),
             title = {
                 currentRoute?.apply {
                     title?.invoke() ?: routeInfo.translatedKey?.value?.let {
@@ -150,9 +186,9 @@ class Navigation(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.graphicsLayer {
-                                scaleX = 1f - (focusFactor * 0.05f)
-                                scaleY = 1f - (focusFactor * 0.05f)
-                                translationY = (-2 * focusFactor).dp.toPx()
+                                scaleX = 1f - (activeFocus * 0.05f)
+                                scaleY = 1f - (activeFocus * 0.05f)
+                                translationY = (-2 * activeFocus).dp.toPx()
                             }
                         )
                     }
@@ -164,8 +200,8 @@ class Navigation(
                     modifier = Modifier
                         .graphicsLayer {
                             alpha = backButtonAnimation
-                            scaleX = 1f - (focusFactor * 0.1f)
-                            scaleY = 1f - (focusFactor * 0.1f)
+                            scaleX = 1f - (activeFocus * 0.1f)
+                            scaleY = 1f - (activeFocus * 0.1f)
                         }
                         .width(lerp(0.dp, 48.dp, backButtonAnimation))
                         .height(48.dp)
@@ -209,11 +245,20 @@ class Navigation(
         val availableRouteMap = remember(availableRoutes) { availableRoutes.associateBy { it.routeInfo.id } }
 
         val shrinkThreshold = me.eternal.purrfectsnap.ui.util.Motion.HEADER_MORPH_THRESHOLD
-        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val isAphelion by produceState(
+            initialValue = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        ) {
+            while (true) {
+                kotlinx.coroutines.delay(350)
+                value = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+            }
+        }
         val focusFactor = if (isAphelion) (globalScrollOffset / shrinkThreshold).coerceIn(0f, 1f) else 0f
         val barHeight = lerp(82.dp, 64.dp, focusFactor)
         val labelAlpha = (1f - (focusFactor * 2.5f)).coerceIn(0f, 1f)
         val iconTranslationY = (10 * focusFactor).dp
+        
+        val skin = if (isAphelion) LocalPurrfectSkin.current else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette
 
         val prefs = remember { context.sharedPreferences }
         val defaultOrder = remember { listOf("tasks", "features", "home", "social", "scripts") }
@@ -242,18 +287,18 @@ class Navigation(
         var selectedTabIds by remember { mutableStateOf(loadSelected()) }
         val selectedRoutes = remember(selectedTabIds) { selectedTabIds.mapNotNull { availableRouteMap[it] } }
         val barShape = RoundedCornerShape(28.dp)
-        val barBorder = remember {
+        val barBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.9f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.85f)
+                    skin.glowPrimary.copy(alpha = 0.9f),
+                    skin.glowSecondary.copy(alpha = 0.85f)
                 )
             )
         }
         val barSheen = remember {
             Brush.verticalGradient(
                 colors = listOf(
-                    Color.White.copy(alpha = 0.14f),
+                    skin.textPrimary.copy(alpha = 0.14f),
                     Color.Transparent
                 )
             )
@@ -271,25 +316,38 @@ class Navigation(
             val animatedBarWidth by animateDpAsState(targetValue = targetBarWidth ?: 0.dp, label = "barWidth")
             Surface(
                 shape = barShape,
-                color = Color.White.copy(alpha = 0.08f),
+                color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 border = BorderStroke(
                     1.dp,
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.9f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.85f)
+                            skin.glowPrimary.copy(alpha = 0.9f),
+                            skin.glowSecondary.copy(alpha = 0.85f)
                         )
                     )
                 ),
                 modifier = Modifier
                     .then(if (targetBarWidth != null) Modifier.width(animatedBarWidth) else Modifier.fillMaxWidth())
+                    .then(
+                        if (skin.id == "AETHER") {
+                            Modifier.aetherGlass(
+                                skin = skin,
+                                topStart = 28.dp,
+                                topEnd = 28.dp,
+                                bottomStart = 28.dp,
+                                bottomEnd = 28.dp,
+                                focusFactor = 1f
+                            )
+                        } else Modifier
+                    )
                     .drawBehind {
+                        if (skin.id == "AETHER") return@drawBehind
                         val radius = size.width * 0.62f
                         drawCircle(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.25f),
+                                    skin.glowPrimary.copy(alpha = 0.25f),
                                     Color.Transparent
                                 ),
                                 center = center,
@@ -302,8 +360,8 @@ class Navigation(
                     .shadow(
                         elevation = 28.dp,
                         shape = barShape,
-                        spotColor = PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                        ambientColor = PurrfectPalette.glowSecondary.copy(alpha = 0.26f)
+                        spotColor = skin.glowPrimary.copy(alpha = 0.35f),
+                        ambientColor = skin.glowSecondary.copy(alpha = 0.26f)
                     )
             ) {
                 Box(
@@ -311,37 +369,39 @@ class Navigation(
                         .fillMaxWidth()
                         .height(barHeight)
                         .clip(barShape)
-                        .background(PurrfectPalette.cardOverlay)
+                        .background(if (skin.id == "AETHER") SolidColor(Color.Transparent) else skin.cardOverlay)
                         .border(BorderStroke(1.dp, barBorder), barShape)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(18.dp)
-                            .align(Alignment.TopCenter)
-                            .background(barSheen)
-                            .graphicsLayer { alpha = 0.6f }
-                    )
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .graphicsLayer { alpha = 0.25f }
-                            .drawBehind {
-                                val radius = size.width * 0.42f
-                                drawCircle(
-                                    brush = Brush.radialGradient(
-                                        colors = listOf(
-                                            PurrfectPalette.glowSecondary.copy(alpha = 0.2f),
-                                            Color.Transparent
+                    if (skin.id != "AETHER") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(18.dp)
+                                .align(Alignment.TopCenter)
+                                .background(barSheen)
+                                .graphicsLayer { alpha = 0.6f }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .graphicsLayer { alpha = 0.25f }
+                                .drawBehind {
+                                    val radius = size.width * 0.42f
+                                    drawCircle(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                skin.glowSecondary.copy(alpha = 0.2f),
+                                                Color.Transparent
+                                            ),
+                                            center = center,
+                                            radius = radius
                                         ),
-                                        center = center,
-                                        radius = radius
-                                    ),
-                                    radius = radius,
-                                    center = center
-                                )
-                            }
-                    )
+                                        radius = radius,
+                                        center = center
+                                    )
+                                }
+                        )
+                    }
                     Box(Modifier.fillMaxWidth().height(barHeight)) {
                         var barWidthPx by remember { mutableStateOf(0f) }
                         val itemCount = selectedRoutes.size.coerceAtLeast(1)
@@ -425,20 +485,20 @@ class Navigation(
                                                 .background(
                                                     Brush.linearGradient(
                                                         listOf(
-                                                            PurrfectPalette.glowPrimary.copy(alpha = 0.42f),
-                                                            PurrfectPalette.glowSecondary.copy(alpha = 0.38f)
+                                                            skin.glowPrimary.copy(alpha = 0.42f),
+                                                            skin.glowSecondary.copy(alpha = 0.38f)
                                                         )
                                                     )
                                                 )
                                                 .border(
-                                                    BorderStroke(1.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))),
+                                                    BorderStroke(1.dp, Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary))),
                                                     indicatorShape
                                                 )
                                                 .drawBehind {
                                                     drawCircle(
                                                         brush = Brush.radialGradient(
                                                             colors = listOf(
-                                                                PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
+                                                                skin.glowPrimary.copy(alpha = 0.35f),
                                                                 Color.Transparent
                                                             ),
                                                             center = center,
@@ -448,7 +508,7 @@ class Navigation(
                                                         center = center
                                                     )
                                                     drawRoundRect(
-                                                        color = Color.White.copy(alpha = 0.08f),
+                                                        color = skin.textPrimary.copy(alpha = 0.08f),
                                                         cornerRadius = CornerRadius(size.height / 2, size.height / 2),
                                                         size = size
                                                     )
@@ -490,7 +550,7 @@ class Navigation(
                                             textAlign = TextAlign.Center,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color.White.copy(alpha = (0.6f + 0.4f * selectionProgress) * labelAlpha),
+                                            color = skin.textPrimary.copy(alpha = (0.6f + 0.4f * selectionProgress) * labelAlpha),
                                             maxLines = if (isLong) 2 else 1,
                                             overflow = if (isLong) TextOverflow.Ellipsis else TextOverflow.Clip,
                                             softWrap = isLong,
@@ -503,10 +563,10 @@ class Navigation(
                                     },
                                     selected = isSelected,
                                     colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = Color.White,
-                                        unselectedIconColor = Color.White.copy(alpha = 0.72f),
-                                        selectedTextColor = Color.White,
-                                        unselectedTextColor = Color.White.copy(alpha = 0.72f),
+                                        selectedIconColor = skin.textPrimary,
+                                        unselectedIconColor = skin.textPrimary.copy(alpha = 0.72f),
+                                        selectedTextColor = skin.textPrimary,
+                                        unselectedTextColor = skin.textPrimary.copy(alpha = 0.72f),
                                         indicatorColor = Color.Transparent
                                     ),
                                     onClick = {
@@ -539,7 +599,7 @@ class Navigation(
                     ) {
                         Column(
                             modifier = Modifier
-                                .background(PurrfectPalette.backgroundGradient)
+                                .background(skin.backgroundGradient)
                                 .padding(vertical = 12.dp)
                         ) {
                             Box(
@@ -550,8 +610,8 @@ class Navigation(
                                     .background(
                                         brush = Brush.linearGradient(
                                             colors = listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.26f)
+                                                skin.glowPrimary.copy(alpha = 0.28f),
+                                                skin.glowSecondary.copy(alpha = 0.26f)
                                             )
                                         )
                                     )
@@ -564,14 +624,14 @@ class Navigation(
                                     Text(
                                         text = translation["customize_bottom_bar_title"],
                                         style = MaterialTheme.typography.titleLarge,
-                                        color = Color.White,
+                                        color = skin.textPrimary,
                                         textAlign = TextAlign.Center
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Text(
                                         text = translation["customize_bottom_bar_subtitle"],
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = Color.White.copy(alpha = 0.8f),
+                                        color = skin.textPrimary.copy(alpha = 0.8f),
                                         textAlign = TextAlign.Center
                                     )
                                 }
@@ -583,21 +643,21 @@ class Navigation(
                                     .width(40.dp)
                                     .height(5.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color.White.copy(alpha = 0.35f))
+                                    .background(skin.textPrimary.copy(alpha = 0.35f))
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 text = translation["shown_tabs_title"],
                                 style = MaterialTheme.typography.titleSmall,
                                 modifier = Modifier.padding(horizontal = 16.dp),
-                                color = Color.White
+                                color = skin.textPrimary
                             )
                             Spacer(Modifier.height(6.dp))
                             if (selectedTabIds.isEmpty()) {
                                 Text(
                                     text = translation["no_tabs_selected_text"],
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = PurrfectPalette.textSecondary,
+                                    color = skin.textSecondary,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             } else {
@@ -659,7 +719,7 @@ class Navigation(
                                             color = Color.Transparent,
                                             border = BorderStroke(
                                                 1.dp,
-                                                if (isDragging) Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))
+                                                if (isDragging) Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary))
                                                 else SolidColor(Color.White.copy(alpha = 0.1f))
                                             ),
                                             tonalElevation = 0.dp,
@@ -673,8 +733,8 @@ class Navigation(
                                                     .background(
                                                         if (isDragging) Brush.linearGradient(
                                                             colors = listOf(
-                                                                PurrfectPalette.glowPrimary.copy(alpha = 0.18f),
-                                                                PurrfectPalette.glowSecondary.copy(alpha = 0.16f)
+                                                                skin.glowPrimary.copy(alpha = 0.18f),
+                                                                skin.glowSecondary.copy(alpha = 0.16f)
                                                             )
                                                         ) else SolidColor(Color.White.copy(alpha = 0.08f))
                                                     ),
@@ -691,9 +751,9 @@ class Navigation(
                                                     onClick = { if (id in defaultEligible) saveDefault(id) },
                                                     enabled = id in defaultEligible,
                                                     colors = RadioButtonDefaults.colors(
-                                                        selectedColor = PurrfectPalette.glowPrimary,
+                                                        selectedColor = skin.glowPrimary,
                                                         unselectedColor = Color.White.copy(alpha = 0.7f),
-                                                        disabledSelectedColor = PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
+                                                        disabledSelectedColor = skin.glowPrimary.copy(alpha = 0.4f),
                                                         disabledUnselectedColor = Color.White.copy(alpha = 0.35f)
                                                     )
                                                 )
@@ -742,7 +802,7 @@ class Navigation(
                                             colors = AssistChipDefaults.assistChipColors(
                                                 containerColor = Color.White.copy(alpha = 0.08f),
                                                 labelColor = Color.White,
-                                                leadingIconContentColor = PurrfectPalette.glowSecondary
+                                                leadingIconContentColor = skin.glowSecondary
                                             )
                                         )
                                     }
@@ -761,7 +821,7 @@ class Navigation(
                                         saveSelected(selectedTabIds)
                                     },
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                                    border = BorderStroke(1.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary)))
+                                    border = BorderStroke(1.dp, Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary)))
                                 ) {
                                     Text(text = translation["reset_button"], style = MaterialTheme.typography.labelLarge)
                                 }

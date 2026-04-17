@@ -1,4 +1,4 @@
-package me.eternal.purrfectsnap.ui.manager.pages.features
+﻿package me.eternal.purrfectsnap.ui.manager.pages.features
 
 import android.net.Uri
 import androidx.compose.animation.*
@@ -81,7 +81,9 @@ import me.eternal.purrfectsnap.core.features.impl.experiments.RandomizedDevicePr
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfectsnap.common.ui.util.*
+import me.eternal.purrfectsnap.common.ui.util.G2RoundedRectangle
 import me.eternal.purrfectsnap.ui.util.*
 import me.eternal.purrfectsnap.ui.util.Dialog
 import me.eternal.purrfectsnap.ui.util.DialogProperties
@@ -90,6 +92,25 @@ import org.json.JSONObject
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
+import androidx.compose.ui.platform.LocalContext
+
+internal object FeaturesSkinPalette {
+    @Composable
+    internal fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.glowPrimary
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.glowSecondary
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.backgroundGradient
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.cardOverlay
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.textPrimary
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.textSecondary
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.cardOverlayColor
+}
 
 class FeaturesRootSection : Routes.Route() {
     override val title: @Composable (() -> Unit)? = @Composable {
@@ -343,7 +364,7 @@ class FeaturesRootSection : Routes.Route() {
         Box(
             modifier = modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(FeaturesSkinPalette.backgroundGradient)
         )
     }
 
@@ -369,10 +390,12 @@ class FeaturesRootSection : Routes.Route() {
     @Composable
     internal fun EmptyState(isSearchResults: Boolean) {
         val shape = RoundedCornerShape(24.dp)
+        val glowPrimary = FeaturesSkinPalette.glowPrimary
+        val glowSecondary = FeaturesSkinPalette.glowSecondary
         val border = Brush.linearGradient(
             listOf(
-                PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                glowPrimary.copy(alpha = 0.45f),
+                glowSecondary.copy(alpha = 0.35f)
             )
         )
         Surface(
@@ -380,12 +403,12 @@ class FeaturesRootSection : Routes.Route() {
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 12.dp),
             shape = shape,
-            color = Color.White.copy(alpha = 0.04f),
+            color = FeaturesSkinPalette.textPrimary.copy(alpha = 0.04f),
             tonalElevation = 10.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(1.dp, border)
         ) {
-            Box(modifier = Modifier.background(PurrfectPalette.cardOverlay, shape)) {
+            Box(modifier = Modifier.background(FeaturesSkinPalette.cardOverlay, shape)) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -395,13 +418,13 @@ class FeaturesRootSection : Routes.Route() {
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f)
+                        color = glowPrimary.copy(alpha = 0.18f)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.SearchOff,
                             contentDescription = null,
                             modifier = Modifier.padding(12.dp),
-                            tint = Color.White
+                            tint = FeaturesSkinPalette.textPrimary
                         )
                     }
                     Column(
@@ -411,12 +434,12 @@ class FeaturesRootSection : Routes.Route() {
                             text = if (isSearchResults) "No matches found" else "Nothing to show",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            color = FeaturesSkinPalette.textPrimary
                         )
                         Text(
                             text = if (isSearchResults) "Try a different keyword or clear filters." else "Toggle visibility with the new controls above.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = PurrfectPalette.textSecondary
+                            color = FeaturesSkinPalette.textSecondary
                         )
                     }
                 }
@@ -502,7 +525,7 @@ class FeaturesRootSection : Routes.Route() {
                                 .fillMaxWidth()
                                 .heightIn(max = 360.dp)
                                 .verticalScroll(rememberScrollState()),
-                            color = PurrfectPalette.textSecondary,
+                            color = FeaturesSkinPalette.textSecondary,
                             textAlign = TextAlign.Start
                         )
                     }
@@ -530,6 +553,9 @@ class FeaturesRootSection : Routes.Route() {
                     if (files.isNotEmpty() && it == null) persistConfig()
                 }?.name) }
 
+                val glowPrimary = FeaturesSkinPalette.glowPrimary
+                val glowSecondary = FeaturesSkinPalette.glowSecondary
+
                 Surface(
                     shape = RoundedCornerShape(24.dp),
                     modifier = Modifier.fillMaxWidth(),
@@ -540,15 +566,15 @@ class FeaturesRootSection : Routes.Route() {
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                glowPrimary.copy(alpha = 0.45f),
+                                glowSecondary.copy(alpha = 0.35f)
                             )
                         )
                     )
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(PurrfectPalette.cardOverlay, RoundedCornerShape(24.dp))
+                            .background(FeaturesSkinPalette.cardOverlay, RoundedCornerShape(24.dp))
                     ) {
                         LazyColumn(
                             modifier = Modifier
@@ -567,14 +593,14 @@ class FeaturesRootSection : Routes.Route() {
                                         text = context.translation["manager.dialogs.file_imports.settings_select_file_hint"] ?: "Select File",
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White
+                                        color = FeaturesSkinPalette.textPrimary
                                     )
                                     if (isEmpty) {
                                         Text(
                                             text = context.translation["manager.dialogs.file_imports.no_files_settings_hint"] ?: "No files found",
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = PurrfectPalette.textSecondary,
+                                            color = FeaturesSkinPalette.textSecondary,
                                             modifier = Modifier.padding(top = 4.dp),
                                             textAlign = TextAlign.Center
                                         )
@@ -582,7 +608,7 @@ class FeaturesRootSection : Routes.Route() {
                                         Text(
                                             text = translation["manager.dialogs.file_imports.settings_select_file_subtitle"] ?: "Pick a file to import",
                                             fontSize = 13.sp,
-                                            color = PurrfectPalette.textSecondary,
+                                            color = FeaturesSkinPalette.textSecondary,
                                             textAlign = TextAlign.Center
                                         )
                                     }
@@ -600,17 +626,17 @@ class FeaturesRootSection : Routes.Route() {
                                             persistConfig()
                                         },
                                     shape = RoundedCornerShape(16.dp),
-                                    color = Color.White.copy(alpha = 0.05f),
+                                    color = FeaturesSkinPalette.textPrimary.copy(alpha = 0.05f),
                                     tonalElevation = 0.dp,
                                     shadowElevation = 0.dp,
                                     border = BorderStroke(
                                         1.dp,
                                         if (isSelected) Brush.linearGradient(
                                             listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.48f)
+                                                glowPrimary.copy(alpha = 0.6f),
+                                                glowSecondary.copy(alpha = 0.48f)
                                             )
-                                        ) else SolidColor(Color.White.copy(alpha = 0.08f))
+                                        ) else SolidColor(FeaturesSkinPalette.textPrimary.copy(alpha = 0.08f))
                                     )
                                 ) {
                                     Row(
@@ -620,13 +646,13 @@ class FeaturesRootSection : Routes.Route() {
                                     ) {
                                         Surface(
                                             shape = CircleShape,
-                                            color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f)
+                                            color = glowPrimary.copy(alpha = 0.16f)
                                         ) {
                                             Icon(
                                                 Icons.Filled.AttachFile,
                                                 contentDescription = null,
                                                 modifier = Modifier.padding(10.dp),
-                                                tint = Color.White
+                                                tint = FeaturesSkinPalette.textPrimary
                                             )
                                         }
                                         Text(
@@ -634,18 +660,18 @@ class FeaturesRootSection : Routes.Route() {
                                             modifier = Modifier.weight(1f),
                                             fontSize = 14.sp,
                                             lineHeight = 16.sp,
-                                            color = Color.White
+                                            color = FeaturesSkinPalette.textPrimary
                                         )
                                         if (isSelected) {
                                             Surface(
                                                 shape = CircleShape,
-                                                color = PurrfectPalette.glowSecondary.copy(alpha = 0.18f)
+                                                color = glowSecondary.copy(alpha = 0.18f)
                                             ) {
                                                 Icon(
                                                     Icons.Filled.Check,
                                                     contentDescription = null,
                                                     modifier = Modifier.padding(8.dp),
-                                                    tint = PurrfectPalette.glowSecondary
+                                                    tint = glowSecondary
                                                 )
                                             }
                                         }
@@ -667,7 +693,7 @@ class FeaturesRootSection : Routes.Route() {
                     persistConfig()
                 }
             }) {
-                Icon(Icons.Filled.FolderOpen, contentDescription = null, tint = Color.White)
+                Icon(Icons.Filled.FolderOpen, contentDescription = null, tint = FeaturesSkinPalette.textPrimary)
             }
             return
         }
@@ -762,8 +788,8 @@ class FeaturesRootSection : Routes.Route() {
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                            contentColor = Color.White
+                            containerColor = FeaturesSkinPalette.glowPrimary.copy(alpha = 0.28f),
+                            contentColor = FeaturesSkinPalette.textPrimary
                         )
                     ) {
                         Text(actionLabel, maxLines = 1)
@@ -815,30 +841,29 @@ class FeaturesRootSection : Routes.Route() {
 
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = Color.White.copy(alpha = 0.06f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                            color = FeaturesSkinPalette.textPrimary.copy(alpha = 0.06f),
+                            border = BorderStroke(1.dp, FeaturesSkinPalette.textPrimary.copy(alpha = 0.12f)),
                             modifier = Modifier.clickable { click() }
                         ) {
                             Text(
                                 text = translation.format("search_results_count", "count" to messageCount.toString()),
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White
+                                color = FeaturesSkinPalette.textPrimary
                             )
                         }
                     } else if (isSnapchatPlusPurchaseDateProperty) {
-                        Button(
-                            onClick = click,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text(translation["button.set"] ?: "Set")
-                        }
-                    } else {
-                        IconButton(onClick = click) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null)
+                    Button(
+                        onClick = click,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FeaturesSkinPalette.glowPrimary.copy(alpha = 0.28f),
+                            contentColor = FeaturesSkinPalette.textPrimary
+                        )
+                    ) {
+                        Text(translation["button.set"] ?: "Set")
+                    }
+                    } else {                        IconButton(onClick = click) {
+                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = FeaturesSkinPalette.textPrimary)
                         }
                     }
                 }
@@ -926,21 +951,24 @@ class FeaturesRootSection : Routes.Route() {
         text: String,
         onClick: () -> Unit
     ) {
+        val glowPrimary = FeaturesSkinPalette.glowPrimary
+        val glowSecondary = FeaturesSkinPalette.glowSecondary
+
         Surface(
             modifier = Modifier
                 .size(52.dp)
                 .clip(CircleShape)
                 .clickable { onClick() },
             shape = CircleShape,
-            color = Color.White.copy(alpha = 0.08f),
+            color = FeaturesSkinPalette.textPrimary.copy(alpha = 0.08f),
             tonalElevation = 0.dp,
             shadowElevation = 10.dp,
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                        glowPrimary.copy(alpha = 0.55f),
+                        glowSecondary.copy(alpha = 0.45f)
                     )
                 )
             )
@@ -951,7 +979,7 @@ class FeaturesRootSection : Routes.Route() {
                     .background(
                         Brush.radialGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
+                                glowPrimary.copy(alpha = 0.28f),
                                 Color.Transparent
                             )
                         )
@@ -960,7 +988,7 @@ class FeaturesRootSection : Routes.Route() {
             ) {
                 Text(
                     text = text,
-                    color = Color.White,
+                    color = FeaturesSkinPalette.textPrimary,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -974,7 +1002,6 @@ class FeaturesRootSection : Routes.Route() {
         onConfigChanged: () -> Unit,
         onOpen: (() -> Unit)? = null
     ) {
-        val isAphelion = remember { context.config.root.global.uiSettings.managerTheme.get() == "APHELION" }
         var clickCallback by remember { mutableStateOf<(() -> Unit)?>(null) }
         val noticeColorMap = remember {
             mapOf(
@@ -989,23 +1016,33 @@ class FeaturesRootSection : Routes.Route() {
         val isComponentDisabled = remember { versionCheckPair != null && versionCheck?.isDisabled == true }
         val isInteractionEnabled = !isComponentDisabled
 
-        val cardShape = RoundedCornerShape(22.dp)
+        val skin = LocalPurrfectSkin.current
+        val isAether = skin.id == "AETHER"
+        val cardShape = if (isAether) G2RoundedRectangle(28.dp) else RoundedCornerShape(22.dp)
         val interactionSource = remember { MutableInteractionSource() }
-        val cardBorder = remember {
-            Brush.linearGradient(
-                listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+        val glowPrimary = FeaturesSkinPalette.glowPrimary
+        val glowSecondary = FeaturesSkinPalette.glowSecondary
+        val cardBorder = remember(glowPrimary, glowSecondary, isAether) {
+            if (isAether) {
+                SolidColor(skin.laserBorder.copy(alpha = 0.45f))
+            } else {
+                Brush.linearGradient(
+                    listOf(
+                        glowPrimary.copy(alpha = 0.55f),
+                        glowSecondary.copy(alpha = 0.35f)
+                    )
                 )
-            )
+            }
         }
-        val cardBackground = remember { PurrfectPalette.cardOverlay }
+        val cardBackground = if (isAether) SolidColor(skin.cardOverlayColor) else FeaturesSkinPalette.cardOverlay
 
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 7.dp)
-                .graphicsLayer { if (!isInteractionEnabled) alpha = 0.5f }
+                .graphicsLayer { 
+                    if (!isInteractionEnabled) alpha = 0.5f 
+                }
                 .clickable(
                     enabled = isInteractionEnabled,
                     interactionSource = interactionSource,
@@ -1034,7 +1071,7 @@ class FeaturesRootSection : Routes.Route() {
                     property.key.params.icon?.let { icon ->
                         Surface(
                             shape = RoundedCornerShape(18.dp),
-                            color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f),
+                            color = glowPrimary.copy(alpha = 0.16f),
                             tonalElevation = 0.dp,
                             modifier = Modifier.size(62.dp)
                         ) {
@@ -1044,8 +1081,8 @@ class FeaturesRootSection : Routes.Route() {
                                     .background(
                                         Brush.linearGradient(
                                             listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                                                glowPrimary.copy(alpha = 0.35f),
+                                                glowSecondary.copy(alpha = 0.28f)
                                             )
                                         )
                                     ),
@@ -1054,7 +1091,7 @@ class FeaturesRootSection : Routes.Route() {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = FeaturesSkinPalette.textPrimary,
                                     modifier = Modifier.size(30.dp)
                                 )
                             }
@@ -1069,14 +1106,14 @@ class FeaturesRootSection : Routes.Route() {
                                 text = context.translation[property.key.propertyName()] ?: property.key.name,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = PurrfectPalette.textPrimary,
+                                color = FeaturesSkinPalette.textPrimary,
                                 lineHeight = 20.sp
                             )
                             Text(
                                 text = context.translation[property.key.propertyDescription()] ?: "",
                                 fontSize = 13.sp,
                                 lineHeight = 16.sp,
-                                color = PurrfectPalette.textSecondary
+                                color = FeaturesSkinPalette.textSecondary
                             )
 
                         if (property.key.params.notices.isNotEmpty()) {
@@ -1139,7 +1176,7 @@ class FeaturesRootSection : Routes.Route() {
         modifier: Modifier = Modifier,
         onHeightMeasured: (androidx.compose.ui.unit.Dp) -> Unit = {}
     ) {
-        val isAphelion = remember { context.config.root.global.uiSettings.managerTheme.get() == "APHELION" }
+        val isAphelion = FeaturesSkinPalette.isAphelion()
         var showSearchBar by rememberSaveable { mutableStateOf(isSearchResults) }
         val focusRequester = remember { FocusRequester() }
         val isOverlay = activeSectionTitle != null
@@ -1178,20 +1215,20 @@ class FeaturesRootSection : Routes.Route() {
             Dialog(onDismissRequest = { showResetConfirmationDialog = false }) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White.copy(alpha = 0.06f),
+                    color = FeaturesSkinPalette.textPrimary.copy(alpha = 0.06f),
                     tonalElevation = 0.dp,
                     shadowElevation = 16.dp,
                     border = BorderStroke(
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                                FeaturesSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                                FeaturesSkinPalette.glowSecondary.copy(alpha = 0.45f)
                             )
                         )
                     )
                 ) {
-                    Box(modifier = Modifier.background(PurrfectPalette.cardOverlay)) {
+                    Box(modifier = Modifier.background(FeaturesSkinPalette.cardOverlay)) {
                         Column(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1199,12 +1236,12 @@ class FeaturesRootSection : Routes.Route() {
                             Text(
                                 text = context.translation["manager.dialogs.reset_config.title"] ?: "Reset Config",
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                                color = Color.White
+                                color = FeaturesSkinPalette.textPrimary
                             )
                             Text(
                                 text = context.translation["manager.dialogs.reset_config.content"] ?: "Reset all settings to default?",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = PurrfectPalette.textSecondary
+                                color = FeaturesSkinPalette.textSecondary
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1216,8 +1253,8 @@ class FeaturesRootSection : Routes.Route() {
                                         showResetConfirmationDialog = false
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color.White.copy(alpha = 0.08f),
-                                        contentColor = Color.White
+                                        containerColor = FeaturesSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                        contentColor = FeaturesSkinPalette.textPrimary
                                     )
                                 ) {
                                     Text(text = context.translation["button.negative"])
@@ -1231,8 +1268,8 @@ class FeaturesRootSection : Routes.Route() {
                                         showResetConfirmationDialog = false
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                        contentColor = Color.White
+                                        containerColor = FeaturesSkinPalette.glowPrimary.copy(alpha = 0.32f),
+                                        contentColor = FeaturesSkinPalette.textPrimary
                                     )
                                 ) {
                                     Text(text = context.translation["button.positive"])
@@ -1338,12 +1375,12 @@ class FeaturesRootSection : Routes.Route() {
                                     .weight(1f)
                                     .focusRequester(focusRequester),
                                 singleLine = true,
-                                placeholder = { Text(text = translation["search_button"] ?: "Search", color = Color(0xFFE0DCFF)) },
+                                placeholder = { Text(text = translation["search_button"] ?: "Search", color = FeaturesSkinPalette.textSecondary.copy(alpha = 0.7f)) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.Search,
                                         contentDescription = null,
-                                        tint = Color.White
+                                        tint = FeaturesSkinPalette.textPrimary
                                     )
                                 },
                                 trailingIcon = {
@@ -1360,7 +1397,7 @@ class FeaturesRootSection : Routes.Route() {
                                                 showSearchBar = false
                                             }
                                         }) {
-                                            Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White)
+                                            Icon(Icons.Filled.Close, contentDescription = null, tint = FeaturesSkinPalette.textPrimary)
                                         }
                                     }
                                 },
@@ -1374,16 +1411,16 @@ class FeaturesRootSection : Routes.Route() {
                                     unfocusedContainerColor = Color.Transparent,
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
-                                    cursorColor = Color.White,
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    disabledTextColor = Color.White.copy(alpha = 0.65f),
-                                    focusedPlaceholderColor = Color(0xFFE0DCFF),
-                                    unfocusedPlaceholderColor = Color(0xFFE0DCFF),
-                                    focusedLeadingIconColor = Color.White,
-                                    unfocusedLeadingIconColor = Color.White.copy(alpha = 0.9f),
-                                    focusedTrailingIconColor = Color.White,
-                                    unfocusedTrailingIconColor = Color.White.copy(alpha = 0.9f)
+                                    cursorColor = FeaturesSkinPalette.textPrimary,
+                                    focusedTextColor = FeaturesSkinPalette.textPrimary,
+                                    unfocusedTextColor = FeaturesSkinPalette.textPrimary,
+                                    disabledTextColor = FeaturesSkinPalette.textPrimary.copy(alpha = 0.65f),
+                                    focusedPlaceholderColor = FeaturesSkinPalette.textSecondary.copy(alpha = 0.7f),
+                                    unfocusedPlaceholderColor = FeaturesSkinPalette.textSecondary.copy(alpha = 0.7f),
+                                    focusedLeadingIconColor = FeaturesSkinPalette.textPrimary,
+                                    unfocusedLeadingIconColor = FeaturesSkinPalette.textPrimary.copy(alpha = 0.9f),
+                                    focusedTrailingIconColor = FeaturesSkinPalette.textPrimary,
+                                    unfocusedTrailingIconColor = FeaturesSkinPalette.textPrimary.copy(alpha = 0.9f)
                                 )
                             )
                             LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -1395,7 +1432,7 @@ class FeaturesRootSection : Routes.Route() {
                                 Icon(
                                     imageVector = Icons.Filled.Search,
                                     contentDescription = null,
-                                    tint = Color.White
+                                    tint = FeaturesSkinPalette.textPrimary
                                 )
                             }
                         }
@@ -1409,7 +1446,7 @@ class FeaturesRootSection : Routes.Route() {
                                     Icon(
                                         imageVector = Icons.Filled.MoreVert,
                                         contentDescription = null,
-                                        tint = PurrfectPalette.glowSecondary
+                                        tint = FeaturesSkinPalette.glowSecondary
                                     )
                                 }
                                 DropdownMenu(
@@ -1427,17 +1464,17 @@ class FeaturesRootSection : Routes.Route() {
                                                 Icon(
                                                     imageVector = icon,
                                                     contentDescription = null,
-                                                    tint = PurrfectPalette.glowPrimary
+                                                    tint = FeaturesSkinPalette.glowPrimary
                                                 )
                                             },
-                                            text = { Text(text = name ?: "", color = Color.White) },
+                                            text = { Text(text = name ?: "", color = FeaturesSkinPalette.textPrimary) },
                                             onClick = {
                                                 action()()
                                                 showExportDropdownMenu = false
                                             },
                                             colors = MenuDefaults.itemColors(
                                                 textColor = Color.White,
-                                                leadingIconColor = PurrfectPalette.glowPrimary
+                                                leadingIconColor = FeaturesSkinPalette.glowPrimary
                                             )
                                         )
                                     }
@@ -1448,15 +1485,18 @@ class FeaturesRootSection : Routes.Route() {
                 )
             } else {
                 val topBarShape = RoundedCornerShape(26.dp)
-                val topBarBackground = remember { PurrfectPalette.cardOverlay }
-                val topBarBorder = remember {
+                val topBarBackground = FeaturesSkinPalette.cardOverlay
+                val glowPrimary = FeaturesSkinPalette.glowPrimary
+                val glowSecondary = FeaturesSkinPalette.glowSecondary
+                val topBarBorder = remember(glowPrimary, glowSecondary) {
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                            glowPrimary.copy(alpha = 0.55f),
+                            glowSecondary.copy(alpha = 0.35f)
                         )
                     )
                 }
+
 
                 Box(
                     modifier = Modifier
@@ -1468,7 +1508,7 @@ class FeaturesRootSection : Routes.Route() {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = topBarShape,
-                        color = PurrfectPalette.cardOverlayColor,
+                        color = FeaturesSkinPalette.cardOverlayColor,
                         border = BorderStroke(1.dp, topBarBorder),
                         tonalElevation = 0.dp,
                         shadowElevation = 8.dp
@@ -1492,7 +1532,7 @@ class FeaturesRootSection : Routes.Route() {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = context.translation["common.back"],
-                                            tint = Color.White
+                                            tint = FeaturesSkinPalette.textPrimary
                                         )
                                     }
                                 }
@@ -1507,14 +1547,14 @@ class FeaturesRootSection : Routes.Route() {
                                         modifier = Modifier.weight(1f).focusRequester(focusRequester),
                                         singleLine = true,
                                         placeholder = { Text(text = translation["search_button"] ?: "Search", color = Color(0xFFE0DCFF)) },
-                                        colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent, cursorColor = Color.White, focusedTextColor = Color.White, unfocusedTextColor = Color.White)
+                                        colors = TextFieldDefaults.colors(focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent, focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent, cursorColor = FeaturesSkinPalette.textPrimary, focusedTextColor = FeaturesSkinPalette.textPrimary, unfocusedTextColor = FeaturesSkinPalette.textPrimary)
                                     )
                                     LaunchedEffect(Unit) { focusRequester.requestFocus() }
                                 } else {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = headerTitle,
-                                            color = Color.White,
+                                            color = FeaturesSkinPalette.textPrimary,
                                             fontWeight = FontWeight.ExtraBold,
                                             fontSize = 18.sp
                                         )
@@ -1537,7 +1577,7 @@ class FeaturesRootSection : Routes.Route() {
                                         Icon(
                                             imageVector = if (showSearchBar) Icons.Filled.Close else Icons.Filled.Search,
                                             contentDescription = null,
-                                            tint = Color.White
+                                            tint = FeaturesSkinPalette.textPrimary
                                         )
                                     }
 
@@ -1550,7 +1590,7 @@ class FeaturesRootSection : Routes.Route() {
                                                 Icon(
                                                     imageVector = Icons.Filled.MoreVert,
                                                     contentDescription = null,
-                                                    tint = Color.White
+                                                    tint = FeaturesSkinPalette.textPrimary
                                                 )
                                             }
                                             DropdownMenu(
@@ -1568,17 +1608,17 @@ class FeaturesRootSection : Routes.Route() {
                                                             Icon(
                                                                 imageVector = icon,
                                                                 contentDescription = null,
-                                                                tint = PurrfectPalette.glowPrimary
+                                                                tint = FeaturesSkinPalette.glowPrimary
                                                             )
                                                         },
-                                                        text = { Text(text = name ?: "", color = Color.White) },
+                                                        text = { Text(text = name ?: "", color = FeaturesSkinPalette.textPrimary) },
                                                         onClick = {
                                                             action()()
                                                             showExportDropdownMenu = false
                                                         },
                                                         colors = MenuDefaults.itemColors(
                                                             textColor = Color.White,
-                                                            leadingIconColor = PurrfectPalette.glowPrimary
+                                                            leadingIconColor = FeaturesSkinPalette.glowPrimary
                                                         )
                                                     )
                                                 }
@@ -1598,9 +1638,9 @@ class FeaturesRootSection : Routes.Route() {
                         .padding(horizontal = 14.dp)
                         .padding(top = 10.dp)
                         .fillMaxWidth(),
-                    color = PurrfectPalette.cardOverlayColor,
+                    color = FeaturesSkinPalette.cardOverlayColor,
                     shape = RoundedCornerShape(18.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                    border = BorderStroke(1.dp, FeaturesSkinPalette.textPrimary.copy(alpha = 0.1f))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1612,9 +1652,9 @@ class FeaturesRootSection : Routes.Route() {
                                         updateSearch(suggestion, record = true)
                                     },
                                     label = { Text(text = suggestion, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = Color.White) },
+                                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = FeaturesSkinPalette.textPrimary) },
                                     colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = Color.White.copy(alpha = 0.08f),
+                                        containerColor = FeaturesSkinPalette.textPrimary.copy(alpha = 0.08f),
                                         labelColor = Color.White,
                                         leadingIconContentColor = Color.White
                                     )
@@ -1634,9 +1674,9 @@ class FeaturesRootSection : Routes.Route() {
                                         saveSearchHistory(emptyList())
                                     }
                                 ) {
-                                    Icon(Icons.Filled.Delete, contentDescription = null, tint = Color.White.copy(alpha = 0.85f))
+                                    Icon(Icons.Filled.Delete, contentDescription = null, tint = FeaturesSkinPalette.textPrimary.copy(alpha = 0.85f))
                                     Spacer(Modifier.width(6.dp))
-                                    Text(text = translation["clear_history"] ?: "Clear history", color = Color.White)
+                                    Text(text = translation["clear_history"] ?: "Clear history", color = FeaturesSkinPalette.textPrimary)
                                 }
                             }
                         }
@@ -1790,20 +1830,20 @@ class FeaturesRootSection : Routes.Route() {
 
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.06f),
+                color = FeaturesSkinPalette.textPrimary.copy(alpha = 0.06f),
                 tonalElevation = 0.dp,
                 shadowElevation = 16.dp,
                 border = BorderStroke(
                     1.dp,
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                            FeaturesSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                            FeaturesSkinPalette.glowSecondary.copy(alpha = 0.45f)
                         )
                     )
                 )
             ) {
-                Box(modifier = Modifier.background(PurrfectPalette.cardOverlay)) {
+                Box(modifier = Modifier.background(FeaturesSkinPalette.cardOverlay)) {
                     Column(
                         modifier = Modifier
                             .padding(horizontal = 20.dp, vertical = 18.dp),
@@ -1815,14 +1855,14 @@ class FeaturesRootSection : Routes.Route() {
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.ExtraBold
                             ),
-                            color = Color.White,
+                            color = FeaturesSkinPalette.textPrimary,
                             textAlign = TextAlign.Center
                         )
                         Text(
                             text = context.translation["manager.dialogs.export_config.content"] ?: "Include sensitive data?",
                             style = MaterialTheme.typography.bodyMedium,
                             textAlign = TextAlign.Center,
-                            color = PurrfectPalette.textSecondary,
+                            color = FeaturesSkinPalette.textSecondary,
                             modifier = Modifier.padding(horizontal = 6.dp)
                         )
 
@@ -1834,7 +1874,7 @@ class FeaturesRootSection : Routes.Route() {
                             Text(
                                 text = context.translation["include_saved_locations"] ?: "Include Saved Locations",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White
+                                color = FeaturesSkinPalette.textPrimary
                             )
                             Switch(
                                 checked = includeSavedLocations.value,
@@ -1858,8 +1898,8 @@ class FeaturesRootSection : Routes.Route() {
                                     onDismiss()
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White.copy(alpha = 0.08f),
-                                    contentColor = Color.White
+                                    containerColor = FeaturesSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                    contentColor = FeaturesSkinPalette.textPrimary
                                 )
                             ) {
                                 Text(context.translation["button.negative"])
@@ -1870,8 +1910,8 @@ class FeaturesRootSection : Routes.Route() {
                                     onConfirm(true, includeSavedLocations.value)
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                    contentColor = Color.White
+                                    containerColor = FeaturesSkinPalette.glowPrimary.copy(alpha = 0.32f),
+                                    contentColor = FeaturesSkinPalette.textPrimary
                                 )
                             ) {
                                 Text(context.translation["button.positive"])

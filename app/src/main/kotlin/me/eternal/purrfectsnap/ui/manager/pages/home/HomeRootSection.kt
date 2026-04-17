@@ -1,119 +1,25 @@
 package me.eternal.purrfectsnap.ui.manager.pages.home
 
 import android.content.SharedPreferences
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Widgets
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.surfaceColorAtElevation
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.State
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.key
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withLink
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.navigation.NavBackStackEntry
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfectsnap.R
@@ -122,75 +28,267 @@ import me.eternal.purrfectsnap.common.BuildConfig
 import me.eternal.purrfectsnap.common.action.EnumAction
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableStateList
-import me.eternal.purrfectsnap.common.util.ktx.openLink
 import me.eternal.purrfectsnap.storage.getQuickTiles
 import me.eternal.purrfectsnap.storage.setQuickTiles
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.manager.data.UpdateDownloader
 import me.eternal.purrfectsnap.ui.manager.data.Updater
 import me.eternal.purrfectsnap.ui.manager.data.Updater.Channel
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
-import me.eternal.purrfectsnap.ui.util.AlertDialogs
-import me.eternal.purrfectsnap.ui.util.scaleOnPress
 import okhttp3.OkHttpClient
 import okhttp3.Request
+
+/**
+ * Encapsulates all shared state and callbacks for the Home screen.
+ * This is the "Brain" passed to the "Skin" (Themes).
+ */
+data class HomeState(
+    val selectedTiles: List<String>,
+    val latestUpdate: Updater.LatestRelease?,
+    val downloadState: UpdateDownloader.DownloadState,
+    val downloadProgress: Float,
+    val channelLabel: String,
+    val isPurrAuraActive: Boolean,
+    val avenirNext: FontFamily,
+    val onUpdateAction: () -> Unit,
+    val onShowAnnouncements: () -> Unit,
+    val onShowFullChangelog: () -> Unit,
+    val onShowQuickActionsMenu: () -> Unit
+)
 
 class HomeRootSection : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.sections.home") }
 
+    @Composable
+    fun HomeScreen(nav: NavBackStackEntry) {
+        val haptic = LocalHapticFeedback.current
+        val prefs = remember { context.sharedPreferences }
+        val allQuickTileNames = remember(cards) { cards.keys.map { it.first } }
+        
+        val selectedTiles = rememberAsyncMutableStateList(defaultValue = allQuickTileNames) {
+            val storedTiles = context.database.getQuickTiles().filter { it.isNotBlank() }
+            val hasInitializedQuickTiles = prefs.getBoolean(QUICK_TILES_INITIALIZED_PREF, false)
+            when {
+                storedTiles.isNotEmpty() -> {
+                    if (!hasInitializedQuickTiles) prefs.edit().putBoolean(QUICK_TILES_INITIALIZED_PREF, true).apply()
+                    storedTiles
+                }
+                hasInitializedQuickTiles -> storedTiles
+                else -> {
+                    context.database.setQuickTiles(allQuickTileNames)
+                    prefs.edit().putBoolean(QUICK_TILES_INITIALIZED_PREF, true).apply()
+                    allQuickTileNames
+                }
+            }
+        }
+
+        val updateChannel = context.config.root.global.updateSettings.updateChannel.getNullable() ?: "stable"
+        val channelLabel = if (updateChannel == "prerelease") translation["channel_label_prerelease"] ?: "" else translation["channel_label_stable"] ?: ""
+        
+        val latestUpdate by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(updateChannel)) {
+            val channel = if (updateChannel == "prerelease") Channel.PRERELEASE else Channel.STABLE
+            Updater.getLatestRelease(channel)
+        }
+
+        val changelogUrl = if (updateChannel == "prerelease") "https://raw.githubusercontent.com/particle-box/PurrfectSnap/dev/changelogs-prerelease.txt" else "https://raw.githubusercontent.com/particle-box/PurrfectSnap/dev/changelogs-stable.txt"
+        val downloadState by UpdateDownloader.downloadState.collectAsState()
+        val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
+        val coroutineScope = rememberCoroutineScope()
+        val isPurrAuraActive by rememberPreferenceBool("debug_test_mode", true)
+        val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
+
+        var showChangelogDialog by remember { mutableStateOf(false) }
+        var changelogText by remember { mutableStateOf<String?>(null) }
+        var changelogLoading by remember { mutableStateOf(false) }
+        var changelogError by remember { mutableStateOf<String?>(null) }
+
+        var showAnnouncementsDialog by remember { mutableStateOf(false) }
+        var announcementsText by remember { mutableStateOf<String?>(null) }
+        var announcementsLoading by remember { mutableStateOf(false) }
+        var announcementsError by remember { mutableStateOf<String?>(null) }
+
+        var showFullChangelogDialog by remember { mutableStateOf(false) }
+        var fullChangelogText by remember { mutableStateOf<String?>(null) }
+        var fullChangelogLoading by remember { mutableStateOf(false) }
+        var fullChangelogError by remember { mutableStateOf<String?>(null) }
+
+        fun loadChangelog(version: String, url: String) {
+            if (changelogText != null) return
+            changelogLoading = true
+            changelogError = null
+            coroutineScope.launch(Dispatchers.IO) {
+                runCatching {
+                    OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use { response ->
+                        val body = response.body?.string() ?: throw IllegalStateException("Empty body")
+                        extractChangelogForVersion(body, version)
+                    }
+                }.onSuccess { text ->
+                    withContext(Dispatchers.Main) { changelogText = text; changelogLoading = false }
+                }.onFailure { e ->
+                    withContext(Dispatchers.Main) { changelogError = e.message ?: "Failed to fetch"; changelogLoading = false }
+                }
+            }
+        }
+
+        fun loadAnnouncements() {
+            if (announcementsText != null) return
+            announcementsLoading = true
+            coroutineScope.launch(Dispatchers.IO) {
+                runCatching {
+                    OkHttpClient().newCall(Request.Builder().url(announcementsUrl).build()).execute().use { it.body?.string() ?: "" }
+                }.onSuccess { text ->
+                    withContext(Dispatchers.Main) { announcementsText = text; announcementsLoading = false }
+                }.onFailure { e ->
+                    withContext(Dispatchers.Main) { announcementsError = e.message ?: "Failed to fetch"; announcementsLoading = false }
+                }
+            }
+        }
+
+        fun loadFullChangelog(url: String) {
+            if (fullChangelogText != null) return
+            fullChangelogLoading = true
+            coroutineScope.launch(Dispatchers.IO) {
+                runCatching {
+                    OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use { it.body?.string() ?: "" }
+                }.onSuccess { text ->
+                    withContext(Dispatchers.Main) { fullChangelogText = text; fullChangelogLoading = false }
+                }.onFailure { e ->
+                    withContext(Dispatchers.Main) { fullChangelogError = e.message ?: "Failed to fetch"; fullChangelogLoading = false }
+                }
+            }
+        }
+
+        val handleUpdateAction: () -> Unit = {
+            latestUpdate?.let { latest ->
+                val abiName = android.os.Build.SUPPORTED_ABIS.firstNotNullOfOrNull {
+                    when (it) { "arm64-v8a" -> "arm64"; "armeabi-v7a" -> "armv7"; else -> null }
+                }
+                if (latest.workflowId != null) {
+                    if (abiName != null) {
+                        val artifactName = "purrfectsnap-${if (abiName == "arm64") "armv8" else "armv7"}-debug"
+                        UpdateDownloader.downloadAndInstall(context, "https://nightly.link/particle-box/PurrfectSnap/actions/runs/${latest.workflowId}/$artifactName.zip", "$artifactName.zip", coroutineScope)
+                    }
+                } else {
+                    abiName?.let { arch -> latest.assetDownloads[arch] }?.let { url ->
+                        UpdateDownloader.downloadAndInstall(context, url, url.substringAfterLast('/'), coroutineScope)
+                    }
+                }
+            }
+        }
+
+        var showQuickActionsMenu by remember { mutableStateOf(false) }
+
+        val homeState = HomeState(
+            selectedTiles = selectedTiles,
+            latestUpdate = latestUpdate,
+            downloadState = downloadState,
+            downloadProgress = downloadProgress,
+            channelLabel = channelLabel,
+            isPurrAuraActive = isPurrAuraActive,
+            avenirNext = avenirNext,
+            onUpdateAction = { latestUpdate?.let { showChangelogDialog = true; loadChangelog(it.versionName, changelogUrl) } },
+            onShowAnnouncements = { showAnnouncementsDialog = true; loadAnnouncements() },
+            onShowFullChangelog = { showFullChangelogDialog = true; loadFullChangelog(changelogUrl) },
+            onShowQuickActionsMenu = { showQuickActionsMenu = true }
+        )
+
+        // Routing via Theme Contract
+        val themeId = context.config.root.global.uiSettings.managerTheme.get()
+        key(themeId) {
+            with(ManagerTheme.fromId(themeId).theme) {
+                this@HomeRootSection.HomeScreen(nav, homeState)
+            }
+        }
+
+        // Shared Dialogs (Maintainer friendly)
+        if (showChangelogDialog) {
+            AestheticDialog(
+                onDismissRequest = { showChangelogDialog = false },
+                title = translation["changelog_dialog_title"] ?: "Changelog",
+                text = "", icon = Icons.Filled.Info,
+                confirmButtonText = translation["changelog_dialog_update_button"] ?: "Update",
+                onConfirm = { showChangelogDialog = false; handleUpdateAction() },
+                dismissButtonText = translation["changelog_dialog_cancel_button"] ?: "Cancel",
+                onDismiss = { showChangelogDialog = false },
+                showCloseButton = false,
+                customContent = {
+                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (changelogLoading) CircularProgressIndicator(color = Color.White)
+                        else if (changelogError != null) Text(changelogError!!, color = Color.Red, fontSize = 14.sp)
+                        else Text(changelogText ?: translation["changelog_dialog_empty"] ?: "", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+            )
+        }
+
+        if (showAnnouncementsDialog) {
+            AestheticDialog(
+                onDismissRequest = { showAnnouncementsDialog = false },
+                title = translation["announcements_dialog_title"] ?: "Announcements",
+                text = "", icon = Icons.Filled.Notifications,
+                confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
+                onConfirm = { showAnnouncementsDialog = false },
+                showCloseButton = false,
+                customContent = {
+                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (announcementsLoading) CircularProgressIndicator(color = Color.White)
+                        else if (announcementsError != null) Text(announcementsError!!, color = Color.Red, fontSize = 14.sp)
+                        else Text(announcementsText ?: translation["announcements_dialog_empty"] ?: "", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+            )
+        }
+
+        if (showFullChangelogDialog) {
+            AestheticDialog(
+                onDismissRequest = { showFullChangelogDialog = false },
+                title = translation["changelog_dialog_title"] ?: "Changelog",
+                text = "", icon = Icons.Filled.Description,
+                confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
+                onConfirm = { showFullChangelogDialog = false },
+                showCloseButton = false,
+                customContent = {
+                    Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (fullChangelogLoading) CircularProgressIndicator(color = Color.White)
+                        else if (fullChangelogError != null) Text(fullChangelogError!!, color = Color.Red, fontSize = 14.sp)
+                        else Text(fullChangelogText ?: translation["changelog_dialog_empty"] ?: "", color = Color.White, fontSize = 14.sp)
+                    }
+                }
+            )
+        }
+
+        if (showQuickActionsMenu) {
+            QuickActionsDialog(
+                quickActions = cards,
+                selectedQuickActions = selectedTiles,
+                onDismiss = { showQuickActionsMenu = false },
+                onSave = { newList ->
+                    val removed = selectedTiles.filter { it !in newList }
+                    removed.forEach { clearTileSpan(it); clearTileOffset(it) }
+                    selectedTiles.clear(); selectedTiles.addAll(newList)
+                    context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
+                    showQuickActionsMenu = false
+                },
+                translation = translation
+            )
+        }
+    }
+
     companion object {
         internal const val QUICK_TILES_INITIALIZED_PREF = "quick_tiles_initialized"
         val cardMargin = 10.dp
-        val pageBackgroundGradient = Brush.verticalGradient(
-            listOf(
-                Color(0xFF261F58),
-                Color(0xFF302A6D),
-                Color(0xFF241F52)
-            )
-        )
     }
 
-    internal val changelogClient by lazy { OkHttpClient() }
-    internal val changelogStableUrl = "https://raw.githubusercontent.com/particle-box/PurrfectSnap/dev/changelogs-stable.txt"
-    internal val changelogPrereleaseUrl = "https://raw.githubusercontent.com/particle-box/PurrfectSnap/dev/changelogs-prerelease.txt"
     internal val announcementsUrl = "https://raw.githubusercontent.com/particle-box/PurrfectSnap/dev/announcements.txt"
-
-    internal val heroGradientColors = listOf(
-        Color(0xFF5C4B99),
-        Color(0xFF322B5E),
-        Color(0xFF1B1836)
-    )
-    internal val quickActionsGradientColors = listOf(
-        Color(0xFF241C3E),
-        Color(0xFF151127)
-    )
     private lateinit var activityLauncherHelper: ActivityLauncherHelper
-    data class QaCard(val id: String, val name: String, val icon: ImageVector, val action: (Routes) -> Unit)
-    internal val cardEntries by lazy {
-        val list = mutableListOf<QaCard>()
-        EnumQuickActions.entries.forEach { q ->
-            val name = context.translation["actions.${q.key}.name"]
-            list.add(QaCard(id = "quick.${q.key}", name = name, icon = q.icon, action = q.action))
-        }
-        EnumAction.entries.forEach { a ->
-            val name = context.translation["actions.${a.key}.name"]
-            list.add(QaCard(id = "action.${a.key}", name = name, icon = a.icon, action = { context.launchActionIntent(a) }))
-        }
-        list
-    }
     internal val cards by lazy {
         EnumQuickActions.entries.map {
             (context.translation["actions.${it.key}.name"] to it.icon) to it.action
-        }.associate {
-            it.first to it.second
-        }.toMutableMap().apply {
+        }.associate { it.first to it.second }.toMutableMap().apply {
             EnumAction.entries.forEach { action ->
-                this[context.translation["actions.${action.key}.name"] to action.icon] = {
-                    context.launchActionIntent(action)
-                }
+                this[context.translation["actions.${action.key}.name"] to action.icon] = { context.launchActionIntent(action) }
             }
         }
     }
@@ -201,9 +299,7 @@ class HomeRootSection : Routes.Route() {
         val state = remember { mutableStateOf(prefs.getBoolean(key, default)) }
         DisposableEffect(prefs, key) {
             val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
-                if (changedKey == key) {
-                    state.value = prefs.getBoolean(key, default)
-                }
+                if (changedKey == key) { state.value = prefs.getBoolean(key, default) }
             }
             prefs.registerOnSharedPreferenceChangeListener(listener)
             onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
@@ -211,572 +307,41 @@ class HomeRootSection : Routes.Route() {
         return state
     }
 
-    @Composable
-    fun ExternalLinkIcon(
-        modifier: Modifier = Modifier,
-        size: Dp = 44.dp,
-        imageVector: ImageVector,
-        onClick: (() -> Unit)? = null,
-        tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-        containerColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-        haptic: HapticFeedback? = null,
-    ) {
-        val interactionSource = remember { MutableInteractionSource() }
-        val clickModifier = if (onClick != null) {
-            Modifier.clickable(
-                interactionSource = interactionSource,
-                indication = LocalIndication.current
-            ) { 
-                haptic?.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick() 
-            }
-        } else {
-            Modifier
-        }
-        Box(
-            modifier = modifier
-                .size(size)
-                .clip(RoundedCornerShape(50))
-                .background(containerColor)
-                .scaleOnPress(interactionSource)
-                .then(clickModifier)
-        ) {
-            Icon(
-                imageVector = imageVector,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(size * 0.55f)
-            )
-        }
-    }
-
-    @Composable
-    internal fun HeroBadge(text: String) {
-        Text(
-            text = text,
-            color = Color.White,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.15f))
-                .padding(horizontal = 14.dp, vertical = 6.dp)
-        )
-    }
-
-    @Composable
-    private fun TopBarActionChip(
-        icon: ImageVector,
-        label: String? = null,
-        contentDescription: String? = label,
-        onClick: () -> Unit,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(40),
-            color = Color.White.copy(alpha = 0.06f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
-        ) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(40))
-                    .clickable(onClick = onClick)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(icon, contentDescription = contentDescription, tint = Color.White)
-                label?.let {
-                    Text(
-                        text = it,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-
-    @Composable
-    private fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
-        OutlinedCard(
-            modifier = Modifier
-                .padding(start = cardMargin, end = cardMargin)
-                .fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(all = 10.dp),
-                content = content
-            )
-        }
-    }
-
-    @Composable
-    private fun RowScope.HomeActionChips() {
-        TopBarActionChip(
-            icon = Icons.Filled.BugReport,
-            label = context.translation["manager.routes.home_logs"]
-        ) { routes.homeLogs.navigate() }
-        TopBarActionChip(
-            icon = Icons.Filled.Info,
-            label = translation["manager.routes.home_about"]
-        ) { routes.about.navigate() }
-    }
-
-
-    @Composable
-    private fun AuroraBackground() {
-        val infiniteTransition = rememberInfiniteTransition(label = "aurora")
-        val driftX by infiniteTransition.animateFloat(
-            initialValue = -120f,
-            targetValue = 220f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 16000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "driftX"
-        )
-        val driftY by infiniteTransition.animateFloat(
-            initialValue = 80f,
-            targetValue = -140f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 14000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "driftY"
-        )
-        val shimmer by infiniteTransition.animateFloat(
-            initialValue = -120f,
-            targetValue = 160f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 11000, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "shimmer"
-        )
-
-        val primaryGlow = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-        val tertiaryGlow = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.22f)
-        val trailGradient = listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
-        )
-
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(primaryGlow, Color.Transparent),
-                    center = Offset(
-                        x = size.width * 0.25f + driftX,
-                        y = size.height * 0.18f + driftY * 0.4f
-                    ),
-                    radius = size.minDimension * 0.9f
-                ),
-                alpha = 0.85f
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(tertiaryGlow, Color.Transparent),
-                    center = Offset(
-                        x = size.width * 0.78f - driftX * 0.45f,
-                        y = size.height * 0.72f
-                    ),
-                    radius = size.minDimension * 0.95f
-                ),
-                alpha = 0.9f
-            )
-            drawRect(
-                brush = Brush.linearGradient(
-                    colors = trailGradient,
-                    start = Offset(x = 0f, y = size.height * 0.15f + shimmer),
-                    end = Offset(x = size.width, y = size.height * 0.9f + shimmer)
-                ),
-                size = this.size,
-                alpha = 0.24f
-            )
-        }
-    }
-
-    @OptIn(ExperimentalLayoutApi::class)
-    @Composable
-    private fun HeroSection(
-        versionName: String,
-        latestUpdate: Updater.LatestRelease?,
-        downloadState: UpdateDownloader.DownloadState,
-        downloadProgress: Float,
-        onUpdateAction: () -> Unit,
-        channelLabel: String,
-        isPurrAuraActive: Boolean,
-        onWebsiteClick: () -> Unit,
-        onTelegramClick: () -> Unit,
-        onGithubClick: () -> Unit,
-        authorName: String,
-        onManageClick: () -> Unit,
-        avenirNext: FontFamily
-    ) {
-        val heroShape = RoundedCornerShape(36.dp)
-        val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
-        Box(
-            modifier = Modifier
-                .padding(horizontal = cardMargin, vertical = 6.dp)
-                .clip(heroShape)
-                .background(
-                    Brush.linearGradient(
-                        heroGradientColors
-                    )
-                )
-                .border(1.dp, Color.White.copy(alpha = 0.1f), heroShape)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 22.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "PurrfectSnap",
-                        color = Color.White,
-                        fontSize = 34.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFamily = avenirNext
-                    )
-                    Text(
-                        text = "By ΞTΞRNAL",
-                        color = Color.White.copy(alpha = 0.75f),
-                        fontSize = 14.sp,
-                        fontFamily = avenirNext
-                    )
-                    Text(
-                        text = translation["hero_tagline"],
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 15.sp,
-                        lineHeight = 20.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            HeroBadge(translation.format("hero_version_label", "version" to versionName, "channel" to channelLabel))
-            gitHashShort.takeIf { it.isNotBlank() && it.lowercase() != "unknown" }?.let {
-                HeroBadge(translation.format("hero_build_label", "build" to it))
-            }
-        }
-
-                if (latestUpdate != null) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.08f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                        tonalElevation = 0.dp,
-                        shadowElevation = 0.dp
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = translation["update_title"],
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 14.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = translation.format(
-                                        "update_content",
-                                        "version" to (latestUpdate.versionName)
-                                    ),
-                                    color = Color.White.copy(alpha = 0.82f),
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                            AnimatedContent(
-                                targetState = downloadState,
-                                label = "UpdateDownloadHero"
-                            ) { state ->
-                                when (state) {
-                                    UpdateDownloader.DownloadState.IDLE,
-                                    UpdateDownloader.DownloadState.FAILED -> {
-                                        Button(
-                                            onClick = onUpdateAction,
-                                            shape = RoundedCornerShape(50),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color.White,
-                                                contentColor = Color(0xFF1B152E)
-                                            ),
-                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                                            contentPadding = PaddingValues(12.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Download,
-                                                contentDescription = translation["download_icon_description"],
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-
-                                    UpdateDownloader.DownloadState.DOWNLOADING -> {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                            modifier = Modifier.padding(end = 6.dp)
-                                        ) {
-                                            CircularProgressIndicator(
-                                                progress = { downloadProgress },
-                                                modifier = Modifier.size(28.dp),
-                                                strokeWidth = 3.dp,
-                                                color = Color.White
-                                            )
-                                            Text(
-                                                text = "${(downloadProgress * 100).toInt()}%",
-                                                color = Color.White,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    }
-
-                                    UpdateDownloader.DownloadState.COMPLETED -> {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = translation["completed_icon_description"],
-                                                tint = Color(0xFFA3F0C2)
-                                            )
-                                            Text(
-                                                text = translation["update_ready_label"],
-                                                color = Color.White,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Surface(
-                    color = Color.White.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color.White.copy(alpha = 0.06f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .clip(RoundedCornerShape(50))
-                                        .background(if (isPurrAuraActive) PurrfectPalette.glowPrimary else Color(0xFF8C8CA3))
-                                )
-                                Text(
-                                    text = if (isPurrAuraActive) translation["purr_aura_active_label"] else translation["purr_aura_inactive_label"],
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = onManageClick,
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                            modifier = Alignment.CenterHorizontally.let { Modifier.align(it) }
-                        ) {
-                            Icon(Icons.Filled.Settings, contentDescription = null, tint = Color.White)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(translation["open_settings_button"])
-                        }
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(26.dp),
-                    color = Color.White.copy(alpha = 0.06f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            modifier = Modifier.weight(1f),
-                            onClick = onWebsiteClick,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFF1B152E)
-                            )
-                        ) {
-                            Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Site", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        OutlinedButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = onGithubClick,
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                        ) {
-                            Icon(
-                                imageVector = ImageVector.vectorResource(id = R.drawable.ic_github),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = translation["github_button"], maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
-                        ExternalLinkIcon(
-                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
-                            onClick = onTelegramClick,
-                            tint = Color.White,
-                            containerColor = Color.White.copy(alpha = 0.14f)
-                        )
-                    }
-                }
-            }
-        }
-    }
     internal fun resolveTileKey(name: String): String {
-        val entry = cardEntries.firstOrNull { it.name == name }
-        return entry?.id ?: name
+        val entry = EnumQuickActions.entries.find { context.translation["actions.${it.key}.name"] == name }
+        if (entry != null) return "quick.${entry.key}"
+        val actionEntry = EnumAction.entries.find { context.translation["actions.${it.key}.name"] == name }
+        return if (actionEntry != null) "action.${actionEntry.key}" else name
     }
-    private fun getTileSpan(name: String): Pair<Int, Int> {
-        val prefs = context.sharedPreferences
-        val key = resolveTileKey(name)
-        val raw = prefs.getString("quick_tile_size_$key", null) ?: "1x1"
-        val parts = raw.split('x')
-        val w = parts.getOrNull(0)?.toIntOrNull()?.coerceIn(1, 3) ?: 1
-        val h = parts.getOrNull(1)?.toIntOrNull()?.coerceIn(1, 3) ?: 1
-        return w to h
-    }
-    private fun setTileSpan(name: String, w: Int, h: Int) {
-        val prefs = context.sharedPreferences
-        val key = resolveTileKey(name)
-        prefs.edit().putString("quick_tile_size_$key", "${w.coerceIn(1,3)}x${h.coerceIn(1,3)}").apply()
-    }
+
     internal fun clearTileSpan(name: String) {
-        val prefs = context.sharedPreferences
         val key = resolveTileKey(name)
-        prefs.edit().remove("quick_tile_size_$key").apply()
+        context.sharedPreferences.edit().remove("quick_tile_size_$key").apply()
     }
 
     internal fun clearTileOffset(name: String) {
-        val prefs = context.sharedPreferences
         val key = resolveTileKey(name)
-        prefs.edit().remove("quick_tile_offset_$key").apply()
+        context.sharedPreferences.edit().remove("quick_tile_offset_$key").apply()
     }
 
     override val title: @Composable (() -> Unit)? = {}
-    override val init: () -> Unit = {
-        activityLauncherHelper = ActivityLauncherHelper(context.activity!!)
-    }
-    override val topBarActions: @Composable (RowScope.() -> Unit) = {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Spacer(modifier = Modifier.weight(1f))
-            HomeActionChips()
-        }
-    }
-
-
-    override val content: @Composable (NavBackStackEntry) -> Unit = { nav ->
-        val themeId by produceState(
-            initialValue = context.config.root.global.uiSettings.managerTheme.get()
-        ) {
-            while (true) {
-                delay(300)
-                value = context.config.root.global.uiSettings.managerTheme.get()
-            }
-        }
-        key(themeId) {
-            with(ManagerTheme.fromId(themeId).theme) {
-                this@HomeRootSection.HomeScreen(nav)
-            }
-        }
-    }
+    override val init: () -> Unit = { activityLauncherHelper = ActivityLauncherHelper(context.activity!!) }
+    override val topBarActions: @Composable (RowScope.() -> Unit) = { }
+    override val content: @Composable (NavBackStackEntry) -> Unit = { nav -> HomeScreen(nav) }
 
     internal fun extractChangelogForVersion(raw: String, version: String): String {
-    val lines = raw.lines()
-    val headerRegex = Regex("^\\s*#+\\s*v?${Regex.escape(version)}\\b", RegexOption.IGNORE_CASE)
-    val collected = mutableListOf<String>()
-    var collecting = false
-    for (line in lines) {
-        if (!collecting) {
-            if (headerRegex.containsMatchIn(line)) {
-                collecting = true
+        val lines = raw.lines()
+        val headerRegex = Regex("^\\s*#+\\s*v?${Regex.escape(version)}\\b", RegexOption.IGNORE_CASE)
+        val collected = mutableListOf<String>()
+        var collecting = false
+        for (line in lines) {
+            if (!collecting) {
+                if (headerRegex.containsMatchIn(line)) { collecting = true }
+                continue
             }
-            continue
+            if (line.trimStart().startsWith("#")) break
+            collected.add(line)
         }
-        if (line.trimStart().startsWith("#")) break
-        collected.add(line)
+        return collected.joinToString("\n").trim()
     }
-    return collected.joinToString("\n").trim()
 }
-}
-
-
-
-
-

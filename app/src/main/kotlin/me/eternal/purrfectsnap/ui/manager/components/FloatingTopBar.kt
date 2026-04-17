@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -27,32 +29,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfectsnap.ui.util.PurrfectMarqueeText
 import me.eternal.purrfectsnap.ui.util.Motion
 import me.eternal.purrfectsnap.ui.util.headerHeightTracker
 
-@Immutable
-data class FloatingTopBarColors(
-    val container: Color,
-    val borderStart: Color,
-    val borderEnd: Color
-)
-
-@Composable
-fun rememberDefaultFloatingTopBarColors(): FloatingTopBarColors {
-    return remember {
-        FloatingTopBarColors(
-            container = Color.White.copy(alpha = 0.12f), 
-            borderStart = PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-            borderEnd = PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
-        )
-    }
-}
+import me.eternal.purrfectsnap.ui.manager.theme.aetherGlass
 
 /**
  * Unified Floating Top Bar for Aphelion.
  * Handles the signature morphing animation and provides a "Bottom Content" slot.
+ * 
+ * Literal Restoration from 'dev' branch with Skin Mapping.
  */
 @Composable
 fun FloatingTopBar(
@@ -65,59 +53,78 @@ fun FloatingTopBar(
     containerAlpha: Float = 1f,
     titleAlignment: Alignment.Horizontal = Alignment.Start,
     actions: @Composable RowScope.() -> Unit = {},
-    bottomContent: @Composable ColumnScope.(Float) -> Unit = {},
-    colors: FloatingTopBarColors = rememberDefaultFloatingTopBarColors()
+    bottomContent: @Composable ColumnScope.(Float) -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    
+    val context = LocalContext.current
+    val managerTheme by produceState(
+        initialValue = me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get()
+    ) {
+        while (true) {
+            kotlinx.coroutines.delay(250)
+            value = me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get()
+        }
+    }
+    val isAphelion = managerTheme == "APHELION"
+    val skin = if (isAphelion) LocalPurrfectSkin.current else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette
+
     val focusFactor by remember(scrollOffset, enableMorph) {
-        derivedStateOf { 
-            if (!enableMorph) 0f 
-            else (scrollOffset.toFloat() / Motion.HEADER_MORPH_THRESHOLD).coerceIn(0f, 1f) 
+        derivedStateOf {
+            if (!enableMorph) 0f
+            else (scrollOffset.toFloat() / Motion.HEADER_MORPH_THRESHOLD).coerceIn(0f, 1f)
         }
     }
 
-    val morphingParams by remember(focusFactor, statusBarHeight) {
+    // Spring-based physics for Aether
+    val springFocusFactor by animateFloatAsState(
+        targetValue = focusFactor,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow),
+        label = "aetherSpring"
+    )
+
+    val activeFocus = if (skin.id == "AETHER") springFocusFactor else focusFactor
+
+    val morphingParams by remember(activeFocus, statusBarHeight) {
         derivedStateOf {
             object {
-                val headerHeight = lerp(64.dp, 56.dp, focusFactor)
-                val sidePadding = lerp(14.dp, 0.dp, focusFactor)
-                val containerTopPadding = lerp(statusBarHeight + 4.dp, 0.dp, focusFactor)
-                val internalTopPadding = lerp(0.dp, statusBarHeight, focusFactor)
-                val internalVerticalPadding = lerp(8.dp, 0.dp, focusFactor)
-                val topCorners = lerp(26.dp, 0.dp, focusFactor)
-                val bottomCorners = lerp(26.dp, 28.dp, focusFactor)
-                val subtitleAlpha = (1f - (focusFactor * 2.5f)).coerceIn(0f, 1f)
-                val subtitleTranslationY = lerp(0.dp, (-10).dp, focusFactor)
-                val iconScale = 1f - (0.12f * focusFactor)
-                val horizontalShift = (6 * focusFactor).dp
+                val headerHeight = lerp(64.dp, 56.dp, activeFocus)
+                val sidePadding = lerp(14.dp, 0.dp, activeFocus)
+                val containerTopPadding = lerp(statusBarHeight + 4.dp, 0.dp, activeFocus)
+                val internalTopPadding = lerp(0.dp, statusBarHeight, activeFocus)
+                val internalVerticalPadding = lerp(8.dp, 0.dp, activeFocus)
+                val topCorners = lerp(26.dp, 0.dp, activeFocus)
+                val bottomCorners = lerp(26.dp, 28.dp, activeFocus)
+                val subtitleAlpha = (1f - (activeFocus * 2.5f)).coerceIn(0f, 1f)
+                val subtitleTranslationY = lerp(0.dp, (-10).dp, activeFocus)
+                val iconScale = 1f - (0.12f * activeFocus)
+                val horizontalShift = (6 * activeFocus).dp
             }
         }
     }
 
     var hasSnapped by remember { mutableStateOf(false) }
-    LaunchedEffect(focusFactor) {
-        if (focusFactor >= 1f && !hasSnapped && scrollOffset > 10) {
+    LaunchedEffect(activeFocus) {
+        if (activeFocus >= 1f && !hasSnapped && scrollOffset > 10) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             hasSnapped = true
-        } else if (focusFactor < 0.5f) {
+        } else if (activeFocus < 0.5f) {
             hasSnapped = false
         }
     }
 
     val shape = remember(morphingParams.topCorners, morphingParams.bottomCorners) {
         RoundedCornerShape(
-            topStart = morphingParams.topCorners, 
-            topEnd = morphingParams.topCorners, 
-            bottomStart = morphingParams.bottomCorners, 
+            topStart = morphingParams.topCorners,
+            topEnd = morphingParams.topCorners,
+            bottomStart = morphingParams.bottomCorners,
             bottomEnd = morphingParams.bottomCorners
         )
     }
 
     val borderPath = remember { Path() }
     val uPath = remember { Path() }
-    val refractiveColor = remember { Color(0xFF241F52) }
+    val refractiveColor = skin.refractiveColor
 
     Box(modifier = modifier.fillMaxWidth().zIndex(10f)) {
         Box(
@@ -125,11 +132,11 @@ fun FloatingTopBar(
                 .fillMaxWidth()
                 .padding(horizontal = morphingParams.sidePadding)
                 .padding(top = morphingParams.containerTopPadding)
-                .height(morphingParams.internalTopPadding + morphingParams.headerHeight + 32.dp) 
+                .height(morphingParams.internalTopPadding + morphingParams.headerHeight + 32.dp)
                 .background(
                     Brush.verticalGradient(
-                        0.0f to refractiveColor.copy(alpha = 0.95f * focusFactor),
-                        0.6f to refractiveColor.copy(alpha = 0.85f * focusFactor),
+                        0.0f to refractiveColor.copy(alpha = 0.95f * activeFocus),
+                        0.6f to refractiveColor.copy(alpha = 0.85f * activeFocus),
                         1.0f to Color.Transparent
                     )
                 )
@@ -140,32 +147,49 @@ fun FloatingTopBar(
                 .fillMaxWidth()
                 .padding(horizontal = morphingParams.sidePadding)
                 .padding(top = morphingParams.containerTopPadding)
-                .graphicsLayer { 
+                .graphicsLayer {
                     alpha = containerAlpha
-                },
+                }
+                .then(
+                    if (skin.id == "AETHER") {
+                        Modifier.aetherGlass(
+                            skin = skin,
+                            topStart = morphingParams.topCorners,
+                            topEnd = morphingParams.topCorners,
+                            bottomStart = morphingParams.bottomCorners,
+                            bottomEnd = morphingParams.bottomCorners,
+                            focusFactor = activeFocus
+                        )
+                    } else Modifier
+                ),
             shape = shape,
             color = Color.Transparent,
             tonalElevation = 0.dp,
-            shadowElevation = (4 * focusFactor).dp
+            shadowElevation = (4 * activeFocus).dp
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF1B152E).copy(alpha = 0.85f + (0.1f * focusFactor)),
-                                refractiveColor.copy(alpha = 0.85f + (0.1f * focusFactor))
+                    .then(
+                        if (skin.id != "AETHER") {
+                            Modifier.background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        skin.cardOverlayColor.copy(alpha = 0.85f + (0.1f * activeFocus)),
+                                        refractiveColor.copy(alpha = 0.85f + (0.1f * activeFocus))
+                                    )
+                                )
                             )
-                        )
+                        } else Modifier
                     )
                     .drawBehind {
+                        if (skin.id == "AETHER") return@drawBehind
                         val strokeWidth = 1.dp.toPx()
-                        val brush = Brush.linearGradient(listOf(colors.borderStart, colors.borderEnd))
+                        val brush = Brush.linearGradient(listOf(skin.glowPrimary.copy(alpha = 0.6f), skin.glowSecondary.copy(alpha = 0.4f)))
                         val tr = morphingParams.topCorners.toPx()
                         val br = morphingParams.bottomCorners.toPx()
-                        
-                        if (focusFactor > 0.9f) {
+
+                        if (activeFocus > 0.9f) {
                             uPath.reset()
                             uPath.apply {
                                 moveTo(0f, 0f)
@@ -187,7 +211,7 @@ fun FloatingTopBar(
                                 lineTo(br, size.height)
                                 arcTo(androidx.compose.ui.geometry.Rect(0f, size.height - 2*br, 2*br, size.height), 90f, 90f, false)
                                 lineTo(0f, tr)
-                                arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, 2*tr, 2*tr), 180f, 90f, false)
+                                arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, 2 * tr, 2 * tr), 180f, 90f, false)
                             }
                             drawPath(borderPath, brush, style = Stroke(strokeWidth))
                         }
@@ -205,13 +229,13 @@ fun FloatingTopBar(
                     ) {
                         if (onBack != null) {
                             IconButton(
-                                onClick = { 
+                                onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onBack() 
-                                }, 
+                                    onBack()
+                                },
                                 modifier = Modifier
                                     .size(44.dp)
-                                    .graphicsLayer { 
+                                    .graphicsLayer {
                                         scaleX = morphingParams.iconScale
                                         scaleY = morphingParams.iconScale
                                         translationX = -morphingParams.horizontalShift.toPx()
@@ -220,7 +244,7 @@ fun FloatingTopBar(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = null,
-                                    tint = Color.White
+                                    tint = skin.textPrimary
                                 )
                             }
                         }
@@ -234,7 +258,7 @@ fun FloatingTopBar(
                         ) {
                             Text(
                                 text = title,
-                                color = Color.White,
+                                color = skin.textPrimary,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 19.sp,
                                 maxLines = 1,
@@ -245,14 +269,14 @@ fun FloatingTopBar(
                             if (!subtitle.isNullOrBlank() && morphingParams.subtitleAlpha > 0.01f) {
                                 PurrfectMarqueeText(
                                     text = subtitle,
-                                    color = PurrfectPalette.textSecondary.copy(alpha = morphingParams.subtitleAlpha),
+                                    color = skin.textSecondary.copy(alpha = morphingParams.subtitleAlpha),
                                     style = TextStyle(fontSize = 13.sp),
                                     textAlign = if (titleAlignment == Alignment.CenterHorizontally) TextAlign.Center else TextAlign.Start,
                                     contentAlignment = if (titleAlignment == Alignment.CenterHorizontally) Alignment.Center else Alignment.CenterStart,
                                     enabled = true,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .graphicsLayer { 
+                                        .graphicsLayer {
                                             translationY = morphingParams.subtitleTranslationY.toPx()
                                             alpha = morphingParams.subtitleAlpha
                                         }
@@ -263,7 +287,7 @@ fun FloatingTopBar(
                         Row(
                             modifier = Modifier
                                 .wrapContentWidth()
-                                .graphicsLayer { 
+                                .graphicsLayer {
                                     scaleX = morphingParams.iconScale
                                     scaleY = morphingParams.iconScale
                                     if (onBack != null) {
@@ -276,7 +300,7 @@ fun FloatingTopBar(
                             actions()
                         }
                     }
-                    
+
                     bottomContent(focusFactor)
                 }
             }

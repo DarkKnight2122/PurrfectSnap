@@ -1,4 +1,4 @@
-package me.eternal.purrfectsnap.ui.manager.pages
+﻿package me.eternal.purrfectsnap.ui.manager.pages
 
 import android.content.Intent
 import android.graphics.drawable.ColorDrawable
@@ -66,26 +66,45 @@ import me.eternal.purrfectsnap.task.TaskStatus
 import me.eternal.purrfectsnap.task.TaskType
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
-import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfectsnap.common.ui.util.*
 import me.eternal.purrfectsnap.ui.util.*
 import java.io.File
+
+private object TasksSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfectsnap.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.glowPrimary
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.glowSecondary
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.backgroundGradient
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.cardOverlay
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.textPrimary
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.textSecondary
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else me.eternal.purrfectsnap.common.ui.theme.PurrfectPalette.cardOverlayColor
+}
 
 class TasksRootSection : Routes.Route() {
     enum class TaskTab {
         ACTIVE, SCHEDULED
     }
 
-    internal var selectedTab by mutableStateOf(TaskTab.ACTIVE)
-    internal var activeTasks by mutableStateOf(listOf<PendingTask>())
-    internal var recentTasks = mutableStateListOf<Task>()
-    internal val taskSelection = mutableStateListOf<Pair<Task, DocumentFile?>>()
-    internal var lastFetchedTaskId: Long? by mutableStateOf(null)
+    var selectedTab by mutableStateOf(TaskTab.ACTIVE)
+    var activeTasks by mutableStateOf(listOf<PendingTask>())
+    var recentTasks = mutableStateListOf<Task>()
+    val taskSelection = mutableStateListOf<Pair<Task, DocumentFile?>>()
+    var lastFetchedTaskId: Long? by mutableStateOf(null)
 
-    internal fun fetchActiveTasks(scope: CoroutineScope) {
+    fun fetchActiveTasks(scope: CoroutineScope) {
         activeTasks = context.taskManager.getActiveTasks().values.toList()
     }
 
-    internal fun fetchNewRecentTasks() {
+    fun fetchNewRecentTasks() {
         val tasks = context.taskManager.fetchStoredTasks(lastFetchedTaskId ?: Long.MAX_VALUE, limit = 20)
         if (tasks.isEmpty()) return
         
@@ -97,7 +116,7 @@ class TasksRootSection : Routes.Route() {
         recentTasks.addAll(newTasks)
     }
 
-    internal fun refreshRecentTasks() {
+    fun refreshRecentTasks() {
         val tasks = context.taskManager.fetchStoredTasks(Long.MAX_VALUE, limit = 20)
         val activeTaskHashes = activeTasks.map { it.task.hash }
         val newTasks = tasks.values.filter { it.hash !in activeTaskHashes }
@@ -179,21 +198,26 @@ class TasksRootSection : Routes.Route() {
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(modifier = Modifier.fillMaxSize().background(PurrfectPalette.backgroundGradient))
+            val backgroundGradient = TasksSkinPalette.backgroundGradient
+            Box(modifier = Modifier.fillMaxSize().background(backgroundGradient))
 
             Column(modifier = Modifier.fillMaxSize()) {
                 Spacer(Modifier.height(controlsHeight))
+
+                val skin = LocalPurrfectSkin.current
+                val isAether = skin.id == "AETHER"
+                val containerShape = if (isAether) G2RoundedRectangle(28.dp) else RoundedCornerShape(22.dp)
 
                 Surface(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp),
-                    shape = RoundedCornerShape(22.dp),
-                    color = Color.White.copy(alpha = 0.04f),
+                    shape = containerShape,
+                    color = if (isAether) skin.cardOverlayColor else TasksSkinPalette.textPrimary.copy(alpha = 0.04f),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                    border = BorderStroke(1.dp, if (isAether) skin.laserBorder.copy(alpha = 0.35f) else TasksSkinPalette.textPrimary.copy(alpha = 0.08f))
                 ) {
                     LazyColumn(
                         state = listState,
@@ -228,8 +252,8 @@ class TasksRootSection : Routes.Route() {
                                 Surface(
                                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     shape = MaterialTheme.shapes.large,
-                                    color = Color.White.copy(alpha = 0.05f),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                                    color = TasksSkinPalette.textPrimary.copy(alpha = 0.05f),
+                                    border = BorderStroke(1.dp, TasksSkinPalette.textPrimary.copy(alpha = 0.1f))
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(
@@ -247,7 +271,7 @@ class TasksRootSection : Routes.Route() {
                                         Text(
                                             "${translation["auto_open_snaps.queue_size"] ?: "Queue"}: ${queueItems.size} \u00b7 ${translation["auto_open_snaps.processed_count"] ?: "Opened"}: $processedCount",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = Color.White.copy(alpha = 0.6f)
+                                            color = TasksSkinPalette.textPrimary.copy(alpha = 0.6f)
                                         )
                                     }
                                 }
@@ -260,8 +284,6 @@ class TasksRootSection : Routes.Route() {
                             }
                         }
 
-                        // CONSOLIDATED SESSION VIEW: Group Auto-Open tasks by their persistent session task.
-                        // Non-AutoOpen tasks (Downloads, etc.) remain as individual cards.
                         val groupedActiveTasks = activeTasks.distinctBy { it.task.hash }
 
                         items(groupedActiveTasks, key = { it.task.hash }) { pendingTask ->
@@ -277,6 +299,9 @@ class TasksRootSection : Routes.Route() {
                                 label = "alpha"
                             )
 
+                            val glowPrimary = TasksSkinPalette.glowPrimary
+                            val glowSecondary = TasksSkinPalette.glowSecondary
+
                             TaskCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -286,8 +311,8 @@ class TasksRootSection : Routes.Route() {
                                                 width = 1.5.dp,
                                                 brush = Brush.linearGradient(
                                                     listOf(
-                                                        PurrfectPalette.glowPrimary.copy(alpha = pulseAlpha),
-                                                        PurrfectPalette.glowSecondary.copy(alpha = pulseAlpha)
+                                                        glowPrimary.copy(alpha = pulseAlpha),
+                                                        glowSecondary.copy(alpha = pulseAlpha)
                                                     )
                                                 ),
                                                 shape = MaterialTheme.shapes.large
@@ -421,26 +446,29 @@ class TasksRootSection : Routes.Route() {
 
         val dialogShape = RoundedCornerShape(24.dp)
         val haptic = LocalHapticFeedback.current
-        val borderGradient = remember {
-            Brush.linearGradient(
-                listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.65f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.55f)
-                )
+        val glowPrimary = TasksSkinPalette.glowPrimary
+        val glowSecondary = TasksSkinPalette.glowSecondary
+        val textSecondary = TasksSkinPalette.textSecondary
+        val cardOverlay = TasksSkinPalette.cardOverlay
+
+        val borderGradient = Brush.linearGradient(
+            listOf(
+                glowPrimary.copy(alpha = 0.65f),
+                glowSecondary.copy(alpha = 0.55f)
             )
-        }
+        )
 
         Dialog(onDismissRequest = onDismiss) {
             Surface(
                 shape = dialogShape,
-                color = Color.White.copy(alpha = 0.06f),
+                color = TasksSkinPalette.textPrimary.copy(alpha = 0.06f),
                 tonalElevation = 0.dp,
                 shadowElevation = 20.dp,
                 border = BorderStroke(1.dp, borderGradient)
             ) {
                 Box(
                     modifier = Modifier
-                        .background(PurrfectPalette.cardOverlay, dialogShape)
+                        .background(cardOverlay, dialogShape)
                 ) {
                     Column(
                         modifier = Modifier
@@ -461,24 +489,24 @@ class TasksRootSection : Routes.Route() {
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                                color = Color.White
+                                color = TasksSkinPalette.textPrimary
                             )
                         }
 
                         Text(
                             text = message,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = PurrfectPalette.textSecondary
+                            color = textSecondary
                         )
 
                         if (showDeleteFiles) {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(16.dp),
-                                color = Color.White.copy(alpha = 0.05f),
+                                color = TasksSkinPalette.textPrimary.copy(alpha = 0.05f),
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp,
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                                border = BorderStroke(1.dp, TasksSkinPalette.textPrimary.copy(alpha = 0.08f))
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -498,20 +526,20 @@ class TasksRootSection : Routes.Route() {
                                             onToggleDeleteFiles(it) 
                                         },
                                         colors = CheckboxDefaults.colors(
-                                            checkedColor = PurrfectPalette.glowPrimary,
+                                            checkedColor = glowPrimary,
                                             uncheckedColor = Color.White,
                                             checkmarkColor = Color.Black
                                         )
                                     )
                                     Column {
                                         Text(
-                                            text = context.translation["delete_files_option"],
-                                            color = Color.White,
+                                            text = context.translation["delete_files_option"] ?: "Delete Files",
+                                            color = TasksSkinPalette.textPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Text(
                                             text = context.translation["delete_files_option_hint"] ?: "Also remove downloaded files",
-                                            color = PurrfectPalette.textSecondary,
+                                            color = textSecondary,
                                             style = MaterialTheme.typography.bodySmall
                                         )
                                     }
@@ -529,11 +557,11 @@ class TasksRootSection : Routes.Route() {
                                     onDismiss()
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White.copy(alpha = 0.08f),
-                                    contentColor = Color.White
+                                    containerColor = TasksSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                    contentColor = TasksSkinPalette.textPrimary
                                 )
                             ) {
-                                Text(context.translation["button.negative"])
+                                Text(context.translation["button.negative"] ?: "Cancel")
                             }
                             Button(
                                 onClick = {
@@ -541,11 +569,11 @@ class TasksRootSection : Routes.Route() {
                                     onConfirm()
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
-                                    contentColor = Color.White
+                                    containerColor = glowPrimary.copy(alpha = 0.34f),
+                                    contentColor = TasksSkinPalette.textPrimary
                                 )
                             ) {
-                                Text(context.translation["button.positive"])
+                                Text(context.translation["button.positive"] ?: "Delete")
                             }
                         }
                     }
@@ -555,7 +583,10 @@ class TasksRootSection : Routes.Route() {
     }
 
     @Composable
-    internal fun TasksEmptyState(text: String) {
+    fun TasksEmptyState(text: String) {
+        val glowPrimary = TasksSkinPalette.glowPrimary
+        val glowSecondary = TasksSkinPalette.glowSecondary
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -565,10 +596,10 @@ class TasksRootSection : Routes.Route() {
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color.White.copy(alpha = 0.08f),
+                color = TasksSkinPalette.textPrimary.copy(alpha = 0.08f),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                border = BorderStroke(1.dp, TasksSkinPalette.textPrimary.copy(alpha = 0.12f))
             ) {
                 Box(
                     modifier = Modifier
@@ -576,8 +607,8 @@ class TasksRootSection : Routes.Route() {
                         .background(
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                                    glowPrimary.copy(alpha = 0.32f),
+                                    glowSecondary.copy(alpha = 0.28f)
                                 )
                             ),
                             CircleShape
@@ -587,20 +618,20 @@ class TasksRootSection : Routes.Route() {
                     Icon(
                         Icons.Filled.CheckCircle,
                         contentDescription = text,
-                        tint = Color.White
+                        tint = TasksSkinPalette.textPrimary
                     )
                 }
             }
             Text(
                 text = text,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                color = Color.White
+                color = TasksSkinPalette.textPrimary
             )
         }
     }
 
     @Composable
-    internal fun AphelionTasksEmptyState(text: String) {
+    fun AphelionTasksEmptyState(text: String) {
         TasksEmptyState(text)
     }
 
@@ -662,7 +693,12 @@ class TasksRootSection : Routes.Route() {
     }
 
     @Composable
-    internal fun TaskCard(modifier: Modifier, task: Task, pendingTask: PendingTask? = null) {
+    fun TaskCard(modifier: Modifier, task: Task, pendingTask: PendingTask? = null) {
+        val glowPrimary = TasksSkinPalette.glowPrimary
+        val glowSecondary = TasksSkinPalette.glowSecondary
+        val textSecondary = TasksSkinPalette.textSecondary
+        val cardOverlay = TasksSkinPalette.cardOverlay
+
         var taskStatus by remember { mutableStateOf(task.status) }
         var taskProgressLabel by remember { mutableStateOf<String?>(null) }
         var taskProgress by remember { mutableIntStateOf(-1) }
@@ -748,7 +784,7 @@ class TasksRootSection : Routes.Route() {
             .let {
                 if (isSelected) {
                     it
-                        .border(2.dp, PurrfectPalette.glowSecondary, MaterialTheme.shapes.large)
+                        .border(2.dp, glowSecondary, MaterialTheme.shapes.large)
                         .clip(MaterialTheme.shapes.large)
                 } else it
             }
@@ -769,7 +805,7 @@ class TasksRootSection : Routes.Route() {
         }
         val chipColors = when {
             isActive -> AssistChipDefaults.assistChipColors(
-                containerColor = Color.White.copy(alpha = 0.08f),
+                containerColor = TasksSkinPalette.textPrimary.copy(alpha = 0.08f),
                 labelColor = Color.White
             )
             taskStatus == TaskStatus.SUCCESS -> AssistChipDefaults.assistChipColors()
@@ -778,8 +814,8 @@ class TasksRootSection : Routes.Route() {
                 labelColor = Color.White
             )
             taskStatus == TaskStatus.CANCELLED -> AssistChipDefaults.assistChipColors(
-                containerColor = Color.White.copy(alpha = 0.06f),
-                labelColor = PurrfectPalette.textSecondary
+                containerColor = TasksSkinPalette.textPrimary.copy(alpha = 0.06f),
+                labelColor = textSecondary
             )
             else -> AssistChipDefaults.assistChipColors()
         }
@@ -787,14 +823,14 @@ class TasksRootSection : Routes.Route() {
         Surface(
             modifier = cardModifier,
             shape = MaterialTheme.shapes.large,
-            color = Color.White.copy(alpha = 0.06f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+            color = TasksSkinPalette.textPrimary.copy(alpha = 0.06f),
+            border = BorderStroke(1.dp, TasksSkinPalette.textPrimary.copy(alpha = 0.1f)),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay)
+                    .background(cardOverlay)
                     .padding(14.dp)
             ) {
                 Row(
@@ -804,7 +840,7 @@ class TasksRootSection : Routes.Route() {
                 ) {
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = Color.White.copy(alpha = 0.08f),
+                        color = TasksSkinPalette.textPrimary.copy(alpha = 0.08f),
                         tonalElevation = 0.dp,
                         modifier = Modifier.size(56.dp)
                     ) {
@@ -814,8 +850,8 @@ class TasksRootSection : Routes.Route() {
                                 .background(
                                     Brush.linearGradient(
                                         listOf(
-                                            PurrfectPalette.glowPrimary.copy(alpha = 0.22f),
-                                            PurrfectPalette.glowSecondary.copy(alpha = 0.18f)
+                                            glowPrimary.copy(alpha = 0.22f),
+                                            glowSecondary.copy(alpha = 0.18f)
                                         )
                                     )
                                 ),
@@ -844,7 +880,7 @@ class TasksRootSection : Routes.Route() {
                                             else -> Icons.Filled.FileCopy
                                         },
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = TasksSkinPalette.textPrimary,
                                         modifier = Modifier.size(28.dp)
                                     )
                                 }
@@ -856,7 +892,7 @@ class TasksRootSection : Routes.Route() {
                                         TaskType.SCHEDULED_SEND -> Icons.Filled.Schedule
                                     },
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = TasksSkinPalette.textPrimary,
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
@@ -871,7 +907,7 @@ class TasksRootSection : Routes.Route() {
                             text = task.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
+                            color = TasksSkinPalette.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -879,7 +915,7 @@ class TasksRootSection : Routes.Route() {
                             Text(
                                 text = it,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = PurrfectPalette.textSecondary,
+                                color = textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -887,22 +923,25 @@ class TasksRootSection : Routes.Route() {
 
                         if (isActive) {
                             taskProgressLabel?.let {
-                                val labelText = if (task.isAutoOpen) {
-                                    // Live Metrics: Show Snaps/min and session total
-                                    val sessionTimeMins = (System.currentTimeMillis() - 0L) / 60000.0 // Placeholder for session start
-                                    val speed = if (sessionTimeMins > 0.1) String.format("%.1f", 0 / sessionTimeMins) else "0.0"
-                                    "$it • $speed snaps/min"
-                                } else it
-                                Text(labelText, style = MaterialTheme.typography.labelSmall, color = Color.White)
+                                Text(it, style = MaterialTheme.typography.labelSmall, color = TasksSkinPalette.textPrimary)
                             }
                             if (taskProgress != -1) {
-                                LinearProgressIndicator(
-                                    progress = { taskProgress.toFloat() / 100f },
-                                    strokeCap = StrokeCap.Round,
-                                    modifier = Modifier.fillMaxWidth().height(6.dp),
-                                    color = PurrfectPalette.glowSecondary,
-                                    trackColor = Color.White.copy(alpha = 0.12f)
-                                )
+                                val skin = LocalPurrfectSkin.current
+                                if (skin.id == "AETHER") {
+                                    me.eternal.purrfectsnap.ui.manager.theme.AetherComponents.WavyProgress(
+                                        progress = taskProgress.toFloat() / 100f,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = skin.glowSecondary
+                                    )
+                                } else {
+                                    LinearProgressIndicator(
+                                        progress = { taskProgress.toFloat() / 100f },
+                                        strokeCap = StrokeCap.Round,
+                                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                                        color = glowSecondary,
+                                        trackColor = TasksSkinPalette.textPrimary.copy(alpha = 0.12f)
+                                    )
+                                }
                             }
                         } else {
                             chipLabel?.let { label ->
@@ -926,7 +965,7 @@ class TasksRootSection : Routes.Route() {
                             Icon(Icons.Filled.Close, null, tint = Color(0xFFFF6B9B))
                         }
                     } else if (taskStatus == TaskStatus.SUCCESS) {
-                        Icon(Icons.Filled.Check, null, tint = PurrfectPalette.glowSecondary)
+                        Icon(Icons.Filled.Check, null, tint = glowSecondary)
                     }
                 }
             }
@@ -940,19 +979,21 @@ class TasksRootSection : Routes.Route() {
         activeCount: Int,
         scheduledCount: Int
     ) {
+        val glowPrimary = TasksSkinPalette.glowPrimary
+        val glowSecondary = TasksSkinPalette.glowSecondary
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             TaskTab.entries.forEach { tab ->
                 val selected = selectedTab == tab
-                val count = if (tab == TaskTab.ACTIVE) activeCount else scheduledCount
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = if (selected) Color.White.copy(alpha = 0.12f) else Color.White.copy(alpha = 0.06f),
-                    border = if (selected) BorderStroke(1.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary))) else BorderStroke(
+                    color = if (selected) TasksSkinPalette.textPrimary.copy(alpha = 0.12f) else TasksSkinPalette.textPrimary.copy(alpha = 0.06f),
+                    border = if (selected) BorderStroke(1.dp, Brush.linearGradient(listOf(glowPrimary, glowSecondary))) else BorderStroke(
                         1.dp,
-                        Color.White.copy(alpha = 0.12f)
+                        TasksSkinPalette.textPrimary.copy(alpha = 0.12f)
                     ),
                     modifier = Modifier.weight(1f)
                 ) {
@@ -966,13 +1007,13 @@ class TasksRootSection : Routes.Route() {
                         Icon(
                             imageVector = if (tab == TaskTab.ACTIVE) Icons.Filled.Timer else Icons.Filled.Schedule,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = TasksSkinPalette.textPrimary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = if (tab == TaskTab.ACTIVE) (context.translation["tasks_tab_active"] ?: "Active") else (context.translation["tasks_tab_scheduled"] ?: "Scheduled"),
-                            color = Color.White,
+                            color = TasksSkinPalette.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
@@ -996,6 +1037,10 @@ class TasksRootSection : Routes.Route() {
         onMerge: () -> Unit,
         canMerge: Boolean
     ) {
+        val glowPrimary = TasksSkinPalette.glowPrimary
+        val glowSecondary = TasksSkinPalette.glowSecondary
+        val textSecondary = TasksSkinPalette.textSecondary
+
         val haptic = LocalHapticFeedback.current
         Surface(
             modifier = Modifier
@@ -1003,15 +1048,15 @@ class TasksRootSection : Routes.Route() {
                 .padding(horizontal = 14.dp, vertical = 12.dp)
                 .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
             shape = RoundedCornerShape(26.dp),
-            color = Color.White.copy(alpha = 0.07f),
+            color = TasksSkinPalette.textPrimary.copy(alpha = 0.07f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                        glowPrimary.copy(alpha = 0.55f),
+                        glowSecondary.copy(alpha = 0.35f)
                     )
                 )
             )
@@ -1030,14 +1075,14 @@ class TasksRootSection : Routes.Route() {
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = context.translation["manager.routes.tasks"],
-                            color = Color.White,
+                            text = context.translation["manager.routes.tasks"] ?: "Tasks",
+                            color = TasksSkinPalette.textPrimary,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 18.sp
                         )
                         Text(
                             text = subtitle,
-                            color = PurrfectPalette.textSecondary,
+                            color = textSecondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -1056,24 +1101,24 @@ class TasksRootSection : Routes.Route() {
                                     onMerge()
                                 },
                                 shape = RoundedCornerShape(18.dp),
-                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.2f),
-                                border = BorderStroke(1.dp, PurrfectPalette.glowPrimary.copy(alpha = 0.4f))
+                                color = glowPrimary.copy(alpha = 0.2f),
+                                border = BorderStroke(1.dp, glowPrimary.copy(alpha = 0.4f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(Icons.Filled.Merge, contentDescription = context.translation["tasks_merge_button"], tint = Color.White, modifier = Modifier.size(16.dp))
-                                    Text(context.translation["tasks_merge_button"] ?: "Merge", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    Icon(Icons.Filled.Merge, contentDescription = context.translation["tasks_merge_button"], tint = TasksSkinPalette.textPrimary, modifier = Modifier.size(16.dp))
+                                    Text(context.translation["tasks_merge_button"] ?: "Merge", color = TasksSkinPalette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 11.sp)
                                 }
                             }
                         }
 
                         Surface(
                             shape = RoundedCornerShape(18.dp),
-                            color = Color.White.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+                            color = TasksSkinPalette.textPrimary.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, TasksSkinPalette.textPrimary.copy(alpha = 0.16f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1083,12 +1128,12 @@ class TasksRootSection : Routes.Route() {
                                 Icon(
                                     imageVector = Icons.Filled.PlaylistAddCheckCircle,
                                     contentDescription = null,
-                                    tint = Color.White
+                                    tint = TasksSkinPalette.textPrimary
                                 )
                                 Text(
                                     text = (context.translation["tasks_running_count"] ?: "{count} running")
                                         .replace("{count}", runningCount.toString()),
-                                    color = Color.White,
+                                    color = TasksSkinPalette.textPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 12.sp
                                 )
@@ -1099,7 +1144,7 @@ class TasksRootSection : Routes.Route() {
                             Icon(
                                 imageVector = Icons.Filled.DeleteSweep,
                                 contentDescription = context.translation["tasks_clear_button_description"],
-                                tint = Color.White
+                                tint = TasksSkinPalette.textPrimary
                             )
                         }
                     }
