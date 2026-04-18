@@ -2,6 +2,7 @@ package me.eternal.purrfectsnap.common.bridge.wrapper
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import com.google.gson.GsonBuilder
@@ -70,10 +71,69 @@ data class TrackerLog(
     }
 }
 
+data class LoggerConversationExportTarget(
+    val conversationId: String,
+    val groupTitle: String?,
+    val usernames: List<String>,
+    val userIds: List<String>,
+    val messageCount: Int
+)
+
+data class ConversationExportResult(
+    val messageCount: Int,
+    val chatEditCount: Int,
+    val trackerEventCount: Int
+)
+
 class LoggerWrapper(
     val databaseFile: File,
     private val readOnly: Boolean = false
 ): LoggerInterface.Stub() {
+    companion object {
+        private val MESSAGE_LOGGER_SCHEMA = mapOf(
+            "messages" to listOf(
+                "id INTEGER PRIMARY KEY",
+                "message_id BIGINT",
+                "conversation_id VARCHAR",
+                "user_id CHAR(36)",
+                "username VARCHAR",
+                "send_timestamp BIGINT",
+                "added_timestamp BIGINT",
+                "group_title VARCHAR",
+                "message_data BLOB"
+            ),
+            "chat_edits" to listOf(
+                "id INTEGER PRIMARY KEY",
+                "edit_number INTEGER",
+                "added_timestamp BIGINT",
+                "conversation_id VARCHAR",
+                "message_id BIGINT",
+                "message_text BLOB"
+            ),
+            "stories" to listOf(
+                "id INTEGER PRIMARY KEY",
+                "added_timestamp BIGINT",
+                "user_id VARCHAR",
+                "posted_timestamp BIGINT",
+                "created_timestamp BIGINT",
+                "url VARCHAR",
+                "encryption_key BLOB",
+                "encryption_iv BLOB"
+            ),
+            "tracker_events" to listOf(
+                "id INTEGER PRIMARY KEY",
+                "timestamp BIGINT",
+                "conversation_id CHAR(36)",
+                "conversation_title VARCHAR",
+                "is_group BOOLEAN",
+                "username VARCHAR",
+                "user_id VARCHAR",
+                "event_type VARCHAR",
+                "data VARCHAR"
+            )
+        )
+    }
+
     constructor(context: Context, uri: Uri? = null): this(
         uri?.path?.let { File(it) } ?: File(context.getDatabasePath(InternalFileHandleType.MESSAGE_LOGGER.fileName).absolutePath),
         uri != null
@@ -90,48 +150,7 @@ class LoggerWrapper(
             val dbFlags = if (readOnly) SQLiteDatabase.OPEN_READONLY else SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.OPEN_READWRITE
             val openedDatabase = SQLiteDatabase.openDatabase(databaseFile.absolutePath, null, dbFlags)
             if (!readOnly) {
-                SQLiteDatabaseHelper.createTablesFromSchema(openedDatabase, mapOf(
-                    "messages" to listOf(
-                        "id INTEGER PRIMARY KEY",
-                        "message_id BIGINT",
-                        "conversation_id VARCHAR",
-                        "user_id CHAR(36)",
-                        "username VARCHAR",
-                        "send_timestamp BIGINT",
-                        "added_timestamp BIGINT",
-                        "group_title VARCHAR",
-                        "message_data BLOB"
-                    ),
-                    "chat_edits" to listOf(
-                        "id INTEGER PRIMARY KEY",
-                        "edit_number INTEGER",
-                        "added_timestamp BIGINT",
-                        "conversation_id VARCHAR",
-                        "message_id BIGINT",
-                        "message_text BLOB"
-                    ),
-                    "stories" to listOf(
-                        "id INTEGER PRIMARY KEY",
-                        "added_timestamp BIGINT",
-                        "user_id VARCHAR",
-                        "posted_timestamp BIGINT",
-                        "created_timestamp BIGINT",
-                        "url VARCHAR",
-                        "encryption_key BLOB",
-                        "encryption_iv BLOB"
-                    ),
-                    "tracker_events" to listOf(
-                        "id INTEGER PRIMARY KEY",
-                        "timestamp BIGINT",
-                        "conversation_id CHAR(36)",
-                        "conversation_title VARCHAR",
-                        "is_group BOOLEAN",
-                        "username VARCHAR",
-                        "user_id VARCHAR",
-                        "event_type VARCHAR",
-                        "data VARCHAR"
-                    )
-                ))
+                SQLiteDatabaseHelper.createTablesFromSchema(openedDatabase, MESSAGE_LOGGER_SCHEMA)
             }
             _database = openedDatabase
             openedDatabase
@@ -425,6 +444,223 @@ class LoggerWrapper(
         return ConversationInfo(conversationId, usernames.size, groupTitle, usernames)
     }
 
+    fun getConversationExportTargets(): List<LoggerConversationExportTarget> {
+        val groupedConversations = mutableListOf<Triple<String, String?, Int>>()
+        database.rawQuery(
+            "SELECT conversation_id, MAX(group_title) AS group_title, COUNT(*) AS message_count, MAX(send_timestamp) AS last_timestamp " +
+                "FROM messages WHERE conversation_id IS NOT NULL AND TRIM(conversation_id) != '' " +
+                "GROUP BY conversation_id ORDER BY last_timestamp DESC",
+            null
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val conversationId = cursor.getStringOrNull("conversation_id")?.takeIf { it.isNotBlank() } ?: continue
+                groupedConversations.add(
+                    Triple(
+                        conversationId,
+                        cursor.getStringOrNull("group_title"),
+                        cursor.getIntOrNull("message_count") ?: 0
+                    )
+                )
+            }
+        }
+
+        return groupedConversations.map { (conversationId, groupTitle, messageCount) ->
+            val userIds = linkedSetOf<String>()
+            val usernames = linkedSetOf<String>()
+            database.rawQuery(
+                "SELECT DISTINCT user_id, username FROM messages WHERE conversation_id = ?",
+                arrayOf(conversationId)
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    cursor.getStringOrNull("user_id")?.takeIf { it.isNotBlank() }?.let { userIds.add(it) }
+                    cursor.getStringOrNull("username")?.takeIf { it.isNotBlank() }?.let { usernames.add(it) }
+                }
+            }
+            LoggerConversationExportTarget(
+                conversationId = conversationId,
+                groupTitle = groupTitle,
+                usernames = usernames.toList(),
+                userIds = userIds.toList(),
+                messageCount = messageCount
+            )
+        }
+    }
+
+    fun exportConversationDatabase(
+        outputFile: File,
+        conversationId: String,
+        userIds: Collection<String> = emptyList()
+    ): ConversationExportResult {
+        val normalizedConversationId = conversationId.trim().takeIf { it.isNotEmpty() }
+            ?: throw IllegalArgumentException("Conversation ID cannot be empty")
+        val normalizedUserIds = userIds
+            .mapNotNull { it.trim().takeIf(String::isNotEmpty) }
+            .toSet()
+            .toMutableSet()
+            .also { ids ->
+                if (ids.isEmpty()) {
+                    database.rawQuery(
+                        "SELECT DISTINCT user_id FROM messages WHERE conversation_id = ? AND user_id IS NOT NULL AND TRIM(user_id) != ''",
+                        arrayOf(normalizedConversationId)
+                    ).use { cursor ->
+                        while (cursor.moveToNext()) {
+                            cursor.getStringOrNull("user_id")?.takeIf { it.isNotBlank() }?.let { ids.add(it) }
+                        }
+                    }
+                }
+            }
+
+        outputFile.parentFile?.mkdirs()
+        if (outputFile.exists() && !outputFile.delete()) {
+            throw IllegalStateException("Failed to prepare export file")
+        }
+
+        val outputDatabase = SQLiteDatabase.openDatabase(
+            outputFile.absolutePath,
+            null,
+            SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.OPEN_READWRITE
+        )
+        var transactionStarted = false
+        try {
+            SQLiteDatabaseHelper.createTablesFromSchema(outputDatabase, MESSAGE_LOGGER_SCHEMA)
+            outputDatabase.beginTransaction()
+            transactionStarted = true
+
+            val messageWhereClause = buildString {
+                append("conversation_id = ?")
+                if (normalizedUserIds.isNotEmpty()) {
+                    append(" AND user_id IN (${normalizedUserIds.joinToString(",") { "?" }})")
+                }
+            }
+            val messageWhereArgs = mutableListOf(normalizedConversationId).apply {
+                addAll(normalizedUserIds)
+            }.toTypedArray()
+
+            val messageCount = copyQueryRows(
+                sourceQuery = "SELECT * FROM messages WHERE $messageWhereClause ORDER BY send_timestamp ASC",
+                sourceArgs = messageWhereArgs,
+                targetDatabase = outputDatabase,
+                targetTable = "messages"
+            )
+
+            val chatEditCount = copyQueryRows(
+                sourceQuery = "SELECT * FROM chat_edits WHERE conversation_id = ? AND message_id IN (SELECT message_id FROM messages WHERE $messageWhereClause) ORDER BY added_timestamp ASC",
+                sourceArgs = arrayOf(normalizedConversationId, *messageWhereArgs),
+                targetDatabase = outputDatabase,
+                targetTable = "chat_edits"
+            )
+
+            val trackerWhereClause = buildString {
+                append("conversation_id = ?")
+                if (normalizedUserIds.isNotEmpty()) {
+                    append(" AND user_id IN (${normalizedUserIds.joinToString(",") { "?" }})")
+                }
+            }
+            val trackerArgs = mutableListOf(normalizedConversationId).apply {
+                addAll(normalizedUserIds)
+            }.toTypedArray()
+            val trackerEventCount = copyQueryRows(
+                sourceQuery = "SELECT * FROM tracker_events WHERE $trackerWhereClause ORDER BY timestamp ASC",
+                sourceArgs = trackerArgs,
+                targetDatabase = outputDatabase,
+                targetTable = "tracker_events"
+            )
+
+            outputDatabase.setTransactionSuccessful()
+            return ConversationExportResult(
+                messageCount = messageCount,
+                chatEditCount = chatEditCount,
+                trackerEventCount = trackerEventCount
+            )
+        } finally {
+            if (transactionStarted) {
+                outputDatabase.endTransaction()
+            }
+            outputDatabase.close()
+        }
+    }
+
+    private fun cursorToContentValues(cursor: Cursor): ContentValues {
+        return ContentValues(cursor.columnCount).apply {
+            for (columnIndex in 0 until cursor.columnCount) {
+                val columnName = cursor.getColumnName(columnIndex)
+                when (cursor.getType(columnIndex)) {
+                    Cursor.FIELD_TYPE_NULL -> putNull(columnName)
+                    Cursor.FIELD_TYPE_INTEGER -> put(columnName, cursor.getLong(columnIndex))
+                    Cursor.FIELD_TYPE_FLOAT -> put(columnName, cursor.getDouble(columnIndex))
+                    Cursor.FIELD_TYPE_STRING -> put(columnName, cursor.getString(columnIndex))
+                    Cursor.FIELD_TYPE_BLOB -> put(columnName, cursor.getBlob(columnIndex))
+                }
+            }
+        }
+    }
+
+    private fun copyQueryRows(
+        sourceQuery: String,
+        sourceArgs: Array<String>? = null,
+        targetDatabase: SQLiteDatabase,
+        targetTable: String
+    ): Int {
+        var rowCount = 0
+        database.rawQuery(sourceQuery, sourceArgs).use { cursor ->
+            while (cursor.moveToNext()) {
+                targetDatabase.insert(targetTable, null, cursorToContentValues(cursor))
+                rowCount++
+            }
+        }
+        return rowCount
+    }
+
+    private fun cursorToLoggedMessage(cursor: Cursor): LoggedMessage? {
+        return LoggedMessage(
+            messageId = cursor.getLongOrNull("message_id") ?: return null,
+            conversationId = cursor.getStringOrNull("conversation_id") ?: return null,
+            userId = cursor.getStringOrNull("user_id") ?: return null,
+            username = cursor.getStringOrNull("username") ?: return null,
+            sendTimestamp = cursor.getLongOrNull("send_timestamp") ?: return null,
+            addedTimestamp = cursor.getLongOrNull("added_timestamp") ?: return null,
+            groupTitle = cursor.getStringOrNull("group_title"),
+            messageData = cursor.getBlobOrNull("message_data") ?: return null
+        )
+    }
+
+    fun forEachConversationMessage(
+        conversationId: String,
+        userIds: Collection<String> = emptyList(),
+        orderAscending: Boolean = true,
+        block: (LoggedMessage) -> Unit
+    ): Int {
+        val normalizedConversationId = conversationId.trim().takeIf { it.isNotEmpty() }
+            ?: throw IllegalArgumentException("Conversation ID cannot be empty")
+        val normalizedUserIds = userIds
+            .mapNotNull { it.trim().takeIf(String::isNotEmpty) }
+            .toSet()
+
+        val whereClause = buildString {
+            append("conversation_id = ?")
+            if (normalizedUserIds.isNotEmpty()) {
+                append(" AND user_id IN (${normalizedUserIds.joinToString(",") { "?" }})")
+            }
+        }
+        val whereArgs = mutableListOf(normalizedConversationId).apply {
+            addAll(normalizedUserIds)
+        }.toTypedArray()
+
+        var total = 0
+        database.rawQuery(
+            "SELECT * FROM messages WHERE $whereClause ORDER BY send_timestamp ${if (orderAscending) "ASC" else "DESC"}",
+            whereArgs
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                cursorToLoggedMessage(cursor)?.let { loggedMessage ->
+                    block(loggedMessage)
+                    total++
+                }
+            }
+        }
+        return total
+    }
+
     override fun getChatEdits(conversationId: String, messageId: Long): List<LoggedChatEdit> {
         val edits = mutableListOf<LoggedChatEdit>()
         database.rawQuery(
@@ -483,16 +719,7 @@ class LoggerWrapper(
             arrayOf(conversationId, fromTimestamp.toString())
         ).use {
             while (it.moveToNext() && messages.size < limit) {
-                val message = LoggedMessage(
-                    messageId = it.getLongOrNull("message_id") ?: continue,
-                    conversationId = it.getStringOrNull("conversation_id") ?: continue,
-                    userId = it.getStringOrNull("user_id") ?: continue,
-                    username = it.getStringOrNull("username") ?: continue,
-                    sendTimestamp = it.getLongOrNull("send_timestamp") ?: continue,
-                    addedTimestamp = it.getLongOrNull("added_timestamp") ?: continue,
-                    groupTitle = it.getStringOrNull("group_title"),
-                    messageData = it.getBlobOrNull("message_data") ?: continue
-                )
+                val message = cursorToLoggedMessage(it) ?: continue
                 if (filter != null && !filter(message)) continue
                 messages.add(message)
             }
