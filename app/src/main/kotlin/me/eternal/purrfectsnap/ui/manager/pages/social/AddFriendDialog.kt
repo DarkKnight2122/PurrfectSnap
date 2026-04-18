@@ -223,13 +223,7 @@ class AddFriendDialog(
                 friends: List<MessagingFriendInfo>,
                 groups: List<MessagingGroupInfo>
             ) {
-                cachedFriends = friends.run {
-                    if (pinnedIds != null) {
-                        sortedBy { -pinnedIds.indexOf(it.userId) }
-                    } else {
-                        this
-                    }
-                }
+                cachedFriends = context.sortSocialFriends(friends, pinnedIds = pinnedIds)
                 cachedGroups = groups.run {
                     if (pinnedIds != null) {
                         sortedBy { -pinnedIds.indexOf(it.conversationId) }

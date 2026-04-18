@@ -33,6 +33,7 @@ class UserInterfaceTweaks : ConfigContainer() {
     val mapFriendNameTags = boolean("map_friend_nametags") { requireRestart() }
     val preventMessageListAutoScroll = boolean("prevent_message_list_auto_scroll") { requireRestart(); addNotices(FeatureNotice.UNSTABLE) }
     val streakExpirationInfo = boolean("streak_expiration_info") { requireRestart() }
+    val sortSocialTabByStreakLength = boolean("sort_social_tab_by_streak_length").apply { set(true) }
     val hideFriendFeedEntry = boolean("hide_friend_feed_entry") { requireRestart() }
     val hideStreakRestore = boolean("hide_streak_restore") { requireRestart() }
     val hideQuickAddSuggestions = boolean("hide_quick_add_suggestions") { requireRestart() }
