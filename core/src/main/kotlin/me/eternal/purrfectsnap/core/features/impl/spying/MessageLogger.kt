@@ -146,13 +146,17 @@ class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.ME
                                 it.messageId = uniqueMessageIdentifier
                                 it.conversationId = conversationId
                                 it.userId = event.message.senderId.toString()
-                                it.username = usernameCache.getOrPut(it.userId) {
-                                    context.database.getFriendInfo(it.userId)?.mutableUsername ?: it.userId
-                                }
+                                it.username = usernameCache[it.userId]
+                                    ?: context.database.getFriendInfo(it.userId)?.mutableUsername?.also { resolvedUsername ->
+                                        usernameCache[it.userId] = resolvedUsername
+                                    }
+                                    ?: it.userId
                                 it.sendTimestamp = event.message.messageMetadata?.createdAt ?: System.currentTimeMillis()
-                                it.groupTitle = groupTitleCache.getOrPut(conversationId) {
-                                    context.database.getFeedEntryByConversationId(conversationId)?.feedDisplayName ?: conversationId
-                                }
+                                it.groupTitle = groupTitleCache[conversationId]
+                                    ?: context.database.getFeedEntryByConversationId(conversationId)?.feedDisplayName?.also { resolvedGroupTitle ->
+                                        groupTitleCache[conversationId] = resolvedGroupTitle
+                                    }
+                                    ?: conversationId
                                 it.messageData = context.gson.toJson(messageInstance).toByteArray(Charsets.UTF_8)
                             }
                         )
