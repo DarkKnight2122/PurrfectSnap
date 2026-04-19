@@ -1104,6 +1104,16 @@ object LegacyTheme : ThemeContract {
                                     )
                                 }
 
+                                fun showImportError(throwable: Throwable) {
+                                    context.log.error("Failed to import message logger", throwable)
+                                    context.shortToast(
+                                        translation.format(
+                                            "import_failed_toast",
+                                            "message" to (throwable.message ?: "Unknown error")
+                                        )
+                                    )
+                                }
+
                                 fun parseConversationMessage(message: LoggedMessage): ParsedConversationMessage {
                                     val messageObject = runCatching {
                                         JsonParser.parseString(String(message.messageData, Charsets.UTF_8)).asJsonObject
@@ -1365,7 +1375,35 @@ object LegacyTheme : ThemeContract {
                                 }
                                 OutlinedButton(modifier = Modifier.fillMaxWidth().padding(5.dp), onClick = { routes.loggerHistory.navigate() }, colors = sharedOutlinedColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))) { Text(translation["view_logger_history_button"]) }
                                 if (showImportDialog) {
-                                    AestheticDialog(onDismissRequest = { showImportDialog = false }, title = translation["message_logger_import_title"], text = translation["message_logger_import_text"], icon = Icons.Filled.Info, confirmButtonText = importLabel, dismissButtonText = context.translation["button.cancel"], onConfirm = { showImportDialog = false; runCatching { activityLauncherHelper.openFile("application/octet-stream") { uri -> context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { context.messageLogger.databaseFile.outputStream().use { out -> it.copyTo(out) } }; storedMessagesCount = context.messageLogger.getStoredMessageCount(); storedStoriesCount = context.messageLogger.getStoredStoriesCount(); context.shortToast(translation["success_toast"]) } } }, onDismiss = { showImportDialog = false }, showCloseButton = false)
+                                    AestheticDialog(
+                                        onDismissRequest = { showImportDialog = false },
+                                        title = translation["message_logger_import_title"],
+                                        text = translation["message_logger_import_text"],
+                                        icon = Icons.Filled.Info,
+                                        confirmButtonText = importLabel,
+                                        dismissButtonText = context.translation["button.cancel"],
+                                        onConfirm = {
+                                            showImportDialog = false
+                                            runCatching {
+                                                activityLauncherHelper.openFile("application/octet-stream") { uri ->
+                                                    scope.launch {
+                                                        runCatching {
+                                                            val importResult = withContext(Dispatchers.IO) {
+                                                                context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { input ->
+                                                                    context.messageLogger.importDatabase(input)
+                                                                } ?: throw IllegalStateException("Failed to open selected backup file")
+                                                            }
+                                                            storedMessagesCount = importResult.messageCount
+                                                            storedStoriesCount = importResult.storyCount
+                                                            context.shortToast(translation["success_toast"])
+                                                        }.onFailure { showImportError(it) }
+                                                    }
+                                                }
+                                            }.onFailure { showImportError(it) }
+                                        },
+                                        onDismiss = { showImportDialog = false },
+                                        showCloseButton = false
+                                    )
                                 }
                                 if (showExportOptionsDialog) {
                                     AestheticDialog(

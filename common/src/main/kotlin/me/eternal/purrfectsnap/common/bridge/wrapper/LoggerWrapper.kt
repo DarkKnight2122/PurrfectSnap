@@ -21,6 +21,7 @@ import me.eternal.purrfectsnap.common.util.ktx.getLongOrNull
 import me.eternal.purrfectsnap.common.util.ktx.getStringOrNull
 import me.eternal.purrfectsnap.common.util.protobuf.ProtoReader
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 
 class LoggedMessage(
@@ -85,6 +86,11 @@ data class ConversationExportResult(
     val trackerEventCount: Int
 )
 
+data class DatabaseImportResult(
+    val messageCount: Int,
+    val storyCount: Int
+)
+
 class LoggerWrapper(
     val databaseFile: File,
     private val readOnly: Boolean = false
@@ -144,25 +150,188 @@ class LoggerWrapper(
     private val coroutineScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     private val gson by lazy { GsonBuilder().create() }
 
-    private val database get() = synchronized(this) {
-        _database?.takeIf { it.isOpen } ?: run {
-            _database?.close()
-            val dbFlags = if (readOnly) SQLiteDatabase.OPEN_READONLY else SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.OPEN_READWRITE
-            val openedDatabase = SQLiteDatabase.openDatabase(databaseFile.absolutePath, null, dbFlags)
+    private fun openDatabase(file: File, readOnly: Boolean): SQLiteDatabase {
+        val dbFlags = if (readOnly) {
+            SQLiteDatabase.OPEN_READONLY
+        } else {
+            SQLiteDatabase.CREATE_IF_NECESSARY or SQLiteDatabase.OPEN_READWRITE
+        }
+        return SQLiteDatabase.openDatabase(file.absolutePath, null, dbFlags).also { openedDatabase ->
             if (!readOnly) {
                 SQLiteDatabaseHelper.createTablesFromSchema(openedDatabase, MESSAGE_LOGGER_SCHEMA)
             }
+        }
+    }
+
+    private fun closeDatabaseLocked() {
+        _database?.takeIf { it.isOpen }?.close()
+        _database = null
+    }
+
+    private val database get() = synchronized(this) {
+        _database?.takeIf { it.isOpen } ?: run {
+            closeDatabaseLocked()
+            val openedDatabase = openDatabase(databaseFile, readOnly)
             _database = openedDatabase
             openedDatabase
         }
     }
 
     protected fun finalize() {
-        _database?.close()
+        synchronized(this) {
+            closeDatabaseLocked()
+        }
     }
 
     fun init() {
 
+    }
+
+    private fun resolveDatabaseSidecars(file: File): List<File> {
+        return listOf(
+            file,
+            File("${file.absolutePath}-wal"),
+            File("${file.absolutePath}-shm"),
+            File("${file.absolutePath}-journal")
+        )
+    }
+
+    private fun deleteIfExists(file: File) {
+        if (file.exists() && !file.delete()) {
+            throw IllegalStateException("Failed to delete ${file.name}")
+        }
+    }
+
+    private fun replaceFile(source: File, target: File) {
+        if (!source.exists()) {
+            throw IllegalStateException("Missing source file ${source.name}")
+        }
+        if (source.renameTo(target)) return
+        source.inputStream().use { input ->
+            target.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
+        if (!source.delete()) {
+            throw IllegalStateException("Failed to delete temporary file ${source.name}")
+        }
+    }
+
+    private fun requireCompatibleSchema(db: SQLiteDatabase) {
+        MESSAGE_LOGGER_SCHEMA.forEach { (tableName, columns) ->
+            val existingColumns = mutableListOf<String>()
+            db.rawQuery("PRAGMA table_info($tableName)", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val columnName = cursor.getStringOrNull("name") ?: continue
+                    val columnType = cursor.getStringOrNull("type") ?: ""
+                    existingColumns.add("$columnName $columnType".trim())
+                }
+            }
+            if (existingColumns.isEmpty()) {
+                throw IllegalStateException("Selected database is missing required table $tableName")
+            }
+
+            val missingColumns = columns.filter { expectedColumn ->
+                !expectedColumn.uppercase().startsWith("PRIMARY KEY") &&
+                    existingColumns.none { existingColumn -> expectedColumn.startsWith(existingColumn) }
+            }
+            if (missingColumns.isNotEmpty()) {
+                throw IllegalStateException(
+                    "Selected database has incompatible schema for $tableName: ${missingColumns.joinToString()}"
+                )
+            }
+        }
+    }
+
+    private fun requireIntegrity(db: SQLiteDatabase) {
+        val integrityResult = db.rawQuery("PRAGMA integrity_check(1)", null).use { cursor ->
+            if (!cursor.moveToFirst()) null else cursor.getString(0)
+        }
+        if (integrityResult == null || !integrityResult.equals("ok", ignoreCase = true)) {
+            throw IllegalStateException("Selected database failed integrity check: ${integrityResult ?: "unknown"}")
+        }
+    }
+
+    private fun getTableCount(db: SQLiteDatabase, tableName: String): Int {
+        return db.rawQuery("SELECT COUNT(*) FROM $tableName", null).use { cursor ->
+            if (!cursor.moveToFirst()) 0 else cursor.getInt(0)
+        }
+    }
+
+    fun importDatabase(inputStream: InputStream): DatabaseImportResult {
+        if (readOnly) {
+            throw IllegalStateException("Cannot import into read-only logger")
+        }
+
+        val databaseDir = databaseFile.parentFile
+            ?: throw IllegalStateException("Cannot resolve message logger database directory")
+        if (!databaseDir.exists() && !databaseDir.mkdirs()) {
+            throw IllegalStateException("Failed to create message logger directory")
+        }
+
+        val tempFile = File(
+            databaseDir,
+            "${databaseFile.name}.import-${System.currentTimeMillis()}-${UUID.randomUUID()}"
+        )
+        val backupFile = File(
+            databaseDir,
+            "${databaseFile.name}.backup-${System.currentTimeMillis()}-${UUID.randomUUID()}"
+        )
+
+        try {
+            inputStream.use { input ->
+                tempFile.outputStream().use { output ->
+                    val copiedBytes = input.copyTo(output)
+                    if (copiedBytes <= 0L) {
+                        throw IllegalStateException("Selected backup is empty")
+                    }
+                }
+            }
+
+            openDatabase(tempFile, readOnly = true).use { importedDatabase ->
+                requireIntegrity(importedDatabase)
+                requireCompatibleSchema(importedDatabase)
+            }
+
+            synchronized(this) {
+                closeDatabaseLocked()
+                val hadExistingDatabase = databaseFile.exists()
+                if (hadExistingDatabase) {
+                    databaseFile.inputStream().use { input ->
+                        backupFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+
+                try {
+                    resolveDatabaseSidecars(databaseFile).forEach(::deleteIfExists)
+                    replaceFile(tempFile, databaseFile)
+                    resolveDatabaseSidecars(databaseFile).filter { it != databaseFile }.forEach(::deleteIfExists)
+
+                    val reopenedDatabase = openDatabase(databaseFile, readOnly = false)
+                    val importResult = DatabaseImportResult(
+                        messageCount = getTableCount(reopenedDatabase, "messages"),
+                        storyCount = getTableCount(reopenedDatabase, "stories")
+                    )
+                    _database = reopenedDatabase
+                    deleteIfExists(backupFile)
+                    return importResult
+                } catch (throwable: Throwable) {
+                    runCatching {
+                        resolveDatabaseSidecars(databaseFile).forEach(::deleteIfExists)
+                        if (backupFile.exists()) {
+                            replaceFile(backupFile, databaseFile)
+                        }
+                    }
+                    closeDatabaseLocked()
+                    throw throwable
+                }
+            }
+        } finally {
+            runCatching { deleteIfExists(tempFile) }
+            runCatching { deleteIfExists(backupFile) }
+        }
     }
 
     override fun getLoggedIds(conversationId: Array<String>, limit: Int): LongArray {
