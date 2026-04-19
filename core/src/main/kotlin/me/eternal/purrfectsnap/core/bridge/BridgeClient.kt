@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.*
 import android.util.Log
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
@@ -41,16 +42,111 @@ class BridgeClient(
     private var continuation: Continuation<Boolean>? = null
     private val connectSemaphore = Semaphore(permits = 1)
     private val reconnectSemaphore = Semaphore(permits = 1)
-    private lateinit var service: BridgeInterface
+    private val serviceStateLock = Any()
+    @Volatile
+    private var service: BridgeInterface? = null
+    @Volatile
+    private var serviceBinder: IBinder? = null
+    @Volatile
+    private var isBound = false
+    @Volatile
+    private var isHandlingServiceConnection = false
+    private val connectionExecutor = Executors.newSingleThreadExecutor()
+    private val legacyBindThread = HandlerThread("BridgeClient").apply { start() }
+    private val legacyBindHandler by lazy { Handler(legacyBindThread.looper) }
 
     private val onConnectedCallbacks = mutableListOf<suspend () -> Unit>()
     private var cachePurrfectSnapApkPath: String? = null
+
+    private val serviceDeathRecipient = IBinder.DeathRecipient {
+        clearConnectedService()
+    }
+
+    private fun clearConnectedServiceLocked() {
+        serviceBinder?.let { binder ->
+            runCatching { binder.unlinkToDeath(serviceDeathRecipient, 0) }
+        }
+        serviceBinder = null
+        service = null
+    }
+
+    private fun clearConnectedService() {
+        synchronized(serviceStateLock) {
+            clearConnectedServiceLocked()
+        }
+    }
+
+    private fun attachConnectedService(binder: IBinder): Boolean {
+        synchronized(serviceStateLock) {
+            clearConnectedServiceLocked()
+            serviceBinder = binder
+            service = BridgeInterface.Stub.asInterface(binder)
+            return runCatching {
+                binder.linkToDeath(serviceDeathRecipient, 0)
+                true
+            }.getOrElse { throwable ->
+                Log.w("BridgeClient", "Failed to link bridge death recipient", throwable)
+                clearConnectedServiceLocked()
+                false
+            }
+        }
+    }
+
+    private fun isServiceAlive(): Boolean {
+        val binder = serviceBinder ?: service?.asBinder() ?: return false
+        return binder.isBinderAlive && binder.pingBinder()
+    }
+
+    private val connectedService: BridgeInterface
+        get() {
+            val currentService = service ?: throw DeadObjectException()
+            val binder = currentService.asBinder()
+            if (!binder.isBinderAlive || !binder.pingBinder()) throw DeadObjectException()
+            return currentService
+        }
+
+    private fun Context.unbindBridgeIfNeeded() {
+        if (!isBound) return
+        runCatching { unbindService(this@BridgeClient) }.onFailure { throwable ->
+            if (throwable !is IllegalArgumentException) throw throwable
+        }
+        isBound = false
+    }
+
+    private fun Context.bindBridge(intent: Intent): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            bindService(
+                intent,
+                Context.BIND_AUTO_CREATE,
+                connectionExecutor,
+                this@BridgeClient
+            )
+        } else {
+            this::class.java.methods.firstOrNull {
+                it.name == "bindServiceAsUser" && it.parameterTypes.size == 5
+            }?.invoke(
+                this,
+                intent,
+                this@BridgeClient,
+                Context.BIND_AUTO_CREATE,
+                legacyBindHandler,
+                Process.myUserHandle()
+            ) as? Boolean ?: false
+        }
+    }
+
+    private fun isRecoverableBinderFailure(throwable: Throwable): Boolean {
+        return throwable is DeadObjectException ||
+            throwable is RemoteException ||
+            throwable.cause is DeadObjectException ||
+            throwable.cause is RemoteException
+    }
 
     fun addOnConnectedCallback(initNow: Boolean = false, callback: suspend () -> Unit) {
         synchronized(onConnectedCallbacks) {
             onConnectedCallbacks.add(callback)
         }
-        initNow.takeIf { it && this::service.isInitialized }?.let {
+        initNow.takeIf { it && isServiceAlive() }?.let {
             runBlocking {
                 callback()
             }
@@ -67,7 +163,7 @@ class BridgeClient(
     }
 
     suspend fun connect(onFailure: (Throwable) -> Unit): Boolean? {
-        if (this::service.isInitialized && service.asBinder().pingBinder()) {
+        if (isServiceAlive()) {
             return true
         }
 
@@ -75,10 +171,9 @@ class BridgeClient(
         val retryDelay = 3000L
 
         return withTimeoutOrNull(connectionTimeout) {
-            var result: Boolean? = null
-
-            for (retry in 0.. (connectionTimeout / retryDelay).toInt()) {
-                result = withTimeoutOrNull(retryDelay) {
+            val attempts = (connectionTimeout / retryDelay).toInt() + 1
+            repeat(attempts) { attempt ->
+                val result = withTimeoutOrNull(retryDelay) {
                     suspendCancellableCoroutine { cancellableContinuation ->
                         continuation = cancellableContinuation
                         with(context.androidContext) {
@@ -93,31 +188,12 @@ class BridgeClient(
                             runCatching {
                                 val intent = Intent()
                                     .setClassName(Constants.MODULE_PACKAGE_NAME, "me.eternal.purrfectsnap.bridge.BridgeService")
-                                runCatching {
-                                    if (this@BridgeClient::service.isInitialized) {
-                                        unbindService(this@BridgeClient)
-                                    }
+                                unbindBridgeIfNeeded()
+                                clearConnectedService()
+                                if (!bindBridge(intent)) {
+                                    throw IllegalStateException("bindService returned false")
                                 }
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                    bindService(
-                                        intent,
-                                        Context.BIND_AUTO_CREATE,
-                                        Executors.newSingleThreadExecutor(),
-                                        this@BridgeClient
-                                    )
-                                } else {
-                                    val handler = Handler(HandlerThread("BridgeClient").apply { start() }.looper)
-                                    this::class.java.methods.firstOrNull {
-                                        it.name == "bindServiceAsUser" && it.parameterTypes.size == 5
-                                    }?.invoke(
-                                        this,
-                                        intent,
-                                        this@BridgeClient,
-                                        Context.BIND_AUTO_CREATE,
-                                        handler,
-                                        Process.myUserHandle()
-                                    ) ?: throw NoSuchMethodException("bindServiceAsUser")
-                                }
+                                isBound = true
                             }.onFailure {
                                 onFailure(it)
                                 resumeContinuation(false)
@@ -125,46 +201,82 @@ class BridgeClient(
                         }
                     }
                 }
-                if (result != null) break
+                if (result == true) {
+                    return@withTimeoutOrNull true
+                }
+                if (attempt + 1 < attempts) {
+                    delay(250L)
+                }
             }
 
-            result
+            false
         }
     }
 
     override fun onServiceConnected(name: ComponentName, service: IBinder) {
-        this.service = BridgeInterface.Stub.asInterface(service)
-        runBlocking {
-            onConnectedCallbacks.forEach {
-                runCatching {
-                    it()
-                }.onFailure {
-                    context.log.error("Failed to run onConnectedCallback", it)
-                }
-            }
-        }
-        cachePurrfectSnapApkPath = this.service.applicationApkPath.also {
-            if (cachePurrfectSnapApkPath != null && cachePurrfectSnapApkPath != it) {
-                context.log.verbose("Restarting Snapchat due to PurrfectSnap update")
-                context.softRestartApp()
+        isHandlingServiceConnection = true
+        try {
+            if (!attachConnectedService(service)) {
+                resumeContinuation(false)
                 return
             }
+
+            runBlocking {
+                onConnectedCallbacks.forEach {
+                    runCatching {
+                        it()
+                    }.onFailure {
+                        context.log.error("Failed to run onConnectedCallback", it)
+                    }
+                }
+            }
+            val remoteApkPath = runCatching {
+                connectedService.applicationApkPath
+            }.getOrElse { throwable ->
+                if (isRecoverableBinderFailure(throwable)) {
+                    Log.w("BridgeClient", "Bridge died during onServiceConnected initialization", throwable)
+                } else {
+                    Log.e("BridgeClient", "Bridge initialization failed", throwable)
+                }
+                clearConnectedService()
+                resumeContinuation(false)
+                return
+            }
+            cachePurrfectSnapApkPath = remoteApkPath.also {
+                if (cachePurrfectSnapApkPath != null && cachePurrfectSnapApkPath != it) {
+                    context.log.verbose("Restarting Snapchat due to PurrfectSnap update")
+                    context.softRestartApp()
+                    return
+                }
+            }
+            resumeContinuation(true)
+        } finally {
+            isHandlingServiceConnection = false
         }
-        resumeContinuation(true)
     }
 
     override fun onNullBinding(name: ComponentName) {
+        clearConnectedService()
+        isBound = false
         resumeContinuation(false)
     }
 
     override fun onServiceDisconnected(name: ComponentName) {
+        clearConnectedService()
+        isBound = false
         continuation = null
+    }
+
+    override fun onBindingDied(name: ComponentName) {
+        clearConnectedService()
+        isBound = false
+        resumeContinuation(false)
     }
 
     private fun tryReconnect() {
         runBlocking {
             reconnectSemaphore.withPermit {
-                if (service.asBinder().pingBinder()) return@runBlocking
+                if (isServiceAlive()) return@withPermit
                 Log.d("BridgeClient", "service is dead, restarting")
                 val canLoad = connect {
                     Log.e("BridgeClient", "connection failed", it)
@@ -181,13 +293,16 @@ class BridgeClient(
         return runCatching {
             block()
         }.getOrElse { throwable ->
-            if (throwable is DeadObjectException) {
-                tryReconnect()
-                return@getOrElse runCatching {
-                    block()
-                }.getOrElse {
-                    Log.e("BridgeClient", "service call failed", it)
-                    throw it
+            if (isRecoverableBinderFailure(throwable)) {
+                clearConnectedService()
+                if (!isHandlingServiceConnection) {
+                    tryReconnect()
+                    return@getOrElse runCatching {
+                        block()
+                    }.getOrElse {
+                        Log.e("BridgeClient", "service call failed", it)
+                        throw it
+                    }
                 }
             }
             throw throwable
@@ -197,15 +312,15 @@ class BridgeClient(
     fun broadcastLog(tag: String, level: String, message: String) {
         message.chunked(1024 * 256).forEach {
             runCatching {
-                service.broadcastLog(tag, level, it)
+                connectedService.broadcastLog(tag, level, it)
             }
         }
     }
 
-    fun getApplicationApkPath(): String = safeServiceCall { service.applicationApkPath }
+    fun getApplicationApkPath(): String = safeServiceCall { connectedService.applicationApkPath }
 
     fun enqueueDownload(intent: Intent, callback: DownloadCallback) = safeServiceCall {
-        service.enqueueDownload(intent, callback)
+        connectedService.enqueueDownload(intent, callback)
     }
 
     fun convertMedia(
@@ -215,18 +330,18 @@ class BridgeClient(
         audioCodec: String?,
         videoCodec: String?
     ): ParcelFileDescriptor? = safeServiceCall {
-        service.convertMedia(input, inputExtension, outputExtension, audioCodec, videoCodec)
+        connectedService.convertMedia(input, inputExtension, outputExtension, audioCodec, videoCodec)
     }
 
     fun sync(callback: SyncCallback) {
         if (!context.database.hasMain()) return
         safeServiceCall {
-            service.sync(callback)
+            connectedService.sync(callback)
         }
     }
 
     fun triggerSync(scope: SocialScope, id: String) = safeServiceCall {
-        service.triggerSync(scope.key, id)
+        connectedService.triggerSync(scope.key, id)
     }
 
     fun passGroupsAndFriends(groups: List<MessagingGroupInfo>, friends: List<MessagingFriendInfo>) =
@@ -268,7 +383,7 @@ class BridgeClient(
             )
 
             repeat(chunkCount) { index ->
-                service.passGroupsAndFriends(
+                connectedService.passGroupsAndFriends(
                     groupChunks.getOrElse(index) { emptyList() },
                     friendChunks.getOrElse(index) { emptyList() }
                 )
@@ -276,55 +391,54 @@ class BridgeClient(
         }
 
     fun getRules(targetUuid: String): List<MessagingRuleType> = safeServiceCall {
-        service.getRules(targetUuid).mapNotNull { MessagingRuleType.getByName(it) }
+        connectedService.getRules(targetUuid).mapNotNull { MessagingRuleType.getByName(it) }
     }
 
     fun getRuleIds(ruleType: MessagingRuleType): List<String> = safeServiceCall {
-        service.getRuleIds(ruleType.key)
+        connectedService.getRuleIds(ruleType.key)
     }
 
     fun setRule(targetUuid: String, type: MessagingRuleType, state: Boolean) = safeServiceCall {
-        service.setRule(targetUuid, type.key, state)
+        connectedService.setRule(targetUuid, type.key, state)
     }
 
-    fun getScopeNotes(id: String): String? = safeServiceCall { service.getScopeNotes(id) }
+    fun getScopeNotes(id: String): String? = safeServiceCall { connectedService.getScopeNotes(id) }
 
-    fun setScopeNotes(id: String, content: String?) = safeServiceCall { service.setScopeNotes(id, content) }
+    fun setScopeNotes(id: String, content: String?) = safeServiceCall { connectedService.setScopeNotes(id, content) }
 
-    fun getAllScopeNotes(): Map<String, String> = safeServiceCall { service.getAllScopeNotes() }
+    fun getAllScopeNotes(): Map<String, String> = safeServiceCall { connectedService.getAllScopeNotes() }
 
-    fun setAllScopeNotes(notes: Map<String, String>) = safeServiceCall { service.setAllScopeNotes(notes) }
+    fun setAllScopeNotes(notes: Map<String, String>) = safeServiceCall { connectedService.setAllScopeNotes(notes) }
 
-    fun getScriptingInterface(): IScripting? = safeServiceCall<IScripting?> { service.scriptingInterface }
+    fun getScriptingInterface(): IScripting? = safeServiceCall<IScripting?> { connectedService.scriptingInterface }
 
-    fun getE2eeInterface(): E2eeInterface = safeServiceCall { service.e2eeInterface }
+    fun getE2eeInterface(): E2eeInterface = safeServiceCall { connectedService.e2eeInterface }
 
-    fun getMessageLogger(): LoggerInterface = safeServiceCall { service.logger }
+    fun getMessageLogger(): LoggerInterface = safeServiceCall { connectedService.logger }
 
-    fun getTracker(): TrackerInterface = safeServiceCall { service.tracker }
+    fun getTracker(): TrackerInterface = safeServiceCall { connectedService.tracker }
 
-    fun getAccountStorage(): AccountStorage = safeServiceCall { service.accountStorage }
+    fun getAccountStorage(): AccountStorage = safeServiceCall { connectedService.accountStorage }
 
-    fun getFileHandlerManager(): FileHandleManager = safeServiceCall { service.fileHandleManager }
+    fun getFileHandlerManager(): FileHandleManager = safeServiceCall { connectedService.fileHandleManager }
 
-    fun getLocationManager(): LocationManager = safeServiceCall { service.locationManager }
+    fun getLocationManager(): LocationManager = safeServiceCall { connectedService.locationManager }
 
-    fun getTaskInterface(): TaskInterface = safeServiceCall { service.taskInterface }
+    fun getTaskInterface(): TaskInterface = safeServiceCall { connectedService.taskInterface }
 
-    fun registerMessagingBridge(bridge: MessagingBridge) = safeServiceCall { service.registerMessagingBridge(bridge) }
+    fun registerMessagingBridge(bridge: MessagingBridge) = safeServiceCall { connectedService.registerMessagingBridge(bridge) }
 
-    fun openOverlay(type: OverlayType) = safeServiceCall { service.openOverlay(type.key) }
-    fun closeOverlay() = safeServiceCall { service.closeOverlay() }
+    fun openOverlay(type: OverlayType) = safeServiceCall { connectedService.openOverlay(type.key) }
+    fun closeOverlay() = safeServiceCall { connectedService.closeOverlay() }
 
-    fun registerConfigStateListener(listener: ConfigStateListener) = safeServiceCall { service.registerConfigStateListener(listener) }
+    fun registerConfigStateListener(listener: ConfigStateListener) = safeServiceCall { connectedService.registerConfigStateListener(listener) }
 
-    fun getDebugProp(name: String, defaultValue: String? = null): String? = safeServiceCall { service.getDebugProp(name, defaultValue) }
+    fun getDebugProp(name: String, defaultValue: String? = null): String? = safeServiceCall { connectedService.getDebugProp(name, defaultValue) }
 
     fun startCallDownload(
         startTimestamp: Long,
         author: String,
     ): CallDownloadSession {
-        return safeServiceCall { service.startCallDownload(startTimestamp, author) }
+        return safeServiceCall { connectedService.startCallDownload(startTimestamp, author) }
     }
 }
-
