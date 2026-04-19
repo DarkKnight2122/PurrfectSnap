@@ -155,46 +155,54 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
             callback = object: DownloadCallback.Stub() {
                 override fun onSuccess(outputFile: String) {
                     var finalOutputFile = outputFile
-                    runCatching {
-                        val file = java.io.File(outputFile)
-                        if (file.exists()) {
-                            val header = file.inputStream().use { input ->
-                                val buffer = ByteArray(16)
-                                input.read(buffer)
-                                buffer
-                            }
+                    modCtx.coroutineScope.launch(Dispatchers.IO) {
+                        runCatching {
+                            // settle delay to ensure disk flush
+                            delay(120L)
+                            val file = java.io.File(outputFile)
+                            if (file.exists()) {
+                                val header = file.inputStream().use { input ->
+                                    val buffer = ByteArray(16)
+                                    input.read(buffer)
+                                    buffer
+                                }
 
-                            val fileType = FileType.fromByteArray(header)
-                            if (fileType.isVideo && !outputFile.endsWith(".mp4", ignoreCase = true)) {
-                                val newPath = outputFile.removeSuffix(".dat").removeSuffix(".tmp") + ".mp4"
-                                val newFile = java.io.File(newPath)
-                                if (file.renameTo(newFile)) {
-                                    finalOutputFile = newPath
-                                } else {
-                                    file.copyTo(newFile, overwrite = true)
-                                    file.delete()
-                                    finalOutputFile = newPath
+                                val fileType = FileType.fromByteArray(header)
+                                val expectedExt = fileType.fileExtension
+
+                                if (fileType != FileType.UNKNOWN && expectedExt != null && 
+                                    !outputFile.endsWith(".$expectedExt", ignoreCase = true)) {
+                                    val base = outputFile.substringBeforeLast('.').takeIf { '.' in outputFile } ?: outputFile
+                                    val newPath = "$base.$expectedExt"
+                                    val newFile = java.io.File(newPath)
+                                    if (file.renameTo(newFile)) {
+                                        finalOutputFile = newPath
+                                    } else {
+                                        file.copyTo(newFile, overwrite = true)
+                                        file.delete()
+                                        finalOutputFile = newPath
+                                    }
                                 }
                             }
-                        }
-                    }.onFailure { logError("Post-Processing Logic Failed for $outputFile", it) }
+                        }.onFailure { logError("Post-Processing Failed for $outputFile", it) }
 
-                    if (isBatch) {
-                        batchSuccessCount.incrementAndGet()
+                        if (isBatch) {
+                            batchSuccessCount.incrementAndGet()
+                            if (downloadLogging.contains("success")) {
+                                modCtx.inAppOverlay.showStatusToast(
+                                    icon = Icons.Outlined.DownloadDone,
+                                    text = translations.format("batch_progress_toast", "current" to (batchSuccessCount.get() + batchFailureCount.get()).toString(), "total" to batchTotalCount.get().toString()),
+                                    durationMs = 1300
+                                )
+                            }
+                            return@launch
+                        }
+
                         if (downloadLogging.contains("success")) {
-                            modCtx.inAppOverlay.showStatusToast(
-                                icon = Icons.Outlined.DownloadDone,
-                                text = translations.format("batch_progress_toast", "current" to (batchSuccessCount.get() + batchFailureCount.get()).toString(), "total" to batchTotalCount.get().toString()),
-                                durationMs = 1300
-                            )
+                            val toastText = translations.format("content_saved_toast", "path" to java.io.File(finalOutputFile).name)
+                            if (modCtx.isMainActivityPaused) modCtx.shortToast(toastText)
+                            modCtx.inAppOverlay.showStatusToast(Icons.Outlined.DownloadDone, toastText, 1300)
                         }
-                        return
-                    }
-
-                    if (downloadLogging.contains("success")) {
-                        val toastText = translations.format("content_saved_toast", "path" to java.io.File(finalOutputFile).name)
-                        if (modCtx.isMainActivityPaused) modCtx.shortToast(toastText)
-                        modCtx.inAppOverlay.showStatusToast(Icons.Outlined.DownloadDone, toastText, 1300)
                     }
                 }
 
@@ -331,11 +339,28 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
             val totalCount = paramMap.getStorySnapTotal()
             modCtx.runOnUiThread {
                 fun tryJump(retryCount: Int = 0) {
+                    val maxRetries = 4
+                    val delayMs = when {
+                        retryCount == 0 -> 180L
+                        retryCount == 1 -> 280L
+                        retryCount == 2 -> 400L
+                        else -> 550L
+                    }
+
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        if (synchronized(batchLock) { pendingBatchDownloadIndices } == null) return@postDelayed
+
                         val jumped = runCatching { modCtx.feature(OperaStoryOverlay::class).requestJumpToSnap(queue.first(), totalCount) }.getOrNull() == true
-                        if (!jumped && retryCount < 1) tryJump(retryCount + 1)
-                        else if (!jumped) { synchronized(batchLock) { pendingBatchDownloadIndices = null }; modCtx.shortToast(translations["batch_download_jump_failed_toast"] ?: "Jump Failed") }
-                    }, if (retryCount == 0) 120L else 220L)
+
+                        when {
+                            jumped -> {}
+                            retryCount < maxRetries -> tryJump(retryCount + 1)
+                            else -> {
+                                synchronized(batchLock) { pendingBatchDownloadIndices = null }
+                                modCtx.shortToast(translations["batch_download_jump_failed_toast"] ?: "Jump Failed")
+                            }
+                        }
+                    }, delayMs)
                 }
                 tryJump()
             }
@@ -464,19 +489,38 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
             downloadOperaMedia(provideDownloadManagerClient("${msg.clientConversationId}${msg.senderId}${msg.serverMessageId}", author.usernameForSorting!!, msg.creationTimestamp, MediaDownloadSource.CHAT_MEDIA, author, forceAllowDuplicate, isBatch), mediaInfoMap, paramMap)
             return
         }
-        paramMap["PLAYLIST_V2_GROUP"]?.takeIf { forceDownload || shouldAutoDownload("friend_stories") }?.let {
-            val storyUserId = paramMap["TOPIC_SNAP_CREATOR_USER_ID"]?.toString() ?: paramMap["PLAYABLE_STORY_SNAP_RECORD"]?.toString()?.substringAfter("userId=")?.substringBefore(",")
-            val author = modCtx.database.getFriendInfo(storyUserId ?: modCtx.database.myUserId) ?: return@let
+        paramMap["PLAYLIST_V2_GROUP"]?.takeIf { forceDownload || shouldAutoDownload("friend_stories") }?.let { playlistGroup ->
+            val playlistGroupString = playlistGroup.toString()
+            val storyUserId = paramMap["TOPIC_SNAP_CREATOR_USER_ID"]?.toString() ?: paramMap["PLAYABLE_STORY_SNAP_RECORD"]?.toString()?.let {
+                if (it.contains("userId=")) it.substringAfter("userId=").substringBefore(",") else null
+            } ?: if (playlistGroupString.contains("storyUserId=")) {
+                playlistGroupString.substringAfter("storyUserId=").substringBefore(",")
+            } else {
+                val arroyoMessageId = playlistGroup::class.java.methods.firstOrNull { it.name == "getId" }?.invoke(playlistGroup)?.toString()?.split(":")?.getOrNull(2) ?: return@let
+                val conversationMessage = modCtx.database.getConversationMessageFromId(arroyoMessageId.toLong()) ?: return@let
+                val conversationParticipants = modCtx.database.getConversationParticipants(conversationMessage.clientConversationId.toString()) ?: return@let
+                conversationParticipants.firstOrNull { it != conversationMessage.senderId }
+            }
+
+            val author = modCtx.database.getFriendInfo(if (storyUserId == null || storyUserId == "null") modCtx.database.myUserId else storyUserId) ?: return@let
             if (!forceDownload && ((modCtx.config.downloader.preventSelfAutoDownload.get() && author.userId == modCtx.database.myUserId) || !canUseRule(author.userId!!))) return@let
             downloadOperaMedia(provideDownloadManagerClient(paramMap["MEDIA_ID"].toString(), author.usernameForSorting!!, null, MediaDownloadSource.STORY, author, forceAllowDuplicate, isBatch), mediaInfoMap, paramMap)
             return
         }
         val snapSource = paramMap["SNAP_SOURCE"].toString()
         if (snapSource == "SINGLE_SNAP_STORY" && (forceDownload || shouldAutoDownload("spotlight"))) {
-            downloadOperaMedia(provideDownloadManagerClient(paramMap["SNAP_ID"].toString(), paramMap["CREATOR_DISPLAY_NAME"].toString(), null, MediaDownloadSource.SPOTLIGHT, null, forceAllowDuplicate, isBatch), mediaInfoMap, paramMap); return
+            downloadOperaMedia(provideDownloadManagerClient(paramMap["SNAP_ID"].toString(), (paramMap["CREATOR_DISPLAY_NAME"]?.toString() ?: "unknown").sanitizeForPath(), null, MediaDownloadSource.SPOTLIGHT, null, forceAllowDuplicate, isBatch), mediaInfoMap, paramMap); return
         }
         if (!forceDownload && !shouldAutoDownload("public_stories")) return
-        val author = (paramMap["USER_ID"]?.let { modCtx.database.getFriendInfo(it.toString())?.mutableUsername } ?: paramMap["USERNAME"]?.toString()?.substringAfter("value=")?.substringBefore(")") ?: "unknown").sanitizeForPath()
+        val rawAuthor = (
+            paramMap["USER_ID"]?.let { modCtx.database.getFriendInfo(it.toString())?.mutableUsername } 
+                ?: paramMap["USERNAME"]?.toString()?.takeIf { it.contains("value=") }?.substringAfter("value=")?.substringBefore(")")?.substringBefore(",")
+                ?: paramMap["CONTEXT_USER_IDENTITY"]?.toString()?.takeIf { it.contains("username=") }?.substringAfter("username=")?.substringBefore(",")
+                ?: paramMap["USER_DISPLAY_NAME"]?.toString()?.takeIf { it.isNotEmpty() }
+                ?: paramMap["TIME_STAMP"]?.toString()
+                ?: "unknown"
+        )
+        val author = rawAuthor.sanitizeForPath().replace(":", "_").replace("/", "_").replace("\\", "_").replace("?", "_").replace("*", "_").replace("\"", "_").replace("<", "_").replace(">", "_").replace("|", "_")
         downloadOperaMedia(provideDownloadManagerClient(paramMap["SNAP_ID"].toString(), author, null, MediaDownloadSource.PUBLIC_STORY, null, forceAllowDuplicate, isBatch), mediaInfoMap, paramMap)
     }
 
