@@ -1,4 +1,5 @@
 ## v1.1.0
+- Fix: Download Context Menu now resolves Message Logger deleted media when available.
 - Fix: message preview overlap in French.
 - Fix: transparent gallery media send override dialog.
 - Fix: message logger autopurge "Never" no longer resets to 3 days.

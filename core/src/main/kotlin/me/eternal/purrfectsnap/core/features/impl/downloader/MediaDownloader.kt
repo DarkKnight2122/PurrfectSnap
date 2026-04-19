@@ -57,6 +57,7 @@ import me.eternal.purrfectsnap.core.features.MessagingRuleFeature
 import me.eternal.purrfectsnap.core.features.impl.downloader.decoder.DecodedAttachment
 import me.eternal.purrfectsnap.core.features.impl.downloader.decoder.MessageDecoder
 import me.eternal.purrfectsnap.core.features.impl.messaging.Messaging
+import me.eternal.purrfectsnap.core.features.impl.spying.MessageLogger
 import me.eternal.purrfectsnap.core.features.impl.ui.OperaStoryOverlay
 import me.eternal.purrfectsnap.core.ui.PurrfectGlassCard
 import me.eternal.purrfectsnap.core.ui.PurrfectOverlayPalette
@@ -511,30 +512,63 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
         }
     }
 
+    private fun resolveLoggedMessageAttachments(conversationId: String, clientMessageId: Long): List<DecodedAttachment> {
+        val messageLogger = context.feature(MessageLogger::class)
+        if (!messageLogger.isEnabled) return emptyList()
+
+        val loggedMessageObject = runCatching {
+            messageLogger.getMessageObject(conversationId, clientMessageId)
+        }.getOrNull() ?: return emptyList()
+
+        val loggedMessageContent = loggedMessageObject.getAsJsonObject("mMessageContent") ?: return emptyList()
+        return runCatching {
+            MessageDecoder.decode(loggedMessageContent)
+        }.getOrDefault(emptyList())
+    }
+
     suspend fun downloadMessageId(messageId: Long, forceAllowDuplicate: Boolean = false, isPreview: Boolean = false, forceDownloadFirst: Boolean = false) {
         val modCtx = this@MediaDownloader.context
         val message = modCtx.database.getConversationMessageFromId(messageId) ?: throw Exception("Message not found")
         val friendInfo = modCtx.database.getFriendInfo(message.senderId!!) ?: throw Exception("Friend not found")
-        val decodedAttachments = MessageDecoder.decode(ProtoReader(message.messageContent!!)).toMutableList()
-        if (decodedAttachments.isEmpty()) { modCtx.shortToast(translations["no_attachments_toast"] ?: "No Attachments"); return }
+        val decodedAttachments = message.messageContent?.let { content ->
+            MessageDecoder.decode(ProtoReader(content))
+        }?.toMutableList() ?: mutableListOf()
+
+        if (decodedAttachments.isEmpty()) {
+            val messageLogger = context.feature(MessageLogger::class)
+            message.clientConversationId?.let { conversationId ->
+                val isDeletedMessage = runCatching {
+                    ContentType.fromId(message.contentType) == ContentType.STATUS ||
+                        (messageLogger.isEnabled && messageLogger.isMessageDeleted(conversationId, messageId))
+                }.getOrDefault(false)
+                if (isDeletedMessage) {
+                    decodedAttachments.addAll(resolveLoggedMessageAttachments(conversationId, messageId))
+                }
+            }
+        }
+
+        val downloadableAttachments = decodedAttachments.filter {
+            it.boltKey != null || it.directUrl != null
+        }.toMutableList()
+        if (downloadableAttachments.isEmpty()) { modCtx.shortToast(translations["no_attachments_toast"] ?: "No Attachments"); return }
         
         if (!isPreview) {
-            if (forceDownloadFirst || decodedAttachments.size == 1 || modCtx.isMainActivityPaused) {
-                downloadMessageAttachments(friendInfo, message, friendInfo.usernameForSorting!!, listOf(decodedAttachments.first()), forceAllowDuplicate)
+            if (forceDownloadFirst || downloadableAttachments.size == 1 || modCtx.isMainActivityPaused) {
+                downloadMessageAttachments(friendInfo, message, friendInfo.usernameForSorting!!, listOf(downloadableAttachments.first()), forceAllowDuplicate)
             } else {
-                withContext(Dispatchers.Main) { showAttachmentSelectionDialog(friendInfo, message, decodedAttachments, forceAllowDuplicate) }
+                withContext(Dispatchers.Main) { showAttachmentSelectionDialog(friendInfo, message, downloadableAttachments, forceAllowDuplicate) }
             }
             return
         }
         
-        if (decodedAttachments.size == 1) { previewAttachment(decodedAttachments.first()); return }
+        if (downloadableAttachments.size == 1) { previewAttachment(downloadableAttachments.first()); return }
         
         withContext(Dispatchers.Main) {
             val mainActivity = modCtx.mainActivity ?: return@withContext
             ViewAppearanceHelper.newAlertDialogBuilder(mainActivity).apply {
                 var selected = 0
-                setSingleChoiceItems(decodedAttachments.mapIndexed { i, a -> "${i + 1}: ${translations["attachment_type.${a.type.key}"] ?: a.type.key}" }.toTypedArray(), 0) { _, w -> selected = w }
-                setPositiveButton(modCtx.translation["chat_action_menu.preview_button"] ?: "Preview") { _, _ -> previewAttachment(decodedAttachments[selected]) }
+                setSingleChoiceItems(downloadableAttachments.mapIndexed { i, a -> "${i + 1}: ${translations["attachment_type.${a.type.key}"] ?: a.type.key}" }.toTypedArray(), 0) { _, w -> selected = w }
+                setPositiveButton(modCtx.translation["chat_action_menu.preview_button"] ?: "Preview") { _, _ -> previewAttachment(downloadableAttachments[selected]) }
             }.show()
         }
     }
