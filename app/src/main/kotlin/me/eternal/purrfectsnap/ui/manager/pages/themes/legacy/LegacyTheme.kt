@@ -1873,62 +1873,69 @@ object LegacyTheme : ThemeContract {
         fun LogFilterDialog() {
             androidx.compose.ui.window.Dialog(onDismissRequest = { showFilterDialog = false }) {
                 me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme {
-                    me.eternal.purrfectsnap.core.ui.PurrfectGlassCard(title = translation["filter_logs_title"] ?: "Filter Log Categories", modifier = Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            HomeLogs.LogCategory.entries.forEach { category ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            // Solo Focus Logic: Tap the name to filter only this category
-                                            enabledCategories.keys.forEach { enabledCategories[it] = false }
-                                            enabledCategories[category] = true
-                                            isRefreshing = true
-                                            refreshLogs()
+                    me.eternal.purrfectsnap.core.ui.PurrfectGlassCard(
+                        title = translation["filter_logs_title"] ?: "Log Filters",
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color.White.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    HomeLogs.LogCategory.entries.forEach { category ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable {
+                                                    enabledCategories[category] = !(enabledCategories[category] ?: true)
+                                                    refreshLogs()
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Checkbox(
+                                                checked = enabledCategories[category] == true,
+                                                onCheckedChange = { checked ->
+                                                    enabledCategories[category] = checked
+                                                    refreshLogs()
+                                                },
+                                                colors = CheckboxDefaults.colors(
+                                                    checkedColor = PurrfectPalette.glowPrimary,
+                                                    uncheckedColor = Color.White.copy(alpha = 0.3f),
+                                                    checkmarkColor = Color.White
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = translation[category.translationKey] ?: category.name,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                                            )
                                         }
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Checkbox(
-                                        checked = enabledCategories[category] == true,
-                                        onCheckedChange = { checked ->
-                                            enabledCategories[category] = checked
-                                            isRefreshing = true
-                                            refreshLogs()
-                                        },
-                                        colors = CheckboxDefaults.colors(
-                                            checkedColor = PurrfectPalette.glowPrimary,
-                                            uncheckedColor = Color.White.copy(alpha = 0.4f),
-                                            checkmarkColor = Color.White
-                                        )
-                                    )
-                                    Text(
-                                        text = translation[category.translationKey] ?: category.name,
-                                        color = Color.White,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                Button(
-                                    onClick = { showFilterDialog = false },
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = PurrfectPalette.glowPrimary)
-                                ) {
-                                    Text(translation["filter_logs_done_button"] ?: "Done")
-                                }
+                            Button(
+                                onClick = { showFilterDialog = false },
+                                modifier = Modifier.fillMaxWidth().height(54.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PurrfectPalette.glowPrimary)
+                            ) {
+                                Text(translation["filter_logs_done_button"] ?: "Apply Filters", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
                     }
                 }
             }
         }
-
         if (showFilterDialog) {
             LogFilterDialog()
         }
