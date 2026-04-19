@@ -2896,6 +2896,8 @@
                 "unsaveable_messages": "\u2b07\ufe0f Unsaveable Messages",
                 "auto_open_snaps": "\ud83d\udcf7 Auto Open Snaps",
                 "stealth": "\ud83d\udc7b Full Stealth Mode",
+                "snap_stealth": "\ud83d\udcf7 Snap Stealth Mode",
+                "chat_stealth": "\ud83d\udcac Chat Stealth Mode",
                 "auto_reply": "\ud83d\udce8 Auto Reply",
                 "auto_delete_sent_messages": "\ud83d\uddd1\ufe0f Auto Delete Sent Messages",
                 "mark_chat_as_read": "\ud83d\udcd6 Mark Chat as Read",

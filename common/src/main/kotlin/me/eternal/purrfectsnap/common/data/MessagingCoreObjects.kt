@@ -49,8 +49,8 @@ enum class MessagingRuleType(
     val configNotices: Array<FeatureNotice> = emptyArray()
 ) {
     STEALTH("stealth", true, Icons.Outlined.TrackChanges),
-    SNAP_STEALTH("snap_stealth", true, Icons.Outlined.PhotoCamera, showInFriendMenu = false),
-    CHAT_STEALTH("chat_stealth", true, Icons.Outlined.ChatBubbleOutline, showInFriendMenu = false),
+    SNAP_STEALTH("snap_stealth", true, Icons.Outlined.PhotoCamera, showInFriendMenu = true),
+    CHAT_STEALTH("chat_stealth", true, Icons.Outlined.ChatBubbleOutline, showInFriendMenu = true),
     HIDE_TYPING_INDICATOR("hide_typing_indicator", true, Icons.Outlined.KeyboardHide, defaultValue = "whitelist"),
     AUTO_DOWNLOAD("auto_download", true, Icons.Outlined.DownloadForOffline),
     AUTO_SAVE("auto_save", true, Icons.Outlined.Save, defaultValue = "blacklist"),
@@ -65,6 +65,7 @@ enum class MessagingRuleType(
     AUTO_DELETE_SENT_MESSAGES("auto_delete_sent_messages", true, Icons.Outlined.DeleteSweep, defaultValue = "blacklist");
 
     fun translateOptionKey(optionKey: String): String {
+        if (key.contains("stealth")) return "features.options.friend_feed_menu_buttons.$key"
         return if (listMode) "rules.properties.$key.options.$optionKey" else "rules.properties.$key.name"
     }
 
