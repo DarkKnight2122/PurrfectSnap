@@ -74,7 +74,6 @@ class MediaFilePicker : Feature("Media File Picker") {
         private var originalUnsplitItem: Any? = null
         private var reusableOriginalItem: Any? = null
         private var queuedOverrideType: String? = null
-        private var queuedOverrideSnapDurationMs: Int? = null
         private var bypassSplitOnce = false
         private var sendSingleItemHandler: ((Any) -> Boolean)? = null
         private var cleanupItemHandler: ((String) -> Unit)? = null
@@ -82,12 +81,10 @@ class MediaFilePicker : Feature("Media File Picker") {
         fun hasPendingSplitCleanup(): Boolean = queuedSplitItemIds.isNotEmpty()
         fun hasOriginalUnsplitItem(): Boolean = originalUnsplitItem != null
         fun hasReusableOriginalItem(): Boolean = reusableOriginalItem != null
-        fun setQueuedOverrideType(value: String?, snapDurationMs: Int? = 10_000) {
+        fun setQueuedOverrideType(value: String?) {
             queuedOverrideType = value
-            queuedOverrideSnapDurationMs = if (value == null) null else snapDurationMs
         }
         fun getQueuedOverrideType(): String? = queuedOverrideType
-        fun getQueuedOverrideSnapDurationMs(): Int? = queuedOverrideSnapDurationMs
         fun clearQueuedSplitItems(deleteTempItems: Boolean = true) {
             if (deleteTempItems) {
                 val cleanup = cleanupItemHandler
@@ -100,7 +97,6 @@ class MediaFilePicker : Feature("Media File Picker") {
             queuedSplitCleanupUris.clear()
             originalUnsplitItem = null
             queuedOverrideType = null
-            queuedOverrideSnapDurationMs = null
         }
         fun sendReusableOriginalItem(): Boolean {
             val item = reusableOriginalItem ?: return false
@@ -120,10 +116,8 @@ class MediaFilePicker : Feature("Media File Picker") {
         fun sendOriginalUnsplitItem(): Boolean {
             val item = originalUnsplitItem ?: return false
             val overrideType = queuedOverrideType
-            val overrideSnapDurationMs = queuedOverrideSnapDurationMs
             clearQueuedSplitItems(deleteTempItems = true)
             queuedOverrideType = overrideType
-            queuedOverrideSnapDurationMs = overrideSnapDurationMs
             bypassSplitOnce = true
             val sender = sendSingleItemHandler ?: return false
             return sender(item)
@@ -136,12 +130,10 @@ class MediaFilePicker : Feature("Media File Picker") {
             }
             if (queuedSplitItems.isEmpty()) {
                 queuedOverrideType = null
-                queuedOverrideSnapDurationMs = null
                 return false
             }
             val next = queuedSplitItems.removeFirstOrNull() ?: run {
                 queuedOverrideType = null
-                queuedOverrideSnapDurationMs = null
                 return false
             }
             val sender = sendSingleItemHandler ?: return false

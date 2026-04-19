@@ -67,19 +67,16 @@ class SendOverride : Feature("Send Override") {
         private val internalMultipartSend = ThreadLocal.withInitial { false }
         private var queuedOriginalItemRepeatCount = 0
         private var queuedOriginalItemRepeatOverrideType: String? = null
-        private var queuedOriginalItemRepeatSnapDurationMs: Int? = null
 
-        private fun queueOriginalItemRepeats(repeatCount: Int, overrideType: String, snapDurationMs: Int?) {
+        private fun queueOriginalItemRepeats(repeatCount: Int, overrideType: String) {
             queuedOriginalItemRepeatCount = repeatCount
             queuedOriginalItemRepeatOverrideType = overrideType
-            queuedOriginalItemRepeatSnapDurationMs = snapDurationMs
-            MediaFilePicker.setQueuedOverrideType(overrideType, snapDurationMs)
+            MediaFilePicker.setQueuedOverrideType(overrideType)
         }
 
         private fun clearQueuedOriginalItemRepeats() {
             queuedOriginalItemRepeatCount = 0
             queuedOriginalItemRepeatOverrideType = null
-            queuedOriginalItemRepeatSnapDurationMs = null
         }
 
         private fun handleQueuedOriginalItemRepeatSuccess(): Boolean {
@@ -92,10 +89,9 @@ class SendOverride : Feature("Send Override") {
                 clearQueuedOriginalItemRepeats()
                 return false
             }
-            val snapDurationMs = queuedOriginalItemRepeatSnapDurationMs
 
             queuedOriginalItemRepeatCount--
-            MediaFilePicker.setQueuedOverrideType(overrideType, snapDurationMs)
+            MediaFilePicker.setQueuedOverrideType(overrideType)
             val result = MediaFilePicker.sendReusableOriginalItem()
             if (!result) {
                 queuedOriginalItemRepeatCount++
@@ -834,14 +830,8 @@ class SendOverride : Feature("Send Override") {
                 return applyOverride(localMessageContent, messageProtoReader, overrideType, snapDurationMs)
             }
 
-            val queuedOverrideType = MediaFilePicker.getQueuedOverrideType()
-            val resolvedOverrideType = queuedOverrideType
+            val resolvedOverrideType = MediaFilePicker.getQueuedOverrideType()
                 ?: configOverrideType?.takeIf { it != "always_ask" }
-            val resolvedSnapDurationMs = if (queuedOverrideType != null) {
-                MediaFilePicker.getQueuedOverrideSnapDurationMs()
-            } else {
-                10000
-            }
 
             fun attachQueuedRepeatCallbacks(sendEvent: SendMessageWithContentEvent) {
                 sendEvent.addCallbackResult("onSuccess") {
@@ -868,7 +858,7 @@ class SendOverride : Feature("Send Override") {
                 if (MediaFilePicker.hasPendingSplitCleanup() || MediaFilePicker.getQueuedOverrideType() != null || queuedOriginalItemRepeatCount > 0) {
                     attachQueuedRepeatCallbacks(event)
                 }
-                if (sendMedia(resolvedOverrideType, resolvedSnapDurationMs)) {
+                if (sendMedia(resolvedOverrideType, 10000)) {
                     if (event.canceled) invokeOriginalAndRestoreResult(event)
                 }
                 return@subscribe
@@ -1284,11 +1274,6 @@ class SendOverride : Feature("Send Override") {
                             }
                             Button(onClick = {
                                 val finalSelectedType = selectedType
-                                val selectedSnapDurationMs = if (finalSelectedType != "SAVEABLE_SNAP") {
-                                    convertDuration(customDuration)
-                                } else {
-                                    null
-                                }
                                 val repeatCount = if (continuousSendEnabled) {
                                     continuousSendCount.toIntOrNull()?.takeIf { it > 0 }
                                 } else {
@@ -1310,13 +1295,13 @@ class SendOverride : Feature("Send Override") {
                                 }
                                 alertDialog.dismiss()
                                 if (disableSplitForCurrentSend && MediaFilePicker.hasOriginalUnsplitItem()) {
-                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType, selectedSnapDurationMs)
+                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType)
                                     if (!MediaFilePicker.sendOriginalUnsplitItem()) {
                                         MediaFilePicker.setQueuedOverrideType(null)
                                     }
                                     return@Button
                                 } else if (MediaFilePicker.hasPendingSplitCleanup()) {
-                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType, selectedSnapDurationMs)
+                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType)
                                     event.addCallbackResult("onSuccess") {
                                         context.runOnUiThread {
                                             if (!MediaFilePicker.handleCurrentQueuedItemSuccess()) {
@@ -1376,7 +1361,7 @@ class SendOverride : Feature("Send Override") {
                                         if (sendRepeatedMediaManual(
                                                 repeatCount,
                                                 finalSelectedType,
-                                                selectedSnapDurationMs
+                                                if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null
                                             )) {
                                             val successText = context.translation.format("schedule_sent_to", "name" to recipientNameForTask) ?: "Sent to $recipientNameForTask"
                                             context.inAppOverlay.showStatusToast(
@@ -1425,13 +1410,13 @@ class SendOverride : Feature("Send Override") {
                                     }
                                 } else {
                                     if (repeatCount == 1) {
-                                        if (sendMedia(finalSelectedType, selectedSnapDurationMs)) {
+                                        if (sendMedia(finalSelectedType, if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null)) {
                                             invokeOriginalAndRestoreResult(event)
                                         }
                                     } else if (MediaFilePicker.hasReusableOriginalItem()) {
-                                        queueOriginalItemRepeats(repeatCount - 1, finalSelectedType, selectedSnapDurationMs)
+                                        queueOriginalItemRepeats(repeatCount - 1, finalSelectedType)
                                         attachQueuedRepeatCallbacks(event)
-                                        if (sendMedia(finalSelectedType, selectedSnapDurationMs)) {
+                                        if (sendMedia(finalSelectedType, if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null)) {
                                             invokeOriginalAndRestoreResult(event)
                                         } else {
                                             clearQueuedOriginalItemRepeats()
@@ -1440,7 +1425,7 @@ class SendOverride : Feature("Send Override") {
                                         sendRepeatedMediaManual(
                                             repeatCount,
                                             finalSelectedType,
-                                            selectedSnapDurationMs
+                                            if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null
                                         )
                                     }
                                 }
