@@ -1,6 +1,5 @@
 package me.eternal.purrfectsnap.core.features.impl.experiments
 
-import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,7 +14,6 @@ import android.os.Build
 import android.os.PowerManager
 import androidx.core.content.edit
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.sync.Mutex
@@ -42,7 +40,7 @@ import kotlin.random.Random
 
 /**
  * AutoOpenSnaps: High-performance engine with real-time diagnostics.
- * Optimized for 20+ snaps/s with accurate stats and background resilience.
+ * Optimized for background resilience and industrial stability.
  */
 class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.AUTO_OPEN_SNAPS) {
     companion object {
@@ -99,7 +97,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         val now = System.currentTimeMillis(); val window = 5000L
         synchronized(snapTimestamps) {
             snapTimestamps.removeIf { now - it > window }
-            // Smoother calculation for high-frequency bursts
             return if (snapTimestamps.isEmpty()) 0.0 else (snapTimestamps.size.toDouble() / (window / 1000.0))
         }
     }
@@ -113,7 +110,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         restorePersistence()
         createNotificationChannels()
 
-        // NATIVE HOOKS: Ensuring Snapchat never sees the app as "In Background"
         if ((autoOpenConfig.allowRunningInBackground as PropertyValue<Boolean>).get()) {
             runCatching {
                 findClass("com.snapchat.client.duplex.DuplexClient\$CppProxy").apply {
@@ -121,7 +117,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                         val state = param.arg<Any>(0).toString()
                         if (state == "INACTIVE" || state == "BACKGROUND") param.setResult(null)
                     }
-                    // INDUSTRIAL FIX: Restoring the universal v1.6.8 background wake-up hook
                     hookConstructor(HookStage.AFTER) { param ->
                         methods.firstOrNull { it.name == "appStateChanged" }?.let { method ->
                             val enumClass = method.parameterTypes[0]
@@ -158,7 +153,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                     continue 
                 }
 
-                // SPEED OPTIMIZATION: Instant switch (40ms) when stealth is off
                 val isSafe = (autoOpenConfig.safeProcessing as PropertyValue<Boolean>).get()
                 if (lastConversationId != null && lastConversationId != item.conversationId) {
                     delay(if (isSafe) (autoOpenConfig.delayBetweenConversations as PropertyValue<Int>).get().toLong() else 40L)
@@ -198,7 +192,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             
             success = withContext(Dispatchers.IO) { performOpen(item) }
             if (success) {
-                // IMPORTANT: Item only removed after successful processing to ensure Stats sync
                 synchronized(queuedSnaps) { queuedSnaps.remove(item) }
                 sessionProcessed.incrementAndGet(); totalProcessed.incrementAndGet(); recordSpeedTimestamp()
                 val duration = System.currentTimeMillis() - startTime
@@ -305,7 +298,14 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
 
     private fun isWifiConnected(): Boolean {
         val cm = this@AutoOpenSnaps.context.androidContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        return cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        
+        // RESILIENT WIFI CHECK: Iterates through all networks to find ANY WiFi transport (VPN aware)
+        return cm.allNetworks.any { network ->
+            cm.getNetworkCapabilities(network)?.let { caps ->
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || 
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+            } == true
+        }
     }
 
     private fun isDeviceIdle(): Boolean = (this@AutoOpenSnaps.context.androidContext.getSystemService(Context.POWER_SERVICE) as PowerManager).isDeviceIdleMode
@@ -355,7 +355,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         val builder = Notification.Builder(this@AutoOpenSnaps.context.androidContext, "auto_open_status")
             .setOngoing(isWorking).setOnlyAlertOnce(true).setGroup(NOTIFICATION_GROUP_KEY)
             
-        // ICON LOGIC: Pause, Monitoring (Sync), or Active (Play)
         val iconRes = when {
             isPaused.get() -> android.R.drawable.ic_media_pause
             !isWorking -> android.R.drawable.ic_popup_sync
