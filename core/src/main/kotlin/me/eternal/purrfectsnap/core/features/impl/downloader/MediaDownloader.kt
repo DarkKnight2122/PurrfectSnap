@@ -189,19 +189,23 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                         if (isBatch) {
                             batchSuccessCount.incrementAndGet()
                             if (downloadLogging.contains("success")) {
-                                modCtx.inAppOverlay.showStatusToast(
-                                    icon = Icons.Outlined.DownloadDone,
-                                    text = translations.format("batch_progress_toast", "current" to (batchSuccessCount.get() + batchFailureCount.get()).toString(), "total" to batchTotalCount.get().toString()),
-                                    durationMs = 1300
-                                )
+                                modCtx.runOnUiThread {
+                                    modCtx.inAppOverlay.showStatusToast(
+                                        icon = Icons.Outlined.DownloadDone,
+                                        text = translations.format("batch_progress_toast", "current" to (batchSuccessCount.get() + batchFailureCount.get()).toString(), "total" to batchTotalCount.get().toString()),
+                                        durationMs = 1300
+                                    )
+                                }
                             }
                             return@launch
                         }
 
                         if (downloadLogging.contains("success")) {
                             val toastText = translations.format("content_saved_toast", "path" to java.io.File(finalOutputFile).name)
-                            if (modCtx.isMainActivityPaused) modCtx.shortToast(toastText)
-                            modCtx.inAppOverlay.showStatusToast(Icons.Outlined.DownloadDone, toastText, 1300)
+                            modCtx.runOnUiThread {
+                                if (modCtx.isMainActivityPaused) modCtx.shortToast(toastText)
+                                modCtx.inAppOverlay.showStatusToast(Icons.Outlined.DownloadDone, toastText, 1300)
+                            }
                         }
                     }
                 }
@@ -209,16 +213,20 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                 override fun onProgress(message: String) {
                     if (isBatch || !downloadLogging.contains("progress")) return
                     val toastText = message.ifBlank { translations["download_started_toast"] ?: "Started" }
-                    if (modCtx.isMainActivityPaused) modCtx.shortToast(toastText)
-                    modCtx.inAppOverlay.showStatusToast(Icons.Outlined.Info, toastText, 1300)
+                    modCtx.runOnUiThread {
+                        if (modCtx.isMainActivityPaused) modCtx.shortToast(toastText)
+                        modCtx.inAppOverlay.showStatusToast(Icons.Outlined.Info, toastText, 1300)
+                    }
                 }
 
                 override fun onFailure(message: String, throwable: String?) {
                     if (!downloadLogging.contains("failure")) return
                     val errorText = translations[if (message == "Failed to download") "failed_generic_toast" else message] ?: message
                     if (isBatch) { batchFailureCount.incrementAndGet(); return }
-                    if (modCtx.isMainActivityPaused) modCtx.shortToast(errorText)
-                    modCtx.inAppOverlay.showStatusToast(Icons.Outlined.ErrorOutline, errorText, 1300)
+                    modCtx.runOnUiThread {
+                        if (modCtx.isMainActivityPaused) modCtx.shortToast(errorText)
+                        modCtx.inAppOverlay.showStatusToast(Icons.Outlined.ErrorOutline, errorText, 1300)
+                    }
                 }
             }
         )

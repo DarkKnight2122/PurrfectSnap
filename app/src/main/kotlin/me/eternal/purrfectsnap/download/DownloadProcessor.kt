@@ -283,7 +283,7 @@ class DownloadProcessor (
         while (true) {
             val existingFile = outputFileFolder.findFile(finalFileName) ?: break
             
-            if (existingFile.length() == inputFile.length()) {
+            if (existingFile.length() == inputFile.length() && !remoteSideContext.config.root.downloader.allowDuplicate.get()) {
                 val existingInputStream = remoteSideContext.androidContext.contentResolver.openInputStream(existingFile.uri)
                 if (existingInputStream != null && streamsMatch(existingInputStream, inputFile.inputStream())) {
                     return GallerySaveResult(existingFile.uri, alreadyDownloaded = true)
@@ -376,7 +376,7 @@ class DownloadProcessor (
             var destFile = File(destDir, fileName)
             var suffix = 1
             while (destFile.exists()) {
-                if (destFile.length() == inputFile.length() && streamsMatch(destFile.inputStream(), inputFile.inputStream())) {
+                if (destFile.length() == inputFile.length() && !remoteSideContext.config.root.downloader.allowDuplicate.get() && streamsMatch(destFile.inputStream(), inputFile.inputStream())) {
                     return GallerySaveResult(Uri.fromFile(destFile), alreadyDownloaded = true)
                 }
                 destFile = File(destDir, appendNameSuffix(fileName, suffix++))

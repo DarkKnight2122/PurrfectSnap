@@ -54,7 +54,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         private const val NOTIFICATION_GROUP_KEY = "purrfectsnap.AUTO_OPEN"
         private const val PREF_TOTAL_OPENED = "auto_open_total_opened"
         private const val PREF_SESSION_START = "auto_open_session_start"
-        private const val PREF_PROCESSED_IDS = "auto_open_processed_ids"
         
         private const val LAZY_SAVE_INTERVAL_MS = 600_000L 
     }
@@ -79,12 +78,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     private val prefs by lazy { this@AutoOpenSnaps.context.androidContext.getSharedPreferences("me.eternal.purrfectsnap_preferences", Context.MODE_PRIVATE) }
     private val messaging by lazy { this@AutoOpenSnaps.context.feature(Messaging::class) }
     private var wakeLock: PowerManager.WakeLock? = null
-    private var wakeLockCooldownJob: Job? = null
-
-    // Optimized Metadata Cache: 500 entries limit to prevent OOM crashes
-    private val metadataCache = Collections.synchronizedMap(object : LinkedHashMap<String, String>(100, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 500
-    })
 
     private var currentStatusText = "Monitoring..."
     private var currentSpeedText = "Full Speed"
@@ -117,6 +110,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     }
 
     override fun init() {
+        restorePersistence()
         createNotificationChannels()
 
         // NATIVE HOOKS: Ensuring Snapchat never sees the app as "In Background"
@@ -126,6 +120,14 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                     hook("appStateChanged", HookStage.BEFORE) { param ->
                         val state = param.arg<Any>(0).toString()
                         if (state == "INACTIVE" || state == "BACKGROUND") param.setResult(null)
+                    }
+                    // INDUSTRIAL FIX: Restoring the universal v1.6.8 background wake-up hook
+                    hookConstructor(HookStage.AFTER) { param ->
+                        methods.firstOrNull { it.name == "appStateChanged" }?.let { method ->
+                            val enumClass = method.parameterTypes[0]
+                            val activeState = enumClass.enumConstants?.firstOrNull { it.toString() == "ACTIVE" || it.toString() == "FOREGROUND" }
+                            if (activeState != null) method.invoke(param.thisObject<Any>(), activeState)
+                        }
                     }
                 }
                 findClass("com.snapchat.client.network_manager.NetworkManager\$CppProxy").apply {
@@ -201,7 +203,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                 sessionProcessed.incrementAndGet(); totalProcessed.incrementAndGet(); recordSpeedTimestamp()
                 val duration = System.currentTimeMillis() - startTime
                 averageProcessingTime.set((averageProcessingTime.get() * 0.7 + duration * 0.3).toLong())
-                break
+                triggerLazySave(); break
             }
             delay((autoOpenConfig.retryDelay as PropertyValue<Int>).get().toLong())
         }
@@ -265,18 +267,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
 
             val contentType = message.messageContent?.contentType
             if (contentType != ContentType.SNAP && contentType != ContentType.EXTERNAL_MEDIA) return@subscribe
-
-            // Prevent processing of snaps already viewed manually by the local user
-            if (message.messageMetadata?.openedBy?.any { it.toString() == this@AutoOpenSnaps.context.database.myUserId } == true) {
-                openedSnapsIds.add(clientMessageId)
-                return@subscribe
-            }
-
             if (!canUseRule(conversationId)) return@subscribe
-            
-            val currentQueueSize = synchronized(queuedSnaps) { queuedSnaps.size }
-            if (currentQueueSize >= (autoOpenConfig.queueSize as PropertyValue<Int>).get()) return@subscribe
-
             if (openedSnapsIds.contains(clientMessageId)) return@subscribe
             openedSnapsIds.add(clientMessageId)
             
@@ -286,8 +277,30 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             synchronized(queuedSnaps) { queuedSnaps.add(item) }
             snapChannel.trySend(item)
             
-            acquireWakeLock(); updateStatusNotification()
+            acquireWakeLock(); updateStatusNotification(); triggerLazySave()
         }
+    }
+
+    private fun triggerLazySave() {
+        needsSaving.set(true)
+        if (isSaving.compareAndSet(false, true)) {
+            this@AutoOpenSnaps.context.coroutineScope.launch(Dispatchers.IO) {
+                while (needsSaving.get() && engineActive.get()) {
+                    needsSaving.set(false); saveQueueToDisk(); delay(LAZY_SAVE_INTERVAL_MS)
+                }
+                isSaving.set(false)
+            }
+        }
+    }
+
+    private fun saveQueueToDisk() {
+        prefs.edit { putInt(PREF_TOTAL_OPENED, totalProcessed.get()); putLong(PREF_SESSION_START, sessionStartTime.get()) }
+    }
+
+    private fun restorePersistence() {
+        val savedStartTime = prefs.getLong(PREF_SESSION_START, 0)
+        if (System.currentTimeMillis() - savedStartTime > 21600000) return
+        totalProcessed.set(prefs.getInt(PREF_TOTAL_OPENED, 0)); sessionStartTime.set(savedStartTime)
     }
 
     private fun isWifiConnected(): Boolean {
@@ -452,4 +465,4 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     private fun getSnapContentType(type: ContentType?): String = when (type) { ContentType.SNAP -> "Photo/Video"; ContentType.EXTERNAL_MEDIA -> "Media"; else -> "Message" }
 }
 
-data class SnapQueueItem(val conversationId: String, val messageId: Long, val serverMessageId: Long, val senderId: String, val senderName: String, val conversationType: String, val contentType: String, val timestamp: Long = System.currentTimeMillis())
+data class SnapQueueItem(val conversationId: String, val messageId: Long, val serverMessageId: Long, val senderId: String, val senderName: String, val conversationType: String, val contentType: String)
