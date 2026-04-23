@@ -57,7 +57,7 @@ class UserInterfaceTweaks : ConfigContainer() {
     val oldBitmojiSelfie = unique("old_bitmoji_selfie", "2d", "3d") { requireCleanCache() }
     val disableSpotlight = boolean("disable_spotlight") { requireRestart() }
     val verticalStoryViewer = boolean("vertical_story_viewer") { requireRestart() }
-    val messageIndicators = multiple("message_indicators", "encryption_indicator", "platform_indicator", "location_indicator", "ovf_editor_indicator", "director_mode_indicator") { requireRestart() }
+    val messageIndicators = multiple("message_indicators", "encryption_indicator", "platform_indicator", "location_indicator", "ovf_editor_indicator", "director_mode_indicator", "memories_indicator") { requireRestart() }
     val stealthModeIndicator = boolean("stealth_mode_indicator") { requireRestart() }
     val editTextOverride = multiple("edit_text_override", "multi_line_chat_input", "bypass_text_input_limit") {
         requireRestart(); addNotices(FeatureNotice.BAN_RISK, FeatureNotice.INTERNAL_BEHAVIOR)

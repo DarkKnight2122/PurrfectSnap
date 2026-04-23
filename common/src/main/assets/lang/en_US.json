@@ -3259,7 +3259,8 @@
                 "platform_indicator": "Adds the platform icon from which a media was sent (e.g. Android, iOS, Web)",
                 "location_indicator": "Adds a \ud83d\udccd icon to snaps when they have been sent with location enabled",
                 "ovf_editor_indicator": "Indicates if a snap has been sent using OVF Editor",
-                "director_mode_indicator": "Adds a \u270f\ufe0f icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps"
+                "director_mode_indicator": "Adds a \u270f\ufe0f icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps",
+                "memories_indicator": "Adds a \ud83d\udcd6 icon to snaps that were re-sent from Memories instead of being captured with the live camera"
             },
             "auto_mark_as_read": {
                 "conversation_read": "Mark conversation as read when sending a message",

@@ -8,22 +8,68 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.eternal.purrfectsnap.common.data.ContentType
 import me.eternal.purrfectsnap.common.ui.createComposeView
-import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
 import me.eternal.purrfectsnap.common.util.protobuf.ProtoReader
 import me.eternal.purrfectsnap.core.event.events.impl.BindViewEvent
 import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.ui.AppleLogo
 import kotlin.random.Random
+
+@Composable
+private fun GradientIcon(
+    imageVector: ImageVector,
+    brush: Brush,
+    size: androidx.compose.ui.unit.Dp = 16.dp
+) {
+    Image(
+        imageVector = imageVector,
+        contentDescription = null,
+        colorFilter = ColorFilter.tint(Color.White),
+        modifier = Modifier
+            .size(size)
+            .graphicsLayer(alpha = 0.99f)
+            .drawWithContent {
+                drawContent()
+                drawRect(brush = brush, blendMode = BlendMode.SrcAtop)
+            }
+    )
+}
+
+@Composable
+private fun GradientText(
+    text: String,
+    brush: Brush,
+    fontWeight: FontWeight,
+    fontSize: androidx.compose.ui.unit.TextUnit
+) {
+    Text(
+        text = text,
+        color = Color.White,
+        fontWeight = fontWeight,
+        fontSize = fontSize,
+        modifier = Modifier
+            .graphicsLayer(alpha = 0.99f)
+            .drawWithContent {
+                drawContent()
+                drawRect(brush = brush, blendMode = BlendMode.SrcAtop)
+            }
+    )
+}
 
 class MessageIndicators : Feature("Message Indicators") {
     override fun init() {
@@ -35,96 +81,96 @@ class MessageIndicators : Feature("Message Indicators") {
             val appleLogo = AppleLogo
 
             context.event.subscribe(BindViewEvent::class) { event ->
-                event.chatMessage { _, _ ->
+                event.chatMessage { conversationId, _ ->
                     val view = event.view as? ViewGroup ?: return@subscribe
                     view.findViewWithTag<View>(messageInfoTag)?.let { view.removeView(it) }
 
                     val message = event.databaseMessage ?: return@chatMessage
                     if (message.contentType != ContentType.SNAP.id && message.contentType != ContentType.EXTERNAL_MEDIA.id) return@chatMessage
+                    if (message.senderId == context.database.myUserId) return@chatMessage
                     val reader = ProtoReader(message.messageContent ?: return@chatMessage)
+                    val isGroupConversation = (context.database.getConversationParticipants(conversationId)?.size ?: 0) > 2
 
                     createComposeView(event.view.context) {
+                        val lockBrush = Brush.linearGradient(listOf(Color(0xFF4CD471), Color(0xFF00B8D9)))
+                        val locationBrush = Brush.linearGradient(listOf(Color(0xFFFF4B5C), Color(0xFFFFB74D)))
+                        val androidBrush = Brush.linearGradient(listOf(Color(0xFF3DDC84), Color(0xFFA5E635)))
+                        val appleBrush = Brush.linearGradient(listOf(Color(0xFFFFFFFF), Color(0xFF94A3B8)))
+                        val webBrush = Brush.linearGradient(listOf(Color(0xFF4FC3F7), Color(0xFF00E5FF)))
+                        val directorBrush = Brush.linearGradient(listOf(Color(0xFFFFB74D), Color(0xFFFF5E3A)))
+                        val ovfBrush = Brush.linearGradient(listOf(Color(0xFFFF5CA8), Color(0xFFA64CFF)))
+                        val memoriesBrush = Brush.linearGradient(listOf(Color(0xFFFFE066), Color(0xFFFFB300)))
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
-                                .padding(top = 4.dp, end = 1.dp),
-                            contentAlignment = Alignment.TopEnd
+                                .padding(top = 6.dp),
+                            contentAlignment = Alignment.TopCenter
                         ) {
-                            val hasEncryption by rememberAsyncMutableState(defaultValue = false) {
+                            val hasEncryption = remember(reader, isGroupConversation) {
                                 if (reader.containsPath(4, 4, 1, 1)
                                     || reader.containsPath(4, 4, 1, 1, 1)
                                     || reader.getByteArray(4, 3, 3) != null
                                     || reader.containsPath(3, 99, 3)) {
-                                    return@rememberAsyncMutableState true
+                                    return@remember true
                                 }
-                                if (!reader.containsPath(3, 99, 5, 1)) return@rememberAsyncMutableState false
-                                reader.containsPath(4, 5, 1, 3, 1)
-                                    || reader.getVarInt(4, 5, 1, 3, 2, 9) == 1L
+                                if (isGroupConversation) return@remember false
+                                if (reader.containsPath(4, 5, 1, 3, 1)) return@remember true
+                                reader.getVarInt(4, 5, 1, 3, 2, 9) in setOf(1L, 3L)
                             }
-                            val sentFromIosDevice by rememberAsyncMutableState(defaultValue = false) {
+                            val sentFromIosDevice = remember(reader) {
                                 if (reader.containsPath(4, 4, 3)) !reader.containsPath(4, 4, 3, 3, 17) else reader.getVarInt(4, 4, 11, 17, 7) != null
                             }
-                            val sentFromWebApp by rememberAsyncMutableState(defaultValue = false) {
+                            val sentFromWebApp = remember(reader) {
                                 reader.getVarInt(4, 4, *(if (reader.containsPath(4, 4, 3)) intArrayOf(3, 3, 22, 1) else intArrayOf(11, 22, 1))) == 7L
                             }
-                            val sentWithLocation by rememberAsyncMutableState(defaultValue = false) {
+                            val sentWithLocation = remember(reader) {
                                 reader.getVarInt(4, 4, 11, 17, 5) != null
                             }
-                            val sentUsingOvfEditor by rememberAsyncMutableState(defaultValue = false) {
+                            val sentUsingOvfEditor = remember(reader) {
                                 (reader.getString(4, 4, 11, 12, 1) ?: reader.getString(4, 4, 11, 13, 4, 1, 2, 12, 20, 1)) == "c13129f7-fe4a-44c4-9b9d-e0b26fee8f82"
                             }
-                            val sentUsingDirectorMode by rememberAsyncMutableState(defaultValue = false) {
+                            val sentUsingDirectorMode = remember(reader) {
                                 reader.followPath(4, 4, 11, 28)?.let {
                                     (it.getVarInt(1) to it.getVarInt(2)) == (0L to 0L)
                                 } == true || reader.getByteArray(4, 4, 11, 13, 4, 1, 2, 12, 27, 1) != null
                             }
+                            val sentFromMemories = remember(reader) {
+                                reader.getVarInt(4, 18) != null
+                                    || reader.getString(4, 5, 1, 2)?.contains("/h/") == true
+                            }
 
                             Row(
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 if (sentWithLocation && messageIndicatorsConfig.contains("location_indicator")) {
-                                    Image(
-                                        imageVector = Icons.Default.LocationOn,
-                                        colorFilter = ColorFilter.tint(Color.Green),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
-                                    )
+                                    GradientIcon(Icons.Default.LocationOn, locationBrush)
                                 }
                                 if (messageIndicatorsConfig.contains("platform_indicator")) {
-                                    Image(
-                                        imageVector = when {
-                                            sentFromWebApp -> Icons.Default.Laptop
-                                            sentFromIosDevice -> appleLogo
-                                            else -> Icons.Default.Android
-                                        },
-                                        colorFilter = ColorFilter.tint(Color.Green),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
-                                    )
+                                    val (platformIcon, platformBrush) = when {
+                                        sentFromWebApp -> Icons.Default.Laptop to webBrush
+                                        sentFromIosDevice -> appleLogo to appleBrush
+                                        else -> Icons.Default.Android to androidBrush
+                                    }
+                                    GradientIcon(platformIcon, platformBrush)
                                 }
                                 if (hasEncryption && messageIndicatorsConfig.contains("encryption_indicator")) {
-                                    Image(
-                                        imageVector = Icons.Default.Lock,
-                                        colorFilter = ColorFilter.tint(Color.Green),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
-                                    )
+                                    GradientIcon(Icons.Default.Lock, lockBrush)
                                 }
                                 if (sentUsingDirectorMode && messageIndicatorsConfig.contains("director_mode_indicator")) {
-                                    Image(
-                                        imageVector = Icons.Default.Edit,
-                                        colorFilter = ColorFilter.tint(Color.Red),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
-                                    )
+                                    GradientIcon(Icons.Default.Edit, directorBrush)
+                                }
+                                if (sentFromMemories && messageIndicatorsConfig.contains("memories_indicator")) {
+                                    GradientIcon(Icons.Default.HistoryEdu, memoriesBrush)
                                 }
                                 if (sentUsingOvfEditor && messageIndicatorsConfig.contains("ovf_editor_indicator")) {
-                                    Text(
+                                    GradientText(
                                         text = "OVF",
-                                        color = Color.Red,
+                                        brush = ovfBrush,
                                         fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 10.sp,
+                                        fontSize = 11.sp
                                     )
                                 }
                             }

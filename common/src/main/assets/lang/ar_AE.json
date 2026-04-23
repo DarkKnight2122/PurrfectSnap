@@ -2570,7 +2570,8 @@
                 "platform_indicator": "يضيف أيقونة المنصة التي تم إرسال الوسيط منها (مثل Android، iOS، Web)",
                 "location_indicator": "يضيف أيقونة \ud83d\udccd للـ snaps عندما يتم إرسالها مع تمكين الموقع",
                 "ovf_editor_indicator": "يشير إلى ما إذا كان snap قد تم إرساله باستخدام محرر OVF",
-                "director_mode_indicator": "يضيف أيقونة \u270f\ufe0f للـ snaps عندما يتم إرسالها باستخدام وضع المخرج، والذي يمكن استخدامه لإرسال صور المعرض كـ snaps"
+                "director_mode_indicator": "يضيف أيقونة \u270f\ufe0f للـ snaps عندما يتم إرسالها باستخدام وضع المخرج، والذي يمكن استخدامه لإرسال صور المعرض كـ snaps",
+                "memories_indicator": "إضافة رمز \uD83D\uDCD6 للسنابات التي تم إعادة إرسالها من الذكريات بدلاً من التقاطها بالكاميرا الحية"
             },
             "auto_mark_as_read": {
                 "conversation_read": "وضع علامة مقروء على المحادثة عند إرسال رسالة",
