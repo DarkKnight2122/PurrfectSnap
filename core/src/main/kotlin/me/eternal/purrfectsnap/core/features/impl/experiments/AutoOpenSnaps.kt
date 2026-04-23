@@ -125,10 +125,6 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                         }
                     }
                 }
-                findClass("com.snapchat.client.network_manager.NetworkManager\$CppProxy").apply {
-                    hook("onAppForegrounded", HookStage.BEFORE) { param -> param.setResult(null) }
-                    hook("onAppBackgrounded", HookStage.BEFORE) { param -> param.setResult(null) }
-                }
             }
         }
 
