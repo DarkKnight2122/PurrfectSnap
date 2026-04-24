@@ -1,6 +1,5 @@
 package me.eternal.purrfectsnap.core.features.impl.messaging
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
@@ -65,37 +64,15 @@ import kotlin.time.toDuration
 class SendOverride : Feature("Send Override") {
     companion object {
         private const val NOTIFICATION_CHANNEL_ID = "scheduled_send"
-        private const val CONTINUOUS_SEND_CHANNEL_ID = "continuous_send_status"
-        private const val STATUS_NOTIFICATION_ID = 54322
-        private const val COMPLETION_NOTIFICATION_ID = 54323
-        
-        const val ACTION_PAUSE_RESUME = "me.eternal.purrfectsnap.CONTINUOUS_SEND_PAUSE_RESUME"
-        const val ACTION_STOP = "me.eternal.purrfectsnap.CONTINUOUS_SEND_STOP"
-
         private val internalMultipartSend = ThreadLocal.withInitial { false }
         private var queuedOriginalItemRepeatCount = 0
         private var queuedOriginalItemRepeatOverrideType: String? = null
         private var queuedOriginalItemRepeatSnapDurationMs: Int? = null
-        
-        // Notification & Loop Tracking
-        private var totalRepeatCount = 0
-        private var processedRepeatCount = 0
-        private var currentRecipientName: String = "Unknown"
-        private val isPaused = java.util.concurrent.atomic.AtomicBoolean(false)
-        private val isStopped = java.util.concurrent.atomic.AtomicBoolean(false)
 
-        // State persistence for background operations
-        private var lastCapturedDestinationsObj: Any? = null
-        private var lastCapturedMessageContentJson: String? = null
-        private var lastCapturedOriginalCallback: Any? = null
-
-        private fun queueOriginalItemRepeats(repeatCount: Int, overrideType: String, snapDurationMs: Int?, destinations: Any, contentJson: String, originalCallback: Any?) {
+        private fun queueOriginalItemRepeats(repeatCount: Int, overrideType: String, snapDurationMs: Int?) {
             queuedOriginalItemRepeatCount = repeatCount
             queuedOriginalItemRepeatOverrideType = overrideType
             queuedOriginalItemRepeatSnapDurationMs = snapDurationMs
-            lastCapturedDestinationsObj = destinations
-            lastCapturedMessageContentJson = contentJson
-            lastCapturedOriginalCallback = originalCallback
             MediaFilePicker.setQueuedOverrideType(overrideType, snapDurationMs)
         }
 
@@ -103,68 +80,29 @@ class SendOverride : Feature("Send Override") {
             queuedOriginalItemRepeatCount = 0
             queuedOriginalItemRepeatOverrideType = null
             queuedOriginalItemRepeatSnapDurationMs = null
-            totalRepeatCount = 0
-            processedRepeatCount = 0
-            isPaused.set(false)
-            isStopped.set(false)
-            lastCapturedDestinationsObj = null
-            lastCapturedMessageContentJson = null
-            lastCapturedOriginalCallback = null
-        }
-    }
-
-    private val engineActive = java.util.concurrent.atomic.AtomicBoolean(true)
-
-    private fun updateContinuousSendNotification() {
-        if (!engineActive.get() || isStopped.get()) return
-        
-        val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
-        val remaining = queuedOriginalItemRepeatCount
-        val processed = processedRepeatCount
-        val total = totalRepeatCount
-        val isWorking = (remaining > 0 || (total > 0 && processed < total)) && !isStopped.get()
-        
-        if (!isWorking) {
-            notificationManager.cancel(STATUS_NOTIFICATION_ID)
-            showCompletionNotification(processed, total)
-            return
         }
 
-        val progressPercent = if (total > 0) (processed * 100) / total else 0
-        
-        val builder = Notification.Builder(context.androidContext, CONTINUOUS_SEND_CHANNEL_ID)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setSmallIcon(if (isPaused.get()) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play)
-            .setContentTitle("Sending Snaps to $currentRecipientName")
-            .setContentText("Progress: $processed / $total ($progressPercent%)")
-            .setSubText("$processed / $total")
-            .setProgress(total, processed, false)
+        private fun handleQueuedOriginalItemRepeatSuccess(): Boolean {
+            if (queuedOriginalItemRepeatCount <= 0) {
+                clearQueuedOriginalItemRepeats()
+                return false
+            }
 
-        val pauseResumeLabel = if (isPaused.get()) "Resume" else "Pause"
-        builder.addAction(Notification.Action.Builder(null, pauseResumeLabel, createPendingIntent(ACTION_PAUSE_RESUME)).build())
-        builder.addAction(Notification.Action.Builder(null, "Stop", createPendingIntent(ACTION_STOP)).build())
+            val overrideType = queuedOriginalItemRepeatOverrideType ?: run {
+                clearQueuedOriginalItemRepeats()
+                return false
+            }
+            val snapDurationMs = queuedOriginalItemRepeatSnapDurationMs
 
-        notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build())
-    }
-
-    private fun showCompletionNotification(sent: Int, total: Int) {
-        val title = if (isStopped.get()) "Continuous Send Stopped" else "Continuous Send Finished"
-        val content = "Successfully sent $sent / $total snaps to $currentRecipientName"
-        
-        val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
-        val builder = Notification.Builder(context.androidContext, CONTINUOUS_SEND_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setAutoCancel(true)
-        
-        notificationManager.notify(COMPLETION_NOTIFICATION_ID, builder.build())
-    }
-
-    private fun createPendingIntent(action: String): android.app.PendingIntent {
-        val intent = android.content.Intent(action).setPackage(context.androidContext.packageName)
-        return android.app.PendingIntent.getBroadcast(context.androidContext, action.hashCode(), intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+            queuedOriginalItemRepeatCount--
+            MediaFilePicker.setQueuedOverrideType(overrideType, snapDurationMs)
+            val result = MediaFilePicker.sendReusableOriginalItem()
+            if (!result) {
+                queuedOriginalItemRepeatCount++
+                clearQueuedOriginalItemRepeats()
+            }
+            return result
+        }
     }
     
     private var selectedType by mutableStateOf("SNAP")
@@ -258,33 +196,6 @@ class SendOverride : Feature("Send Override") {
     @OptIn(ExperimentalLayoutApi::class)
     override fun init() {
         createNotificationChannel()
-
-        val actionReceiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
-                when (intent?.action) {
-                    ACTION_PAUSE_RESUME -> {
-                        isPaused.set(!isPaused.get())
-                        updateContinuousSendNotification()
-                    }
-                    ACTION_STOP -> {
-                        isStopped.set(true)
-                        if (isPaused.get()) {
-                            isPaused.set(false)
-                        }
-                        updateContinuousSendNotification()
-                    }
-                }
-            }
-        }
-        val filter = android.content.IntentFilter().apply {
-            addAction(ACTION_PAUSE_RESUME)
-            addAction(ACTION_STOP)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.androidContext.registerReceiver(actionReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.androidContext.registerReceiver(actionReceiver, filter)
-        }
         
         val stripMediaMetadata = context.config.messaging.stripMediaMetadata.get()
         var postSavePolicy: Int? = null
@@ -798,13 +709,13 @@ class SendOverride : Feature("Send Override") {
                 }
             }
 
-            fun invokeSendManually(destinations: MessageDestinations, messageContent: MessageContent, callback: Any?) {
+            fun invokeSendManually(messageContent: MessageContent, callback: Any?) {
                 val conversationManager = conversationManagerInstance ?: error("ConversationManager is null")
                 internalMultipartSend.set(true)
                 try {
                     sendMessageWithContentMethod.invoke(
                         conversationManager,
-                        cloneDestinations(destinations),
+                        cloneDestinations(event.destinations),
                         messageContent.instanceNonNull(),
                         callback
                     )
@@ -814,7 +725,6 @@ class SendOverride : Feature("Send Override") {
             }
 
             fun sendMediaManual(
-                destinations: MessageDestinations,
                 sourceMessageContent: MessageContent,
                 overrideType: String,
                 snapDurationMs: Int?,
@@ -874,7 +784,7 @@ class SendOverride : Feature("Send Override") {
                                 .build()
                         }
 
-                        invokeSendManually(destinations, partContent, callback)
+                        invokeSendManually(partContent, callback)
                     }
 
                     sendPart(0)
@@ -884,12 +794,11 @@ class SendOverride : Feature("Send Override") {
                 postSavePolicy = null
                 val targetReader = ProtoReader(sourceMessageContent.content ?: return false)
                 if (!applyOverride(sourceMessageContent, targetReader, overrideType, snapDurationMs)) return false
-                invokeSendManually(destinations, sourceMessageContent, completionCallback)
+                invokeSendManually(sourceMessageContent, completionCallback)
                 return true
             }
 
             fun sendRepeatedMediaManual(
-                destinations: MessageDestinations,
                 repeatCount: Int,
                 overrideType: String,
                 snapDurationMs: Int?
@@ -911,7 +820,7 @@ class SendOverride : Feature("Send Override") {
                     }
 
                     val preparedContent = createMessageContentFromOriginal()
-                    if (!sendMediaManual(destinations, preparedContent, overrideType, snapDurationMs, callback)) {
+                    if (!sendMediaManual(preparedContent, overrideType, snapDurationMs, callback)) {
                         invokeCallbackError(originalCallback, "Failed to send")
                     }
                 }
@@ -934,76 +843,12 @@ class SendOverride : Feature("Send Override") {
                 10000
             }
 
-            fun handleQueuedOriginalItemRepeatSuccess(convId: String): Boolean {
-                if (isStopped.get() || queuedOriginalItemRepeatCount <= 0) {
-                    val processed = processedRepeatCount
-                    val total = totalRepeatCount
-                    clearQueuedOriginalItemRepeats()
-                    context.runOnUiThread {
-                        val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
-                        notificationManager.cancel(STATUS_NOTIFICATION_ID)
-                        showCompletionNotification(processed, total)
-                    }
-                    return false
-                }
-
-                val destinations = lastCapturedDestinationsObj as? MessageDestinations ?: return false
-                val contentJson = lastCapturedMessageContentJson ?: return false
-                val originalCb = lastCapturedOriginalCallback
-                val overrideType = queuedOriginalItemRepeatOverrideType ?: "SNAP"
-                val snapDurationMs = queuedOriginalItemRepeatSnapDurationMs
-
-                context.coroutineScope.launch {
-                    while (isPaused.get() && !isStopped.get()) {
-                        delay(500)
-                    }
-                    if (isStopped.get()) {
-                        context.runOnUiThread { handleQueuedOriginalItemRepeatSuccess(convId) }
-                        return@launch
-                    }
-
-                    delay(1000)
-                    
-                    context.runOnUiThread {
-                        queuedOriginalItemRepeatCount--
-                        processedRepeatCount++
-                        updateContinuousSendNotification()
-
-                        val repeatedContent = createMessageContentFromOriginal()
-                        
-                        val callback = CallbackBuilder(sendMessageCallbackClass)
-                            .override("onSuccess") {
-                                context.runOnUiThread {
-                                    if (!handleQueuedOriginalItemRepeatSuccess(convId)) {
-                                        runCatching {
-                                            originalCb?.javaClass?.methods?.firstOrNull { it.name == "onSuccess" }?.invoke(originalCb)
-                                        }
-                                    }
-                                }
-                            }
-                            .override("onError", shouldUnhook = false) {
-                                val error = it.argNullable<Any>(0)
-                                runCatching {
-                                    originalCb?.javaClass?.methods?.firstOrNull { it.name == "onError" && it.parameterCount == 1 }?.invoke(originalCb, error)
-                                }
-                                clearQueuedOriginalItemRepeats()
-                                val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
-                                notificationManager.cancel(STATUS_NOTIFICATION_ID)
-                            }
-                            .build()
-
-                        sendMediaManual(destinations, repeatedContent, overrideType, snapDurationMs, callback)
-                    }
-                }
-                return true
-            }
-
             fun attachQueuedRepeatCallbacks(sendEvent: SendMessageWithContentEvent) {
                 sendEvent.addCallbackResult("onSuccess") {
                     context.runOnUiThread {
                         val handledSplit = MediaFilePicker.handleCurrentQueuedItemSuccess()
                         val handledRepeat = if (!handledSplit) {
-                            handleQueuedOriginalItemRepeatSuccess(conversationIds.first())
+                            handleQueuedOriginalItemRepeatSuccess()
                         } else {
                             false
                         }
@@ -1529,7 +1374,6 @@ class SendOverride : Feature("Send Override") {
                                         context.bridgeClient.getTaskInterface().updateTaskProgress(taskHash, "Sending...", 100)
 
                                         if (sendRepeatedMediaManual(
-                                                MessageDestinations(cloneDestinations(event.destinations)),
                                                 repeatCount,
                                                 finalSelectedType,
                                                 selectedSnapDurationMs
@@ -1585,19 +1429,7 @@ class SendOverride : Feature("Send Override") {
                                             invokeOriginalAndRestoreResult(event)
                                         }
                                     } else if (MediaFilePicker.hasReusableOriginalItem()) {
-                                        totalRepeatCount = repeatCount
-                                        processedRepeatCount = 1
-                                        currentRecipientName = recipientNameForTask
-                                        updateContinuousSendNotification()
-                                        
-                                        queueOriginalItemRepeats(
-                                            repeatCount - 1, 
-                                            finalSelectedType, 
-                                            selectedSnapDurationMs,
-                                            MessageDestinations(cloneDestinations(event.destinations)), 
-                                            originalMessageJson, 
-                                            originalCallback
-                                        )
+                                        queueOriginalItemRepeats(repeatCount - 1, finalSelectedType, selectedSnapDurationMs)
                                         attachQueuedRepeatCallbacks(event)
                                         if (sendMedia(finalSelectedType, selectedSnapDurationMs)) {
                                             invokeOriginalAndRestoreResult(event)
@@ -1606,7 +1438,6 @@ class SendOverride : Feature("Send Override") {
                                         }
                                     } else {
                                         sendRepeatedMediaManual(
-                                            MessageDestinations(cloneDestinations(event.destinations)),
                                             repeatCount,
                                             finalSelectedType,
                                             selectedSnapDurationMs
