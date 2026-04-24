@@ -17,67 +17,59 @@ class SnapchatPlus: Feature("SnapchatPlus") {
 
     override fun init() {
         val snapchatPlusTier = context.config.global.snapchatPlus.getNullable()
+        if (snapchatPlusTier == null || snapchatPlusTier == "not_subscribed") return
 
-        if (snapchatPlusTier != null) {
-            context.mappings.useMapper(PlusSubscriptionMapper::class) {
-                classReference.get()?.hookConstructor(HookStage.AFTER) { param ->
-                    param.thisObject<Any>().dataBuilder {
-                        //subscription tier
-                        if (get<Any>(tierField.getAsString()!!)?.javaClass?.isEnum == true) {
-                            set(tierField.getAsString()!!, when (snapchatPlusTier) {
-                                "not_subscribed" -> "NO_ACCESS"
-                                "basic" -> "SNAPCHAT_PLUS"
-                                "ad_free" -> "SNAPCHAT_PLUS_AD_FREE"
-                                else -> "SNAPCHAT_PLUS"
-                            })
-                        } else {
-                            set(tierField.getAsString()!!, when (snapchatPlusTier) {
-                                "not_subscribed" -> 1
-                                "basic" -> 2
-                                "ad_free" -> 3
-                                else -> 2
-                            })
-                        }
+        // Pre-calculate custom purchase date to eliminate main thread lag
+        val customPurchaseDateRaw = context.config.global.snapchatPlusPurchaseDate.get().trim()
+        val customPurchaseDateMillis = if (customPurchaseDateRaw.isNotEmpty()) {
+            runCatching {
+                LocalDate.parse(customPurchaseDateRaw, DateTimeFormatter.ISO_LOCAL_DATE)
+                    .atStartOfDay(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+            }.getOrNull()
+        } else (System.currentTimeMillis() - 7776000000L) // 3 months fallback
 
-                        //subscription status
-                        set(statusField.getAsString()!!, 2)
-
-                        val fallbackOriginalSubscriptionTime = System.currentTimeMillis() - 7776000000L
-                        val customPurchaseDate = context.config.global.snapchatPlusPurchaseDate.get().trim()
-                        val customPurchaseDateMillis = if (customPurchaseDate.isNotEmpty()) {
-                            runCatching {
-                                LocalDate
-                                    .parse(customPurchaseDate, DateTimeFormatter.ISO_LOCAL_DATE)
-                                    .atStartOfDay(ZoneId.systemDefault())
-                                    .toInstant()
-                                    .toEpochMilli()
-                            }.getOrNull()
-                        } else {
-                            null
-                        }
-
-                        set(
-                            originalSubscriptionTimeMillisField.getAsString()!!,
-                            customPurchaseDateMillis ?: fallbackOriginalSubscriptionTime
-                        )
-                        set(expirationTimeMillisField.getAsString()!!, expirationTimeMillis)
+        context.mappings.useMapper(PlusSubscriptionMapper::class) {
+            classReference.get()?.hookConstructor(HookStage.AFTER) { param ->
+                param.thisObject<Any>().dataBuilder {
+                    //subscription tier
+                    if (get<Any>(tierField.getAsString()!!)?.javaClass?.isEnum == true) {
+                        set(tierField.getAsString()!!, when (snapchatPlusTier) {
+                            "not_subscribed" -> "NO_ACCESS"
+                            "basic" -> "SNAPCHAT_PLUS"
+                            "ad_free" -> "SNAPCHAT_PLUS_AD_FREE"
+                            else -> "SNAPCHAT_PLUS"
+                        })
+                    } else {
+                        set(tierField.getAsString()!!, when (snapchatPlusTier) {
+                            "not_subscribed" -> 1
+                            "basic" -> 2
+                            "ad_free" -> 3
+                            else -> 2
+                        })
                     }
+
+                    //subscription status
+                    set(statusField.getAsString()!!, 2)
+
+                    set(
+                        originalSubscriptionTimeMillisField.getAsString()!!,
+                        customPurchaseDateMillis
+                    )
+                    set(expirationTimeMillisField.getAsString()!!, expirationTimeMillis)
                 }
             }
         }
 
+        // Force enable all premium features in the catalog
         if (context.config.experimental.hiddenSnapchatPlusFeatures.get()) {
-            findClass("com.snap.plus.FeatureCatalog").methods.last {
-                !it.name.contains("init") &&
-                it.parameterTypes.isNotEmpty() &&
-                it.parameterTypes[0].name != "java.lang.Boolean"
-            }.hook(HookStage.BEFORE) { param ->
-                val instance = param.thisObject<Any>()
-                val firstArg = param.argNullable<Any>(0) ?: return@hook
-
-                instance.findFieldNamesByType(firstArg::class.java).forEach { fieldName ->
-                    instance.setObjectField(fieldName, firstArg)
+            runCatching {
+                val featureCatalogClass = findClass("com.snap.plus.FeatureCatalog")
+                featureCatalogClass.hook("isFeatureEnabled", HookStage.BEFORE) { param ->
+                    param.setResult(true)
                 }
+                context.log.verbose("Successfully unlocked premium Snapchat features")
             }
         }
     }

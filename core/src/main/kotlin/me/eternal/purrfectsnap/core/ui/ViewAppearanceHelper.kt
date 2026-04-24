@@ -137,6 +137,8 @@ fun View.onAttachChange(onAttach: (View.OnAttachStateChangeListener) -> Unit = {
 
 fun View.hideViewCompletely() {
     fun hide() {
+        if (visibility == View.GONE && layoutParams?.width == 0 && layoutParams?.height == 0) return
+        
         isEnabled = false
         visibility = View.GONE
         setWillNotDraw(true)
