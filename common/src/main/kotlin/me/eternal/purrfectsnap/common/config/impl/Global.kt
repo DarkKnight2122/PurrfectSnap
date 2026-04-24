@@ -55,9 +55,7 @@ class Global : ConfigContainer() {
         }
     }
     val mediaUploadQualityConfig = container("media_upload_quality", MediaUploadQualityConfig())
-    val performanceMode = container("performance_mode", PerformanceModeConfig()) { requireRestart() }.apply {
-        profile.set("max")
-    }
+    val performanceMode = container("performance_mode", PerformanceModeConfig()) { requireRestart() }
     val disableConfirmationDialogs = multiple("disable_confirmation_dialogs", "erase_message", "remove_friend", "block_friend", "ignore_friend", "hide_friend", "hide_conversation", "clear_conversation") { requireRestart() }
     val disableMetrics = boolean("disable_metrics") { requireRestart() }
     val disableStorySections = multiple("disable_story_sections", "friends", "suggested_stories", "following", "discover") { requireRestart(); requireCleanCache() }

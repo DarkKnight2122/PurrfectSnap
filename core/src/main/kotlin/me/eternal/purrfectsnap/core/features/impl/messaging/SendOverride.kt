@@ -1,7 +1,13 @@
 package me.eternal.purrfectsnap.core.features.impl.messaging
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -64,10 +70,24 @@ import kotlin.time.toDuration
 class SendOverride : Feature("Send Override") {
     companion object {
         private const val NOTIFICATION_CHANNEL_ID = "scheduled_send"
+        private const val CONTINUOUS_SEND_CHANNEL_ID = "continuous_send_status"
+        private const val STATUS_NOTIFICATION_ID = 54322
+        private const val COMPLETION_NOTIFICATION_ID = 54323
+
+        const val ACTION_PAUSE_RESUME = "me.eternal.purrfectsnap.CONTINUOUS_SEND_PAUSE_RESUME"
+        const val ACTION_STOP = "me.eternal.purrfectsnap.CONTINUOUS_SEND_STOP"
+
         private val internalMultipartSend = ThreadLocal.withInitial { false }
         private var queuedOriginalItemRepeatCount = 0
         private var queuedOriginalItemRepeatOverrideType: String? = null
         private var queuedOriginalItemRepeatSnapDurationMs: Int? = null
+
+        // Notification & Loop Tracking
+        private var totalRepeatCount = 0
+        private var processedRepeatCount = 0
+        private var currentRecipientName: String = "Unknown"
+        private val isPaused = java.util.concurrent.atomic.AtomicBoolean(false)
+        private val isStopped = java.util.concurrent.atomic.AtomicBoolean(false)
 
         private fun queueOriginalItemRepeats(repeatCount: Int, overrideType: String, snapDurationMs: Int?) {
             queuedOriginalItemRepeatCount = repeatCount
@@ -116,6 +136,80 @@ class SendOverride : Feature("Send Override") {
     private val backgroundHookLock = Any()
     private var backgroundHookRefs = 0
     private var backgroundHooks: List<Hooker.HookHandle>? = null
+    private val engineActive = java.util.concurrent.atomic.AtomicBoolean(true)
+
+    private fun createContinuousNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
+            val channel = NotificationChannel(
+                CONTINUOUS_SEND_CHANNEL_ID,
+                "Continuous Send",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            channel.description = "Progress status for continuous snap sending"
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun updateContinuousSendNotification() {
+        if (!engineActive.get() || isStopped.get()) return
+
+        val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
+        val remaining = queuedOriginalItemRepeatCount
+        val processed = processedRepeatCount
+        val total = totalRepeatCount
+        val isWorking = (remaining > 0 || (total > 0 && processed < total)) && !isStopped.get()
+
+        if (!isWorking) {
+            notificationManager.cancel(STATUS_NOTIFICATION_ID)
+            showCompletionNotification(processed, total)
+            return
+        }
+
+        val progressPercent = if (total > 0) (processed * 100) / total else 0
+
+        val builder = Notification.Builder(context.androidContext, CONTINUOUS_SEND_CHANNEL_ID)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSmallIcon(android.R.drawable.ic_popup_sync) // The Industrial Loop icon
+            .setColor(0xFF3498DB.toInt()) // Industrial Purple/Blue tint
+            .setContentTitle("Sending Snaps to $currentRecipientName")
+            .setContentText("Progress: $processed / $total ($progressPercent%)")
+            .setSubText("$processed / $total")
+            .setProgress(total, processed, false)
+
+        val pauseResumeLabel = if (isPaused.get()) "Resume" else "Pause"
+        builder.addAction(Notification.Action.Builder(null, pauseResumeLabel, createPendingIntent(ACTION_PAUSE_RESUME)).build())
+        builder.addAction(Notification.Action.Builder(null, "Stop", createPendingIntent(ACTION_STOP)).build())
+
+        notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build())
+    }
+
+    private fun showCompletionNotification(sent: Int, total: Int) {
+        val title = if (isStopped.get()) "Continuous Send Stopped" else "Continuous Send Finished"
+        val content = "Successfully sent $sent / $total snaps to $currentRecipientName"
+
+        val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
+        val builder = Notification.Builder(context.androidContext, CONTINUOUS_SEND_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.checkbox_on_background) // Emerald Green Checkmark
+            .setColor(0xFF2ECC71.toInt()) // Emerald Green tint
+            .setContentTitle(title)
+            .setContentText(content)
+            .setAutoCancel(true)
+
+        notificationManager.notify(COMPLETION_NOTIFICATION_ID, builder.build())
+    }
+
+    private fun createPendingIntent(action: String): PendingIntent {
+        val intent = Intent(action).setPackage(context.androidContext.packageName)
+        return PendingIntent.getBroadcast(
+            context.androidContext, 
+            action.hashCode(), 
+            intent, 
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
     private fun acquireScheduledSendBackground(): () -> Unit {
         if (!context.config.messaging.scheduledSendAllowRunningInBackground.get()) return {}
         var enableFailed = false
@@ -196,7 +290,35 @@ class SendOverride : Feature("Send Override") {
     @OptIn(ExperimentalLayoutApi::class)
     override fun init() {
         createNotificationChannel()
-        
+        createContinuousNotificationChannel()
+
+        val actionReceiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    ACTION_PAUSE_RESUME -> {
+                        isPaused.set(!isPaused.get())
+                        updateContinuousSendNotification()
+                    }
+                    ACTION_STOP -> {
+                        isStopped.set(true)
+                        if (isPaused.get()) {
+                            isPaused.set(false)
+                        }
+                        updateContinuousSendNotification()
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(ACTION_PAUSE_RESUME)
+            addAction(ACTION_STOP)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.androidContext.registerReceiver(actionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.androidContext.registerReceiver(actionReceiver, filter)
+        }
+
         val stripMediaMetadata = context.config.messaging.stripMediaMetadata.get()
         var postSavePolicy: Int? = null
 
@@ -1429,6 +1551,11 @@ class SendOverride : Feature("Send Override") {
                                             invokeOriginalAndRestoreResult(event)
                                         }
                                     } else if (MediaFilePicker.hasReusableOriginalItem()) {
+                                        totalRepeatCount = repeatCount
+                                        processedRepeatCount = 1
+                                        currentRecipientName = recipientNameForTask
+                                        updateContinuousSendNotification()
+                                        
                                         queueOriginalItemRepeats(repeatCount - 1, finalSelectedType, selectedSnapDurationMs)
                                         attachQueuedRepeatCallbacks(event)
                                         if (sendMedia(finalSelectedType, selectedSnapDurationMs)) {
@@ -1437,6 +1564,11 @@ class SendOverride : Feature("Send Override") {
                                             clearQueuedOriginalItemRepeats()
                                         }
                                     } else {
+                                        totalRepeatCount = repeatCount
+                                        processedRepeatCount = 0
+                                        currentRecipientName = recipientNameForTask
+                                        updateContinuousSendNotification()
+
                                         sendRepeatedMediaManual(
                                             repeatCount,
                                             finalSelectedType,

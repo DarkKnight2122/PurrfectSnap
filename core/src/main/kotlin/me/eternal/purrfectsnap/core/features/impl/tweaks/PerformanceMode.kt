@@ -2,29 +2,35 @@ package me.eternal.purrfectsnap.core.features.impl.tweaks
 
 import android.animation.ValueAnimator
 import android.app.Activity
+import android.app.Dialog
 import android.database.sqlite.SQLiteDatabase
 import android.hardware.camera2.CaptureRequest
 import android.media.MediaRecorder
 import android.os.Build
-import android.transition.Transition
 import android.os.HandlerThread
 import android.os.Process
+import android.transition.Transition
 import android.util.Range
 import android.view.View
+import android.view.TextureView
 import android.view.ViewPropertyAnimator
+import android.view.WindowManager
 import android.view.animation.Animation
 import android.widget.OverScroller
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
-import java.lang.Thread
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.ThreadPoolExecutor
 import me.eternal.purrfectsnap.core.features.Feature
+import me.eternal.purrfectsnap.core.event.events.impl.NetworkApiRequestEvent
 import me.eternal.purrfectsnap.core.util.hook.HookStage
+import me.eternal.purrfectsnap.core.util.hook.findRestrictedMethod
 import me.eternal.purrfectsnap.core.util.hook.hook
 import me.eternal.purrfectsnap.core.util.hook.hookConstructor
 import okhttp3.Dispatcher
+import java.lang.Thread
+import java.lang.reflect.Method
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.atomic.AtomicBoolean
 
 class PerformanceMode : Feature("Performance Mode") {
     override fun init() {
@@ -43,7 +49,7 @@ class PerformanceMode : Feature("Performance Mode") {
         val minimumCoreThreads = if (isMaxProfile) 16 else 8
         val prefetchItemCount = if (isMaxProfile) 24 else 12
         val maxAnimationDurationMs = if (isMaxProfile) 90L else 140L
-        val maxScrollDurationMs = if (isMaxProfile) 120 else 180
+        val maxScrollDurationMs = if (isMaxProfile) 72 else 180
         val preferredRefreshRate = if (isMaxProfile) 120f else 90f
 
         context.log.info(
@@ -53,43 +59,25 @@ class PerformanceMode : Feature("Performance Mode") {
 
         runCatching {
             ValueAnimator.setFrameDelay(0L)
-            context.log.info("Applied ValueAnimator frame delay override: 0ms", "PerformanceMode")
         }
-
-        fun firstHitLogger(name: String): (String) -> Unit {
-            val didLog = AtomicBoolean(false)
-            return { details ->
-                if (didLog.compareAndSet(false, true)) {
-                    context.log.info("First hit: $name | $details", "PerformanceMode")
-                }
-            }
-        }
-
-        val handlerThreadConstructorLog = firstHitLogger("HandlerThread.constructor")
-        val handlerThreadStartLog = firstHitLogger("HandlerThread.start")
-        val threadStartLog = firstHitLogger("Thread.start")
-        val executorLog = firstHitLogger("ThreadPoolExecutor.constructor")
-        val dispatcherLog = firstHitLogger("OkHttp.Dispatcher.constructor")
-        val animatorLog = firstHitLogger("ValueAnimator.getDurationScale")
-        val animatorDurationLog = firstHitLogger("ValueAnimator.setDuration")
-        val viewAnimatorDurationLog = firstHitLogger("ViewPropertyAnimator.setDuration")
-        val transitionDurationLog = firstHitLogger("Transition.setDuration")
-        val animationDurationLog = firstHitLogger("Animation.setDuration")
-        val recyclerCtorLog = firstHitLogger("RecyclerView.constructor")
-        val recyclerAdapterLog = firstHitLogger("RecyclerView.setAdapter")
-        val recyclerLayoutManagerLog = firstHitLogger("RecyclerView.setLayoutManager")
-        val sqliteOpenLog = firstHitLogger("SQLiteDatabase.openDatabase")
-        val sqliteCreateLog = firstHitLogger("SQLiteDatabase.openOrCreateDatabase")
-        val mediaRecorderLog = firstHitLogger("MediaRecorder.setVideoFrameRate")
-        val captureRequestLog = firstHitLogger("CaptureRequest.Builder.set")
-        val sustainedModeLog = firstHitLogger("Window.setSustainedPerformanceMode")
-        val refreshRateLog = firstHitLogger("Activity.preferredRefreshRate")
-        val overScrollerLog = firstHitLogger("OverScroller.startScroll")
 
         fun isPerformanceSensitiveThread(name: String?): Boolean {
             val normalizedName = name?.lowercase() ?: return false
-            return listOf("camera", "preview", "codec", "render", "gl", "transcod", "lens", "feed", "story", "opera", "messag", "network", "db", "disk").any {
+            return listOf("camera", "preview", "codec", "render", "gl", "transcod", "lens", "feed", "story", "opera", "messag", "network", "db", "disk", "map", "mapbox", "snapmap", "viewport").any {
                 normalizedName.contains(it)
+            }
+        }
+
+        fun clampPositiveDuration(durationMs: Long, maxDurationMs: Long): Long {
+            if (durationMs <= 0L) return durationMs
+            return durationMs.coerceAtMost(maxDurationMs)
+        }
+
+        context.event.subscribe(NetworkApiRequestEvent::class) { event ->
+            if (!isMaxProfile) return@subscribe
+            val url = event.url
+            if (url.contains("mapbox") && (url.contains("events.") || url.contains("telemetry"))) {
+                event.canceled = true
             }
         }
 
@@ -98,7 +86,6 @@ class PerformanceMode : Feature("Performance Mode") {
             val threadName = param.argNullable<String>(0)
             if (!isPerformanceSensitiveThread(threadName)) return@hookConstructor
             param.setArg(1, threadPriority)
-            handlerThreadConstructorLog("name=$threadName priority=$threadPriority")
         }
 
         HandlerThread::class.java.hook("start", HookStage.AFTER) { param ->
@@ -110,16 +97,14 @@ class PerformanceMode : Feature("Performance Mode") {
                     Process.setThreadPriority(tid, threadPriority)
                 }
             }
-            handlerThreadStartLog("name=${thread.name} tid=${thread.threadId} priority=$threadPriority")
         }
 
         Thread::class.java.hook("start", HookStage.AFTER) { param ->
             val thread = param.thisObject<Thread>()
             if (!isPerformanceSensitiveThread(thread.name)) return@hook
             runCatching {
-                thread.priority = Thread.MAX_PRIORITY
+                thread.priority = if (isMaxProfile) Thread.MAX_PRIORITY else Thread.NORM_PRIORITY + 1
             }
-            threadStartLog("name=${thread.name} priority=${thread.priority}")
         }
 
         ThreadPoolExecutor::class.java.hookConstructor(HookStage.AFTER) { param ->
@@ -131,7 +116,6 @@ class PerformanceMode : Feature("Performance Mode") {
                 }
                 executor.allowCoreThreadTimeOut(false)
                 executor.prestartAllCoreThreads()
-                executorLog("core=${executor.corePoolSize} max=${executor.maximumPoolSize} active=${executor.activeCount}")
             }
         }
 
@@ -140,13 +124,11 @@ class PerformanceMode : Feature("Performance Mode") {
             runCatching {
                 dispatcher.maxRequests = maxRequests
                 dispatcher.maxRequestsPerHost = maxRequestsPerHost
-                dispatcherLog("maxRequests=${dispatcher.maxRequests} maxRequestsPerHost=${dispatcher.maxRequestsPerHost}")
             }
         }
 
         ValueAnimator::class.java.hook("getDurationScale", HookStage.AFTER) { param ->
             param.setResult(durationScale)
-            animatorLog("durationScale=$durationScale")
         }
 
         ValueAnimator::class.java.hook("setDuration", HookStage.BEFORE) { param ->
@@ -155,7 +137,6 @@ class PerformanceMode : Feature("Performance Mode") {
             if (updated != original) {
                 param.setArg(0, updated)
             }
-            animatorDurationLog("requested=$original applied=${param.arg<Long>(0)}")
         }
 
         ViewPropertyAnimator::class.java.hook("setDuration", HookStage.BEFORE) { param ->
@@ -164,7 +145,6 @@ class PerformanceMode : Feature("Performance Mode") {
             if (updated != original) {
                 param.setArg(0, updated)
             }
-            viewAnimatorDurationLog("requested=$original applied=${param.arg<Long>(0)}")
         }
 
         Transition::class.java.hook("setDuration", HookStage.BEFORE) { param ->
@@ -173,7 +153,6 @@ class PerformanceMode : Feature("Performance Mode") {
             if (updated != original) {
                 param.setArg(0, updated)
             }
-            transitionDurationLog("requested=$original applied=${param.arg<Long>(0)}")
         }
 
         Animation::class.java.hook("setDuration", HookStage.BEFORE) { param ->
@@ -182,28 +161,25 @@ class PerformanceMode : Feature("Performance Mode") {
             if (updated != original) {
                 param.setArg(0, updated)
             }
-            animationDurationLog("requested=$original applied=${param.arg<Long>(0)}")
         }
 
         RecyclerView::class.java.hookConstructor(HookStage.AFTER) { param ->
             val recyclerView = param.thisObject<RecyclerView>()
             recyclerView.setItemViewCacheSize(recyclerViewCacheSize)
             recyclerView.overScrollMode = View.OVER_SCROLL_NEVER
-            recyclerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            recyclerView.recycledViewPool.setMaxRecycledViews(0, 20)
             if (isMaxProfile) {
                 recyclerView.itemAnimator = null
             }
-            recyclerCtorLog("cache=$recyclerViewCacheSize max=$isMaxProfile class=${recyclerView::class.java.name}")
         }
 
         RecyclerView::class.java.hook("setAdapter", HookStage.AFTER) { param ->
             val recyclerView = param.thisObject<RecyclerView>()
             recyclerView.setItemViewCacheSize(recyclerViewCacheSize)
-            recyclerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            recyclerView.recycledViewPool.setMaxRecycledViews(0, 20)
             if (isMaxProfile) {
                 recyclerView.itemAnimator = null
             }
-            recyclerAdapterLog("cache=$recyclerViewCacheSize adapter=${param.argNullable<Any>(0)?.javaClass?.name}")
         }
 
         RecyclerView::class.java.hook("setLayoutManager", HookStage.AFTER) { param ->
@@ -212,15 +188,13 @@ class PerformanceMode : Feature("Performance Mode") {
             when (layoutManager) {
                 is LinearLayoutManager -> {
                     layoutManager.isItemPrefetchEnabled = true
-                    layoutManager.initialPrefetchItemCount = prefetchItemCount
+                    layoutManager.initialPrefetchItemCount = prefetchItemCount.coerceAtLeast(12)
                 }
                 is StaggeredGridLayoutManager -> {
                     layoutManager.isItemPrefetchEnabled = true
                     layoutManager.gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_MOVE_ITEMS_BETWEEN_SPANS
                 }
             }
-            recyclerView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-            recyclerLayoutManagerLog("layoutManager=${layoutManager?.javaClass?.name} prefetch=$prefetchItemCount")
         }
 
         fun SQLiteDatabase.applyPerformancePragmas() {
@@ -233,25 +207,21 @@ class PerformanceMode : Feature("Performance Mode") {
         }
 
         SQLiteDatabase::class.java.hook("openDatabase", HookStage.AFTER) { param ->
-            (param.getResult() as? SQLiteDatabase)?.also {
-                it.applyPerformancePragmas()
-                sqliteOpenLog("path=${param.argNullable<Any>(0)}")
-            }
+            (param.getResult() as? SQLiteDatabase)?.applyPerformancePragmas()
         }
 
         SQLiteDatabase::class.java.hook("openOrCreateDatabase", HookStage.AFTER) { param ->
-            (param.getResult() as? SQLiteDatabase)?.also {
-                it.applyPerformancePragmas()
-                sqliteCreateLog("path=${param.argNullable<Any>(0)}")
-            }
+            (param.getResult() as? SQLiteDatabase)?.applyPerformancePragmas()
         }
 
         MediaRecorder::class.java.hook("setVideoFrameRate", HookStage.BEFORE) { param ->
             val currentRate = param.arg<Int>(0)
-            if (currentRate < minimumFrameRate) {
-                param.setArg(0, minimumFrameRate)
+            val applied = currentRate
+                .coerceAtLeast(if (isMaxProfile) 30 else 24)
+                .coerceAtMost(if (isMaxProfile) 60 else 45)
+            if (applied != currentRate) {
+                param.setArg(0, applied)
             }
-            mediaRecorderLog("requested=$currentRate applied=${param.arg<Int>(0)}")
         }
 
         OverScroller::class.java.hook("startScroll", HookStage.BEFORE) { param ->
@@ -261,29 +231,84 @@ class PerformanceMode : Feature("Performance Mode") {
                 if (updated != original) {
                     param.setArg(4, updated)
                 }
-                overScrollerLog("requested=$original applied=${param.arg<Int>(4)}")
             }
         }
 
-        CaptureRequest.Builder::class.java.hook("set", HookStage.BEFORE) { param ->
-            val key = param.arg<CaptureRequest.Key<*>>(0)
-            when (key) {
-                CaptureRequest.EDGE_MODE -> param.setArg(1, CaptureRequest.EDGE_MODE_FAST)
-                CaptureRequest.NOISE_REDUCTION_MODE -> param.setArg(1, CaptureRequest.NOISE_REDUCTION_MODE_FAST)
-                CaptureRequest.HOT_PIXEL_MODE -> param.setArg(1, CaptureRequest.HOT_PIXEL_MODE_FAST)
-                CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE -> param.setArg(1, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_FAST)
-                CaptureRequest.CONTROL_AF_MODE -> param.setArg(1, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE -> param.setArg(1, CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_OFF)
-                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE -> {
-                    val currentRange = param.argNullable<Any>(1) as? Range<*>
-                    val lower = (currentRange?.lower as? Int) ?: minimumFrameRate
-                    val upper = (currentRange?.upper as? Int) ?: minimumFrameRate
-                    if (upper < minimumFrameRate) {
-                        param.setArg(1, Range(lower.coerceAtMost(minimumFrameRate), minimumFrameRate))
-                    }
+        OverScroller::class.java.hook("fling", HookStage.BEFORE) { param ->
+            if (param.args().size >= 10) {
+                val overX = param.arg<Int>(8)
+                val overY = param.arg<Int>(9)
+                if (overX != 0) param.setArg(8, 0)
+                if (overY != 0) param.setArg(9, 0)
+            }
+        }
+
+        runCatching {
+            val nativeMapViewClass = findClass("com.mapbox.mapboxsdk.maps.NativeMapView")
+            val transitionOptionsClass = findClass("com.mapbox.mapboxsdk.style.layers.TransitionOptions")
+            val transitionOptionsCtor = transitionOptionsClass.getDeclaredConstructor(Long::class.javaPrimitiveType, Long::class.javaPrimitiveType, Boolean::class.javaPrimitiveType).apply {
+                isAccessible = true
+            }
+
+            fun findNativeMapMethod(name: String, predicate: (Method) -> Boolean): Method? {
+                return nativeMapViewClass.findRestrictedMethod { method ->
+                    method.name == name && predicate(method)
+                }?.apply {
+                    isAccessible = true
                 }
             }
-            captureRequestLog("key=${key.name} value=${param.argNullable<Any>(1)}")
+
+            val nativeCancelTransitions = findNativeMapMethod("nativeCancelTransitions") { it.parameterCount == 0 }
+            val nativeSetPrefetchTiles = findNativeMapMethod("nativeSetPrefetchTiles") { it.parameterCount == 1 && it.parameterTypes[0] == Boolean::class.javaPrimitiveType }  
+            val nativeSetPrefetchZoomDelta = findNativeMapMethod("nativeSetPrefetchZoomDelta") { it.parameterCount == 1 && it.parameterTypes[0] == Int::class.javaPrimitiveType }
+            val nativeSetTransitionDelay = findNativeMapMethod("nativeSetTransitionDelay") { it.parameterCount == 1 && it.parameterTypes[0] == Long::class.javaPrimitiveType } 
+            val nativeSetTransitionDuration = findNativeMapMethod("nativeSetTransitionDuration") { it.parameterCount == 1 && it.parameterTypes[0] == Long::class.javaPrimitiveType }
+            val nativeSetTransitionOptions = findNativeMapMethod("nativeSetTransitionOptions") { it.parameterCount == 1 && it.parameterTypes[0].name == transitionOptionsClass.name }
+
+            nativeMapViewClass.hookConstructor(HookStage.AFTER) { param ->
+                val nativeMapView = param.thisObject<Any>()
+                runCatching {
+                    nativeSetPrefetchTiles?.invoke(nativeMapView, true)
+                    nativeSetPrefetchZoomDelta?.invoke(nativeMapView, 6)
+                    nativeSetTransitionDelay?.invoke(nativeMapView, 0L)
+                    nativeSetTransitionDuration?.invoke(nativeMapView, 0L)
+                    nativeSetTransitionOptions?.invoke(
+                        nativeMapView,
+                        transitionOptionsCtor.newInstance(0L, 0L, false)
+                    )
+                    nativeCancelTransitions?.invoke(nativeMapView)
+                }
+            }
+
+            nativeMapViewClass.findRestrictedMethod { method ->
+                method.name == "g" &&
+                    method.parameterCount == 6 &&
+                    method.parameterTypes.last() == Long::class.javaPrimitiveType
+            }?.hook(HookStage.BEFORE) { param ->
+                val original = param.arg<Long>(5)
+                val applied = original.coerceAtMost(16L)
+                if (applied != original) {
+                    param.setArg(5, applied)
+                }
+                runCatching { nativeCancelTransitions?.invoke(param.thisObject<Any>()) }
+            }
+
+            nativeMapViewClass.findRestrictedMethod { method ->
+                method.name == "v" &&
+                    method.parameterCount == 3 &&
+                    method.parameterTypes[0] == Double::class.javaPrimitiveType &&
+                    method.parameterTypes[1] == Double::class.javaPrimitiveType &&
+                    method.parameterTypes[2] == Long::class.javaPrimitiveType
+            }?.hook(HookStage.BEFORE) { param ->
+                val original = param.arg<Long>(2)
+                val applied = original.coerceAtMost(8L)
+                if (applied != original) {
+                    param.setArg(2, applied)
+                }
+                runCatching { nativeCancelTransitions?.invoke(param.thisObject<Any>()) }
+            }
+        }.onFailure {
+            context.log.error("Failed to install Snap Map transition hooks", it, "PerformanceMode")
         }
 
         fun applyActivityPerformanceTuning(activity: Activity) {
@@ -295,18 +320,35 @@ class PerformanceMode : Feature("Performance Mode") {
                 activity.window.attributes = activity.window.attributes.apply {
                     this.preferredRefreshRate = targetRefreshRate
                 }
-                refreshRateLog("activity=${activity::class.java.name} refreshRate=$targetRefreshRate")
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isMaxProfile) {
                 runCatching {
                     activity.window.setSustainedPerformanceMode(true)
-                    sustainedModeLog("activity=${activity::class.java.name}")
                 }
             }
         }
 
         onNextActivityCreate {
             applyActivityPerformanceTuning(it)
+        }
+
+        Dialog::class.java.hook("show", HookStage.AFTER) { param ->
+            val dialog = param.nullableThisObject<Any>() as? Dialog ?: return@hook
+            val window = dialog.window ?: return@hook
+            runCatching {
+                window.setWindowAnimations(0)
+                window.decorView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                window.attributes = window.attributes.apply {
+                    flags = flags or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+                }
+            }
+        }
+
+        TextureView::class.java.hookConstructor(HookStage.AFTER) { param ->
+            val textureView = param.thisObject<TextureView>()
+            runCatching {
+                textureView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            }
         }
     }
 }

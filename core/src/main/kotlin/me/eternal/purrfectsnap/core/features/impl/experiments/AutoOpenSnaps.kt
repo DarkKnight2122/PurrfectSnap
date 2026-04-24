@@ -128,6 +128,16 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             }
         }
 
+        // Background Watchdog: Periodically refreshes UI and verifies engine health
+        this@AutoOpenSnaps.context.coroutineScope.launch(Dispatchers.Default) {
+            while (isActive && engineActive.get()) {
+                if (autoOpenConfig.globalState == true) {
+                    updateStatusNotification()
+                }
+                delay(5000)
+            }
+        }
+
         setupReceivers()
         startEngineWorker()
         setupDetector()
@@ -158,12 +168,12 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                 processSnapItem(item)
                 lastSnapProcessedAt.set(System.currentTimeMillis())
                 
-                // HIGH SPEED: 10ms floor for 20+ snaps/s
+                // Process at natural network speed when safety is disabled
                 val baseDelay = if (currentSpeedText == "Throttled") 3000L else (autoOpenConfig.delayBetweenSnaps as PropertyValue<Int>).get().toLong()
                 if (isSafe) { 
                     delay(Random.nextLong(baseDelay, baseDelay + 200)) 
                 } else {
-                    delay(baseDelay.coerceAtMost(10)) 
+                    if (baseDelay > 0) delay(baseDelay)
                 }
                 
                 if (synchronized(queuedSnaps) { queuedSnaps.isEmpty() }) {
@@ -175,6 +185,13 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     }
 
     private suspend fun processSnapItem(item: SnapQueueItem) {
+        // Verify database state on background thread before processing
+        val dbMessage = withContext(Dispatchers.IO) { this@AutoOpenSnaps.context.database.getConversationMessageFromId(item.messageId) }
+        if (dbMessage?.isViewedByUser == 1) {
+            synchronized(queuedSnaps) { queuedSnaps.remove(item) }
+            return
+        }
+
         currentStatusText = "Active"; updateStatusNotification()
         var success = false
         val startTime = System.currentTimeMillis()
@@ -186,7 +203,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                 delay(1000) 
             }
             
-            success = withContext(Dispatchers.IO) { performOpen(item) }
+            success = performOpen(item)
             if (success) {
                 synchronized(queuedSnaps) { queuedSnaps.remove(item) }
                 sessionProcessed.incrementAndGet(); totalProcessed.incrementAndGet(); recordSpeedTimestamp()
@@ -200,23 +217,24 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             logError("Engine failed to open Snap: ${item.messageId}")
             synchronized(queuedSnaps) { queuedSnaps.remove(item) }
             currentStatusText = "Failed: ${item.senderName}"; updateStatusNotification()
-            openedSnapsIds.remove(item.messageId)
         }
     }
 
     private suspend fun performOpen(item: SnapQueueItem): Boolean {
         val manager = messaging.conversationManager ?: return false
-        return suspendCancellableCoroutine { cont ->
-            runCatching {
-                manager.updateMessage(item.conversationId, item.messageId, MessageUpdate.READ) { result ->
-                    if (result == null || result == "DUPLICATEREQUEST") { cont.resume(true) } 
-                    else if (item.serverMessageId != 0L) {
-                        manager.updateMessage(item.conversationId, item.serverMessageId, MessageUpdate.READ) { serverResult ->
-                            cont.resume(serverResult == null || serverResult == "DUPLICATEREQUEST")
-                        }
-                    } else { cont.resume(false) }
-                }
-            }.onFailure { logError("Bridge Error", it); cont.resume(false) }
+        return withContext(Dispatchers.Main) {
+            suspendCancellableCoroutine { cont ->
+                runCatching {
+                    manager.updateMessage(item.conversationId, item.messageId, MessageUpdate.READ) { result ->
+                        if (result == null || result == "DUPLICATEREQUEST") { cont.resume(true) } 
+                        else if (item.serverMessageId != 0L) {
+                            manager.updateMessage(item.conversationId, item.serverMessageId, MessageUpdate.READ) { serverResult ->
+                                cont.resume(serverResult == null || serverResult == "DUPLICATEREQUEST")
+                            }
+                        } else { cont.resume(false) }
+                    }
+                }.onFailure { logError("Bridge Error", it); cont.resume(false) }
+            }
         }
     }
 
@@ -250,13 +268,17 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             if (autoOpenConfig.globalState == false || !engineActive.get()) return@subscribe
             val message = event.message
             if (message.messageState != MessageState.COMMITTED || message.senderId?.toString() == this@AutoOpenSnaps.context.database.myUserId) return@subscribe
-            val conversationId = message.messageDescriptor?.conversationId?.toString() ?: return@subscribe
+            
             val clientMessageId = message.messageDescriptor?.messageId ?: return@subscribe
+            
+            val conversationId = message.messageDescriptor?.conversationId?.toString() ?: return@subscribe
             val serverMessageId = message.orderKey ?: 0L
 
             val contentType = message.messageContent?.contentType
             if (contentType != ContentType.SNAP && contentType != ContentType.EXTERNAL_MEDIA) return@subscribe
             if (!canUseRule(conversationId)) return@subscribe
+            
+            // Prevent re-queueing the same message while it is currently being processed
             if (openedSnapsIds.contains(clientMessageId)) return@subscribe
             openedSnapsIds.add(clientMessageId)
             
@@ -295,7 +317,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     private fun isWifiConnected(): Boolean {
         val cm = this@AutoOpenSnaps.context.androidContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         
-        // RESILIENT WIFI CHECK: Iterates through all networks to find ANY WiFi transport (VPN aware)
+        // Check for any available network with a WiFi or Ethernet transport
         return cm.allNetworks.any { network ->
             cm.getNetworkCapabilities(network)?.let { caps ->
                 caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || 
