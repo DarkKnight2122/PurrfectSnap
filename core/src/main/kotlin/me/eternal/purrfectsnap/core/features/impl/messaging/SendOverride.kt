@@ -103,7 +103,7 @@ class SendOverride : Feature("Send Override") {
         }
 
         private fun handleQueuedOriginalItemRepeatSuccess(): Boolean {
-            if (queuedOriginalItemRepeatCount <= 0) {
+            if (isStopped.get() || queuedOriginalItemRepeatCount <= 0) {
                 clearQueuedOriginalItemRepeats()
                 return false
             }
@@ -152,13 +152,13 @@ class SendOverride : Feature("Send Override") {
     }
 
     private fun updateContinuousSendNotification() {
-        if (!engineActive.get() || isStopped.get()) return
+        if (!engineActive.get()) return
 
         val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
         val remaining = queuedOriginalItemRepeatCount
         val processed = processedRepeatCount
         val total = totalRepeatCount
-        val isWorking = (remaining > 0 || (total > 0 && processed < total)) && !isStopped.get()
+        val isWorking = remaining > 0 && !isStopped.get() && engineActive.get()
 
         if (!isWorking) {
             notificationManager.cancel(STATUS_NOTIFICATION_ID)
@@ -186,13 +186,18 @@ class SendOverride : Feature("Send Override") {
     }
 
     private fun showCompletionNotification(sent: Int, total: Int) {
-        val title = if (isStopped.get()) "Continuous Send Stopped" else "Continuous Send Finished"
-        val content = "Successfully sent $sent / $total snaps to $currentRecipientName"
+        val isError = sent < total && !isStopped.get()
+        val title = when {
+            isStopped.get() -> "Continuous Send Stopped"
+            isError -> "Continuous Send Failed"
+            else -> "Continuous Send Finished"
+        }
+        val content = "Sent $sent / $total snaps to $currentRecipientName"
 
         val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
         val builder = Notification.Builder(context.androidContext, CONTINUOUS_SEND_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.checkbox_on_background) // Emerald Green Checkmark
-            .setColor(0xFF2ECC71.toInt()) // Emerald Green tint
+            .setSmallIcon(if (isError) android.R.drawable.stat_notify_error else android.R.drawable.checkbox_on_background)
+            .setColor(if (isError) 0xFFE74C3C.toInt() else 0xFF2ECC71.toInt())
             .setContentTitle(title)
             .setContentText(content)
             .setAutoCancel(true)
@@ -928,6 +933,11 @@ class SendOverride : Feature("Send Override") {
                 if (repeatCount <= 0) return false
 
                 fun sendIteration(index: Int) {
+                    if (isStopped.get()) {
+                        clearQueuedOriginalItemRepeats()
+                        updateContinuousSendNotification()
+                        return
+                    }
                     val callback = if (index == repeatCount - 1) {
                         originalCallback
                     } else {

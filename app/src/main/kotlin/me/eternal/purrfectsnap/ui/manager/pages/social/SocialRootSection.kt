@@ -64,7 +64,6 @@ class SocialRootSection : Routes.Route() {
             }
 
             // Real-time synchronization from the bridge
-            context.requestSocialSnapshotRefresh()
             context.database.messagingDataFlow.collect { (friends, groups) ->
                 friendList = context.sortSocialFriends(friends)
                 groupList = groups
