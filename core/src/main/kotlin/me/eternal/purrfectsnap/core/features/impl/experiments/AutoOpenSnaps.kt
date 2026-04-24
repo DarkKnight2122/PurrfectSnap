@@ -52,12 +52,11 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         private const val NOTIFICATION_GROUP_KEY = "purrfectsnap.AUTO_OPEN"
         private const val PREF_TOTAL_OPENED = "auto_open_total_opened"
         private const val PREF_SESSION_START = "auto_open_session_start"
-        
-        private const val LAZY_SAVE_INTERVAL_MS = 600_000L 
     }
 
     private val gson = Gson()
     private val isPaused = AtomicBoolean(false)
+    private val isScreenOn = AtomicBoolean(true)
     private val engineActive = AtomicBoolean(true)
     private val totalProcessed = AtomicInteger(0)
     private val sessionProcessed = AtomicInteger(0)
@@ -76,17 +75,18 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     private val prefs by lazy { this@AutoOpenSnaps.context.androidContext.getSharedPreferences("me.eternal.purrfectsnap_preferences", Context.MODE_PRIVATE) }
     private val messaging by lazy { this@AutoOpenSnaps.context.feature(Messaging::class) }
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wakeLockCooldownJob: Job? = null
 
     private var currentStatusText = "Monitoring..."
     private var currentSpeedText = "Full Speed"
     private var lastNotificationUpdate = 0L
+    private var lastNotificationStateHash = 0
     private val notificationUpdateDelay = 1000L
     private val pendingNotificationUpdate = AtomicBoolean(false)
     private val snapTimestamps = LinkedList<Long>()
     private var lastConversationId: String? = null
     
-    private val isSaving = AtomicBoolean(false)
-    private val needsSaving = AtomicBoolean(false)
+    private val lastSaveTime = AtomicLong(System.currentTimeMillis())
     private var isThermalThrottled = false
     private var lastThermalThrottleAt = 0L
 
@@ -125,16 +125,20 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                         }
                     }
                 }
+                findClass("com.snapchat.client.network_manager.NetworkManager\$CppProxy").apply {
+                    hook("onAppForegrounded", HookStage.BEFORE) { param -> param.setResult(null) }
+                    hook("onAppBackgrounded", HookStage.BEFORE) { param -> param.setResult(null) }
+                }
             }
         }
 
-        // Background Watchdog: Periodically refreshes UI and verifies engine health
+        // Background Watchdog: Periodically verifies engine health
         this@AutoOpenSnaps.context.coroutineScope.launch(Dispatchers.Default) {
             while (isActive && engineActive.get()) {
-                if (autoOpenConfig.globalState == true) {
+                if (autoOpenConfig.globalState == true && synchronized(queuedSnaps) { queuedSnaps.isNotEmpty() }) {
                     updateStatusNotification()
                 }
-                delay(5000)
+                delay(300000)
             }
         }
 
@@ -179,6 +183,8 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                 if (synchronized(queuedSnaps) { queuedSnaps.isEmpty() }) {
                     currentStatusText = "Monitoring..."
                     updateStatusNotification()
+                    saveQueueToDisk() // Batch complete save
+                    startWakeLockCooldown()
                 }
             }
         }
@@ -207,9 +213,16 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             if (success) {
                 synchronized(queuedSnaps) { queuedSnaps.remove(item) }
                 sessionProcessed.incrementAndGet(); totalProcessed.incrementAndGet(); recordSpeedTimestamp()
+                
+                // Industrial Interval Check: Only write to disk once every 10 minutes during floods
+                if (System.currentTimeMillis() - lastSaveTime.get() > 600000) {
+                    saveQueueToDisk()
+                    lastSaveTime.set(System.currentTimeMillis())
+                }
+
                 val duration = System.currentTimeMillis() - startTime
                 averageProcessingTime.set((averageProcessingTime.get() * 0.7 + duration * 0.3).toLong())
-                triggerLazySave(); break
+                break
             }
             delay((autoOpenConfig.retryDelay as PropertyValue<Int>).get().toLong())
         }
@@ -288,19 +301,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             synchronized(queuedSnaps) { queuedSnaps.add(item) }
             snapChannel.trySend(item)
             
-            acquireWakeLock(); updateStatusNotification(); triggerLazySave()
-        }
-    }
-
-    private fun triggerLazySave() {
-        needsSaving.set(true)
-        if (isSaving.compareAndSet(false, true)) {
-            this@AutoOpenSnaps.context.coroutineScope.launch(Dispatchers.IO) {
-                while (needsSaving.get() && engineActive.get()) {
-                    needsSaving.set(false); saveQueueToDisk(); delay(LAZY_SAVE_INTERVAL_MS)
-                }
-                isSaving.set(false)
-            }
+            acquireWakeLock(); updateStatusNotification(); saveQueueToDisk()
         }
     }
 
@@ -333,11 +334,20 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     }
 
     private fun acquireWakeLock() {
+        wakeLockCooldownJob?.cancel()
         if (wakeLock?.isHeld == true) return
         wakeLock = (this@AutoOpenSnaps.context.androidContext.getSystemService(Context.POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "PurrfectSnap:AutoOpen").apply { acquire(8 * 60 * 60 * 1000L) }
     }
 
     private fun releaseWakeLock() { if (wakeLock?.isHeld == true) wakeLock?.release(); wakeLock = null }
+
+    private fun startWakeLockCooldown() {
+        wakeLockCooldownJob?.cancel()
+        wakeLockCooldownJob = this@AutoOpenSnaps.context.coroutineScope.launch {
+            delay(30000)
+            releaseWakeLock()
+        }
+    }
 
     private fun createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -347,6 +357,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
 
     private fun updateStatusNotification(force: Boolean = false) {
         val now = System.currentTimeMillis()
+        if (!isScreenOn.get() && !force) return
         if (!force && (now - lastNotificationUpdate) < notificationUpdateDelay) {
             if (pendingNotificationUpdate.compareAndSet(false, true)) {
                 this@AutoOpenSnaps.context.coroutineScope.launch { delay(notificationUpdateDelay - (now - lastNotificationUpdate)); updateStatusNotificationInternal() }
@@ -361,6 +372,12 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         val processed = sessionProcessed.get()
         val total = totalProcessed.get()
         val remaining = synchronized(queuedSnaps) { queuedSnaps.size }
+        
+        // Industrial State Hashing: Prevent redundant redraws and CPU wakeups
+        val currentStateHash = Objects.hash(processed, total, remaining, currentStatusText, isPaused.get())
+        if (currentStateHash == lastNotificationStateHash && remaining == 0) return
+        lastNotificationStateHash = currentStateHash
+
         val isWorking = remaining > 0
         val speed = if (isWorking) getSnapsPerSecond() else 0.0
         
@@ -444,6 +461,8 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                     ACTION_PAUSE_RESUME -> { isPaused.set(!isPaused.get()); updateStatusNotification(force = true) }
                     ACTION_CLEAR_QUEUE -> { sessionProcessed.set(0); synchronized(queuedSnaps) { queuedSnaps.clear() }; updateStatusNotification(force = true) }
                     ACTION_STOP_ENGINE -> shutdownFeature()
+                    Intent.ACTION_SCREEN_ON -> { isScreenOn.set(true); updateStatusNotification(force = true) }
+                    Intent.ACTION_SCREEN_OFF -> { isScreenOn.set(false) }
                     Intent.ACTION_BATTERY_CHANGED -> {
                         val temp = intent.getIntExtra("temperature", 0) / 10f
                         if (temp >= 40f && !isThermalThrottled) { isThermalThrottled = true; lastThermalThrottleAt = System.currentTimeMillis() }
@@ -452,7 +471,14 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
                 }
             }
         }
-        val filter = IntentFilter().apply { addAction(ACTION_PAUSE_RESUME); addAction(ACTION_CLEAR_QUEUE); addAction(ACTION_STOP_ENGINE); addAction(Intent.ACTION_BATTERY_CHANGED) }
+        val filter = IntentFilter().apply { 
+            addAction(ACTION_PAUSE_RESUME)
+            addAction(ACTION_CLEAR_QUEUE)
+            addAction(ACTION_STOP_ENGINE)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_BATTERY_CHANGED) 
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) this@AutoOpenSnaps.context.androidContext.registerReceiver(actionReceiver, filter, Context.RECEIVER_NOT_EXPORTED) 
         else this@AutoOpenSnaps.context.androidContext.registerReceiver(actionReceiver, filter)
     }

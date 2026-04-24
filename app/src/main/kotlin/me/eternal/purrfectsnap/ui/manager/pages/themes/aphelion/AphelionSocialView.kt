@@ -50,6 +50,9 @@ import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
+    // Controller handles data loading and synchronization
+    SocialDataController()
+
     val titles = remember {
         listOf(translation["friends_tab"], translation["groups_tab"])
     }
@@ -58,27 +61,11 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchActive by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        context.database.receiveMessagingDataCallback = { friends, groups ->
-            friendList = friends
-            groupList = groups
-        }
-        updateScopeLists()
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            context.database.receiveMessagingDataCallback = { _, _ -> }
-        }
-    }
-    val sortByStreakLength by produceState(initialValue = context.config.root.userInterface.sortSocialTabByStreakLength.get()) {
-        while (true) {
-            delay(300)
-            value = context.config.root.userInterface.sortSocialTabByStreakLength.get()
-        }
-    }
     val normalizedQuery = remember(searchQuery) { searchQuery.trim() }
-    val filteredFriends = remember(friendList, normalizedQuery, sortByStreakLength) {
-        val matchingFriends = if (normalizedQuery.isBlank()) {
+    
+    // Filter logic based on the parent's synchronized data lists
+    val filteredFriends = remember(friendList, normalizedQuery) {
+        if (normalizedQuery.isBlank()) {
             friendList
         } else {
             friendList.filter {
@@ -86,8 +73,6 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
                     it.displayName?.contains(normalizedQuery, ignoreCase = true) == true
             }
         }
-
-        context.sortSocialFriends(matchingFriends)
     }
     val filteredGroups = remember(groupList, normalizedQuery) {
         if (normalizedQuery.isBlank()) {

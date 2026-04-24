@@ -139,10 +139,10 @@ fun AppDatabase.replaceMessagingData(
             database.endTransaction()
         }
         
-        // Notify with the full updated list from the DB
+        // Notify all observers with the updated data from the database
         val allFriends = getFriends(descOrder = true)
         val allGroups = getGroups()
-        receiveMessagingDataCallback(allFriends, allGroups)
+        messagingDataFlow.tryEmit(allFriends to allGroups)
     }
 }
 

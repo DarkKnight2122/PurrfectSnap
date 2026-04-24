@@ -348,22 +348,24 @@ class BridgeClient(
         safeServiceCall {
             val serializedGroups = groups.mapNotNull { it.toSerialized() }
             val serializedFriends = friends.mapNotNull { it.toSerialized() }
+            
+            // Binder transaction limit is 1MB. Use 128KB chunks to avoid TransactionTooLargeException.
             val maxChunkBytes = 128 * 1024
 
-            fun chunkSerialized(values: List<String>): List<List<String>> {
+            fun calculateParts(values: List<String>): List<List<String>> {
                 if (values.isEmpty()) return listOf(emptyList())
                 val result = mutableListOf<List<String>>()
-                val currentChunk = mutableListOf<String>()
+                var currentChunk = mutableListOf<String>()
                 var currentSize = 0
 
                 values.forEach { value ->
-                    val valueSize = value.toByteArray(StandardCharsets.UTF_8).size + 32
+                    val valueSize = value.toByteArray(Charsets.UTF_8).size + 32
                     if (currentChunk.isNotEmpty() && currentSize + valueSize > maxChunkBytes) {
                         result += currentChunk.toList()
-                        currentChunk.clear()
+                        currentChunk = mutableListOf()
                         currentSize = 0
                     }
-                    currentChunk += value
+                    currentChunk.add(value)
                     currentSize += valueSize
                 }
 
@@ -373,19 +375,18 @@ class BridgeClient(
                 return result
             }
 
-            val groupChunks = chunkSerialized(serializedGroups)
-            val friendChunks = chunkSerialized(serializedFriends)
-            val chunkCount = maxOf(groupChunks.size, friendChunks.size)
+            val groupParts = calculateParts(serializedGroups)
+            val friendParts = calculateParts(serializedFriends)
+            val totalParts = maxOf(groupParts.size, friendParts.size)
 
-            context.log.info(
-                "Sending social snapshot in $chunkCount chunk(s): " +
-                    "${serializedGroups.size} groups, ${serializedFriends.size} friends"
-            )
+            context.log.info("Synchronizing social data in $totalParts part(s): ${serializedGroups.size} groups, ${serializedFriends.size} friends")
 
-            repeat(chunkCount) { index ->
+            repeat(totalParts) { index ->
                 connectedService.passGroupsAndFriends(
-                    groupChunks.getOrElse(index) { emptyList() },
-                    friendChunks.getOrElse(index) { emptyList() }
+                    groupParts.getOrElse(index) { emptyList() },
+                    friendParts.getOrElse(index) { emptyList() },
+                    index,
+                    totalParts
                 )
             }
         }

@@ -78,9 +78,17 @@ class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType
     }
 
     private fun hideBoundChatFeedRow(view: View) {
-        view.hideViewCompletely()
-        (view.parent as? View)?.hideViewCompletely()
-        (view.parent?.parent as? View)?.hideViewCompletely()
+        var current: View? = view
+        repeat(4) {
+            val parent = current?.parent as? View
+            // Safety: Never hide the actual list container
+            if (parent?.javaClass?.name?.contains("RecyclerView") == true) {
+                current?.hideViewCompletely()
+                return
+            }
+            current?.hideViewCompletely()
+            current = parent
+        }
     }
 
     private fun hookCallbackMethod(

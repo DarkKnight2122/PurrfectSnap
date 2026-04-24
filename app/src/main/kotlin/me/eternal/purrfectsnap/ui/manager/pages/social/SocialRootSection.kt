@@ -35,8 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.common.data.MessagingFriendInfo
 import me.eternal.purrfectsnap.common.data.MessagingGroupInfo
@@ -53,10 +52,23 @@ class SocialRootSection : Routes.Route() {
     internal var friendList: List<MessagingFriendInfo> by mutableStateOf(emptyList())
     internal var groupList: List<MessagingGroupInfo> by mutableStateOf(emptyList())
 
-    internal fun updateScopeLists() {
-        context.coroutineScope.launch {
-            friendList = context.database.getFriends(descOrder = true)
-            groupList = context.database.getGroups()
+    @Composable
+    fun SocialDataController() {
+        LaunchedEffect(Unit) {
+            // Initial data fetch from the database
+            withContext(Dispatchers.IO) {
+                val dbFriends = context.database.getFriends(descOrder = true)
+                val dbGroups = context.database.getGroups()
+                friendList = context.sortSocialFriends(dbFriends)
+                groupList = dbGroups
+            }
+
+            // Real-time synchronization from the bridge
+            context.requestSocialSnapshotRefresh()
+            context.database.messagingDataFlow.collect { (friends, groups) ->
+                friendList = context.sortSocialFriends(friends)
+                groupList = groups
+            }
         }
     }
 
@@ -123,11 +135,6 @@ class SocialRootSection : Routes.Route() {
         if (addFriendDialog != null) {
             addFriendDialog?.Content {
                 addFriendDialog = null
-            }
-            DisposableEffect(Unit) {
-                onDispose {
-                    updateScopeLists()
-                }
             }
         }
 
