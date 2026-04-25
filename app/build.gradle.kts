@@ -113,7 +113,6 @@ android {
         compose = true
         buildConfig = true
     }
-
     signingConfigs {
         create("release") {
             storeFile = File(System.getProperty("user.home"), ".android/purrfectsnap-release.keystore")
@@ -359,6 +358,7 @@ afterEvaluate {
                 }
             }
         }
+
 }
 
 properties["debug_flavor"]?.let {

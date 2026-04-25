@@ -77,4 +77,14 @@ class UserInterfaceTweaks : ConfigContainer() {
     }
 
     val spoofSnapScore = container("spoof_snap_score", SpoofSnapScore()) { requireRestart() }
+
+    inner class SpoofFollowersCount : ConfigContainer(hasGlobalState = true) {
+        val customFollowersCount = string("custom_followers_count") {
+            requireRestart()
+            digitsOnlyInput = true
+            inputCheck = { input -> input.isEmpty() || input.all { it.isDigit() } }
+        }
+    }
+
+    val spoofFollowersCount = container("spoof_followers_count", SpoofFollowersCount()) { requireRestart() }
 }

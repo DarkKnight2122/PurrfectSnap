@@ -59,8 +59,11 @@ class SocialRootSection : Routes.Route() {
             withContext(Dispatchers.IO) {
                 val dbFriends = context.database.getFriends(descOrder = true)
                 val dbGroups = context.database.getGroups()
-                friendList = context.sortSocialFriends(dbFriends)
-                groupList = dbGroups
+                val sortedFriends = context.sortSocialFriends(dbFriends)
+                withContext(Dispatchers.Main) {
+                    friendList = sortedFriends
+                    groupList = dbGroups
+                }
             }
 
             // Real-time synchronization from the bridge

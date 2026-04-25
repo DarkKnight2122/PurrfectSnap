@@ -300,6 +300,8 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
         this@AutoOpenSnaps.context.event.subscribe(BuildMessageEvent::class, priority = 103) { event ->
             if (autoOpenConfig.globalState == false || !engineActive.get()) return@subscribe
             val message = event.message
+            
+            // 1. Basic Filters & Self-Check
             if (message.messageState != MessageState.COMMITTED || message.senderId?.toString() == this@AutoOpenSnaps.context.database.myUserId) return@subscribe
 
             val clientMessageId = message.messageDescriptor?.messageId ?: return@subscribe
@@ -310,8 +312,20 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             if (contentType != ContentType.SNAP && contentType != ContentType.EXTERNAL_MEDIA) return@subscribe
             if (!canUseRule(conversationId)) return@subscribe
 
-            // Prevent re-queueing the same message while it is currently being processed
+            // 2. Memory Gating: Prevent processing the same session snap multiple times
             if (openedSnapsIds.contains(clientMessageId)) return@subscribe
+
+            // 3. Database Authority: Immediate check to see if snap is already opened
+            val dbMessage = this@AutoOpenSnaps.context.database.getConversationMessageFromId(clientMessageId)
+            if (dbMessage?.isViewedByUser == 1) return@subscribe
+
+            // 4. Temporal Gating: Ignore ancient unread snaps (fixes 'Ghost Storm' during sync)
+            val now = System.currentTimeMillis()
+            val messageTime = message.messageMetadata?.createdAt ?: 0L
+            if (now - messageTime > 28_800_000L) { // 8-hour window
+                return@subscribe
+            }
+
             openedSnapsIds.add(clientMessageId)
 
             val senderId = message.senderId?.toString() ?: "unknown"

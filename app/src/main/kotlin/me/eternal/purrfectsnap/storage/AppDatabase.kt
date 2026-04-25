@@ -119,6 +119,22 @@ class AppDatabase(
                 "id CHAR(36) PRIMARY KEY",
                 "content TEXT",
             ),
+            "assistant_registry" to listOf(
+                "id VARCHAR PRIMARY KEY",
+                "kind VARCHAR",
+                "title VARCHAR",
+                "category VARCHAR",
+                "path TEXT",
+                "description TEXT",
+                "settingKey VARCHAR",
+                "screenRoute VARCHAR",
+                "allowedActions TEXT",
+                "allowedValues TEXT",
+                "aliases TEXT",
+                "commonTypos TEXT",
+                "examples TEXT",
+                "searchTokens TEXT",
+            ),
         ))
     }
 }
