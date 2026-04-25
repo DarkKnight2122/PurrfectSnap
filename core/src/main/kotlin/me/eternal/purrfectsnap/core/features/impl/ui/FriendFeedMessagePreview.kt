@@ -80,7 +80,7 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
             val ffSdlPrimaryTextStartMargin = 6 * density
 
             val feedEntryHeight = ffSdlAvatarSize + ffSdlAvatarMargin * 2 + (4 * density).toInt()
-            val safetyGap = (12 * density).toInt()
+            val safetyGap = (6 * density).toInt()
             val textPaint = TextPaint().apply {
                 textSize = secondaryTextSize
                 isAntiAlias = true
@@ -123,14 +123,14 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
                             }
 
                             ffItem.layoutParams = ffItem.layoutParams.apply {
-                                height = feedEntryHeight + (safetyGap * 2) + previewContainerHeight
+                                height = feedEntryHeight + (safetyGap * 1.5f).toInt() + previewContainerHeight
                             }
 
                             cachedLayouts[conversationId] = frameLayout
 
                             frameLayout.addForegroundDrawable("ffItem", ShapeDrawable(object: Shape() {
                                 override fun draw(canvas: Canvas, paint: Paint) {
-                                    val startY = feedEntryHeight.toFloat() + safetyGap
+                                    val startY = feedEntryHeight.toFloat() + (1 * density).toInt()
                                     paint.textSize = secondaryTextSize
                                     paint.color = Color(context.userInterface.colorPrimary).copy(alpha = 0.7f).toArgb()
                                     paint.typeface = Typeface.DEFAULT
@@ -138,7 +138,7 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
 
                                     messages?.forEachIndexed { index, messageString ->
                                         canvas.drawText(messageString,
-                                            ffSdlAvatarSize + ffSdlAvatarMargin + (ffSdlPrimaryTextStartMargin * 2),
+                                            ffSdlAvatarSize + ffSdlAvatarMargin + (ffSdlPrimaryTextStartMargin * 3),
                                             startY + (index + 1) * lineHeight + (index * spacing),
                                             paint
                                         )
