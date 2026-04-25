@@ -81,6 +81,7 @@ class ConfigParams(
     var inputCheck: ((String) -> Boolean)? = { true },
     var filenameFilter: ((String) -> Boolean)? = null,
     var versionCheck: VersionCheck? = null,
+    var digitsOnlyInput: Boolean = false,
 ) {
     val notices get() = _notices?.let { FeatureNotice.entries.filter { flag -> it and flag.id != 0 } } ?: emptyList()
     val flags get() = _flags?.let { ConfigFlag.entries.filter { flag -> it and flag.id != 0 } } ?: emptyList()

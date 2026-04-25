@@ -431,9 +431,10 @@ class AlertDialogs(
         DefaultDialogCard {
             var fieldValue by remember {
                 mutableStateOf(property.value.get().toString().let {
+                    val t = if (property.key.params.digitsOnlyInput) it.filter { ch -> ch.isDigit() } else it
                     TextFieldValue(
-                        text = it,
-                        selection = TextRange(it.length)
+                        text = t,
+                        selection = TextRange(t.length)
                     )
                 })
             }
@@ -447,10 +448,21 @@ class AlertDialogs(
                     }
                     .focusRequester(focusRequester),
                 value = fieldValue,
-                onValueChange = { fieldValue = it },
-                keyboardOptions = when (property.key.dataType.type) {
-                    DataProcessors.Type.INTEGER -> KeyboardOptions(keyboardType = KeyboardType.Number)
-                    DataProcessors.Type.FLOAT -> KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                onValueChange = { newVal ->
+                    fieldValue = if (property.key.params.digitsOnlyInput) {
+                        val filtered = newVal.text.filter { ch -> ch.isDigit() }
+                        if (newVal.text != filtered) {
+                            Toast.makeText(context, translation["manager.sections.features.digits_only_toast"], Toast.LENGTH_SHORT).show()
+                        }
+                        newVal.copy(text = filtered)
+                    } else {
+                        newVal
+                    }
+                },
+                keyboardOptions = when {
+                    property.key.params.digitsOnlyInput -> KeyboardOptions(keyboardType = KeyboardType.Number)
+                    property.key.dataType.type == DataProcessors.Type.INTEGER -> KeyboardOptions(keyboardType = KeyboardType.Number)
+                    property.key.dataType.type == DataProcessors.Type.FLOAT -> KeyboardOptions(keyboardType = KeyboardType.Decimal)
                     else -> KeyboardOptions(keyboardType = KeyboardType.Text)
                 },
                 singleLine = true,

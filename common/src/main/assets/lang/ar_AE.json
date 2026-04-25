@@ -359,7 +359,8 @@
                 "search_button": "بحث",
                 "search_results_count": "{count} رسالة",
                 "clear_history": "مسح سجل البحث",
-                "subtitle": "البحث وإدارة الميزات"
+                "subtitle": "البحث وإدارة الميزات",
+                "digits_only_toast": "يُسمح بالأرقام فقط."
             },
             "bypass_status": {
                 "active": "PurrAura نشط",
@@ -1167,6 +1168,16 @@
                             "custom_snap_score": {
                                 "name": "النقاط المخصصة",
                                 "description": "تعيين نقاط السناب شات الوهمية (أقصى عدد هو 9,999,999)"
+                            }
+                        }
+                    },
+                    "spoof_followers_count": {
+                        "name": "تزييف عدد المتابعين",
+                        "description": "يعرض عدد متابعين مزيّفاً على ملفك (محلي فقط).",
+                        "properties": {
+                            "custom_followers_count": {
+                                "name": "عدد المتابعين المخصص",
+                                "description": "الرقم المعروض (أرقام فقط)."
                             }
                         }
                     }
@@ -2569,9 +2580,11 @@
                 "encryption_indicator": "يضيف أيقونة \ud83d\udd12 بجوار الرسائل التي تم إرسالها إليك فقط",
                 "platform_indicator": "يضيف أيقونة المنصة التي تم إرسال الوسيط منها (مثل Android، iOS، Web)",
                 "location_indicator": "يضيف أيقونة \ud83d\udccd للـ snaps عندما يتم إرسالها مع تمكين الموقع",
+                "live_camera_indicator": "إضافة رمز \uD83D\uDCF7 عندما يُلتقط السناب بكاميرا التطبيق مباشرة (تصوير حي)",
+                "external_media_indicator": "إضافة رمز \uD83D\uDDBC\uFE0F لوسائط معرض الصور أو السنابات المُرسَلة من المعرض",
                 "ovf_editor_indicator": "يشير إلى ما إذا كان snap قد تم إرساله باستخدام محرر OVF",
                 "director_mode_indicator": "يضيف أيقونة \u270f\ufe0f للـ snaps عندما يتم إرسالها باستخدام وضع المخرج، والذي يمكن استخدامه لإرسال صور المعرض كـ snaps",
-                "memories_indicator": "إضافة رمز \uD83D\uDCD6 للسنابات التي تم إعادة إرسالها من الذكريات بدلاً من التقاطها بالكاميرا الحية"
+                "memories_indicator": "إضافة أيقونة كتاب مفتوح (\uD83D\uDCD6) عند إعادة إرسال سناب من الذكريات وليس بالتقاط حي بالكاميرا"
             },
             "auto_mark_as_read": {
                 "conversation_read": "وضع علامة مقروء على المحادثة عند إرسال رسالة",

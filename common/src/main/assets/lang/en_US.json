@@ -391,7 +391,8 @@
                 "search_button": "Search",
                 "search_results_count": "{count} messages",
                 "clear_history": "Clear search history",
-                "subtitle": "Explore and manage premium features"
+                "subtitle": "Explore and manage premium features",
+                "digits_only_toast": "Only numbers are allowed."
             },
             "bypass_status": {
                 "active": "PurrAura Active",
@@ -1275,6 +1276,16 @@
                             "custom_snap_score": {
                                 "name": "Custom Snap Score",
                                 "description": "The custom Snap Score you want to display (max 9,999,999)"
+                            }
+                        }
+                    },
+                    "spoof_followers_count": {
+                        "name": "Spoof Followers Count",
+                        "description": "Spoof your follower count on your profile (local only).",
+                        "properties": {
+                            "custom_followers_count": {
+                                "name": "Custom Followers Count",
+                                "description": "Number to show (digits only)."
                             }
                         }
                     }
@@ -3256,9 +3267,11 @@
                 "encryption_indicator": "Adds a \ud83d\udd12 icon next to messages that have been sent only to you",
                 "platform_indicator": "Adds the platform icon from which a media was sent (e.g. Android, iOS, Web)",
                 "location_indicator": "Adds a \ud83d\udccd icon to snaps when they have been sent with location enabled",
+                "live_camera_indicator": "Adds a \ud83d\dcf7 icon when the snap was captured with the in-app camera (live)",
+                "external_media_indicator": "Adds a \ud83d\uddbc\ufe0f icon for camera roll / gallery media and snaps sent from the gallery",
                 "ovf_editor_indicator": "Indicates if a snap has been sent using OVF Editor",
                 "director_mode_indicator": "Adds a \u270f\ufe0f icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps",
-                "memories_indicator": "Adds a \ud83d\udcd6 icon to snaps that were re-sent from Memories instead of being captured with the live camera"
+                "memories_indicator": "Adds an open-book style icon (\ud83d\udcd6) when a snap was re-sent from Memories (not live capture)"
             },
             "auto_mark_as_read": {
                 "conversation_read": "Mark conversation as read when sending a message",
