@@ -444,8 +444,10 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
             }
             hasInitialized -> storedTiles
             else -> {
-                context.database.setQuickTiles(allQuickTileNames)
-                prefs.edit().putBoolean(HomeRootSection.QUICK_TILES_INITIALIZED_PREF, true).apply()
+                context.coroutineScope.launch(Dispatchers.IO) {
+                    context.database.setQuickTiles(allQuickTileNames)
+                    prefs.edit().putBoolean(HomeRootSection.QUICK_TILES_INITIALIZED_PREF, true).apply()
+                }
                 allQuickTileNames
             }
         }

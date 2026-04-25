@@ -20,6 +20,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import me.eternal.purrfectsnap.bridge.AutoOpenInterface
 import me.eternal.purrfectsnap.common.config.PropertyValue
+import me.eternal.purrfectsnap.common.config.ModConfig
 import me.eternal.purrfectsnap.common.data.ContentType
 import me.eternal.purrfectsnap.common.data.MessageState
 import me.eternal.purrfectsnap.common.data.MessageUpdate
@@ -93,6 +94,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     private val lastSaveTime = AtomicLong(System.currentTimeMillis())
     private var isThermalThrottled = false
     private var lastThermalThrottleAt = 0L
+    private var actionReceiver: BroadcastReceiver? = null
 
     private fun logInfo(msg: String) = this@AutoOpenSnaps.context.log.info("[AutoOpenEngine] $msg")
     private fun logError(msg: String, e: Throwable? = null) = if (e != null) this@AutoOpenSnaps.context.log.error("[AutoOpenEngine] $msg", e) else this@AutoOpenSnaps.context.log.error("[AutoOpenEngine] $msg")
@@ -111,6 +113,8 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     }
 
     override fun init() {
+        if (autoOpenConfig.globalState == false) return
+        
         restorePersistence()
         createNotificationChannels()
 
@@ -477,7 +481,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     }
 
     private fun setupReceivers() {
-        val actionReceiver = object : BroadcastReceiver() {
+        actionReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 when (intent?.action) {
                     ACTION_PAUSE_RESUME -> { isPaused.set(!isPaused.get()); updateStatusNotification(force = true) }
@@ -501,8 +505,8 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_BATTERY_CHANGED)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) this@AutoOpenSnaps.context.androidContext.registerReceiver(actionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        else this@AutoOpenSnaps.context.androidContext.registerReceiver(actionReceiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) this@AutoOpenSnaps.context.androidContext.registerReceiver(actionReceiver!!, filter, Context.RECEIVER_NOT_EXPORTED)
+        else this@AutoOpenSnaps.context.androidContext.registerReceiver(actionReceiver!!, filter)
     }
 
     private fun recordSpeedTimestamp() { synchronized(snapTimestamps) { snapTimestamps.addLast(System.currentTimeMillis()); if (snapTimestamps.size > 250) snapTimestamps.removeFirst() } }
@@ -510,9 +514,39 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     private fun shutdownFeature() {
         engineActive.set(false)
         engineJob?.cancel()
-        releaseWakeLock()
-        cancelStatusNotification()
         saveQueueToDisk()
+
+        // Permanently disable the feature in settings
+        autoOpenConfig.globalState = false
+        this@AutoOpenSnaps.context.coroutineScope.launch {
+            runCatching {
+                val field = context::class.java.getDeclaredField("_config").apply { isAccessible = true }
+                val modConfig = (field.get(context) as Lazy<*>).value as ModConfig
+                modConfig.writeConfig()
+            }
+        }
+
+        // Surgical clean-up: release resources and listeners
+        actionReceiver?.let {
+            runCatching { this@AutoOpenSnaps.context.androidContext.unregisterReceiver(it) }
+        }
+        actionReceiver = null
+        wakeLockCooldownJob?.cancel()
+
+        // Grace period for WakeLock release
+        this@AutoOpenSnaps.context.coroutineScope.launch {
+            delay(60000)
+            releaseWakeLock()
+        }
+
+        // Show final "Stopped" notice
+        val builder = Notification.Builder(this@AutoOpenSnaps.context.androidContext, "auto_open_status")
+            .setOngoing(false)
+            .setSmallIcon(android.R.drawable.ic_menu_close_clear_cancel)
+            .setContentTitle("Auto-Open")
+            .setContentText("Auto-Open Engine Disabled. Re-enable in settings.")
+
+        notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build())
     }
 
     private fun cancelStatusNotification() = notificationManager.cancel(STATUS_NOTIFICATION_ID)

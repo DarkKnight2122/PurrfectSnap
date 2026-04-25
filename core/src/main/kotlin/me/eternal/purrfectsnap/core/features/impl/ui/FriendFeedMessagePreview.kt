@@ -108,9 +108,10 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
                         }
 
                         fetchMessages(conversationId) {
-                            val fontMetrics = textPaint.fontMetrics
+                            val universalTextSize = 12 * density
+                            val fontMetrics = textPaint.apply { textSize = universalTextSize }.fontMetrics
                             val lineHeight = (fontMetrics.descent - fontMetrics.ascent).toInt()
-                            val spacing = (2 * density).toInt()
+                            val spacing = (4 * density).toInt()
 
                             val messages = messageCache[conversationId]
                             val previewContainerHeight = if (messages.isNullOrEmpty()) 0 else (messages.size * (lineHeight + spacing))
@@ -123,16 +124,16 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
                             }
 
                             ffItem.layoutParams = ffItem.layoutParams.apply {
-                                height = feedEntryHeight + (safetyGap * 1.5f).toInt() + previewContainerHeight
+                                height = feedEntryHeight + (safetyGap).toInt() + previewContainerHeight
                             }
 
                             cachedLayouts[conversationId] = frameLayout
 
                             frameLayout.addForegroundDrawable("ffItem", ShapeDrawable(object: Shape() {
                                 override fun draw(canvas: Canvas, paint: Paint) {
-                                    val startY = feedEntryHeight.toFloat() + (1 * density).toInt()
-                                    paint.textSize = secondaryTextSize
-                                    paint.color = Color(context.userInterface.colorPrimary).copy(alpha = 0.7f).toArgb()
+                                    val startY = feedEntryHeight.toFloat() - (9 * density)
+                                    paint.textSize = universalTextSize
+                                    paint.color = Color(context.userInterface.colorPrimary).copy(alpha = 0.85f).toArgb()
                                     paint.typeface = Typeface.DEFAULT
                                     paint.isAntiAlias = true
 

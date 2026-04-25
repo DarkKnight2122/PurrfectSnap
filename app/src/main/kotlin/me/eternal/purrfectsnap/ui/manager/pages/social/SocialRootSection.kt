@@ -65,8 +65,13 @@ class SocialRootSection : Routes.Route() {
 
             // Real-time synchronization from the bridge
             context.database.messagingDataFlow.collect { (friends, groups) ->
-                friendList = context.sortSocialFriends(friends)
-                groupList = groups
+                withContext(Dispatchers.IO) {
+                    val sortedFriends = context.sortSocialFriends(friends)
+                    withContext(Dispatchers.Main) {
+                        friendList = sortedFriends
+                        groupList = groups
+                    }
+                }
             }
         }
     }

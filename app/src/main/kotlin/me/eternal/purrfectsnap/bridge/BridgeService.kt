@@ -5,6 +5,9 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.os.RemoteException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.SharedContextHolder
@@ -240,16 +243,18 @@ class BridgeService : Service() {
             if (chunkIndex == totalChunks - 1) {
                 val finalFriends = friendAccumulator.toList()
                 val finalGroups = groupAccumulator.toList()
-                
-                pendingSocialSnapshotCallback?.let { callback ->
-                    pendingSocialSnapshotCallback = null
-                    callback(finalFriends, finalGroups)
-                }
-                remoteSideContext.database.replaceMessagingData(finalFriends, finalGroups)
-                remoteSideContext.database.messagingDataFlow.tryEmit(finalFriends to finalGroups)
-                
+
                 friendAccumulator.clear()
                 groupAccumulator.clear()
+
+                remoteSideContext.coroutineScope.launch(Dispatchers.IO) {
+                    pendingSocialSnapshotCallback?.let { callback ->
+                        pendingSocialSnapshotCallback = null
+                        callback(finalFriends, finalGroups)
+                    }
+                    remoteSideContext.database.replaceMessagingData(finalFriends, finalGroups)
+                    remoteSideContext.database.messagingDataFlow.tryEmit(finalFriends to finalGroups)
+                }
             }
         }
 

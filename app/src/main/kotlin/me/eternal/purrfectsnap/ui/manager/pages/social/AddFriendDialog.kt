@@ -225,24 +225,30 @@ class AddFriendDialog(
                 friends: List<MessagingFriendInfo>,
                 groups: List<MessagingGroupInfo>
             ) {
-                cachedFriends = context.sortSocialFriends(friends, pinnedIds = pinnedIds)
-                cachedGroups = groups.run {
-                    if (pinnedIds != null) {
-                        sortedBy { -pinnedIds.indexOf(it.conversationId) }
-                    } else {
-                        // Priority sort for whitelisted groups
-                        val whitelistedIds = context.database.getRuleIds(MessagingRuleType.STEALTH.key).toSet()
-                        sortedWith { a, b ->
-                            val aSelected = whitelistedIds.contains(a.conversationId)
-                            val bSelected = whitelistedIds.contains(b.conversationId)
-                            if (aSelected != bSelected) if (aSelected) -1 else 1
-                            else a.name.compareTo(b.name, ignoreCase = true)
+                coroutineScope.launch(Dispatchers.IO) {
+                    val sortedFriends = context.sortSocialFriends(friends, pinnedIds = pinnedIds)
+                    val sortedGroups = groups.run {
+                        if (pinnedIds != null) {
+                            sortedBy { -pinnedIds.indexOf(it.conversationId) }
+                        } else {
+                            // Priority sort for whitelisted groups
+                            val whitelistedIds = context.database.getRuleIds(MessagingRuleType.STEALTH.key).toSet()
+                            sortedWith { a, b ->
+                                val aSelected = whitelistedIds.contains(a.conversationId)
+                                val bSelected = whitelistedIds.contains(b.conversationId)
+                                if (aSelected != bSelected) if (aSelected) -1 else 1
+                                else a.name.compareTo(b.name, ignoreCase = true)
+                            }
                         }
                     }
-                }
-                if (friends.isNotEmpty() || groups.isNotEmpty()) {
-                    timeoutJob?.cancel()
-                    hasFetchError = false
+                    withContext(Dispatchers.Main) {
+                        cachedFriends = sortedFriends
+                        cachedGroups = sortedGroups
+                        if (friends.isNotEmpty() || groups.isNotEmpty()) {
+                            timeoutJob?.cancel()
+                            hasFetchError = false
+                        }
+                    }
                 }
             }
 

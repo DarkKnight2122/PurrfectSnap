@@ -181,7 +181,6 @@ class FeaturesRootSection : Routes.Route() {
     }
 
     internal fun getRandomizedProfileSnapshot(): String {
-        context.config.load()
         return context.config.root.experimental.spoof.randomizeDeviceProfile.currentProfileSnapshot.getNullable()
             ?.takeIf { it.isNotBlank() }
             ?: (context.translation["manager.dialogs.randomize_device_profile.empty"]
