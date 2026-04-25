@@ -112,11 +112,11 @@ object Updater {
     private val cache = mutableMapOf<Channel, LatestRelease?>()
 
     fun getLatestRelease(channel: Channel): LatestRelease? {
-        return cache.getOrPut(Channel.STABLE) {
-            if (BuildConfig.DEBUG) {
+        return cache.getOrPut(channel) {
+            if (BuildConfig.DEBUG && channel == Channel.STABLE) {
                 fetchLatestDebugCI() ?: fetchLatestRelease(Channel.STABLE)
             } else {
-                fetchLatestRelease(Channel.STABLE)
+                fetchLatestRelease(channel)
             }
         }
     }

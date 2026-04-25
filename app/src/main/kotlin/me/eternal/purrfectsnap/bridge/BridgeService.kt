@@ -231,29 +231,31 @@ class BridgeService : Service() {
             chunkIndex: Int,
             totalChunks: Int
         ) {
-            if (chunkIndex == 0) {
-                friendAccumulator.clear()
-                groupAccumulator.clear()
-            }
+            synchronized(friendAccumulator) {
+                if (chunkIndex == 0) {
+                    friendAccumulator.clear()
+                    groupAccumulator.clear()
+                }
 
-            remoteSideContext.log.verbose("Received chunk $chunkIndex/$totalChunks: ${groups.size} groups, ${friends.size} friends")
-            friendAccumulator.addAll(friends.mapNotNull { toParcelable<MessagingFriendInfo>(it) })
-            groupAccumulator.addAll(groups.mapNotNull { toParcelable<MessagingGroupInfo>(it) })
+                remoteSideContext.log.verbose("Received chunk $chunkIndex/$totalChunks: ${groups.size} groups, ${friends.size} friends")
+                friendAccumulator.addAll(friends.mapNotNull { toParcelable<MessagingFriendInfo>(it) })
+                groupAccumulator.addAll(groups.mapNotNull { toParcelable<MessagingGroupInfo>(it) })
 
-            if (chunkIndex == totalChunks - 1) {
-                val finalFriends = friendAccumulator.toList()
-                val finalGroups = groupAccumulator.toList()
+                if (chunkIndex == totalChunks - 1) {
+                    val finalFriends = friendAccumulator.toList()
+                    val finalGroups = groupAccumulator.toList()
 
-                friendAccumulator.clear()
-                groupAccumulator.clear()
+                    friendAccumulator.clear()
+                    groupAccumulator.clear()
 
-                remoteSideContext.coroutineScope.launch(Dispatchers.IO) {
-                    pendingSocialSnapshotCallback?.let { callback ->
-                        pendingSocialSnapshotCallback = null
-                        callback(finalFriends, finalGroups)
+                    remoteSideContext.coroutineScope.launch(Dispatchers.IO) {
+                        pendingSocialSnapshotCallback?.let { callback ->
+                            pendingSocialSnapshotCallback = null
+                            callback(finalFriends, finalGroups)
+                        }
+                        remoteSideContext.database.replaceMessagingData(finalFriends, finalGroups)
+                        remoteSideContext.database.messagingDataFlow.tryEmit(finalFriends to finalGroups)
                     }
-                    remoteSideContext.database.replaceMessagingData(finalFriends, finalGroups)
-                    remoteSideContext.database.messagingDataFlow.tryEmit(finalFriends to finalGroups)
                 }
             }
         }

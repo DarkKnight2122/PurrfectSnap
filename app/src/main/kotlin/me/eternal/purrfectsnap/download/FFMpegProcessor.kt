@@ -211,7 +211,7 @@ class FFMpegProcessor(
                             filterSecondPart.append("[v$index][$index:a]")
                         } else {
                             containsNoSound = true
-                            filterSecondPart.append("[v$index][${filesInfo.size}]")
+                            filterSecondPart.append("[v$index][${filesInfo.size}:a]")
                         }
                         inputArguments += "-i" to file
                     }
@@ -228,9 +228,9 @@ class FFMpegProcessor(
 
                     outputArguments += "-fps_mode" to "vfr"
 
-                    outputArguments += "-filter_complex" to "\"$filterFirstPart ${filterSecondPart}concat=n=${filesInfo.size}:v=1:a=1[vout][aout]\""
-                    outputArguments += "-map" to "\"[aout]\""
-                    outputArguments += "-map" to "\"[vout]\""
+                    outputArguments += "-filter_complex" to "$filterFirstPart ${filterSecondPart}concat=n=${filesInfo.size}:v=1:a=1[vout][aout]"
+                    outputArguments += "-map" to "[aout]"
+                    outputArguments += "-map" to "[vout]"
                 } finally {
                     filesInfo.forEach { it.second.close() }
                 }
@@ -264,8 +264,8 @@ class FFMpegProcessor(
                     filterParts.append("[a$index]")
                 }
                 filterParts.append("amix=inputs=${args.inputs.size}:duration=longest:normalize=0[aout]")
-                outputArguments += "-filter_complex" to "\"$filterParts\""
-                outputArguments += "-map" to "\"[aout]\""
+                outputArguments += "-filter_complex" to filterParts.toString()
+                outputArguments += "-map" to "[aout]"
             }
         }
         outputArguments += args.output.absolutePath

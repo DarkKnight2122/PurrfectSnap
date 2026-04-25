@@ -97,7 +97,7 @@ class HomeSettings : Routes.Route() {
 
             workManager.enqueueUniquePeriodicWork(
                 "purrfectsnap_update_check",
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.REPLACE,
                 workRequest
             )
         } else {
