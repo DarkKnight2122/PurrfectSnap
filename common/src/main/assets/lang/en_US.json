@@ -202,7 +202,7 @@
                 "update_content": "Version {version} is available!",
                 "update_button": "Download",
                 "hero_tagline": "An Xposed Module meant to enhance your Snapchat experience",
-                "hero_version_label": "Version: {version} - {channel}",
+                "hero_version_label": "Version: {version}",
                 "hero_build_label": "Build: {build}",
                 "update_ready_label": "Ready to install",
                 "purr_aura_active_label": "PurrAura Active!",

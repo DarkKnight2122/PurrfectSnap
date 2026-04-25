@@ -226,7 +226,6 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         downloadState: UpdateDownloader.DownloadState,
         downloadProgress: Float,
         onUpdateAction: () -> Unit,
-        channelLabel: String,
         isPurrAuraActive: Boolean,
         onAboutClick: () -> Unit,
         avenirNext: FontFamily,
@@ -283,7 +282,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    HeroBadge(translation.format("hero_version_label", "version" to versionName, "channel" to channelLabel))
+                    HeroBadge(translation.format("hero_version_label", "version" to versionName))
                     gitHashShort.takeIf { it.isNotBlank() && it.lowercase() != "unknown" }?.let {
                         HeroBadge(translation.format("hero_build_label", "build" to it))
                     }
@@ -453,10 +452,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         }
     }
 
-    val updateChannel = context.config.root.global.updateSettings.updateChannel.getNullable() ?: "stable"
-    val channelLabel = if (updateChannel == "prerelease") translation["channel_label_prerelease"] ?: "" else translation["channel_label_stable"] ?: ""
-    val latestUpdate by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(updateChannel)) {
-        Updater.getLatestRelease(if (updateChannel == "prerelease") Channel.PRERELEASE else Channel.STABLE)
+    val latestUpdate by rememberAsyncMutableState(defaultValue = null) {
+        Updater.getLatestRelease(Channel.STABLE)
     }
     val downloadState by UpdateDownloader.downloadState.collectAsState()
     val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
@@ -504,7 +501,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         changelogLoading = true
         changelogError = null
         coroutineScope.launch(Dispatchers.IO) {
-            val url = if (updateChannel == "prerelease") changelogPrereleaseUrl else changelogStableUrl
+            val url = changelogStableUrl
             runCatching {
                 OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use { response ->
                     val body = response.body?.string() ?: throw IllegalStateException("Empty body")
@@ -542,7 +539,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         fullChangelogLoading = true
         fullChangelogError = null
         coroutineScope.launch(Dispatchers.IO) {
-            val url = if (updateChannel == "prerelease") changelogPrereleaseUrl else changelogStableUrl
+            val url = changelogStableUrl
             runCatching {
                 OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use { response ->
                     val body = response.body?.string() ?: throw IllegalStateException("Empty body")
@@ -694,7 +691,6 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 downloadState = downloadState,
                 downloadProgress = downloadProgress,
                 onUpdateAction = { latestUpdate?.let { showChangelogDialog = true; loadChangelog() } },
-                channelLabel = channelLabel,
                 isPurrAuraActive = isPurrAuraActive,
                 onAboutClick = { routes.about.navigate() },
                 avenirNext = avenirNext,

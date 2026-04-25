@@ -202,7 +202,7 @@
                 "update_content": "الإصدار {version} متاح!",
                 "update_button": "تنزيل",
                 "hero_tagline": "وحدة Xposed تهدف لتحسين تجربة Snapchat الخاصة بك",
-                "hero_version_label": "الإصدار: {version} - {channel}",
+                "hero_version_label": "الإصدار: {version}",
                 "hero_build_label": "البناء: {build}",
                 "update_ready_label": "جاهز للتثبيت",
                 "purr_aura_active_label": "PurrAura نشط!",

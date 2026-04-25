@@ -190,7 +190,6 @@ object LegacyTheme : ThemeContract {
             downloadState: UpdateDownloader.DownloadState,
             downloadProgress: Float,
             onUpdateAction: () -> Unit,
-            channelLabel: String,
             isPurrAuraActive: Boolean,
             onWebsiteClick: () -> Unit,
             onTelegramClick: () -> Unit,
@@ -223,7 +222,7 @@ object LegacyTheme : ThemeContract {
                         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        HeroBadge(translation.format("hero_version_label", "version" to versionName, "channel" to channelLabel))
+                        HeroBadge(translation.format("hero_version_label", "version" to versionName))
                         gitHashShort.takeIf { it.isNotBlank() && it.lowercase() != "unknown" }?.let {
                             HeroBadge(translation.format("hero_build_label", "build" to it))
                         }
@@ -345,13 +344,10 @@ object LegacyTheme : ThemeContract {
                 }
             }
         }
-        val updateChannel = context.config.root.global.updateSettings.updateChannel.getNullable() ?: "stable"
-        val channelLabel = if (updateChannel == "prerelease") translation["channel_label_prerelease"] ?: "" else translation["channel_label_stable"] ?: ""
-        val latestUpdate by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(updateChannel)) {
-            val channel = if (updateChannel == "prerelease") Channel.PRERELEASE else Channel.STABLE
-            Updater.getLatestRelease(channel)
+        val latestUpdate by rememberAsyncMutableState(defaultValue = null) {
+            Updater.getLatestRelease(Channel.STABLE)
         }
-        val changelogUrl = if (updateChannel == "prerelease") changelogPrereleaseUrl else changelogStableUrl
+        val changelogUrl = changelogStableUrl
         val downloadState by UpdateDownloader.downloadState.collectAsState()
         val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
         val coroutineScope = rememberCoroutineScope()
@@ -502,7 +498,6 @@ object LegacyTheme : ThemeContract {
                     downloadState = downloadState,
                     downloadProgress = downloadProgress,
                     onUpdateAction = onUpdateButtonClick,
-                    channelLabel = channelLabel,
                     isPurrAuraActive = isPurrAuraActive,
                     onWebsiteClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app/", context.translation["toast_open_link_failed"]) },
                     onTelegramClick = { context.androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
@@ -847,22 +842,10 @@ object LegacyTheme : ThemeContract {
                             RowTitle(title = translation["updates_title"])
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 var autoUpdateCheck by remember { mutableStateOf(context.config.root.global.updateSettings.autoUpdateCheck.getNullable() ?: true) }
-                                var selectedChannel by remember { mutableStateOf(context.config.root.global.updateSettings.updateChannel.getNullable() ?: "stable") }
-                                var channelMenuExpanded by remember { mutableStateOf(false) }
                                 ShiftedRow {
                                     Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(text = translation["auto_update_check"], fontSize = 14.sp)
                                         Switch(checked = autoUpdateCheck, onCheckedChange = { if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); autoUpdateCheck = it; context.config.root.global.updateSettings.autoUpdateCheck.set(it); context.config.writeConfig(); scheduleUpdateCheck() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
-                                    }
-                                }
-                                AnimatedVisibility(visible = autoUpdateCheck) {
-                                    ExposedDropdownMenuBox(expanded = channelMenuExpanded, onExpandedChange = { channelMenuExpanded = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 26.dp)) {
-                                        AestheticDropdownField(value = translation.getOrNull("update_channel_${selectedChannel}") ?: selectedChannel, expanded = channelMenuExpanded, modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable), onClick = { channelMenuExpanded = true })
-                                        ExposedDropdownMenu(expanded = channelMenuExpanded, onDismissRequest = { channelMenuExpanded = false }) {
-                                            listOf("stable", "prerelease").forEach { channel ->
-                                                DropdownMenuItem(text = { Text(text = translation.getOrNull("update_channel_${channel}") ?: channel) }, onClick = { selectedChannel = channel; channelMenuExpanded = false; context.config.root.global.updateSettings.updateChannel.set(channel); context.config.writeConfig(); scheduleUpdateCheck() })
-                                            }
-                                        }
                                     }
                                 }
                             }
