@@ -127,6 +127,8 @@ import me.eternal.purrfectsnap.storage.getQuickTiles
 import me.eternal.purrfectsnap.storage.setQuickTiles
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantEntry
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantTriggerStyle
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.manager.data.UpdateDownloader
 import me.eternal.purrfectsnap.ui.manager.data.Updater
@@ -271,27 +273,31 @@ class HomeRootSection : Routes.Route() {
         icon: ImageVector,
         label: String? = null,
         contentDescription: String? = label,
+        modifier: Modifier = Modifier,
         onClick: () -> Unit,
     ) {
         Surface(
+            modifier = modifier.height(36.dp),
             shape = RoundedCornerShape(40),
             color = Color.White.copy(alpha = 0.06f),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
         ) {
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(40))
                     .clickable(onClick = onClick)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
-                Icon(icon, contentDescription = contentDescription, tint = Color.White)
+                Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(20.dp))
                 label?.let {
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = it,
                         color = Color.White,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -323,13 +329,20 @@ class HomeRootSection : Routes.Route() {
 
     @Composable
     private fun RowScope.HomeActionChips() {
+        ManagerAssistantEntry(
+            context = context,
+            routes = routes,
+            style = ManagerAssistantTriggerStyle.DEFAULT
+        )
         TopBarActionChip(
             icon = Icons.Filled.BugReport,
-            label = context.translation["manager.routes.home_logs"]
+            label = context.translation["manager.routes.home_logs"],
+            modifier = Modifier
         ) { routes.homeLogs.navigate() }
         TopBarActionChip(
             icon = Icons.Filled.Info,
-            label = translation["manager.routes.home_about"]
+            label = translation["manager.routes.home_about"],
+            modifier = Modifier
         ) { routes.about.navigate() }
     }
 
@@ -733,9 +746,8 @@ class HomeRootSection : Routes.Route() {
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.wrapContentWidth(),
         ) {
-            Spacer(modifier = Modifier.weight(1f))
             HomeActionChips()
         }
     }

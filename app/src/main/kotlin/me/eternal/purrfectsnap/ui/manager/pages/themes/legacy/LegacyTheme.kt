@@ -78,6 +78,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfectsnap.LogLine
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantEntry
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantTriggerStyle
 import me.eternal.purrfectsnap.LogReader
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.action.EnumQuickActions
@@ -154,24 +156,28 @@ object LegacyTheme : ThemeContract {
             icon: ImageVector,
             label: String? = null,
             contentDescription: String? = label,
+            modifier: Modifier = Modifier,
             onClick: () -> Unit,
         ) {
             Surface(
+                modifier = modifier.height(36.dp),
                 shape = RoundedCornerShape(40),
                 color = Color.White.copy(alpha = 0.06f),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
             ) {
                 Row(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .clip(RoundedCornerShape(40))
                         .clickable(onClick = onClick)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(icon, contentDescription = contentDescription, tint = Color.White)
+                    Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(20.dp))
                     label?.let {
-                        Text(text = it, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = it, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -179,8 +185,22 @@ object LegacyTheme : ThemeContract {
 
         @Composable
         fun RowScope.LocalHomeActionChips() {
-            LocalTopBarActionChip(icon = Icons.Filled.BugReport, label = context.translation["manager.routes.home_logs"]) { routes.homeLogs.navigate() }
-            LocalTopBarActionChip(icon = Icons.Filled.Info, label = translation["manager.routes.home_about"]) { routes.about.navigate() }
+            ManagerAssistantEntry(
+                context = context,
+                routes = routes,
+                style = ManagerAssistantTriggerStyle.DEFAULT,
+                modifier = Modifier.weight(1f)
+            )
+            LocalTopBarActionChip(
+                icon = Icons.Filled.BugReport,
+                label = context.translation["manager.routes.home_logs"],
+                modifier = Modifier.weight(1f)
+            ) { routes.homeLogs.navigate() }
+            LocalTopBarActionChip(
+                icon = Icons.Filled.Info,
+                label = translation["manager.routes.home_about"],
+                modifier = Modifier.weight(1f)
+            ) { routes.about.navigate() }
         }
 
         @Composable
@@ -478,18 +498,26 @@ object LegacyTheme : ThemeContract {
             Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = contentBottomPadding)) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(WindowInsets.statusBars.asPaddingValues()).padding(horizontal = cardMargin, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        LocalTopBarActionChip(icon = Icons.Filled.Notifications, label = null, contentDescription = translation["announcements_button_description"]) {
-                            showAnnouncementsDialog = true; loadAnnouncements()
-                        }
-                        LocalTopBarActionChip(icon = Icons.Filled.Description, label = null, contentDescription = translation.getOrNull("changelog_button_description") ?: "Open full changelog") {
-                            showFullChangelogDialog = true; loadFullChangelog(changelogUrl)
-                        }
-                    }
-                    Row(modifier = Modifier.wrapContentWidth(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    LocalTopBarActionChip(
+                        icon = Icons.Filled.Notifications,
+                        label = null,
+                        modifier = Modifier.width(56.dp),
+                        contentDescription = translation["announcements_button_description"]
+                    ) { showAnnouncementsDialog = true; loadAnnouncements() }
+                    LocalTopBarActionChip(
+                        icon = Icons.Filled.Description,
+                        label = null,
+                        modifier = Modifier.width(56.dp),
+                        contentDescription = translation.getOrNull("changelog_button_description") ?: "Open full changelog"
+                    ) { showFullChangelogDialog = true; loadFullChangelog(changelogUrl) }
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         LocalHomeActionChips()
                     }
                 }
@@ -1720,9 +1748,15 @@ object LegacyTheme : ThemeContract {
                         )
                         Text(text = translation["about_tagline"] ?: "", fontSize = 13.sp, color = Color(0xFFD9D3FF), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                         Text(text = translation["about_lead_developers_title"] ?: "Lead Developers", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(top = 10.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                            DeveloperCard(name = "ΞTΞRNAL", imageRes = R.drawable.pfp_external, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                            DeveloperCard(name = "<RSR/>", imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                                DeveloperCard(name = "Eternal", subtitle = "", imageRes = R.drawable.pfp_external, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "Kaladin", subtitle = "", imageRes = R.drawable.pfp_kaladin, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                                DeveloperCard(name = "schrodingerspet", subtitle = "", imageRes = R.drawable.pfp_schrodingerspet, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "RSR", subtitle = "", imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
@@ -1784,11 +1818,14 @@ object LegacyTheme : ThemeContract {
         name: String,
         imageRes: Int,
         avenirNext: FontFamily,
+        subtitle: String? = null,
         modifier: Modifier = Modifier
     ) {
         val tapSource = remember { MutableInteractionSource() }
         Surface(
-            modifier = modifier.scaleOnPress(tapSource),
+            modifier = modifier
+                .height(150.dp)
+                .scaleOnPress(tapSource),
             shape = RoundedCornerShape(22.dp),
             color = Color.White.copy(alpha = 0.06f),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
@@ -1796,9 +1833,11 @@ object LegacyTheme : ThemeContract {
             shadowElevation = 0.dp
         ) {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.Center
             ) {
                 Surface(
                     modifier = Modifier.size(64.dp),
@@ -1813,15 +1852,28 @@ object LegacyTheme : ThemeContract {
                         modifier = Modifier.fillMaxSize().clip(CircleShape)
                     )
                 }
-                PurrfectMarqueeText(
+                Text(
                     text = name,
                     color = Color.White,
-                    style = TextStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        fontFamily = avenirNext
-                    )
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    fontFamily = avenirNext,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                subtitle?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = it,
+                        color = Color(0xFFD9D3FF),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

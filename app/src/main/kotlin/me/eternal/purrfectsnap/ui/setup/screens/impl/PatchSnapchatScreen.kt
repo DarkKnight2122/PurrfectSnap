@@ -74,6 +74,8 @@ import kotlinx.coroutines.withContext
 import me.eternal.purrfectsnap.common.bridge.wrapper.LocaleWrapper
 import me.eternal.purrfectsnap.setup.patch.AutoPatchServer
 import me.eternal.purrfectsnap.setup.patch.LSPatch
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantDialog
+import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.setup.screens.SetupScreen
@@ -111,6 +113,10 @@ class PatchSnapchatScreen : SetupScreen() {
         var installWatcher by remember { mutableStateOf<Job?>(null) }
         var downloadFinished by rememberSaveable { mutableStateOf(false) }
         var showIssuesDialog by remember { mutableStateOf(false) }
+        val assistantRoutes = remember {
+            Routes(context).apply {
+            }
+        }
         val logPulse by rememberInfiniteTransition(label = "logPulse").animateFloat(
             initialValue = 0f,
             targetValue = 1f,
@@ -313,62 +319,12 @@ class PatchSnapchatScreen : SetupScreen() {
         }
 
         if (showIssuesDialog) {
-            AestheticDialog(
-                onDismissRequest = { showIssuesDialog = false },
-                title = translation["setup.patch.issues_title"],
-                text = "",
-                icon = Icons.Filled.Info,
-                confirmButtonText = translation["setup.patch.issues_confirm"],
-                onConfirm = { showIssuesDialog = false },
-                showCloseButton = false,
-                customContent = {
-                    val bodyStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = PurrfectPalette.textSecondary,
-                        lineHeight = 18.sp
-                    )
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 360.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Text(
-                            text = translation["setup.patch.issues_heading"],
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            textAlign = TextAlign.Start,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = translation["setup.patch.issues_conflict_issue"],
-                            style = bodyStyle,
-                            textAlign = TextAlign.Start
-                        )
-                        Text(
-                            text = translation["setup.patch.issues_conflict_fix"],
-                            style = bodyStyle,
-                            textAlign = TextAlign.Start
-                        )
-                        Text(
-                            text = translation["setup.patch.issues_adb_command"],
-                            style = bodyStyle,
-                            textAlign = TextAlign.Start,
-                            softWrap = false,
-                            modifier = Modifier.horizontalScroll(rememberScrollState())
-                        )
-                        Text(
-                            text = translation["setup.patch.issues_invalid_issue"],
-                            style = bodyStyle,
-                            textAlign = TextAlign.Start
-                        )
-                        Text(
-                            text = translation["setup.patch.issues_invalid_fix"],
-                            style = bodyStyle,
-                            textAlign = TextAlign.Start
-                        )
-                    }
-                }
+            ManagerAssistantDialog(
+                context = context,
+                routes = assistantRoutes,
+                initialUserMessage = "I am facing an App not installed issue or Package appears to be invalid issue while installing Snapchat. How do I fix it?",
+                showImprovementLogging = false,
+                onDismiss = { showIssuesDialog = false }
             )
         }
 

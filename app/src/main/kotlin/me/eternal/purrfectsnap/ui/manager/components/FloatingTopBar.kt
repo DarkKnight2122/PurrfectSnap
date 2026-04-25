@@ -269,7 +269,7 @@ fun FloatingTopBar(
                                     if (onBack != null) {
                                         translationX = morphingParams.horizontalShift.toPx()
                                     }
-                                },
+                            },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {

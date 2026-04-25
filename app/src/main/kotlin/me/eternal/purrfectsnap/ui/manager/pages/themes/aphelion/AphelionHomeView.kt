@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -63,6 +64,8 @@ import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.data.UpdateDownloader
 import me.eternal.purrfectsnap.ui.manager.data.Updater
 import me.eternal.purrfectsnap.ui.manager.data.Updater.Channel
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantEntry
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantTriggerStyle
 import me.eternal.purrfectsnap.ui.manager.pages.home.HomeRootSection
 import me.eternal.purrfectsnap.ui.manager.pages.home.QuickActionsDialog
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
@@ -148,11 +151,15 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         label: String? = null,
         contentDescription: String? = label,
         shrinkFactor: Float = 1f,
+        modifier: Modifier = Modifier,
+        expandedWidth: Dp? = null,
+        collapsedWidth: Dp = 36.dp,
         haptic: HapticFeedback,
         onClick: () -> Unit,
     ) {
+        val targetWidth = expandedWidth?.let { lerp(collapsedWidth, it, shrinkFactor) }
         Surface(
-            modifier = Modifier.height(36.dp).widthIn(min = 36.dp),
+            modifier = modifier.height(36.dp).then(if (targetWidth != null) Modifier.width(targetWidth) else Modifier),
             shape = RoundedCornerShape(40),
             color = Color.White.copy(alpha = 0.06f),
             border = BorderStroke(
@@ -167,9 +174,10 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         ) {
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .clip(RoundedCornerShape(40))
                     .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClick() }
-                    .padding(vertical = 6.dp, horizontal = lerp(10.dp, 12.dp, shrinkFactor)),
+                    .padding(vertical = 6.dp, horizontal = lerp(7.dp, 10.dp, shrinkFactor)),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
@@ -182,17 +190,19 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                     }
                 )
                 if (label != null) {
-                    val labelAlpha = (shrinkFactor - 0.1f).coerceIn(0f, 1f)
-                    Spacer(modifier = Modifier.width((8 * shrinkFactor).dp))
-                    Text(
-                        text = label,
-                        color = Color.White.copy(alpha = labelAlpha),
-                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                        maxLines = 1, overflow = TextOverflow.Clip,
-                        modifier = Modifier
-                            .graphicsLayer { alpha = labelAlpha; translationX = (-4 * (1f - shrinkFactor)).dp.toPx() }
-                            .widthIn(max = (75 * shrinkFactor).dp)
-                    )
+                    val labelAlpha = ((shrinkFactor - 0.45f) / 0.55f).coerceIn(0f, 1f)
+                    if (labelAlpha > 0.02f) {
+                        Spacer(modifier = Modifier.width((8 * shrinkFactor).dp))
+                        Text(
+                            text = label,
+                            color = Color.White.copy(alpha = labelAlpha),
+                            fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .graphicsLayer { alpha = labelAlpha; translationX = (-4 * (1f - shrinkFactor)).dp.toPx() }
+                                .weight(1f, fill = false)
+                        )
+                    }
                 }
             }
         }
@@ -206,14 +216,23 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         val shrinkFactor by remember(scrollState.value) {
             derivedStateOf { (1f - (scrollState.value.toFloat() / Motion.HEADER_MORPH_THRESHOLD)).coerceIn(0f, 1f) }
         }
+        ManagerAssistantEntry(
+            context = context,
+            routes = routes,
+            style = ManagerAssistantTriggerStyle.APHELION,
+            shrinkFactor = shrinkFactor,
+            modifier = Modifier.width(lerp(36.dp, 66.dp, shrinkFactor))
+        )
         AphelionTopBarActionChip(
             icon = Icons.Filled.BugReport,
             label = context.translation["manager.routes.home_logs"],
+            expandedWidth = 88.dp,
             shrinkFactor = shrinkFactor, haptic = haptic
         ) { routes.homeLogs.navigate() }
         AphelionTopBarActionChip(
             icon = Icons.Filled.Settings,
             label = context.translation["manager.routes.home_settings"],
+            expandedWidth = 96.dp,
             shrinkFactor = shrinkFactor, haptic = haptic
         ) { routes.settings.navigate() }
     }
@@ -646,37 +665,27 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         .padding(horizontal = 16.dp)
                         .height(headerHeight)
                 ) {
-                    Text(
-                        text = "PurrfectSnap",
-                        color = Color.White.copy(alpha = stickyBrandingAlpha),
-                        fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = avenirNext,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                    val announcementShift by remember(focusFactor) { derivedStateOf { (-6 * focusFactor).dp } }
                     Row(
-                        modifier = Modifier.align(Alignment.CenterStart).graphicsLayer { translationX = announcementShift.toPx() },
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .wrapContentWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         AphelionTopBarActionChip(
                             icon = Icons.Filled.Notifications, label = null,
+                            expandedWidth = 52.dp,
                             shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f),
                             contentDescription = translation["announcements_button_description"],
                             haptic = haptic
                         ) { showAnnouncementsDialog = true; loadAnnouncements() }
                         AphelionTopBarActionChip(
                             icon = Icons.Filled.Description, label = null,
+                            expandedWidth = 52.dp,
                             shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f),
                             contentDescription = translation.getOrNull("changelog_button_description") ?: "Open full changelog",
                             haptic = haptic
                         ) { showFullChangelogDialog = true; loadFullChangelog() }
-                    }
-                    val settingsShift by remember(focusFactor) { derivedStateOf { (6 * focusFactor).dp } }
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd).graphicsLayer { translationX = settingsShift.toPx() },
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
                         AphelionHomeActionChips(scrollState = scrollState, haptic = haptic)
                     }
                 }

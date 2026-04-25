@@ -32,7 +32,6 @@ import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
-import me.eternal.purrfectsnap.ui.util.PurrfectMarqueeText
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
 
 class HomeAbout : Routes.Route() {
@@ -65,6 +64,7 @@ class HomeAbout : Routes.Route() {
         name: String,
         imageRes: Int,
         avenirNext: FontFamily,
+        subtitle: String? = null,
         modifier: Modifier = Modifier
     ) {
         val tapSource = remember { MutableInteractionSource() }
@@ -85,7 +85,9 @@ class HomeAbout : Routes.Route() {
                     routes.retroGame.navigate()
                 }
             },
-            modifier = modifier.scaleOnPress(tapSource),
+            modifier = modifier
+                .height(150.dp)
+                .scaleOnPress(tapSource),
             interactionSource = tapSource,
             shape = RoundedCornerShape(22.dp),
             color = Color.White.copy(alpha = 0.06f),
@@ -94,9 +96,11 @@ class HomeAbout : Routes.Route() {
             shadowElevation = 0.dp
         ) {
             Column(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.Center
             ) {
                 Surface(
                     modifier = Modifier.size(64.dp),
@@ -111,15 +115,28 @@ class HomeAbout : Routes.Route() {
                         modifier = Modifier.fillMaxSize().clip(CircleShape)
                     )
                 }
-                PurrfectMarqueeText(
+                Text(
                     text = name,
                     color = Color.White,
-                    style = TextStyle(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        fontFamily = avenirNext
-                    )
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    fontFamily = avenirNext,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
                 )
+                subtitle?.takeIf { it.isNotBlank() }?.let {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = it,
+                        color = PurrfectPalette.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
@@ -93,6 +94,8 @@ import androidx.navigation.compose.rememberNavController
 import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.SharedContextHolder
 import me.eternal.purrfectsnap.common.ui.AppMaterialTheme
+import me.eternal.purrfectsnap.ui.manager.ManagerAssistantDialog
+import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.setup.screens.SetupScreen
@@ -104,6 +107,8 @@ import me.eternal.purrfectsnap.ui.setup.screens.impl.PickLanguageScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.PatchSnapchatScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.RootInstallSnapchatScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.SaveFolderScreen
+import me.eternal.purrfectsnap.ui.setup.screens.impl.IntroShowcaseScreen
+import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
 import kotlinx.coroutines.delay
 
@@ -127,6 +132,9 @@ class SetupActivity : ComponentActivity() {
         }
         val requirements = intent.getIntExtra("requirements", Requirements.FIRST_RUN)
         val setupPrefs = setupContext.sharedPreferences
+        val setupRoutes = Routes(setupContext).apply {
+            activityLauncher = ActivityLauncherHelper(this@SetupActivity)
+        }
         fun hasRequirement(requirement: Int) = requirements and requirement == requirement
         val wasInProgress = setupPrefs.getBoolean("setup_in_progress", false)
         val isFirstRunFlow = hasRequirement(Requirements.FIRST_RUN) || wasInProgress
@@ -159,6 +167,7 @@ class SetupActivity : ComponentActivity() {
 
         val requiredScreens = mutableListOf<SetupScreen>().apply {
             if (isFirstRunFlow || hasRequirement(Requirements.LANGUAGE)) {
+                add(IntroShowcaseScreen().apply { route = "introShowcase" })
                 add(PickLanguageScreen().apply { route = "language" })
                 if (isFirstRunFlow) {
                     add(InstallModeScreen(
@@ -315,19 +324,7 @@ class SetupActivity : ComponentActivity() {
             AppMaterialTheme {
                 val view = LocalView.current
                 val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                var showImportantDialog by rememberSaveable {
-                    mutableStateOf(!setupPrefs.getBoolean("setup_important_notice_shown", false))
-                }
-                var importantTimeout by remember { mutableIntStateOf(5) }
-                LaunchedEffect(showImportantDialog) {
-                    if (showImportantDialog) {
-                        importantTimeout = 5
-                        while (importantTimeout > 0) {
-                            delay(1000)
-                            importantTimeout--
-                        }
-                    }
-                }
+                var setupAiPrompt by rememberSaveable { mutableStateOf<String?>(null) }
                 SideEffect {
                     val window = (view.context as Activity).window
                     WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -344,46 +341,8 @@ class SetupActivity : ComponentActivity() {
                         .fillMaxSize()
                         .background(Color.Transparent)
                 ) {
-                    if (showImportantDialog) {
-                        val confirmLabel = if (importantTimeout > 0) {
-                            translation.format(
-                                "setup.activity.important_confirm_timeout",
-                                "seconds" to importantTimeout.toString()
-                            )
-                        } else {
-                            translation["setup.activity.important_confirm"]
-                        }
-                        AestheticDialog(
-                            onDismissRequest = {
-                                if (importantTimeout == 0) {
-                                    showImportantDialog = false
-                                    setupPrefs.edit().putBoolean("setup_important_notice_shown", true).apply()
-                                }
-                            },
-                            title = translation["setup.activity.important_title"],
-                            text = "",
-                            icon = Icons.Filled.Warning,
-                            confirmButtonText = confirmLabel,
-                            onConfirm = {
-                                if (importantTimeout == 0) {
-                                    showImportantDialog = false
-                                    setupPrefs.edit().putBoolean("setup_important_notice_shown", true).apply()
-                                }
-                            },
-                            confirmEnabled = importantTimeout == 0,
-                            showCloseButton = false,
-                            customContent = {
-                                Text(
-                                    text = translation["setup.activity.important_message"],
-                                    color = PurrfectPalette.textSecondary,
-                                    lineHeight = 18.sp
-                                )
-                            },
-                            opaque = true
-                        )
-                    }
                     SetupAuroraBackground()
-                    SetupTopBar()
+                    SetupTopBar(onAskAi = { setupAiPrompt = "hi" })
                     val bottomPadding = 118.dp + navBarPadding
                     Column(
                         modifier = Modifier
@@ -468,6 +427,14 @@ class SetupActivity : ComponentActivity() {
                             .navigationBarsPadding()
                             .padding(bottom = 32.dp)
                     )
+                    setupAiPrompt?.let { prompt ->
+                        ManagerAssistantDialog(
+                            context = setupContext,
+                            routes = setupRoutes,
+                            initialUserMessage = prompt,
+                            onDismiss = { setupAiPrompt = null }
+                        )
+                    }
                 }
             }
         }
@@ -482,6 +449,12 @@ private fun SetupScreen.meta(context: RemoteSideContext): SetupStepMeta {
             title = translation["setup.dialogs.select_language"],
             subtitle = translation["setup.activity.language_subtitle"],
             icon = Icons.Filled.Language
+        )
+        is IntroShowcaseScreen -> SetupStepMeta(
+            route = route,
+            title = "Welcome",
+            subtitle = "Preview what PurrfectSnap can do",
+            icon = Icons.Filled.AutoAwesome
         )
 
         is InstallModeScreen -> SetupStepMeta(
@@ -587,7 +560,7 @@ private fun SetupAuroraBackground() {
 }
 
 @Composable
-private fun SetupTopBar() {
+private fun SetupTopBar(onAskAi: () -> Unit) {
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     Surface(
         modifier = Modifier
@@ -613,14 +586,37 @@ private fun SetupTopBar() {
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = "PurrfectSnap",
                 color = PurrfectPalette.textPrimary,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 18.sp
+                fontSize = 18.sp,
+                modifier = Modifier.weight(1f)
             )
+            Surface(
+                shape = RoundedCornerShape(40),
+                color = Color.White.copy(alpha = 0.08f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(40))
+                        .clickable(onClick = onAskAi)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Filled.SmartToy, contentDescription = null, tint = Color.White)
+                    Text(
+                        text = "Ask AI",
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp
+                    )
+                }
+            }
         }
     }
 }
