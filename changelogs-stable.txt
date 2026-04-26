@@ -1,22 +1,28 @@
+## v1.7.1
+- Auto-Open Engine ghost notification fix.
+- Continous Send notifiction bug fix.
+- Disappering chats fix.
+- Social page automatic selection bug fix.
+
 ## v1.7.0
 - Features:
 - Implemented "PurrfectSnap AI" (tq ΞTΞRNAL)
 - Implemented app intro showcase (tq ΞTΞRNAL)
-- Implemented "Spoof follower count" (tq <RSR/>)
+- Implemented "Spoof follower count" (tq RSR)
 - Implemented Social Tab sorting by Streak Length (tq Javalsta)
-- Implemented "Chat Hold Kill" (tq C R E S T)
-- Implemented "Snapchat Purchase Date Spoof" (tq C R E S T)
-- Implemented Message log export for individual chat (tq schrodingerspet)
-- Implemented message icon indicator for Memories (tq <RSR/>)
+- Implemented "Chat Hold Kill" (tq SUJΛL)
+- Implemented "Snapchat plus purchase date spoof" (tq SUJΛL)
+- Implemented Message log export for individual chat (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
+- Implemented Memory message icon indicator(tq RSR)
 - Implemented two new message indicator toggles, for self snaps and group.
 - Implemented new toggles for chat and snap stealth mode in friend feed menu.
 - Implemented new notification card for Continous send feature. 
 
 - Fixes:
-- Improved message icon indicator reliability and redesigned all chat status indicators. (tq <RSR/>)
-- Media resend flow bug fixes. (tq schrodingerspet)
-- Message Logger backup import bug fixes and implemented logging to report success or failure. (tq schrodingerspet)
-- Media download support through message logger. (tq schrodingerspet)
+- Improved message icon indicator reliability and redesigned all chat status indicators. (tq RSR)
+- Media resend flow bug fixes. (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
+- Message Logger backup import bug fixes and implemented logging to report success or failure. (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
+- Media download support through message logger. (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
 - Snapchat Plus bug fixes to improve stability.
 - Spoof Device profile Backup/Restore bug fixes.
 - Redesgined manager app Logs filtering UI.
