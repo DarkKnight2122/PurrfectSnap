@@ -5,6 +5,8 @@ import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.common.data.MessagingFriendInfo
 import me.eternal.purrfectsnap.common.data.MessagingGroupInfo
 import me.eternal.purrfectsnap.common.util.SQLiteDatabaseHelper
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -15,7 +17,11 @@ class AppDatabase(
     val executor: ExecutorService = Executors.newSingleThreadExecutor()
     lateinit var database: SQLiteDatabase
 
-    var receiveMessagingDataCallback: (friends: List<MessagingFriendInfo>, groups: List<MessagingGroupInfo>) -> Unit = { _, _ -> }
+    // Multi-subscriber event stream for messaging data updates
+    val messagingDataFlow = MutableSharedFlow<Pair<List<MessagingFriendInfo>, List<MessagingGroupInfo>>>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     fun executeAsync(block: () -> Unit) {
         executor.execute {

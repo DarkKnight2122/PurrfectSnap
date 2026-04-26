@@ -9,6 +9,8 @@ import android.text.TextPaint
 import android.view.View
 import android.view.ViewGroup
 import android.graphics.Typeface
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -78,9 +80,10 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
             val ffSdlPrimaryTextStartMargin = 6 * density
 
             val feedEntryHeight = ffSdlAvatarSize + ffSdlAvatarMargin * 2 + (4 * density).toInt()
-            val separatorHeight = (density * 2).toInt()
+            val safetyGap = (6 * density).toInt()
             val textPaint = TextPaint().apply {
                 textSize = secondaryTextSize
+                isAntiAlias = true
             }
 
             context.event.subscribe(BuildMessageEvent::class) { param ->
@@ -105,14 +108,15 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
                         }
 
                         fetchMessages(conversationId) {
-                            var maxTextHeight = 0
-                            val previewContainerHeight = messageCache[conversationId]?.sumOf { msg ->
-                                val rect = Rect()
-                                textPaint.getTextBounds(msg, 0, msg.length, rect)
-                                rect.height().also {
-                                    if (it > maxTextHeight) maxTextHeight = it
-                                }.plus(separatorHeight)
-                            } ?: run {
+                            val universalTextSize = 12 * density
+                            val fontMetrics = textPaint.apply { textSize = universalTextSize }.fontMetrics
+                            val lineHeight = (fontMetrics.descent - fontMetrics.ascent).toInt()
+                            val spacing = (4 * density).toInt()
+
+                            val messages = messageCache[conversationId]
+                            val previewContainerHeight = if (messages.isNullOrEmpty()) 0 else (messages.size * (lineHeight + spacing))
+
+                            if (previewContainerHeight == 0) {
                                 ffItem.layoutParams = ffItem.layoutParams.apply {
                                     height = ViewGroup.LayoutParams.MATCH_PARENT
                                 }
@@ -120,22 +124,23 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
                             }
 
                             ffItem.layoutParams = ffItem.layoutParams.apply {
-                                height = feedEntryHeight + previewContainerHeight + separatorHeight
+                                height = feedEntryHeight + (safetyGap).toInt() + previewContainerHeight
                             }
 
                             cachedLayouts[conversationId] = frameLayout
 
                             frameLayout.addForegroundDrawable("ffItem", ShapeDrawable(object: Shape() {
                                 override fun draw(canvas: Canvas, paint: Paint) {
-                                    val offsetY = canvas.height.toFloat() - previewContainerHeight
-                                    paint.textSize = secondaryTextSize
-                                    paint.color = context.userInterface.colorPrimary
+                                    val startY = feedEntryHeight.toFloat() - (9 * density)
+                                    paint.textSize = universalTextSize
+                                    paint.color = Color(context.userInterface.colorPrimary).copy(alpha = 0.85f).toArgb()
                                     paint.typeface = Typeface.DEFAULT
+                                    paint.isAntiAlias = true
 
-                                    messageCache[conversationId]?.forEachIndexed { index, messageString ->
+                                    messages?.forEachIndexed { index, messageString ->
                                         canvas.drawText(messageString,
-                                            feedEntryHeight + ffSdlPrimaryTextStartMargin,
-                                            offsetY + index * maxTextHeight,
+                                            ffSdlAvatarSize + ffSdlAvatarMargin + (ffSdlPrimaryTextStartMargin * 3),
+                                            startY + (index + 1) * lineHeight + (index * spacing),
                                             paint
                                         )
                                     }

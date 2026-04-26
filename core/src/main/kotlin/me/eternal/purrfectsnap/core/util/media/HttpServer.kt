@@ -12,11 +12,12 @@ import java.net.SocketException
 import java.util.Locale
 import java.util.StringTokenizer
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.random.Random
 
 class HttpServer(
-    private val timeout: Int = 10000
+    private val timeout: Int = 15000 // Optimized: 15s Middle Ground
 ) {
     private fun newRandomPort() = Random.nextInt(10000, 65535)
 
@@ -53,18 +54,24 @@ class HttpServer(
                         AbstractLogger.directDebug("Starting http server on port $port")
                         for (i in 0..5) {
                             try {
-                                serverSocket = ServerSocket(port)
+                                serverSocket = ServerSocket(port).apply {
+                                    soTimeout = timeout + 5000 
+                                }
                                 break
                             } catch (e: Throwable) {
                                 AbstractLogger.directError("failed to start http server on port $port", e)
                                 port = newRandomPort()
                             }
                         }
-                        continuation.resumeWith(Result.success(if (serverSocket == null) null.also {
+                        
+                        if (serverSocket == null) {
+                            continuation.resume(null)
                             return@launch
-                        } else this@HttpServer))
+                        }
+                        
+                        continuation.resume(this@HttpServer)
 
-                        while (!serverSocket!!.isClosed) {
+                        while (isActive && serverSocket?.isClosed == false) {
                             try {
                                 val socket = serverSocket!!.accept()
                                 timeoutJob?.cancel()
@@ -77,14 +84,12 @@ class HttpServer(
                                             socketJob?.cancel()
                                             socket.close()
                                             serverSocket?.close()
-                                        }.onFailure {
-                                            AbstractLogger.directError("failed to close socket", it)
                                         }
                                     }
                                 }
                             } catch (e: SocketException) {
-                                AbstractLogger.directDebug("http server timed out")
-                                break;
+                                AbstractLogger.directDebug("http server timed out or closed")
+                                break
                             } catch (e: Throwable) {
                                 AbstractLogger.directError("failed to handle request", e)
                             }
@@ -96,8 +101,11 @@ class HttpServer(
     }
 
     fun close() {
-        runCatching {
-            serverSocket?.close()
+        coroutineScope.launch {
+            runCatching {
+                serverSocket?.close()
+                socketJob?.cancel()
+            }
         }
     }
 
@@ -133,19 +141,21 @@ class HttpServer(
         val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
         val outputStream = socket.getOutputStream()
         val writer = PrintWriter(outputStream)
-        val line = reader.readLine() ?: return
+        val line = runCatching { reader.readLine() }.getOrNull() ?: return
+        
         fun close() {
             runCatching {
                 reader.close()
                 writer.close()
                 outputStream.close()
                 socket.close()
-            }.onFailure {
-                AbstractLogger.directError("failed to close socket", it)
             }
         }
+        
         val parse = StringTokenizer(line)
+        if (!parse.hasMoreTokens()) { close(); return }
         val method = parse.nextToken().uppercase(Locale.getDefault())
+        if (!parse.hasMoreTokens()) { close(); return }
         var fileRequested = parse.nextToken().lowercase(Locale.getDefault())
         AbstractLogger.directDebug("[http-server:${port}] $method $fileRequested")
 

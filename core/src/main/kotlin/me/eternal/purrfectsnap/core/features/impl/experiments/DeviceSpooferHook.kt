@@ -144,8 +144,24 @@ class DeviceSpooferHook : Feature("Device Spoofer") {
     }
 
     private fun getRandomizedProfile(): RandomizedDeviceProfile {
-        val generationToken = context.config.experimental.spoof.randomizeDeviceProfile.profileGenerationToken.getNullable()
-        return randomizedProfile ?: RandomizedDeviceProfileStore
+        if (randomizedProfile != null) return randomizedProfile!!
+
+        val spoofConfig = context.config.experimental.spoof.randomizeDeviceProfile
+        val configProfileJson = spoofConfig.profileData.getNullable()
+
+        if (!configProfileJson.isNullOrBlank()) {
+            runCatching {
+                val profile = RandomizedDeviceProfile.fromJson(configProfileJson)
+                randomizedProfile = profile
+                context.log.verbose("Using restored randomized device profile from config")
+                return profile
+            }.onFailure {
+                context.log.warn("Failed to parse restored device profile from config, generating fresh one: ${it.message}")
+            }
+        }
+
+        val generationToken = spoofConfig.profileGenerationToken.getNullable()
+        return RandomizedDeviceProfileStore
             .getOrCreate(context.androidContext, context.log, generationToken)
             .also { profile ->
                 randomizedProfile = profile
@@ -155,18 +171,23 @@ class DeviceSpooferHook : Feature("Device Spoofer") {
 
     private fun persistRandomizedProfileSnapshot(profile: RandomizedDeviceProfile) {
         val spoofConfig = context.config.experimental.spoof.randomizeDeviceProfile
+        val profileJson = profile.toJson().toString()
         val snapshot = profile.toJson().toString(2)
-        if (spoofConfig.currentProfileSnapshot.getNullable() == snapshot) return
+        
+        if (spoofConfig.currentProfileSnapshot.getNullable() == snapshot && spoofConfig.profileData.getNullable() == profileJson) return
+        
         spoofConfig.currentProfileSnapshot.set(snapshot)
+        spoofConfig.profileData.set(profileJson) // Synchronize raw profile data for multi-process persistence
+        
         runCatching {
             val field = context.javaClass.getDeclaredField("_config\$delegate")
             field.isAccessible = true
             val lazyConfig = field.get(context) as Lazy<*>
             val modConfig = lazyConfig.value as? ModConfig ?: return@runCatching
             modConfig.writeConfig(dispatchConfigListener = false)
-            context.log.verbose("Persisted randomized device profile snapshot to config")
+            context.log.verbose("Persisted randomized device profile data to config")
         }.onFailure {
-            context.log.warn("Failed to persist randomized device profile snapshot: ${it.message}")
+            context.log.warn("Failed to persist randomized device profile: ${it.message}")
         }
     }
 

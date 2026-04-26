@@ -269,8 +269,9 @@ class ManageFriendTrackerReposSection: Routes.Route() {
     }
 
     override val content: @Composable (androidx.navigation.NavBackStackEntry) -> Unit = {
-        val repositories by remember(refreshTrigger.value) {
-            mutableStateOf<List<String>>(runBlocking { context.database.getRepositories("friend_tracker") })
+        var repositories by remember { mutableStateOf<List<String>>(emptyList()) }
+        LaunchedEffect(refreshTrigger.value) {
+            repositories = context.database.getRepositories("friend_tracker")
         }
         val density = LocalDensity.current
         val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()

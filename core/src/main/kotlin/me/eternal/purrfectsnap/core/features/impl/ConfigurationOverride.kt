@@ -69,6 +69,16 @@ class ConfigurationOverride : Feature("Configuration Override") {
             overrideProperty("TRANSCODING_MAX_QUALITY", { context.config.global.mediaUploadQualityConfig.forceVideoUploadSourceQuality.get() || context.config.messaging.galleryMediaSendOverride.mode.getNullable() != null },
                 { true }, isAppExperiment = true)
 
+            overrideProperty("BYPASS_AD_FEATURE_GATE", { context.config.global.blockAds.get() },
+                { true })
+
+            overrideProperty("SPONSORED_SNAPS_ENABLED", { context.config.global.blockAds.get() }, { false })
+            overrideProperty("SPONSORED_SNAP_UPDATE_SPONSORED_FEED_ITEM", { context.config.global.blockAds.get() }, { false })
+
+            arrayOf("CUSTOM_AD_TRACKER_URL", "CUSTOM_AD_INIT_SERVER_URL", "CUSTOM_AD_SERVER_URL", "INIT_PRIMARY_URL", "INIT_SHADOW_URL", "GRAPHENE_HOST").forEach {
+                overrideProperty(it, { context.config.global.blockAds.get() }, { "http://127.0.0.1" })
+            }
+
             run {
                 val isForceQuality = { _: ConfigKeyInfo -> context.config.global.mediaUploadQualityConfig.forceVideoUploadSourceQuality.get() || context.config.messaging.galleryMediaSendOverride.mode.getNullable() != null }
                 val level7Value = { _: ConfigKeyInfo -> 700 }
@@ -172,15 +182,6 @@ class ConfigurationOverride : Feature("Configuration Override") {
             },
                 { false })
 
-            overrideProperty("BYPASS_AD_FEATURE_GATE", { context.config.global.blockAds.get() },
-                { true })
-
-            overrideProperty("SPONSORED_SNAPS_ENABLED", { context.config.global.blockAds.get() }, { false })
-            overrideProperty("SPONSORED_SNAP_UPDATE_SPONSORED_FEED_ITEM", { context.config.global.blockAds.get() }, { false })
-
-            arrayOf("CUSTOM_AD_TRACKER_URL", "CUSTOM_AD_INIT_SERVER_URL", "CUSTOM_AD_SERVER_URL", "INIT_PRIMARY_URL", "INIT_SHADOW_URL", "GRAPHENE_HOST").forEach {
-                overrideProperty(it, { context.config.global.blockAds.get() }, { "http://127.0.0.1" })
-            }
             overrideProperty("GIFTING_CHAT_BIRTHDAY_UPSELL_ENABLED", { context.config.userInterface.hideUiComponents.get().contains("hide_snapchat_plus_gift_reminders") }, { false })
 
             classReference.getAsClass()?.hook(

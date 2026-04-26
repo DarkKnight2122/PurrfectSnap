@@ -181,7 +181,6 @@ class FeaturesRootSection : Routes.Route() {
     }
 
     internal fun getRandomizedProfileSnapshot(): String {
-        context.config.load()
         return context.config.root.experimental.spoof.randomizeDeviceProfile.currentProfileSnapshot.getNullable()
             ?.takeIf { it.isNotBlank() }
             ?: (context.translation["manager.dialogs.randomize_device_profile.empty"]
@@ -231,9 +230,12 @@ class FeaturesRootSection : Routes.Route() {
                         ?: error("Failed to read randomized profile backup")
                     val profile = RandomizedDeviceProfile.fromJson(importedJson)
                     val generationToken = UUID.randomUUID().toString()
+                    val profileJson = profile.toJson().toString()
+                    
+                    // Save to local prefs for legacy compatibility
                     context.androidContext.getSharedPreferences("purrfectsnap_spoof", 0)
                         .edit()
-                        .putString("randomized_device_profile", profile.toJson().toString())
+                        .putString("randomized_device_profile", profileJson)
                         .putString("randomized_device_profile_token", generationToken)
                         .putString("android_id", profile.androidId)
                         .putString("advertising_id", profile.advertisingId)
@@ -246,6 +248,8 @@ class FeaturesRootSection : Routes.Route() {
                     val randomizeConfig = context.config.root.experimental.spoof.randomizeDeviceProfile
                     randomizeConfig.profileGenerationToken.set(generationToken)
                     randomizeConfig.currentProfileSnapshot.set(profile.toJson().toString(2))
+                    randomizeConfig.profileData.set(profileJson) // Shared storage fix
+                    
                     context.config.writeConfig()
                     onConfigChanged()
                     context.shortToast("Randomized profile restored. Restart Snapchat to apply it.")

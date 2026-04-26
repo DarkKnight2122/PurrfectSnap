@@ -35,6 +35,7 @@ import me.eternal.purrfectsnap.storage.getFriendInfo
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.util.Dialog
 import me.eternal.purrfectsnap.ui.util.coil.ImageRequestHelper
+import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -44,12 +45,11 @@ import kotlin.math.absoluteValue
 class LoggedStories : Routes.Route() {
     override val title: @Composable () -> Unit = {
         val navBackStackEntry by routes.navController.currentBackStackEntryAsState()
-        val text = remember(navBackStackEntry) {
-            navBackStackEntry?.arguments?.getString("id")?.let {
-                context.database.getFriendInfo(it)?.displayName
-            }
+        val userId = navBackStackEntry?.arguments?.getString("id")
+        val displayName by rememberAsyncMutableState(defaultValue = null) {
+            userId?.let { context.database.getFriendInfo(it)?.displayName }
         }
-        text?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        displayName?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 
     @OptIn(ExperimentalCoilApi::class, ExperimentalLayoutApi::class)
@@ -57,7 +57,9 @@ class LoggedStories : Routes.Route() {
         val userId = navBackStackEntry.arguments?.getString("id") ?: return@content
 
         val stories = remember { mutableStateListOf<StoryData>() }
-        val friendInfo = remember { context.database.getFriendInfo(userId) }
+        val friendInfo by rememberAsyncMutableState(defaultValue = null) { 
+            context.database.getFriendInfo(userId) 
+        }
         var lastStoryTimestamp by remember { mutableLongStateOf(Long.MAX_VALUE) }
 
         var selectedStory by remember { mutableStateOf<StoryData?>(null) }

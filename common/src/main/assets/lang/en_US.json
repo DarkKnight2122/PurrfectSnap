@@ -197,12 +197,12 @@
         },
         "sections": {
             "home": {
-                "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
+                "version_title": "v{versionName} \u00b7 by \u039eT\u039eRNAL",
                 "update_title": "PurrfectSnap Update",
                 "update_content": "Version {version} is available!",
                 "update_button": "Download",
                 "hero_tagline": "An Xposed Module meant to enhance your Snapchat experience",
-                "hero_version_label": "Version: {version} - {channel}",
+                "hero_version_label": "Version: {version}",
                 "hero_build_label": "Build: {build}",
                 "update_ready_label": "Ready to install",
                 "purr_aura_active_label": "PurrAura Active!",
@@ -247,9 +247,9 @@
                 "about_tagline": "An Xposed Module meant to enhance your Snapchat experience!",
                 "about_lead_developers_title": "Lead Developers",
                 "about_story_title": "Our Story",
-                "about_story": "PurrfectSnap was founded on 2nd of October, 2025, as a fork of SnapEnhance by ΞTΞRNAL with a vision to provide users the quality Snapchat experience they deserve. This app was just meant to be a minor update in the SnapEnhance repository, but it soon became a separate app wherein the contributors kept adding features. Then the developer <RSR/> joined the team, and this app soon became a huge success.\n\nWe would also like to convey our huge thanks to rhunk, the lead developer of SnapEnhance, as without him, this app wouldn't even exist. We are immensely grateful to him.\n\nWe received much love and support and gained 1K+ downloads in just two days! We thank all users and contributors; without your support, we wouldn't have reached this place.\n\nLastly, we would like to thank all our admins, notably: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, who were right there with us from the very beginning. We would also like to thank all testers, notably Leo & Toxic, who tested and reported bugs continuously. We are immensely grateful for your contribution.",
+                "about_story": "PurrfectSnap was founded on 2nd of October, 2025, as a fork of SnapEnhance by \u039eT\u039eRNAL with a vision to provide users the quality Snapchat experience they deserve. This app was just meant to be a minor update in the SnapEnhance repository, but it soon became a separate app wherein the contributors kept adding features. Then the developer <RSR/> joined the team, and this app soon became a huge success.\n\nWe would also like to convey our huge thanks to rhunk, the lead developer of SnapEnhance, as without him, this app wouldn't even exist. We are immensely grateful to him.\n\nWe received much love and support and gained 1K+ downloads in just two days! We thank all users and contributors; without your support, we wouldn't have reached this place.\n\nLastly, we would like to thank all our admins, notably: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, who were right there with us from the very beginning. We would also like to thank all testers, notably Leo & Toxic, who tested and reported bugs continuously. We are immensely grateful for your contribution.",
                 "about_thanks_title": "With love, PurrfectSnap Team",
-                "about_magic_toast": "Tap 5 times in this screen to see some magic 😉!",
+                "about_magic_toast": "Tap 5 times in this screen to see some magic \ud83d\ude09!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
             },
@@ -377,17 +377,17 @@
                 "remove_all_tasks_confirm": "Remove all tasks?"
             },
             "features": {
-            "disabled": "Disabled",
-            "export_option": "Export",
-            "import_option": "Import",
-            "reset_option": "Reset",
-            "config_export_success_toast": "Config exported successfully",
-            "config_import_success_toast": "Config imported successfully",
-            "config_import_failure_toast": "Failed to import config {error}",
-            "config_export_failure_toast": "Failed to export config {error}",
-            "saved_config_snackbar": "Config saved",
-            "older_required": "This feature requires Snapchat v{version} or older to work correctly",
-            "newer_required": "This feature requires Snapchat v{version} or newer to work correctly",
+                "disabled": "Disabled",
+                "export_option": "Export",
+                "import_option": "Import",
+                "reset_option": "Reset",
+                "config_export_success_toast": "Config exported successfully",
+                "config_import_success_toast": "Config imported successfully",
+                "config_import_failure_toast": "Failed to import config {error}",
+                "config_export_failure_toast": "Failed to export config {error}",
+                "saved_config_snackbar": "Config saved",
+                "older_required": "This feature requires Snapchat v{version} or older to work correctly",
+                "newer_required": "This feature requires Snapchat v{version} or newer to work correctly",
                 "search_button": "Search",
                 "search_results_count": "{count} messages",
                 "clear_history": "Clear search history",
@@ -1545,7 +1545,10 @@
                         "name": "Bypass Message Action Restrictions",
                         "description": "Allows you to react to a snap without having opened it or to save an unsaveable message"
                     },
-                    "pre_fetch_snaps": { "name": "Snap Pre-Fetch", "description": "Fetches snap media into Snapchat's internal cache once the snap arrives. Note: Turning it on increases background data usage." },
+                    "pre_fetch_snaps": {
+                        "name": "Snap Pre-Fetch",
+                        "description": "Fetches snap media into Snapchat's internal cache once the snap arrives. Note: Turning it on increases background data usage."
+                    },
                     "remove_groups_locked_status": {
                         "name": "Remove Groups Locked Status",
                         "description": "Allows you to view group information after being kicked"
@@ -1766,9 +1769,12 @@
                             },
                             "thermal_protection": {
                                 "name": "Thermal Protection",
-                                "description": "Automatically throttles the engine and increases delays if the device temperature exceeds 40°C to prevent overheating"
+                                "description": "Automatically throttles the engine and increases delays if the device temperature exceeds 40\u00b0C to prevent overheating"
                             },
-                            "only_on_wifi": { "name": "Auto Open only on Wi-Fi", "description": "Only process queue when connected to a Wi-Fi network to save mobile data" },
+                            "only_on_wifi": {
+                                "name": "Auto Open only on Wi-Fi",
+                                "description": "Only process queue when connected to a Wi-Fi network to save mobile data"
+                            },
                             "content_type_snap": "Snap",
                             "only_when_idle": {
                                 "name": "Auto Open Schedule",
@@ -1778,41 +1784,9 @@
                                 "name": "Auto Open Scheduler",
                                 "description": "Define the start and end times for scheduled throttled processing."
                             },
-                            "safe_processing": { "name": "Auto Open with stealth pace", "description": "Adds variable delays and natural breaks to remain undetected. Turn off for maximum speed." }
-                        }
-                    },
-                    "pre_fetch_snaps": { "name": "Snap Pre-Fetch", "description": "Fetches snap media into Snapchat's internal cache once the snap arrives. Note: Turning it on increases background data usage." },
-                    "instant_translation": {
-                        "name": "Message Translator",
-                        "description": "Configure the message translator"
-                    },
-                    "auto_delete_sent_messages": {
-                        "name": "Auto Delete Sent Messages",
-                        "description": "Automatically deletes sent messages after a specified time period",
-                        "properties": {
-                            "allow_running_in_background": {
-                                "name": "Allow Running in Background",
-                                "description": "Allows Auto Delete Sent Messages to run in the background. Note: This will significantly drain your battery"
-                            },
-                            "delete_after_value": {
-                                "name": "Delete After (value)",
-                                "description": "Time value before deleting the sent message"
-                            },
-                            "delete_after_unit": {
-                                "name": "Time Unit",
-                                "description": "Select the time unit for deletion delay"
-                            },
-                            "message_types": {
-                                "name": "Message Types",
-                                "description": "Select which message types should be auto-deleted"
-                            },
-                            "show_countdown": {
-                                "name": "Show Countdown",
-                                "description": "Show countdown before deleting the message"
-                            },
-                            "show_notification": {
-                                "name": "Show Notification",
-                                "description": "Show notification during countdown"
+                            "safe_processing": {
+                                "name": "Auto Open with stealth pace",
+                                "description": "Adds variable delays and natural breaks to remain undetected. Turn off for maximum speed."
                             }
                         }
                     },
@@ -1867,6 +1841,36 @@
                             "retry_delay": {
                                 "name": "Retry Delay",
                                 "description": "Delay between retry attempts (milliseconds)"
+                            }
+                        }
+                    },
+                    "auto_delete_sent_messages": {
+                        "name": "Auto Delete Sent Messages",
+                        "description": "Automatically deletes sent messages after a specified time period",
+                        "properties": {
+                            "allow_running_in_background": {
+                                "name": "Allow Running in Background",
+                                "description": "Allows Auto Delete Sent Messages to run in the background. Note: This will significantly drain your battery"
+                            },
+                            "delete_after_value": {
+                                "name": "Delete After (value)",
+                                "description": "Time value before deleting the sent message"
+                            },
+                            "delete_after_unit": {
+                                "name": "Time Unit",
+                                "description": "Select the time unit for deletion delay"
+                            },
+                            "message_types": {
+                                "name": "Message Types",
+                                "description": "Select which message types should be auto-deleted"
+                            },
+                            "show_countdown": {
+                                "name": "Show Countdown",
+                                "description": "Show countdown before deleting the message"
+                            },
+                            "show_notification": {
+                                "name": "Show Notification",
+                                "description": "Show notification during countdown"
                             }
                         }
                     },
@@ -2155,7 +2159,15 @@
                         "name": "HEVC Recording",
                         "description": "Uses HEVC (H.265) codec for video recording"
                     },
-                    "camera_tweaks": { "name": "Upgraded Camera Engine", "description": "Enables professional hardware ISP processing modes for better dynamic range" }, "audio_video": { "name": "Upgraded Audio and Video", "description": "Increases Video bitrate to 30Mbps and Audio to 320kbps/48kHz" }, "video_record_timer": {
+                    "camera_tweaks": {
+                        "name": "Upgraded Camera Engine",
+                        "description": "Enables professional hardware ISP processing modes for better dynamic range"
+                    },
+                    "audio_video": {
+                        "name": "Upgraded Audio and Video",
+                        "description": "Increases Video bitrate to 30Mbps and Audio to 320kbps/48kHz"
+                    },
+                    "video_record_timer": {
                         "name": "Video Recording Timer",
                         "description": "Shows a recording timer overlay when recording video"
                     },
@@ -2725,7 +2737,11 @@
                             }
                         }
                     },
-                    "network_optimization": { "name": "Improved Network Connectivity", "description": "Optimizes network socket buffers for maximum stability and high-speed upload/download performance" }, "better_transcript": {
+                    "network_optimization": {
+                        "name": "Improved Network Connectivity",
+                        "description": "Optimizes network socket buffers for maximum stability and high-speed upload/download performance"
+                    },
+                    "better_transcript": {
                         "name": "Better Transcript",
                         "description": "Improves the voice note transcript",
                         "properties": {
@@ -2907,6 +2923,8 @@
                 "unsaveable_messages": "\u2b07\ufe0f Unsaveable Messages",
                 "auto_open_snaps": "\ud83d\udcf7 Auto Open Snaps",
                 "stealth": "\ud83d\udc7b Full Stealth Mode",
+                "snap_stealth": "\ud83d\udcf7 Snap Stealth Mode",
+                "chat_stealth": "\ud83d\udcac Chat Stealth Mode",
                 "auto_reply": "\ud83d\udce8 Auto Reply",
                 "auto_delete_sent_messages": "\ud83d\uddd1\ufe0f Auto Delete Sent Messages",
                 "mark_chat_as_read": "\ud83d\udcd6 Mark Chat as Read",
@@ -3267,11 +3285,11 @@
                 "encryption_indicator": "Adds a \ud83d\udd12 icon next to messages that have been sent only to you",
                 "platform_indicator": "Adds the platform icon from which a media was sent (e.g. Android, iOS, Web)",
                 "location_indicator": "Adds a \ud83d\udccd icon to snaps when they have been sent with location enabled",
-                "live_camera_indicator": "Adds a \ud83d\dcf7 icon when the snap was captured with the in-app camera (live)",
-                "external_media_indicator": "Adds a \ud83d\uddbc\ufe0f icon for camera roll / gallery media and snaps sent from the gallery",
                 "ovf_editor_indicator": "Indicates if a snap has been sent using OVF Editor",
                 "director_mode_indicator": "Adds a \u270f\ufe0f icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps",
-                "memories_indicator": "Adds an open-book style icon (\ud83d\udcd6) when a snap was re-sent from Memories (not live capture)"
+                "memories_indicator": "Adds a \ud83d\udcd6 icon to snaps that were re-sent from Memories instead of being captured with the live camera",
+                "skip_own_indicators": "Hides indicator icons on your own sent snaps (Self-Snaps) \ud83d\udc64",
+                "disable_indicators_in_groups": "Disables all indicator icons in group conversations to reduce UI clutter \ud83d\udc65"
             },
             "auto_mark_as_read": {
                 "conversation_read": "Mark conversation as read when sending a message",
@@ -3852,7 +3870,12 @@
         "export_failed_toast": "Failed to export account. Check logs for more info.",
         "forced_logout_toast": "Removed account due to forced logout"
     },
-    "auto_open_snaps": { "title": "Auto Open Snaps", "processed_count": "Opened", "queue_size": "Queue", "action_reset": "Reset Statistics", "priority_title": "Auto Open Snaps (Priority)",
+    "auto_open_snaps": {
+        "title": "Auto Open Snaps",
+        "processed_count": "Opened",
+        "queue_size": "Queue",
+        "action_reset": "Reset Count",
+        "priority_title": "Auto Open Snaps (Priority)",
         "auto_open_schedule": {
             "title": "Auto Open Scheduler",
             "start": "Start",
@@ -3869,7 +3892,6 @@
         "action_pause": "Pause",
         "action_resume": "Resume",
         "action_clear": "Clear Queue",
-        "action_reset": "Reset Count",
         "error_content": "Failed to open snap from {sender}: {error}",
         "resumed_feedback": "Auto Open Resumed",
         "paused_feedback": "Auto Open Paused",
@@ -3886,9 +3908,9 @@
         "speed_throttled": "Throttled",
         "estimated_time": "Estimated Time",
         "notification_statistics": "STATISTICS",
-        "notification_total_opened": "Lifetime Opened",
+        "notification_total_opened": "Total Snaps Opened",
         "notification_queue_preview": "QUEUE PREVIEW",
-        "notification_no_snaps_queue": "Monitoring snaps in background...",
+        "notification_no_snaps_queue": "No snaps in queue.",
         "queue_cleared": "Queue cleared and statistics reset",
         "queue_cleared_title": "Queue cleared",
         "queue_cleared_reset": "Queue Cleared & Reset",
@@ -3903,12 +3925,8 @@
         "conversation_type_group_chat": "Group Chat",
         "conversation_type_chat": "Chat",
         "notification_status": "Status",
-        "notification_statistics": "STATISTICS",
         "notification_queue_size": "Queue Size",
-        "notification_total_opened": "Total Snaps Opened",
-        "notification_queue_preview": "QUEUE PREVIEW",
         "notification_processing_continue": "Processing will continue automatically...",
-        "notification_no_snaps_queue": "No snaps in queue.",
         "notification_queue_cleared_opened": "Queue cleared ({opened} opened)",
         "content_type_photo_video_snap": "Photo/Video Snap",
         "conversation_type_group_with_name": "Group: {name}",
@@ -4036,7 +4054,7 @@
         "username": "Username",
         "user_id": "User ID",
         "posted_on": "Posted",
-        "loading_username": "Loading…",
+        "loading_username": "Loading\u2026",
         "username_copied": "Username copied",
         "user_id_copied": "User ID copied",
         "friend_status": "Friend status",
@@ -4121,10 +4139,10 @@
         "search": {
             "placeholder": "Search"
         },
-    "filters": {
-        "newest_first": "Newest first",
-        "pick_a_date": "Pick a date",
-        "title": "Filters",
+        "filters": {
+            "newest_first": "Newest first",
+            "pick_a_date": "Pick a date",
+            "title": "Filters",
             "search_by": "Search by",
             "since": "Since",
             "until": "Until",
@@ -4331,8 +4349,6 @@
         "added": "Added",
         "no_friends_found": "No friends found",
         "no_messages": "No messages",
-        "message": "Message",
-        "type_message": "Type message...",
         "exporting_memories": "Exporting memories... ({failed} failed)"
     },
     "clear_friend_feed": "Clear Friend Feed",

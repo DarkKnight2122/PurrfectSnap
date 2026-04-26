@@ -210,7 +210,6 @@ object LegacyTheme : ThemeContract {
             downloadState: UpdateDownloader.DownloadState,
             downloadProgress: Float,
             onUpdateAction: () -> Unit,
-            channelLabel: String,
             isPurrAuraActive: Boolean,
             onWebsiteClick: () -> Unit,
             onTelegramClick: () -> Unit,
@@ -243,7 +242,7 @@ object LegacyTheme : ThemeContract {
                         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        HeroBadge(translation.format("hero_version_label", "version" to versionName, "channel" to channelLabel))
+                        HeroBadge(translation.format("hero_version_label", "version" to versionName))
                         gitHashShort.takeIf { it.isNotBlank() && it.lowercase() != "unknown" }?.let {
                             HeroBadge(translation.format("hero_build_label", "build" to it))
                         }
@@ -357,19 +356,18 @@ object LegacyTheme : ThemeContract {
                 }
                 hasInitializedQuickTiles -> storedTiles
                 else -> {
-                    context.database.setQuickTiles(allQuickTileNames)
-                    prefs.edit().putBoolean(QUICK_TILES_INITIALIZED_PREF, true).apply()
+                    context.coroutineScope.launch(Dispatchers.IO) {
+                        context.database.setQuickTiles(allQuickTileNames)
+                        prefs.edit().putBoolean(QUICK_TILES_INITIALIZED_PREF, true).apply()
+                    }
                     allQuickTileNames
                 }
             }
         }
-        val updateChannel = context.config.root.global.updateSettings.updateChannel.getNullable() ?: "stable"
-        val channelLabel = if (updateChannel == "prerelease") translation["channel_label_prerelease"] ?: "" else translation["channel_label_stable"] ?: ""
-        val latestUpdate by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(updateChannel)) {
-            val channel = if (updateChannel == "prerelease") Channel.PRERELEASE else Channel.STABLE
-            Updater.getLatestRelease(channel)
+        val latestUpdate by rememberAsyncMutableState(defaultValue = null) {
+            Updater.getLatestRelease(Channel.STABLE)
         }
-        val changelogUrl = if (updateChannel == "prerelease") changelogPrereleaseUrl else changelogStableUrl
+        val changelogUrl = changelogStableUrl
         val downloadState by UpdateDownloader.downloadState.collectAsState()
         val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
         val coroutineScope = rememberCoroutineScope()
@@ -528,7 +526,6 @@ object LegacyTheme : ThemeContract {
                     downloadState = downloadState,
                     downloadProgress = downloadProgress,
                     onUpdateAction = onUpdateButtonClick,
-                    channelLabel = channelLabel,
                     isPurrAuraActive = isPurrAuraActive,
                     onWebsiteClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app/", context.translation["toast_open_link_failed"]) },
                     onTelegramClick = { context.androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
@@ -873,22 +870,10 @@ object LegacyTheme : ThemeContract {
                             RowTitle(title = translation["updates_title"])
                             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 var autoUpdateCheck by remember { mutableStateOf(context.config.root.global.updateSettings.autoUpdateCheck.getNullable() ?: true) }
-                                var selectedChannel by remember { mutableStateOf(context.config.root.global.updateSettings.updateChannel.getNullable() ?: "stable") }
-                                var channelMenuExpanded by remember { mutableStateOf(false) }
                                 ShiftedRow {
                                     Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                         Text(text = translation["auto_update_check"], fontSize = 14.sp)
                                         Switch(checked = autoUpdateCheck, onCheckedChange = { if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); autoUpdateCheck = it; context.config.root.global.updateSettings.autoUpdateCheck.set(it); context.config.writeConfig(); scheduleUpdateCheck() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
-                                    }
-                                }
-                                AnimatedVisibility(visible = autoUpdateCheck) {
-                                    ExposedDropdownMenuBox(expanded = channelMenuExpanded, onExpandedChange = { channelMenuExpanded = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 26.dp)) {
-                                        AestheticDropdownField(value = translation.getOrNull("update_channel_${selectedChannel}") ?: selectedChannel, expanded = channelMenuExpanded, modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable), onClick = { channelMenuExpanded = true })
-                                        ExposedDropdownMenu(expanded = channelMenuExpanded, onDismissRequest = { channelMenuExpanded = false }) {
-                                            listOf("stable", "prerelease").forEach { channel ->
-                                                DropdownMenuItem(text = { Text(text = translation.getOrNull("update_channel_${channel}") ?: channel) }, onClick = { selectedChannel = channel; channelMenuExpanded = false; context.config.root.global.updateSettings.updateChannel.set(channel); context.config.writeConfig(); scheduleUpdateCheck() })
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -1925,62 +1910,69 @@ object LegacyTheme : ThemeContract {
         fun LogFilterDialog() {
             androidx.compose.ui.window.Dialog(onDismissRequest = { showFilterDialog = false }) {
                 me.eternal.purrfectsnap.core.ui.PurrfectOverlayTheme {
-                    me.eternal.purrfectsnap.core.ui.PurrfectGlassCard(title = translation["filter_logs_title"] ?: "Filter Log Categories", modifier = Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            HomeLogs.LogCategory.entries.forEach { category ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .clickable {
-                                            // Solo Focus Logic: Tap the name to filter only this category
-                                            enabledCategories.keys.forEach { enabledCategories[it] = false }
-                                            enabledCategories[category] = true
-                                            isRefreshing = true
-                                            refreshLogs()
+                    me.eternal.purrfectsnap.core.ui.PurrfectGlassCard(
+                        title = translation["filter_logs_title"] ?: "Log Filters",
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color.White.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    HomeLogs.LogCategory.entries.forEach { category ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .clickable {
+                                                    enabledCategories[category] = !(enabledCategories[category] ?: true)
+                                                    refreshLogs()
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Checkbox(
+                                                checked = enabledCategories[category] == true,
+                                                onCheckedChange = { checked ->
+                                                    enabledCategories[category] = checked
+                                                    refreshLogs()
+                                                },
+                                                colors = CheckboxDefaults.colors(
+                                                    checkedColor = PurrfectPalette.glowPrimary,
+                                                    uncheckedColor = Color.White.copy(alpha = 0.3f),
+                                                    checkmarkColor = Color.White
+                                                )
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = translation[category.translationKey] ?: category.name,
+                                                color = Color.White,
+                                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                                            )
                                         }
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Checkbox(
-                                        checked = enabledCategories[category] == true,
-                                        onCheckedChange = { checked ->
-                                            enabledCategories[category] = checked
-                                            isRefreshing = true
-                                            refreshLogs()
-                                        },
-                                        colors = CheckboxDefaults.colors(
-                                            checkedColor = PurrfectPalette.glowPrimary,
-                                            uncheckedColor = Color.White.copy(alpha = 0.4f),
-                                            checkmarkColor = Color.White
-                                        )
-                                    )
-                                    Text(
-                                        text = translation[category.translationKey] ?: category.name,
-                                        color = Color.White,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                Button(
-                                    onClick = { showFilterDialog = false },
-                                    shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = PurrfectPalette.glowPrimary)
-                                ) {
-                                    Text(translation["filter_logs_done_button"] ?: "Done")
-                                }
+                            Button(
+                                onClick = { showFilterDialog = false },
+                                modifier = Modifier.fillMaxWidth().height(54.dp),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PurrfectPalette.glowPrimary)
+                            ) {
+                                Text(translation["filter_logs_done_button"] ?: "Apply Filters", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
                     }
                 }
             }
         }
-
         if (showFilterDialog) {
             LogFilterDialog()
         }
@@ -2060,6 +2052,9 @@ object LegacyTheme : ThemeContract {
     }
 
     @Composable override fun SocialRootSection.SocialScreen(nav: NavBackStackEntry) {
+        // Controller handles data loading and synchronization
+        SocialDataController()
+
         val titles = remember {
             listOf(translation["friends_tab"], translation["groups_tab"])
         }
@@ -2068,27 +2063,11 @@ object LegacyTheme : ThemeContract {
         var searchQuery by rememberSaveable { mutableStateOf("") }
         var searchActive by rememberSaveable { mutableStateOf(false) }
 
-        LaunchedEffect(Unit) {
-            context.database.receiveMessagingDataCallback = { friends, groups ->
-                friendList = friends
-                groupList = groups
-            }
-            updateScopeLists()
-        }
-        DisposableEffect(Unit) {
-            onDispose {
-                context.database.receiveMessagingDataCallback = { _, _ -> }
-            }
-        }
-        val sortByStreakLength by produceState(initialValue = context.config.root.userInterface.sortSocialTabByStreakLength.get()) {
-            while (true) {
-                delay(300)
-                value = context.config.root.userInterface.sortSocialTabByStreakLength.get()
-            }
-        }
         val normalizedQuery = remember(searchQuery) { searchQuery.trim() }
-        val filteredFriends = remember(friendList, normalizedQuery, sortByStreakLength) {
-            val matchingFriends = if (normalizedQuery.isBlank()) {
+        
+        // Filter logic based on the parent's synchronized data lists
+        val filteredFriends = remember(friendList, normalizedQuery) {
+            if (normalizedQuery.isBlank()) {
                 friendList
             } else {
                 friendList.filter {
@@ -2096,8 +2075,6 @@ object LegacyTheme : ThemeContract {
                         it.displayName?.contains(normalizedQuery, ignoreCase = true) == true
                 }
             }
-
-            context.sortSocialFriends(matchingFriends)
         }
         val filteredGroups = remember(groupList, normalizedQuery) {
             if (normalizedQuery.isBlank()) {

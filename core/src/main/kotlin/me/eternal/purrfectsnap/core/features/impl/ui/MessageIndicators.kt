@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.eternal.purrfectsnap.common.data.ContentType
 import me.eternal.purrfectsnap.common.ui.createComposeView
+import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
 import me.eternal.purrfectsnap.common.util.protobuf.ProtoReader
 import me.eternal.purrfectsnap.core.event.events.impl.BindViewEvent
 import me.eternal.purrfectsnap.core.features.Feature
@@ -87,9 +89,10 @@ class MessageIndicators : Feature("Message Indicators") {
 
                     val message = event.databaseMessage ?: return@chatMessage
                     if (message.contentType != ContentType.SNAP.id && message.contentType != ContentType.EXTERNAL_MEDIA.id) return@chatMessage
-                    if (message.senderId == context.database.myUserId) return@chatMessage
+                    if (message.senderId == context.database.myUserId && messageIndicatorsConfig.contains("skip_own_indicators")) return@chatMessage
                     val reader = ProtoReader(message.messageContent ?: return@chatMessage)
                     val isGroupConversation = (context.database.getConversationParticipants(conversationId)?.size ?: 0) > 2
+                    if (isGroupConversation && messageIndicatorsConfig.contains("disable_indicators_in_groups")) return@chatMessage
 
                     createComposeView(event.view.context) {
                         val lockBrush = Brush.linearGradient(listOf(Color(0xFF4CD471), Color(0xFF00B8D9)))
@@ -105,38 +108,37 @@ class MessageIndicators : Feature("Message Indicators") {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
-                                .padding(top = 6.dp),
-                            contentAlignment = Alignment.TopCenter
+                                .padding(top = 6.dp, end = 6.dp),
+                            contentAlignment = Alignment.TopEnd
                         ) {
-                            val hasEncryption = remember(reader, isGroupConversation) {
+                            val hasEncryption by rememberAsyncMutableState(defaultValue = false) {
                                 if (reader.containsPath(4, 4, 1, 1)
                                     || reader.containsPath(4, 4, 1, 1, 1)
                                     || reader.getByteArray(4, 3, 3) != null
                                     || reader.containsPath(3, 99, 3)) {
-                                    return@remember true
+                                    return@rememberAsyncMutableState true
                                 }
-                                if (isGroupConversation) return@remember false
-                                if (reader.containsPath(4, 5, 1, 3, 1)) return@remember true
+                                if (reader.containsPath(4, 5, 1, 3, 1)) return@rememberAsyncMutableState true
                                 reader.getVarInt(4, 5, 1, 3, 2, 9) in setOf(1L, 3L)
                             }
-                            val sentFromIosDevice = remember(reader) {
+                            val sentFromIosDevice by rememberAsyncMutableState(defaultValue = false) {
                                 if (reader.containsPath(4, 4, 3)) !reader.containsPath(4, 4, 3, 3, 17) else reader.getVarInt(4, 4, 11, 17, 7) != null
                             }
-                            val sentFromWebApp = remember(reader) {
+                            val sentFromWebApp by rememberAsyncMutableState(defaultValue = false) {
                                 reader.getVarInt(4, 4, *(if (reader.containsPath(4, 4, 3)) intArrayOf(3, 3, 22, 1) else intArrayOf(11, 22, 1))) == 7L
                             }
-                            val sentWithLocation = remember(reader) {
+                            val sentWithLocation by rememberAsyncMutableState(defaultValue = false) {
                                 reader.getVarInt(4, 4, 11, 17, 5) != null
                             }
-                            val sentUsingOvfEditor = remember(reader) {
+                            val sentUsingOvfEditor by rememberAsyncMutableState(defaultValue = false) {
                                 (reader.getString(4, 4, 11, 12, 1) ?: reader.getString(4, 4, 11, 13, 4, 1, 2, 12, 20, 1)) == "c13129f7-fe4a-44c4-9b9d-e0b26fee8f82"
                             }
-                            val sentUsingDirectorMode = remember(reader) {
+                            val sentUsingDirectorMode by rememberAsyncMutableState(defaultValue = false) {
                                 reader.followPath(4, 4, 11, 28)?.let {
                                     (it.getVarInt(1) to it.getVarInt(2)) == (0L to 0L)
                                 } == true || reader.getByteArray(4, 4, 11, 13, 4, 1, 2, 12, 27, 1) != null
                             }
-                            val sentFromMemories = remember(reader) {
+                            val sentFromMemories by rememberAsyncMutableState(defaultValue = false) {
                                 reader.getVarInt(4, 18) != null
                                     || reader.getString(4, 5, 1, 2)?.contains("/h/") == true
                             }

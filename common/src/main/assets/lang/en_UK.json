@@ -2338,6 +2338,8 @@
                 "unsaveable_messages": "\u2b07\ufe0f Unsaveable Messages",
                 "auto_open_snaps": "\ud83d\udcf7 Auto Open Snaps",
                 "stealth": "\ud83d\udc7b Full Stealth Mode",
+                "snap_stealth": "\ud83d\udcf7 Snap Stealth Mode",
+                "chat_stealth": "\ud83d\udcac Chat Stealth Mode",
                 "auto_reply": "\ud83d\udce8 Auto Reply",
                 "auto_delete_sent_messages": "\ud83d\uddd1\ufe0f Auto Delete Sent Messages",
                 "mark_snaps_as_seen": "\ud83d\udc40 Mark Snaps as seen",
@@ -2665,7 +2667,10 @@
                 "platform_indicator": "Adds the platform icon from which a media was sent (e.g. Android, iOS, Web)",
                 "location_indicator": "Adds a \ud83d\udccd icon to snaps when they have been sent with location enabled",
                 "ovf_editor_indicator": "Indicates if a snap has been sent using OVF Editor",
-                "director_mode_indicator": "Adds a \u270f\ufe0f icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps"
+                "director_mode_indicator": "Adds a \u270f\ufe0f icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps",
+                "memories_indicator": "Adds a \ud83d\udcd6 icon to snaps that were re-sent from Memories instead of being captured with the live camera",
+                "skip_own_indicators": "Hides indicator icons on your own sent snaps (Self-Snaps) \ud83d\udc64",
+                "disable_indicators_in_groups": "Disables all indicator icons in group conversations to reduce UI clutter \ud83d\udc65"
             },
             "auto_mark_as_read": {
                 "conversation_read": "Mark conversation as read when sending a message",

@@ -47,7 +47,7 @@ class EventDispatcher(
                 cacheHook(
                     methodParam.thisObject<Any>()::class.java
                 ) {
-                    hook(bindMethod.get().toString(), HookStage.BEFORE) bindViewMethod@{ param ->
+                    hook(bindMethod.get().toString(), HookStage.AFTER) bindViewMethod@{ param ->
                         val instance = param.thisObject<Any>()
                         val view = instance::class.java.methods.firstOrNull {
                             it.name == getViewMethod.get().toString()
@@ -161,7 +161,6 @@ class EventDispatcher(
                     adapter = param
                 }
             ) {
-                if (canceled) param.setResult(null)
                 postHookEvent()
             }
         }

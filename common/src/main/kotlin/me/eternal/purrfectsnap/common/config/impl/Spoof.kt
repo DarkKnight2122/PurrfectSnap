@@ -186,6 +186,9 @@ class Spoof : ConfigContainer(hasGlobalState = true) {
         val currentProfileSnapshot = string("current_profile_snapshot") {
             addFlags(ConfigFlag.HIDDEN)
         }
+        val profileData = string("profile_data") {
+            addFlags(ConfigFlag.HIDDEN)
+        }
     }
 
     inner class SpoofDeviceIdConfig : ConfigContainer() {

@@ -5,6 +5,9 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.os.RemoteException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.SharedContextHolder
@@ -219,19 +222,42 @@ class BridgeService : Service() {
             triggerScopeSync(SocialScope.getByName(scope), id, true)
         }
 
+        private val friendAccumulator = mutableListOf<MessagingFriendInfo>()
+        private val groupAccumulator = mutableListOf<MessagingGroupInfo>()
+
         override fun passGroupsAndFriends(
             groups: List<String>,
-            friends: List<String>
+            friends: List<String>,
+            chunkIndex: Int,
+            totalChunks: Int
         ) {
-            remoteSideContext.log.verbose("Received ${groups.size} groups and ${friends.size} friends")
-            val parsedFriends = friends.mapNotNull { toParcelable<MessagingFriendInfo>(it) }
-            val parsedGroups = groups.mapNotNull { toParcelable<MessagingGroupInfo>(it) }
-            pendingSocialSnapshotCallback?.let { callback ->
-                pendingSocialSnapshotCallback = null
-                callback(parsedFriends, parsedGroups)
+            synchronized(friendAccumulator) {
+                if (chunkIndex == 0) {
+                    friendAccumulator.clear()
+                    groupAccumulator.clear()
+                }
+
+                remoteSideContext.log.verbose("Received chunk $chunkIndex/$totalChunks: ${groups.size} groups, ${friends.size} friends")
+                friendAccumulator.addAll(friends.mapNotNull { toParcelable<MessagingFriendInfo>(it) })
+                groupAccumulator.addAll(groups.mapNotNull { toParcelable<MessagingGroupInfo>(it) })
+
+                if (chunkIndex == totalChunks - 1) {
+                    val finalFriends = friendAccumulator.toList()
+                    val finalGroups = groupAccumulator.toList()
+
+                    friendAccumulator.clear()
+                    groupAccumulator.clear()
+
+                    remoteSideContext.coroutineScope.launch(Dispatchers.IO) {
+                        pendingSocialSnapshotCallback?.let { callback ->
+                            pendingSocialSnapshotCallback = null
+                            callback(finalFriends, finalGroups)
+                        }
+                        remoteSideContext.database.replaceMessagingData(finalFriends, finalGroups)
+                        remoteSideContext.database.messagingDataFlow.tryEmit(finalFriends to finalGroups)
+                    }
+                }
             }
-            remoteSideContext.database.replaceMessagingData(parsedFriends, parsedGroups)
-            remoteSideContext.database.receiveMessagingDataCallback(parsedFriends, parsedGroups)
         }
 
         override fun getScopeNotes(id: String): String? {

@@ -113,8 +113,8 @@ object Updater {
 
     fun getLatestRelease(channel: Channel): LatestRelease? {
         return cache.getOrPut(channel) {
-            if (BuildConfig.DEBUG) {
-                fetchLatestDebugCI() ?: fetchLatestRelease(channel)
+            if (BuildConfig.DEBUG && channel == Channel.STABLE) {
+                fetchLatestDebugCI() ?: fetchLatestRelease(Channel.STABLE)
             } else {
                 fetchLatestRelease(channel)
             }

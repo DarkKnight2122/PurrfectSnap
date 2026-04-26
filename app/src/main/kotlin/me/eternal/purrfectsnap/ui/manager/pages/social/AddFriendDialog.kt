@@ -26,9 +26,11 @@ import kotlinx.coroutines.*
 import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.common.data.MessagingFriendInfo
 import me.eternal.purrfectsnap.common.data.MessagingGroupInfo
+import me.eternal.purrfectsnap.common.data.MessagingRuleType
 import me.eternal.purrfectsnap.common.util.snap.BitmojiSelfie
 import me.eternal.purrfectsnap.storage.getFriends
 import me.eternal.purrfectsnap.storage.getGroups
+import me.eternal.purrfectsnap.storage.getRuleIds
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.util.coil.BitmojiImage
 
@@ -223,26 +225,34 @@ class AddFriendDialog(
                 friends: List<MessagingFriendInfo>,
                 groups: List<MessagingGroupInfo>
             ) {
-                cachedFriends = context.sortSocialFriends(friends, pinnedIds = pinnedIds)
-                cachedGroups = groups.run {
-                    if (pinnedIds != null) {
-                        sortedBy { -pinnedIds.indexOf(it.conversationId) }
-                    } else {
-                        this
+                coroutineScope.launch(Dispatchers.IO) {
+                    val sortedFriends = context.sortSocialFriends(friends, pinnedIds = pinnedIds)
+                    val sortedGroups = groups.run {
+                        if (pinnedIds != null) {
+                            sortedBy { -pinnedIds.indexOf(it.conversationId) }
+                        } else {
+                            // Priority sort for whitelisted groups
+                            val whitelistedIds = context.database.getRuleIds(MessagingRuleType.STEALTH.key).toSet()
+                            sortedWith { a, b ->
+                                val aSelected = whitelistedIds.contains(a.conversationId)
+                                val bSelected = whitelistedIds.contains(b.conversationId)
+                                if (aSelected != bSelected) if (aSelected) -1 else 1
+                                else a.name.compareTo(b.name, ignoreCase = true)
+                            }
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        cachedFriends = sortedFriends
+                        cachedGroups = sortedGroups
+                        if (friends.isNotEmpty() || groups.isNotEmpty()) {
+                            timeoutJob?.cancel()
+                            hasFetchError = false
+                        }
                     }
                 }
-                if (friends.isNotEmpty() || groups.isNotEmpty()) {
-                    timeoutJob?.cancel()
-                    hasFetchError = false
-                }
             }
 
-            val updateSnapshot: (List<MessagingFriendInfo>, List<MessagingGroupInfo>) -> Unit = { friends, groups ->
-                coroutineScope.launch {
-                    applySnapshot(friends, groups)
-                }
-            }
-
+            // Initial database load
             withContext(Dispatchers.IO) {
                 applySnapshot(
                     context.database.getFriends(descOrder = true),
@@ -250,20 +260,11 @@ class AddFriendDialog(
                 )
             }
 
-            context.database.receiveMessagingDataCallback = updateSnapshot
+            // Real-time synchronization flow
             context.requestSocialSnapshotRefresh()
-
-            coroutineScope.launch(Dispatchers.IO) {
-                repeat(25) {
-                    delay(1000)
-                    val dbFriends = context.database.getFriends(descOrder = true)
-                    val dbGroups = context.database.getGroups()
-                    if (dbFriends.isNotEmpty() || dbGroups.isNotEmpty()) {
-                        withContext(Dispatchers.Main) {
-                            applySnapshot(dbFriends, dbGroups)
-                        }
-                        return@launch
-                    }
+            coroutineScope.launch {
+                context.database.messagingDataFlow.collect { (friends, groups) ->
+                    applySnapshot(friends, groups)
                 }
             }
 
@@ -280,7 +281,6 @@ class AddFriendDialog(
             onDispose {
                 timeoutJob?.cancel()
                 context.bridgeService?.clearEphemeralSocialSnapshotRequest()
-                context.database.receiveMessagingDataCallback = { _, _ -> }
             }
         }
 
@@ -340,6 +340,7 @@ class AddFriendDialog(
                         it.mutableUsername.contains(searchKeyword.value, ignoreCase = true) ||
                         it.displayName?.contains(searchKeyword.value, ignoreCase = true) == true
                     } ?: cachedFriends!!
+
                     val selectedFriendCount by remember(filteredFriends) {
                         derivedStateOf {
                             filteredFriends.count { friend ->
@@ -350,6 +351,16 @@ class AddFriendDialog(
                     val hasFriendsSelected = selectedFriendCount > 0
                     val allFriendsSelected = filteredFriends.isNotEmpty() && selectedFriendCount == filteredFriends.size
 
+                    val selectedGroupCount by remember(filteredGroups) {
+                        derivedStateOf {
+                            filteredGroups.count { group ->
+                                stateCache[group.conversationId] ?: actionHandler.getGroupState(group)
+                            }
+                        }
+                    }
+                    val hasGroupsSelected = selectedGroupCount > 0
+                    val allGroupsSelected = filteredGroups.isNotEmpty() && selectedGroupCount == filteredGroups.size
+
                     DialogHeader(searchKeyword)
 
                     LazyColumn(
@@ -359,14 +370,54 @@ class AddFriendDialog(
                     ) {
                         item {
                             if (filteredGroups.isNotEmpty()) {
-                                Text(
-                                    text = translation["category_groups"],
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                Row(
                                     modifier = Modifier
+                                        .fillMaxWidth()
                                         .padding(bottom = 8.dp, top = 8.dp),
-                                    color = Color.White
-                                )
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = translation["category_groups"],
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        TextButton(
+                                            onClick = {
+                                                coroutineScope.launch(Dispatchers.IO) {
+                                                    filteredGroups.forEach { group ->
+                                                        stateCache[group.conversationId] = true
+                                                        actionHandler.onGroupState(group, true)
+                                                    }
+                                                }
+                                            },
+                                            enabled = !allGroupsSelected
+                                        ) {
+                                            Text(
+                                                text = context.translation["manager.dialogs.messaging_action.select_all_button"],
+                                                color = if (allGroupsSelected) Color.White.copy(alpha = 0.45f) else PurrfectPalette.glowSecondary
+                                            )
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                coroutineScope.launch(Dispatchers.IO) {
+                                                    filteredGroups.forEach { group ->
+                                                        stateCache[group.conversationId] = false
+                                                        actionHandler.onGroupState(group, false)
+                                                    }
+                                                }
+                                            },
+                                            enabled = hasGroupsSelected
+                                        ) {
+                                            Text(
+                                                text = translation["unselect_all_button"],
+                                                color = if (hasGroupsSelected) PurrfectPalette.glowPrimary else Color.White.copy(alpha = 0.45f)
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -411,11 +462,7 @@ class AddFriendDialog(
                                         ) {
                                             Text(
                                                 text = context.translation["manager.dialogs.messaging_action.select_all_button"],
-                                                color = if (allFriendsSelected) {
-                                                    Color.White.copy(alpha = 0.45f)
-                                                } else {
-                                                    PurrfectPalette.glowSecondary
-                                                }
+                                                color = if (allFriendsSelected) Color.White.copy(alpha = 0.45f) else PurrfectPalette.glowSecondary
                                             )
                                         }
                                         TextButton(
@@ -431,11 +478,7 @@ class AddFriendDialog(
                                         ) {
                                             Text(
                                                 text = translation["unselect_all_button"],
-                                                color = if (hasFriendsSelected) {
-                                                    PurrfectPalette.glowPrimary
-                                                } else {
-                                                    Color.White.copy(alpha = 0.45f)
-                                                }
+                                                color = if (hasFriendsSelected) PurrfectPalette.glowPrimary else Color.White.copy(alpha = 0.45f)
                                             )
                                         }
                                     }

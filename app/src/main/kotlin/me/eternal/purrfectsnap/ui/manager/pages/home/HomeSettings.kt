@@ -75,34 +75,9 @@ class HomeSettings : Routes.Route() {
     internal fun scheduleUpdateCheck() {
         val workManager = WorkManager.getInstance(context.androidContext)
         val updateSettings = context.config.root.global.updateSettings
-        var configDirty = false
-        val autoUpdateCheck = updateSettings.autoUpdateCheck.getNullable() ?: run {
-            configDirty = true
-            updateSettings.autoUpdateCheck.set(true)
-            true
-        }
-        val frequency = updateSettings.updateCheckFrequency.getNullable() ?: run {
-            configDirty = true
-            updateSettings.updateCheckFrequency.set("daily")
-            "daily"
-        }
-        val updateChannel = updateSettings.updateChannel.getNullable() ?: run {
-            configDirty = true
-            updateSettings.updateChannel.set("stable")
-            "stable"
-        }
-        if (configDirty) {
-            context.config.writeConfig()
-        }
+        val autoUpdateCheck = updateSettings.autoUpdateCheck.get()
 
         if (autoUpdateCheck) {
-            val repeatInterval = when (frequency) {
-                "daily" -> 1L
-                "weekly" -> 7L
-                "monthly" -> 30L
-                else -> 1L
-            }
-
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
@@ -112,10 +87,10 @@ class HomeSettings : Routes.Route() {
                 .putString("channel_description", translation["update_notification_channel_description"])
                 .putString("notification_title", translation["update_notification_title"])
                 .putString("notification_text", translation["update_notification_text"])
-                .putString("update_channel", updateChannel)
+                .putString("update_channel", "stable")
                 .build()
 
-            val workRequest = PeriodicWorkRequestBuilder<UpdateCheckWorker>(repeatInterval, TimeUnit.DAYS)
+            val workRequest = PeriodicWorkRequestBuilder<UpdateCheckWorker>(1, TimeUnit.DAYS)
                 .setConstraints(constraints)
                 .setInputData(inputData)
                 .build()

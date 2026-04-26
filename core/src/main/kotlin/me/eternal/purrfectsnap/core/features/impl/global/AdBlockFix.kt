@@ -2,7 +2,6 @@ package me.eternal.purrfectsnap.core.features.impl.global
 
 import android.os.SystemClock
 import android.view.View
-import me.eternal.purrfectsnap.core.event.events.impl.BindViewEvent
 import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.ui.hideViewCompletely
 import me.eternal.purrfectsnap.core.ui.dispatchSyntheticTap
@@ -35,7 +34,6 @@ class AdBlockFix : Feature("AdBlockFix") {
 
         hookFeedEntryTracking()
         hookMessagingFeedCallbacks()
-        hookChatFeedRowSuppression()
         hookOperaAutoSkip()
     }
 
@@ -45,7 +43,7 @@ class AdBlockFix : Feature("AdBlockFix") {
             val conversationId = feedEntry.getObjectFieldOrNull("mConversationId")?.let(::SnapUUID)?.toString()
                 ?: return@hookConstructor
 
-            if (isCampaignFeedEntry(feedEntry) || isChatAdShareFeedEntry(feedEntry)) {
+            if (isCampaignFeedEntry(feedEntry)) {
                 adConversationIds.add(conversationId)
             }
         }
@@ -123,36 +121,20 @@ class AdBlockFix : Feature("AdBlockFix") {
         }
     }
 
-    private fun hookChatFeedRowSuppression() {
-        context.event.subscribe(BindViewEvent::class) { event ->
-            val modelDump = event.prevModel.toString()
-            event.friendFeedItem { conversationId ->
-                if (adConversationIds.contains(conversationId) || isChatAdShareModel(modelDump)) {
-                    hideBoundChatFeedRow(event.view)
-                }
-            }
-        }
-    }
-
-    private fun hideBoundChatFeedRow(view: View) {
-        view.hideViewCompletely()
-        (view.parent as? View)?.hideViewCompletely()
-        (view.parent?.parent as? View)?.hideViewCompletely()
-    }
-
     private fun hookOperaAutoSkip() {
         onNextActivityCreate {
             context.mappings.useMapper(OperaPageViewControllerMapper::class) {
                 arrayOf(onDisplayStateChange, onDisplayStateChangeGesture).forEach { methodName ->
                     val resolvedMethod = methodName.get() ?: return@forEach
                     classReference.get()?.hook(resolvedMethod, HookStage.AFTER) { param ->
+                        val instance = param.thisObject<Any>()
                         val viewState = runCatching {
-                            param.thisObject<Any>().getObjectField(viewStateField.get()!!)?.toString()
+                            instance::class.java.methods.firstOrNull { it.name.contains("ViewState") || it.name == "g" }?.invoke(instance)?.toString()
                         }.getOrNull() ?: return@hook
                         if (viewState != "FULLY_DISPLAYED") return@hook
 
                         val layerList = runCatching {
-                            param.thisObject<Any>().getObjectField(layerListField.get()!!) as? ArrayList<*>
+                            instance::class.java.methods.firstOrNull { it.name.contains("LayerList") || it.name == "l" }?.invoke(instance) as? ArrayList<*>
                         }.getOrNull() ?: return@hook
                         val paramMap = runCatching {
                             layerList.map { Layer(it).paramMap }.firstOrNull()
@@ -207,25 +189,6 @@ class AdBlockFix : Feature("AdBlockFix") {
         }
         return feedEntry.getObjectFieldOrNull("mConversationSubTypeMetadata")
             ?.getObjectFieldOrNull("mCampaignMetadata") != null
-    }
-
-    private fun isChatAdShareFeedEntry(feedEntry: Any): Boolean {
-        val interactionDump = feedEntry.getObjectFieldOrNull("mInteractionInfo")?.toString().orEmpty()
-        val displayDump = feedEntry.getObjectFieldOrNull("mDisplayInfo")?.toString().orEmpty()
-        val combined = "$interactionDump $displayDump"
-        return isChatAdShareModel(combined)
-    }
-
-    private fun isChatAdShareModel(modelDump: String): Boolean {
-        if (modelDump.isBlank()) return false
-        return modelDump.contains("CHAT_AD_SHARE") ||
-            modelDump.contains("AD_SHARE") ||
-            modelDump.contains("ChatAd") ||
-            modelDump.contains("chat_ad_share") ||
-            modelDump.contains("chat_sponsored_snap") ||
-            modelDump.contains("CommonAttachmentViewModel") ||
-            modelDump.contains("visibilityFeedbackURL") ||
-            modelDump.contains("pageLoadPingURL")
     }
 
     private fun isSpotlightCommercialPage(paramMap: ParamMap): Boolean {

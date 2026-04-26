@@ -71,7 +71,7 @@ interface BridgeInterface {
     * @param groups list of groups (MessagingGroupInfo as parcelable)
     * @param friends list of friends (MessagingFriendInfo as parcelable)
     */
-    oneway void passGroupsAndFriends(in List<String> groups, in List<String> friends);
+    oneway void passGroupsAndFriends(in List<String> groups, in List<String> friends, int chunkIndex, int totalChunks);
 
     @nullable String getScopeNotes(String id);
 

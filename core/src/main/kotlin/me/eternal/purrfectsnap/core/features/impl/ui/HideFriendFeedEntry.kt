@@ -13,6 +13,7 @@ import me.eternal.purrfectsnap.core.util.ktx.getObjectField
 import me.eternal.purrfectsnap.core.wrapper.impl.SnapUUID
 import me.eternal.purrfectsnap.mapper.impl.CallbackMapper
 import java.util.ArrayList
+import java.util.concurrent.ConcurrentHashMap
 
 class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType = MessagingRuleType.HIDE_FRIEND_FEED) {
     @Volatile
@@ -20,6 +21,10 @@ class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType
 
     @Volatile
     private var cachedRuleIdsAt = 0L
+
+    private val conversationTargetsCache = ConcurrentHashMap<String, Set<String>>()
+    private val hideDecisionCache = ConcurrentHashMap<String, Boolean>()
+    private var lastRuleIdsHash = 0
 
     private fun createDeletedFeedEntry(conversationIdInstance: Any) = findClass("com.snapchat.client.messaging.DeletedFeedEntry").dataBuilder {
         from("mFeedEntryIdentifier") {
@@ -39,13 +44,15 @@ class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType
     }
 
     private fun resolveRuleTargets(conversationId: String): Set<String> {
-        val targets = linkedSetOf(conversationId)
-        context.database.getDMOtherParticipant(conversationId)?.let { targets.add(it) }
-        context.database.getFeedEntryByConversationId(conversationId)?.let { entry ->
-            entry.friendUserId?.let { targets.add(it) }
-            entry.participants?.forEach { targets.add(it) }
+        return conversationTargetsCache.getOrPut(conversationId) {
+            val targets = linkedSetOf(conversationId)
+            context.database.getDMOtherParticipant(conversationId)?.let { targets.add(it) }
+            context.database.getFeedEntryByConversationId(conversationId)?.let { entry ->
+                entry.friendUserId?.let { targets.add(it) }
+                entry.participants?.forEach { targets.add(it) }
+            }
+            targets
         }
-        return targets
     }
 
     private fun shouldHideConversation(
@@ -54,8 +61,18 @@ class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType
         ruleState: RuleState?
     ): Boolean {
         if (ruleState == null) return false
-        val isExplicitRuleMatch = resolveRuleTargets(conversationId).any { it in ruleIds }
-        return if (ruleState == RuleState.BLACKLIST) !isExplicitRuleMatch else isExplicitRuleMatch
+
+        // Industrial Cache Gating: Clear decisions if the master rule list changed
+        val currentHash = ruleIds.hashCode()
+        if (currentHash != lastRuleIdsHash) {
+            hideDecisionCache.clear()
+            lastRuleIdsHash = currentHash
+        }
+
+        return hideDecisionCache.getOrPut(conversationId) {
+            val isExplicitRuleMatch = resolveRuleTargets(conversationId).any { it in ruleIds }
+            if (ruleState == RuleState.BLACKLIST) !isExplicitRuleMatch else isExplicitRuleMatch
+        }
     }
 
     private fun filterFriendFeed(
@@ -78,9 +95,17 @@ class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType
     }
 
     private fun hideBoundChatFeedRow(view: View) {
-        view.hideViewCompletely()
-        (view.parent as? View)?.hideViewCompletely()
-        (view.parent?.parent as? View)?.hideViewCompletely()
+        var current: View? = view
+        repeat(4) {
+            val parent = current?.parent as? View
+            // Safety: Never hide the actual list container
+            if (parent?.javaClass?.name?.contains("RecyclerView") == true) {
+                current?.hideViewCompletely()
+                return
+            }
+            current?.hideViewCompletely()
+            current = parent
+        }
     }
 
     private fun hookCallbackMethod(
