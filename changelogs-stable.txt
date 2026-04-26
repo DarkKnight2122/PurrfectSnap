@@ -1,3 +1,37 @@
+## v1.7.0
+- Features:
+- Implemented "PurrfectSnap AI" (tq ΞTΞRNAL)
+- Implemented app intro showcase (tq ΞTΞRNAL)
+- Implemented "Spoof follower count" (tq <RSR/>)
+- Implemented Social Tab sorting by Streak Length (tq Javalsta)
+- Implemented "Chat Hold Kill" (tq C R E S T)
+- Implemented "Snapchat Purchase Date Spoof" (tq C R E S T)
+- Implemented Message log export for individual chat (tq schrodingerspet)
+- Implemented message icon indicator for Memories (tq <RSR/>)
+- Implemented two new message indicator toggles, for self snaps and group.
+- Implemented new toggles for chat and snap stealth mode in friend feed menu.
+- Implemented new notification card for Continous send feature. 
+
+- Fixes:
+- Improved message icon indicator reliability and redesigned all chat status indicators. (tq <RSR/>)
+- Media resend flow bug fixes. (tq schrodingerspet)
+- Message Logger backup import bug fixes and implemented logging to report success or failure. (tq schrodingerspet)
+- Media download support through message logger. (tq schrodingerspet)
+- Snapchat Plus bug fixes to improve stability.
+- Spoof Device profile Backup/Restore bug fixes.
+- Redesgined manager app Logs filtering UI.
+- Media Downloader stability and bug fixes.
+- Performance Mode: Fixed Max Performance mode persistence after app restart.
+- Chat Preview: Realignment of the chat preview layout.
+- Update Checker: Refactored the app update checker to follow a single, stable release track with automated daily checks.
+- Auto-Open engine: Expanded Notification UI has been refactored and redundant stats has been removed.
+- Social tab: Converted the rules configuration page to a Lazy Column architecture. This eliminates UI freezes when managing large friend lists.
+- Chat feed scroll stutter: Implemented a thread-safe memory cache for chat suppression logic. This instant memory check allows Snapchat chat feed to scroll at 100% native speed.
+- GPU Offloading: Forced hardware-layer acceleration for all camera and video preview views to reduce CPU thermal load and power consumption.
+- Refactored all runBlocking calls and main-thread database queries across 12 major pages to eliminate the UI freezes/stutters and the scrolling, navigation, and page transitions are now locked at high frame rates.
+- Migrated heavy bridge data processing (JSON parsing and DB writes) to background IO coroutines, preventing ANR (App Not Responding) crashes during large data synchronizations.
+
+
 ## v1.6.9
 - New: Updated the Stealth mode for better visibility with the chat stealth mode (keeps chats from being read), and snap stealth-mode and full stealth mode toggle (normal stealth-mode). (tq Javalsta) 
 - Fix: Fixed performance mode profile save/load so Disabled persists correctly and no longer falls back to Max mode on app restart. (tq schrodingerspet)
