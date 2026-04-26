@@ -133,16 +133,16 @@ class MainActivity : ComponentActivity() {
                 if (shouldShowAbiWarning) {
                     AestheticDialog(
                         onDismissRequest = {},
-                        title = managerContext.translation["wrong_apk_title"],
+                        title = managerContext.translation["setup.activity.wrong_apk_title"],
                         text = "",
                         icon = Icons.Filled.Warning,
-                        confirmButtonText = managerContext.translation["common.close"],
+                        confirmButtonText = managerContext.translation["setup.activity.close_button"],
                         onConfirm = { (context as? Activity)?.finishAffinity() },
                         showCloseButton = false,
                         opaque = true,
                         customContent = {
                             Text(
-                                text = managerContext.translation["wrong_apk_message"],
+                                text = managerContext.translation["setup.activity.wrong_apk_message"],
                                 color = PurrfectPalette.textSecondary,
                                 lineHeight = 18.sp
                             )

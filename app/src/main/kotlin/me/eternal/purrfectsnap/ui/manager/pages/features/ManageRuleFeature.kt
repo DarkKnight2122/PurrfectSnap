@@ -140,7 +140,9 @@ class ManageRuleFeature : Routes.Route()  {
         val currentRuleIds = rememberAsyncMutableStateList(defaultValue = emptyList()) {
             context.database.getRuleIds(currentRuleType.key)
         }
-        val ruleIdsSet by remember { derivedStateOf { currentRuleIds.toSet() } }
+        val currentRuleIdSet = remember(currentRuleIds.size) {
+            currentRuleIds.toSet()
+        }
 
         fun setRuleState(newState: RuleState?) {
             ruleState = newState
@@ -166,7 +168,7 @@ class ManageRuleFeature : Routes.Route()  {
                     onFriendState = { friend, state ->
                         context.database.setRule(friend.userId, currentRuleType.key, state)
                         if (state) {
-                            if (!currentRuleIds.contains(friend.userId)) currentRuleIds.add(friend.userId)
+                            if (!currentRuleIdSet.contains(friend.userId)) currentRuleIds.add(friend.userId)
                         } else {
                             currentRuleIds.remove(friend.userId)
                         }
@@ -174,16 +176,16 @@ class ManageRuleFeature : Routes.Route()  {
                     onGroupState = { group, state ->
                         context.database.setRule(group.conversationId, currentRuleType.key, state)
                         if (state) {
-                            if (!currentRuleIds.contains(group.conversationId)) currentRuleIds.add(group.conversationId)
+                            if (!currentRuleIdSet.contains(group.conversationId)) currentRuleIds.add(group.conversationId)
                         } else {
                             currentRuleIds.remove(group.conversationId)
                         }
                     },
                     getFriendState = { friend ->
-                        ruleIdsSet.contains(friend.userId)
+                        currentRuleIdSet.contains(friend.userId)
                     },
                     getGroupState = { group ->
-                        ruleIdsSet.contains(group.conversationId)
+                        currentRuleIdSet.contains(group.conversationId)
                     }
                 )
             )

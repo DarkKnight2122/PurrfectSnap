@@ -151,22 +151,27 @@ class FFMpegProcessor(
         }
 
         val outputArguments = ArgumentList().apply {
-            this += "-preset" to (ffmpegOptions.preset.getNullable() ?: "ultrafast")
-            this += "-c:v" to (ffmpegOptions.customVideoCodec.get().takeIf { it.isNotEmpty() }?.lowercase() ?: "libx264")
             this += "-c:a" to (ffmpegOptions.customAudioCodec.get().takeIf { it.isNotEmpty() }?.lowercase() ?: "copy")
-            this += "-crf" to ffmpegOptions.constantRateFactor.get().let { "\"$it\"" }
-            this += "-b:v" to ffmpegOptions.videoBitrate.get().toString() + "K"
             this += "-b:a" to ffmpegOptions.audioBitrate.get().toString() + "K"
+        }
+
+        fun applyVideoArguments() {
+            outputArguments += "-preset" to (ffmpegOptions.preset.getNullable() ?: "ultrafast")
+            outputArguments += "-c:v" to (ffmpegOptions.customVideoCodec.get().takeIf { it.isNotEmpty() }?.lowercase() ?: "libx264")
+            outputArguments += "-crf" to ffmpegOptions.constantRateFactor.get().let { "\"$it\"" }
+            outputArguments += "-b:v" to ffmpegOptions.videoBitrate.get().toString() + "K"
         }
 
         when (args.action) {
             Action.DOWNLOAD_DASH -> {
+                applyVideoArguments()
                 outputArguments += "-ss" to "'${args.startTime}ms'"
                 if (args.duration != null) {
                     outputArguments += "-t" to "'${args.duration}ms'"
                 }
             }
             Action.MERGE_OVERLAY -> {
+                applyVideoArguments()
                 inputArguments += "-i" to args.overlay!!.absolutePath
                 outputArguments += "-filter_complex" to "\"[0]scale2ref[img][vid];[img]setsar=1[img];[vid]nullsink;[img][1]overlay=(W-w)/2:(H-h)/2,scale=2*trunc(iw*sar/2):2*trunc(ih/2)\""
             }
@@ -174,8 +179,9 @@ class FFMpegProcessor(
                 if (ffmpegOptions.customAudioCodec.isEmpty()) {
                     outputArguments -= "-c:a"
                 }
-                outputArguments -= "-c:v"
                 args.videoCodec?.let {
+                    applyVideoArguments()
+                    outputArguments -= "-c:v"
                     outputArguments += "-c:v" to it
                 } ?: run {
                     outputArguments += "-vn"
@@ -186,6 +192,7 @@ class FFMpegProcessor(
                 }
             }
             Action.MERGE_MEDIA -> {
+                applyVideoArguments()
                 inputArguments.clear()
                 val filesInfo = args.inputs.mapNotNull { file ->
                     runCatching {

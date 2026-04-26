@@ -97,15 +97,16 @@ fun AppDatabase.replaceMessagingData(
         database.beginTransaction()
         try {
             friends.forEach { friend ->
+                // Industrial Filter: Only update existing friends, never auto-insert new ones.
                 database.execSQL(
-                    "INSERT OR REPLACE INTO friends (userId, dmConversationId, displayName, mutableUsername, bitmojiId, selfieId) VALUES (?, ?, ?, ?, ?, ?)",
+                    "UPDATE friends SET dmConversationId = ?, displayName = ?, mutableUsername = ?, bitmojiId = ?, selfieId = ? WHERE userId = ?",
                     arrayOf<Any?>(
-                        friend.userId,
                         friend.dmConversationId,
                         friend.displayName,
                         friend.mutableUsername,
                         friend.bitmojiId,
-                        friend.selfieId
+                        friend.selfieId,
+                        friend.userId
                     )
                 )
 
@@ -124,12 +125,13 @@ fun AppDatabase.replaceMessagingData(
             }
 
             groups.forEach { group ->
+                // Industrial Filter: Only update existing groups.
                 database.execSQL(
-                    "INSERT OR REPLACE INTO groups (conversationId, name, participantsCount) VALUES (?, ?, ?)",
+                    "UPDATE groups SET name = ?, participantsCount = ? WHERE conversationId = ?",
                     arrayOf<Any?>(
-                        group.conversationId,
                         group.name,
-                        group.participantsCount
+                        group.participantsCount,
+                        group.conversationId
                     )
                 )
             }
@@ -139,10 +141,8 @@ fun AppDatabase.replaceMessagingData(
             database.endTransaction()
         }
         
-        // Notify all observers with the updated data from the database
-        val allFriends = getFriends(descOrder = true)
-        val allGroups = getGroups()
-        messagingDataFlow.tryEmit(allFriends to allGroups)
+        // Notify all observers with the raw sync data (AddFriendDialog needs this)
+        messagingDataFlow.tryEmit(friends to groups)
     }
 }
 

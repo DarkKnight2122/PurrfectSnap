@@ -67,12 +67,14 @@ class SocialRootSection : Routes.Route() {
             }
 
             // Real-time synchronization from the bridge
-            context.database.messagingDataFlow.collect { (friends, groups) ->
+            context.database.messagingDataFlow.collect { 
                 withContext(Dispatchers.IO) {
-                    val sortedFriends = context.sortSocialFriends(friends)
+                    val dbFriends = context.database.getFriends(descOrder = true)
+                    val dbGroups = context.database.getGroups()
+                    val sortedFriends = context.sortSocialFriends(dbFriends)
                     withContext(Dispatchers.Main) {
                         friendList = sortedFriends
-                        groupList = groups
+                        groupList = dbGroups
                     }
                 }
             }
@@ -172,8 +174,7 @@ class SocialRootSection : Routes.Route() {
                         },
                         getFriendState = { friend -> context.database.getFriendInfo(friend.userId) != null },
                         getGroupState = { group -> context.database.getGroupInfo(group.conversationId) != null }
-                    ),
-                    pinnedIds = (friendList.map { it.userId } + groupList.map { it.conversationId }).reversed(),
+                    )
                 )
             },
             modifier = Modifier

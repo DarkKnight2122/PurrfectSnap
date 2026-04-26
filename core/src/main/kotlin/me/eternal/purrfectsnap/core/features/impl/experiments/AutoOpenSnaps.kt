@@ -113,7 +113,7 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
     }
 
     override fun init() {
-        if (autoOpenConfig.globalState == false) return
+        if (autoOpenConfig.globalState != true) return
         
         restorePersistence()
         createNotificationChannels()
@@ -486,9 +486,8 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             builder.setStyle(bigTextStyle)
         }
 
-        notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build())
+        runCatching { notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build()) }.onFailure { logError("Failed to update notification (System not ready)", it) }
     }
-
     private fun createPendingIntent(action: String): PendingIntent {
         val intent = Intent(action).setPackage(this@AutoOpenSnaps.context.androidContext.packageName)
         return PendingIntent.getBroadcast(this@AutoOpenSnaps.context.androidContext, action.hashCode(), intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -560,9 +559,8 @@ class AutoOpenSnaps: MessagingRuleFeature("Auto Open Snaps", MessagingRuleType.A
             .setContentTitle("Auto-Open")
             .setContentText("Auto-Open Engine Disabled. Re-enable in settings.")
 
-        notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build())
+        runCatching { notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build()) }.onFailure { logError("Failed to update notification (System not ready)", it) }
     }
-
     private fun cancelStatusNotification() = notificationManager.cancel(STATUS_NOTIFICATION_ID)
 
     fun getInterface(): AutoOpenInterface {

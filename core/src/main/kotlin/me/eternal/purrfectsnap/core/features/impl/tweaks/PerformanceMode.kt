@@ -347,6 +347,9 @@ class PerformanceMode : Feature("Performance Mode") {
         TextureView::class.java.hookConstructor(HookStage.AFTER) { param ->
             val textureView = param.thisObject<TextureView>()
             runCatching {
+                // Universal Guard: Only accelerate views owned by Snapchat.
+                // This prevents crashes in native hardware providers across all devices.
+                if (textureView.context.packageName != context.androidContext.packageName) return@runCatching
                 textureView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
             }
         }
