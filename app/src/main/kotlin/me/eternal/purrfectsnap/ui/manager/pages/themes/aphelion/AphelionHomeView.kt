@@ -37,12 +37,15 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.lerp
@@ -55,6 +58,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.common.BuildConfig
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfectsnap.common.util.ktx.openLink
@@ -221,7 +225,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
             routes = routes,
             style = ManagerAssistantTriggerStyle.APHELION,
             shrinkFactor = shrinkFactor,
-            modifier = Modifier.width(lerp(36.dp, 66.dp, shrinkFactor))
+            modifier = Modifier.width(lerp(36.dp, 118.dp, shrinkFactor))
         )
         AphelionTopBarActionChip(
             icon = Icons.Filled.BugReport,
@@ -253,6 +257,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     ) {
         val heroShape = RoundedCornerShape(36.dp)
         val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
+        val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
         Box(
             modifier = Modifier
                 .padding(horizontal = HomeRootSection.cardMargin, vertical = 6.dp)
@@ -270,7 +275,12 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "PurrfectSnap",
+                        text = buildAnnotatedString {
+                            append("Purrfect")
+                            withStyle(SpanStyle(color = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100))) {
+                                append(if (isRedditMode) "Reddit" else "Snap")
+                            }
+                        },
                         color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, fontFamily = avenirNext,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - ((scrollOffset() - 250f) / 120f)).coerceIn(0f, 1f)
@@ -286,7 +296,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         }
                     )
                     Text(
-                        text = translation["hero_tagline"] ?: "",
+                        text = if (isRedditMode) (translation["hero_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["hero_tagline"] ?: "",
                         color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - ((scrollOffset() - 350f) / 120f)).coerceIn(0f, 1f)
@@ -364,26 +374,28 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color.White.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
-                            modifier = Modifier.width(unifiedButtonWidth).height(46.dp),
-                            tonalElevation = 0.dp, shadowElevation = 0.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                        if (!isRedditMode) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Color.White.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+                                modifier = Modifier.width(unifiedButtonWidth).height(46.dp),
+                                tonalElevation = 0.dp, shadowElevation = 0.dp
                             ) {
-                                Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                                    LivingPurrAura(isActive = isPurrAuraActive, haptic = haptic)
+                                Row(
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                                        LivingPurrAura(isActive = isPurrAuraActive, haptic = haptic)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
+                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                    )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
-                                    color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
-                                )
                             }
                         }
                         OutlinedButton(
@@ -438,7 +450,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         }
                         ExternalLinkIcon(
                             imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"]) },
                             tint = Color.White, containerColor = Color.White.copy(alpha = 0.14f),
                             haptic = haptic
                         )
@@ -451,8 +463,11 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     val haptic = LocalHapticFeedback.current
     val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
     val prefs = remember { context.sharedPreferences }
-    val allQuickTileNames = remember(cards) { cards.keys.map { it.first } }
+    val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
+    val activeCards = if (isRedditMode) redditCards else cards
+    val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
     val selectedTiles = rememberAsyncMutableStateList(defaultValue = allQuickTileNames) {
+        if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
         val storedTiles = context.database.getQuickTiles().filter { it.isNotBlank() }
         val hasInitialized = prefs.getBoolean(HomeRootSection.QUICK_TILES_INITIALIZED_PREF, false)
         when {
@@ -479,6 +494,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     val isPurrAuraActive by rememberPreferenceBool("debug_test_mode", true)
     val scrollState = rememberScrollState()
     var showQuickActionsMenu by rememberSaveable { mutableStateOf(false) }
+    val quickActionsEnabled = isRedditMode || !context.isLimitedTargetMode
     var showChangelogDialog by rememberSaveable { mutableStateOf(false) }
     var changelogText by rememberSaveable { mutableStateOf<String?>(null) }
     var changelogLoading by remember { mutableStateOf(false) }
@@ -709,6 +725,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
 
             Spacer(Modifier.height(12.dp))
 
+            if (quickActionsEnabled) {
             AnimatedContent(targetState = selectedTiles.isNotEmpty(), label = "QuickActions") { hasQuickActions ->
                 Surface(
                     modifier = Modifier.padding(horizontal = HomeRootSection.cardMargin, vertical = 10.dp),
@@ -775,7 +792,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                                     maxItemsInEachRow = columns
                                 ) {
                                     selectedTiles.forEach { name ->
-                                        val cardEntry = cards.entries.find { it.key.first == name } ?: return@forEach
+                                    val cardEntry = activeCards.entries.find { it.key.first == name } ?: return@forEach
                                         val interactionSource = remember { MutableInteractionSource() }
                                         val animatedIconSize by animateDpAsState(
                                             targetValue = if (animationPhase >= 2) 28.dp else 44.dp,
@@ -799,9 +816,10 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                                                         color = Color.White,
                                                         modifier = Modifier.fillMaxWidth()
                                                     )
-                                                }
-                                            }
-                                        }
+            }
+            }
+        }
+    }
                                     }
                                 }
                             }
@@ -873,16 +891,18 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         )
     }
 
-    if (showQuickActionsMenu) {
+    if (quickActionsEnabled && showQuickActionsMenu) {
         QuickActionsDialog(
-            quickActions = cards,
+            quickActions = activeCards,
             selectedQuickActions = selectedTiles,
             onDismiss = { showQuickActionsMenu = false },
             onSave = { newList ->
                 val removed = selectedTiles.filter { it !in newList }
                 removed.forEach { clearTileSpan(it); clearTileOffset(it) }
                 selectedTiles.clear(); selectedTiles.addAll(newList)
-                context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
+                if (!isRedditMode) {
+                    context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
+                }
                 showQuickActionsMenu = false
             },
             translation = translation

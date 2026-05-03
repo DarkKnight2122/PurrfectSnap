@@ -193,7 +193,8 @@ class PickLanguageScreen : SetupScreen() {
                     exit = fadeOut(animationSpec = Motion.tweenFloatSpec(150)) + scaleOut(animationSpec = Motion.tweenFloatSpec(180))
                 ) {
                     SetupCard(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        setupScrollEnabled = false
                     ) {
                         StepTitle(
                             title = context.translation["setup.pick_language.available_languages"],

@@ -14,8 +14,8 @@
             "permissions_subtitle": "Grant the essentials so overlays, downloads, and alerts stay reliable.",
             "patch_title": "Auto Patcher",
             "patch_subtitle": "Streamlined download, patch, and install with a single flow.",
-            "root_install_title": "Snapchat Installer",
-            "root_install_subtitle": "Download and install the recommended Snapchat build.",
+            "root_install_title": "App Installer",
+            "root_install_subtitle": "Download and install the recommended builds for your selected apps.",
             "save_folder_subtitle": "Pick your personal vault so snaps land exactly where you expect.",
             "mappings_subtitle": "We calibrate everything to your install so the magic works flawlessly.",
             "step_counter": "Step {current} of {total}",
@@ -37,18 +37,18 @@
             "notice_title": "Please note!",
             "notice_intro": "Select the type of device you have: rooted or non-rooted. If you are unsure, choose Non-root and continue.",
             "notice_non_root_title": "Non-rooted devices",
-            "notice_non_root_body": "Select Non-root and the app will handle everything. Tap Install Patched Snapchat when it appears. After it installs, do not open Snapchat yet. Continue the PurrfectSnap setup; once it finishes, you can open Snapchat and enjoy.",
+            "notice_non_root_body": "Select Non-root and the app will handle everything. Tap the install button when each patched app is ready. After installation, continue the Purrfect setup before opening the selected apps.",
             "notice_root_title": "Rooted devices",
-            "notice_root_body": "Make sure you have flashed LSPosed first. We recommend JingMatrix LSPosed or LSPosed Irena. After you select Root, the app will install the recommended Snapchat version. Do not open it yet; continue the PurrfectSnap setup. When setup finishes, enable PurrfectSnap in LSPosed and reboot your phone. Then start using Snapchat. We highly recommend detaching Snapchat from the Play Store with the Zygisk Detach module to prevent auto-updates.",
+            "notice_root_body": "Make sure you have flashed LSPosed first. We recommend JingMatrix LSPosed or LSPosed Irena. After you select Root, the app will install the recommended builds for your selected apps. Do not open them yet; continue the Purrfect setup. When setup finishes, enable Purrfect in LSPosed and reboot your phone. We highly recommend detaching supported apps from the Play Store with the Zygisk Detach module to prevent auto-updates.",
             "notice_issues_hint": "If you run into any installation issues, the solution will appear here. Please read it carefully.",
             "notice_note_prefix": "Note: ",
-            "notice_note_body": "New Accounts easily get locked! It is recommended to use an older account with PurrfectSnap.",
+            "notice_note_body": "New Accounts easily get locked! It is recommended to use an older account with Purrfect.",
             "step_title": "Choose your device",
             "step_subtitle": "If you don't know, select Non-rooted device and proceed.",
             "root_option_title": "Rooted device",
             "root_option_subtitle": "Use Lsposed and skip auto patching.",
             "non_root_option_title": "Non-rooted device",
-            "non_root_option_subtitle": "Use included auto patcher to install patched Snapchat.",
+            "non_root_option_subtitle": "Use the included auto patcher to install patched selected apps.",
             "skip_auto_setup": "Skip Auto Setup"
         },
         "mappings": {
@@ -112,6 +112,7 @@
             "display_over_other_apps": "Display Over Other Apps",
             "request_button": "Request",
             "notification_access_description": "Alerts you the second downloads finish.",
+            "notification_access_description_reddit": "Alerts you when an update is available.",
             "battery_optimization_description": "Keeps background tasks alive without being killed.",
             "display_over_other_apps_description": "Enables floating overlays while you are in Snapchat.",
             "granted_label": "Granted"
@@ -147,6 +148,60 @@
             "copy_button": "Copy",
             "log_line_prefix": "- {line}"
         },
+        "install_queue": {
+            "in_queue_status": "{app} is in queue.",
+            "completed_next_status": "{current} is installed. Starting {next} next.",
+            "all_completed_status": "{apps} installed. You're cleared to continue.",
+            "all_success": "{apps} installed",
+            "progress_title": "App {current} of {total}{next}",
+            "logs_copied": "Logs copied to clipboard.",
+            "already_installed_button": "Already Installed?",
+            "logs_title": "Logs",
+            "copy_button": "Copy",
+            "log_line_prefix": "- {line}"
+        },
+        "patch_app": {
+            "title": "Auto Patcher: {app}",
+            "ready_log": "{app} Auto Patcher is ready.",
+            "install_confirmed_log": "{app} install confirmed.",
+            "download_recommended_status": "Downloading recommended {app} version ({version})...",
+            "starting_log": "Starting Auto Patcher for {app}.",
+            "uninstall_prompt_status": "{app} is installed. Please uninstall it first (don't keep data), then start Auto Patcher again.",
+            "uninstall_prompt_error": "{app} is still installed. Uninstall it first to continue.",
+            "module_apk_not_found_error": "Module apk not found",
+            "fetching_apk_status": "Fetching recommended {app} APK...",
+            "download_failed_error": "{app} download failed",
+            "download_completed_status": "{app} download completed: {fileName}",
+            "starting_patch_status": "Patching {app} with JingMatrix LSPatch.",
+            "patched_not_produced_error": "Patched {app} apk not produced",
+            "patched_ready_status": "Patched {app} build ready. Install to finish.",
+            "failed_status": "{app} failed: {message}",
+            "mark_installed_log": "Marked {app} as installed manually.",
+            "status_downloading": "Downloading {app} {percent}%",
+            "status_patching": "Patching {app}...",
+            "status_initializing": "Initializing {app}...",
+            "start_button": "Patch {app}",
+            "install_button": "Install patched {app}"
+        },
+        "root_install_app": {
+            "title": "{app} Installer",
+            "ready_log": "{app} installer is ready.",
+            "install_confirmed_log": "{app} install confirmed.",
+            "download_recommended_status": "Downloading recommended {app} version ({version})...",
+            "mark_installed_log": "Marked {app} as installed manually.",
+            "starting_log": "Starting {app} download for rooted install.",
+            "uninstall_prompt_status": "{app} is installed. Please uninstall it first (don't keep data), then try again.",
+            "uninstall_prompt_error": "{app} is still installed. Uninstall it first to continue.",
+            "fetching_apk_status": "Fetching recommended {app} APK...",
+            "download_failed_error": "{app} download failed",
+            "download_completed_status": "{app} download completed: {fileName}",
+            "launching_installer_status": "Launching {app} installer...",
+            "failed_status": "{app} failed: {message}",
+            "status_downloading": "Downloading {app} {percent}%",
+            "status_preparing": "Preparing {app} installer...",
+            "start_button": "Download {app}",
+            "install_button": "Install {app}"
+        },
         "save_folder": {
             "description": "Please choose the location where media should be downloaded to.",
             "destination_label": "Destination",
@@ -155,7 +210,7 @@
             "no_picker_title": "Folder picker unavailable",
             "no_picker_message": "Some cloned/dual-app environments block the system folder picker. You can continue using the system default save location, or open the app outside clone mode to select a custom folder.",
             "use_default_button": "Use default",
-            "permission_hint": "PurrfectSnap requires Storage permissions to download and Save Media from Snapchat."
+            "permission_hint": "Purrfect requires storage permission to download and save media from Snapchat."
         }
     },
     "scopes": {
@@ -208,6 +263,8 @@
                 "purr_aura_active_label": "PurrAura Active!",
                 "purr_aura_inactive_label": "PurrAura Inactive",
                 "open_settings_button": "Open Settings",
+                "switch_to_reddit_button": "Reddit",
+                "switch_to_snapchat_button": "Snapchat",
                 "wiki_button": "Wiki",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram",
@@ -278,6 +335,12 @@
                 "actions_title": "Actions",
                 "message_logger_title": "Message Logger",
                 "debug_title": "Debug",
+                "target_app_title": "Target App",
+                "target_app_snapchat_summary": "Current: Snapchat",
+                "target_app_reddit_summary": "Current: Reddit",
+                "switch_to_reddit_button": "Switch to Reddit",
+                "reddit_settings_title": "Reddit Mode",
+                "switch_to_snapchat_button": "Switch to Snapchat",
                 "success_toast": "Done!",
                 "message_logger_summary": "{messageCount} messages\n{storyCount} stories",
                 "export_button": "Export",
@@ -998,6 +1061,232 @@
             "internal_behavior": "\u26a0 This may break Snapchat internal behavior"
         },
         "properties": {
+            "reddit": {
+                "name": "Reddit",
+                "description": "Reddit ad blocking hooks",
+                "properties": {
+                    "ad_blocking": {
+                        "name": "Ad Blocking",
+                        "description": "Remove Reddit ad placements",
+                        "properties": {
+                            "block_promoted_posts": {
+                                "name": "Block Promoted Posts",
+                                "description": "Hide promoted post units from Reddit feeds"
+                            },
+                            "block_comment_ads": {
+                                "name": "Block Comment Ads",
+                                "description": "Stop Reddit from loading ads in post comment screens"
+                            }
+                        }
+                    },
+                    "premium": {
+                        "name": "Premium",
+                        "description": "Client-side premium state changes",
+                        "properties": {
+                            "unlock_reddit_premium": {
+                                "name": "Unlock Reddit Premium",
+                                "description": "Enable client-side Reddit Premium perks where the app checks local premium state"
+                            }
+                        }
+                    },
+                    "links": {
+                        "name": "Links",
+                        "description": "Control how Reddit opens and shares links",
+                        "properties": {
+                            "open_links_in_external_browser": {
+                                "name": "Open Links in External Browser",
+                                "description": "Force Reddit's open-links-in-browser preference on"
+                            },
+                            "sanitize_sharing_links": {
+                                "name": "Sanitize Sharing Links",
+                                "description": "Remove tracking query parameters from Reddit sharing links"
+                            }
+                        }
+                    },
+                    "navigation": {
+                        "name": "Navigation",
+                        "description": "Hide Reddit navigation actions",
+                        "properties": {
+                            "hide_create_button": {
+                                "name": "Hide Create Button",
+                                "description": "Hide the Create button in Reddit navigation"
+                            },
+                            "hide_discover_communities_button": {
+                                "name": "Hide Discover/Communities Button",
+                                "description": "Hide Discover or Communities from Reddit navigation"
+                            }
+                        }
+                    },
+                    "shelves": {
+                        "name": "Shelves",
+                        "description": "Hide Reddit shelves and recommendation blocks",
+                        "properties": {
+                            "hide_recently_visited_shelf": {
+                                "name": "Hide Recently Visited Shelf",
+                                "description": "Hide the Recently Visited shelf in Reddit's sidebar"
+                            },
+                            "hide_games_on_reddit_shelf": {
+                                "name": "Hide Games on Reddit Shelf",
+                                "description": "Hide the Games on Reddit shelf in Reddit's sidebar"
+                            },
+                            "hide_reddit_pro_shelf": {
+                                "name": "Hide Reddit Pro Shelf",
+                                "description": "Hide the Reddit Pro shelf in Reddit's sidebar"
+                            },
+                            "hide_about_shelf": {
+                                "name": "Hide About Shelf",
+                                "description": "Hide the About shelf in Reddit's sidebar"
+                            },
+                            "hide_resources_shelf": {
+                                "name": "Hide Resources Shelf",
+                                "description": "Hide the Resources shelf in Reddit's sidebar"
+                            },
+                            "hide_recommended_communities": {
+                                "name": "Hide Recommended Communities",
+                                "description": "Hide recommended community shelves in subreddits"
+                            },
+                            "hide_trending_today_shelf": {
+                                "name": "Hide Trending Today Shelf",
+                                "description": "Hide the Trending Today shelf from search suggestions"
+                            }
+                        }
+                    },
+                    "dialogs": {
+                        "name": "Dialogs",
+                        "description": "Dismiss Reddit popups",
+                        "properties": {
+                            "disable_screenshot_popup": {
+                                "name": "Disable Screenshot Popup",
+                                "description": "Hide Reddit's screenshot notification popup"
+                            },
+                            "remove_nsfw_warning_dialog": {
+                                "name": "Remove NSFW Warning Dialog",
+                                "description": "Dismiss the NSFW warning dialog automatically"
+                            },
+                            "remove_notification_suggestion_dialog": {
+                                "name": "Remove Notification Suggestion Dialog",
+                                "description": "Dismiss subreddit notification suggestion dialogs automatically"
+                            }
+                        }
+                    },
+                    "comments": {
+                        "name": "Comments",
+                        "description": "Enhance Reddit comment screens",
+                        "properties": {
+                            "add_scroll_to_top_button": {
+                                "name": "Add Scroll to Top Button",
+                                "description": "Show a floating button in Reddit feeds and comments that scrolls back to the top"
+                            },
+                            "color_coded_comment_threads": {
+                                "name": "Color Coded Comment Threads",
+                                "description": "Use distinct colors for nested Reddit comment thread lines"
+                            }
+                        }
+                    },
+                    "deleted_content": {
+                        "name": "Deleted Content",
+                        "description": "Restore deleted Reddit text and image content when possible",
+                        "properties": {
+                            "restore_deleted_content": {
+                                "name": "Restore Deleted Content",
+                                "description": "Load deleted posts and comments from Project Arctic Shift when Reddit returns removed content"
+                            }
+                        }
+                    },
+                    "block_promoted_posts": {
+                        "name": "Block Promoted Posts",
+                        "description": "Hide promoted post units from Reddit feeds"
+                    },
+                    "block_comment_ads": {
+                        "name": "Block Comment Ads",
+                        "description": "Stop Reddit from loading ads in post comment screens"
+                    },
+                    "unlock_reddit_premium": {
+                        "name": "Unlock Reddit Premium",
+                        "description": "Enable client-side Reddit Premium perks where the app checks local premium state"
+                    },
+                    "open_links_in_external_browser": {
+                        "name": "Open Links in External Browser",
+                        "description": "Force Reddit's open-links-in-browser preference on"
+                    },
+                    "disable_screenshot_popup": {
+                        "name": "Disable Screenshot Popup",
+                        "description": "Hide Reddit's screenshot notification popup"
+                    },
+                    "hide_answers_button": {
+                        "name": "Hide Answers Button",
+                        "description": "Hide the Answers button in Reddit navigation"
+                    },
+                    "hide_chat_button": {
+                        "name": "Hide Chat Button",
+                        "description": "Hide the Chat button in Reddit navigation"
+                    },
+                    "hide_create_button": {
+                        "name": "Hide Create Button",
+                        "description": "Hide the Create button in Reddit navigation"
+                    },
+                    "hide_discover_communities_button": {
+                        "name": "Hide Discover/Communities Button",
+                        "description": "Hide Discover or Communities from Reddit navigation"
+                    },
+                    "hide_games_button": {
+                        "name": "Hide Games Button",
+                        "description": "Hide the Games button in Reddit navigation"
+                    },
+                    "hide_recently_visited_shelf": {
+                        "name": "Hide Recently Visited Shelf",
+                        "description": "Hide the Recently Visited shelf in Reddit's sidebar"
+                    },
+                    "hide_games_on_reddit_shelf": {
+                        "name": "Hide Games on Reddit Shelf",
+                        "description": "Hide the Games on Reddit shelf in Reddit's sidebar"
+                    },
+                    "hide_reddit_pro_shelf": {
+                        "name": "Hide Reddit Pro Shelf",
+                        "description": "Hide the Reddit Pro shelf in Reddit's sidebar"
+                    },
+                    "hide_about_shelf": {
+                        "name": "Hide About Shelf",
+                        "description": "Hide the About shelf in Reddit's sidebar"
+                    },
+                    "hide_resources_shelf": {
+                        "name": "Hide Resources Shelf",
+                        "description": "Hide the Resources shelf in Reddit's sidebar"
+                    },
+                    "hide_recommended_communities": {
+                        "name": "Hide Recommended Communities",
+                        "description": "Hide recommended community shelves in subreddits"
+                    },
+                    "hide_trending_today_shelf": {
+                        "name": "Hide Trending Today Shelf",
+                        "description": "Hide the Trending Today shelf from search suggestions"
+                    },
+                    "remove_nsfw_warning_dialog": {
+                        "name": "Remove NSFW Warning Dialog",
+                        "description": "Dismiss the NSFW warning dialog automatically"
+                    },
+                    "remove_notification_suggestion_dialog": {
+                        "name": "Remove Notification Suggestion Dialog",
+                        "description": "Dismiss subreddit notification suggestion dialogs automatically"
+                    },
+                    "sanitize_sharing_links": {
+                        "name": "Sanitize Sharing Links",
+                        "description": "Remove tracking query parameters from Reddit sharing links"
+                    },
+                    "add_scroll_to_top_button": {
+                        "name": "Add Scroll to Top Button",
+                        "description": "Show a floating button in Reddit feeds and comments that scrolls back to the top"
+                    },
+                    "color_coded_comment_threads": {
+                        "name": "Color Coded Comment Threads",
+                        "description": "Use distinct colors for nested Reddit comment thread lines"
+                    },
+                    "restore_deleted_content": {
+                        "name": "Restore Deleted Content",
+                        "description": "Load deleted posts and comments from Project Arctic Shift when Reddit returns removed content"
+                    }
+                }
+            },
             "downloader": {
                 "name": "Downloader",
                 "description": "Download Snapchat Media",

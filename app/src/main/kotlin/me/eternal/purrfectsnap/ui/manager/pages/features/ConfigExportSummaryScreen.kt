@@ -137,14 +137,23 @@ class ConfigExportSummaryScreen : Routes.Route() {
 
     override val content: @Composable (androidx.navigation.NavBackStackEntry) -> Unit = {
         val exportSensitiveData = it.arguments?.getString("exportSensitiveData")?.toBoolean() ?: false
-        val includeSavedLocations = it.arguments?.getString("includeSavedLocations")?.toBoolean() ?: false
+        val includeSavedLocations = !context.isRedditMode &&
+            (it.arguments?.getString("includeSavedLocations")?.toBoolean() ?: false)
+        val defaultFileName = if (context.isRedditMode) "reddit-config.json" else "snap-config.json"
         val exportLabel = context.translation["manager.sections.features.export_option"]
         val parser = remember { ConfigParser() }
         val savedLocations = remember {
             if (includeSavedLocations) context.database.getLocationCoordinates() else null
         }
         val featuresByCategory = remember {
-            parser.parse(context.config.exportToString(exportSensitiveData, includeSavedLocations, savedLocations))
+            parser.parse(
+                ScopedConfigJson.exportForActiveTarget(
+                    context,
+                    exportSensitiveData,
+                    includeSavedLocations,
+                    savedLocations
+                )
+            )
         }
         val expandedState = remember { mutableStateMapOf<String, Boolean>() }
 
@@ -211,11 +220,16 @@ class ConfigExportSummaryScreen : Routes.Route() {
                         }
                         Button(
                             onClick = {
-                                routes.activityLauncher.saveFile("config.json", "application/json") { uri ->
+                                routes.activityLauncher.saveFile(defaultFileName, "application/json") { uri ->
                                     runCatching {
                                         context.androidContext.contentResolver.openOutputStream(android.net.Uri.parse(uri))?.use {
                                             context.config.writeConfig()
-                                            context.config.exportToString(exportSensitiveData, includeSavedLocations, savedLocations).byteInputStream().copyTo(it)
+                                            ScopedConfigJson.exportForActiveTarget(
+                                                context,
+                                                exportSensitiveData,
+                                                includeSavedLocations,
+                                                savedLocations
+                                            ).byteInputStream().copyTo(it)
                                             context.shortToast(context.translation["manager.sections.features.config_export_success_toast"])
                                         }
                                     }.onFailure {

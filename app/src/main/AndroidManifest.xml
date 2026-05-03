@@ -11,6 +11,7 @@
 
     <queries>
         <package android:name="com.snapchat.android" />
+        <package android:name="com.reddit.frontpage" />
     </queries>
     <application
         android:usesCleartextTraffic="true"
@@ -32,7 +33,7 @@
             android:value="93" />
         <meta-data
             android:name="xposedscope"
-            android:value="com.snapchat.android" />
+            android:value="com.snapchat.android,com.reddit.frontpage" />
         <service
             android:name=".bridge.BridgeService"
             android:exported="true"
@@ -65,6 +66,13 @@
             android:exported="true"
             android:permission="com.snapchat.android.permission.UPDATE_STICKER_INDEX" />
         <receiver android:name=".StreaksReminder" />
+        <receiver
+            android:name=".reddit.RedditConfigBroadcastReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfectsnap.action.REDDIT_CONFIG_REQUEST" />
+            </intent-filter>
+        </receiver>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="me.eternal.purrfectsnap.fileprovider"
@@ -74,5 +82,9 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
+        <provider
+            android:name=".reddit.RedditConfigProvider"
+            android:authorities="me.eternal.purrfectsnap.reddit.config"
+            android:exported="true" />
     </application>
 </manifest>

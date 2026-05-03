@@ -3,6 +3,7 @@
 package me.eternal.purrfectsnap.ui.setup
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -27,6 +28,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,7 +47,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -63,6 +64,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
@@ -93,11 +95,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.SharedContextHolder
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.common.ui.AppMaterialTheme
 import me.eternal.purrfectsnap.ui.manager.ManagerAssistantDialog
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfectsnap.ui.setup.screens.LocalSetupScrollState
+import me.eternal.purrfectsnap.ui.setup.screens.LocalSetupViewportHeight
 import me.eternal.purrfectsnap.ui.setup.screens.SetupScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.InstallModeScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.InstallMode
@@ -108,9 +113,13 @@ import me.eternal.purrfectsnap.ui.setup.screens.impl.PatchSnapchatScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.RootInstallSnapchatScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.SaveFolderScreen
 import me.eternal.purrfectsnap.ui.setup.screens.impl.IntroShowcaseScreen
+import me.eternal.purrfectsnap.ui.setup.screens.impl.parseSetupTargetApps
+import me.eternal.purrfectsnap.ui.setup.screens.impl.toSetupTargetPrefsValue
 import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
 import me.eternal.purrfectsnap.ui.util.scaleOnPress
 import kotlinx.coroutines.delay
+
+private const val SETUP_SELECTED_APPS_PREF = "setup_selected_apps"
 
 private data class SetupStepMeta(
     val route: String,
@@ -128,6 +137,7 @@ class SetupActivity : ComponentActivity() {
         }
         fun endActivity() {
             setupContext.reload()
+            sendBroadcast(Intent("me.eternal.purrfectsnap.RESTART"))
             finish()
         }
         val requirements = intent.getIntExtra("requirements", Requirements.FIRST_RUN)
@@ -141,18 +151,32 @@ class SetupActivity : ComponentActivity() {
         val persistedRoute = setupPrefs.getString("setup_current_route", null)
         val persistedSkipPatch = setupPrefs.getBoolean("setup_skip_patch", false)
         val persistedInstallMode = setupPrefs.getString("setup_install_mode", null)
+        val persistedSelectedApps = setupPrefs.getString(SETUP_SELECTED_APPS_PREF, null)
         val skipPatchChoice = mutableStateOf(persistedSkipPatch)
         val installModeChoice = mutableStateOf(
             runCatching { persistedInstallMode?.let { InstallMode.valueOf(it) } }.getOrNull()
         )
+        val selectedAppsChoice = mutableStateOf(
+            parseSetupTargetApps(
+                persistedSelectedApps,
+                fallback = if (wasInProgress && persistedRoute != null) setOf(TargetApp.SNAPCHAT) else emptySet()
+            )
+        )
 
-        fun persistProgress(route: String, skipPatch: Boolean, installMode: InstallMode?, inProgress: Boolean = true) {
+        fun persistProgress(
+            route: String,
+            skipPatch: Boolean,
+            installMode: InstallMode?,
+            selectedApps: Set<TargetApp>,
+            inProgress: Boolean = true
+        ) {
             if (!isFirstRunFlow) return
             setupPrefs.edit()
                 .putBoolean("setup_in_progress", inProgress)
                 .putString("setup_current_route", route)
                 .putBoolean("setup_skip_patch", skipPatch)
                 .putString("setup_install_mode", installMode?.name)
+                .putString(SETUP_SELECTED_APPS_PREF, selectedApps.toSetupTargetPrefsValue())
                 .apply()
         }
 
@@ -162,13 +186,19 @@ class SetupActivity : ComponentActivity() {
                 .remove("setup_current_route")
                 .remove("setup_skip_patch")
                 .remove("setup_install_mode")
+                .remove(SETUP_SELECTED_APPS_PREF)
                 .apply()
         }
 
         val requiredScreens = mutableListOf<SetupScreen>().apply {
             if (isFirstRunFlow || hasRequirement(Requirements.LANGUAGE)) {
-                add(IntroShowcaseScreen().apply { route = "introShowcase" })
                 add(PickLanguageScreen().apply { route = "language" })
+                if (isFirstRunFlow) {
+                    add(IntroShowcaseScreen(
+                        selectedAppsProvider = { selectedAppsChoice.value },
+                        onSelectionChanged = { selectedAppsChoice.value = it }
+                    ).apply { route = "introShowcase" })
+                }
                 if (isFirstRunFlow) {
                     add(InstallModeScreen(
                         onModeChosen = { mode ->
@@ -182,12 +212,18 @@ class SetupActivity : ComponentActivity() {
                     ).apply { route = "installMode" })
                 }
                 if (isFirstRunFlow) {
-                    add(RootInstallSnapchatScreen().apply { route = "rootInstallSnapchat" })
-                    add(PatchSnapchatScreen().apply { route = "patchSnapchat" })
+                    add(RootInstallSnapchatScreen(
+                        selectedAppsProvider = { selectedAppsChoice.value }
+                    ).apply { route = "rootInstallSnapchat" })
+                    add(PatchSnapchatScreen(
+                        selectedAppsProvider = { selectedAppsChoice.value }
+                    ).apply { route = "patchSnapchat" })
                 }
             }
             if (isFirstRunFlow || hasRequirement(Requirements.GRANT_PERMISSIONS)) {
-                add(PermissionsScreen().apply { route = "permissions" })
+                add(PermissionsScreen(
+                    selectedAppsProvider = { selectedAppsChoice.value }
+                ).apply { route = "permissions" })
             }
             if (isFirstRunFlow || hasRequirement(Requirements.SAVE_FOLDER)) {
                 add(SaveFolderScreen().apply { route = "saveFolder" })
@@ -211,6 +247,7 @@ class SetupActivity : ComponentActivity() {
                 clearProgress()
                 skipPatchChoice.value = false
                 installModeChoice.value = null
+                selectedAppsChoice.value = emptySet()
             }
 
         setContent {
@@ -227,6 +264,7 @@ class SetupActivity : ComponentActivity() {
             }
             val skipPatch by rememberSaveable { skipPatchChoice }
             val installMode by installModeChoice
+            val selectedApps by selectedAppsChoice
             val shouldShowAbiWarning = remember {
                 val deviceIsArm64 = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it.startsWith("arm64") }
                 val libDir = context.applicationInfo.nativeLibraryDir.orEmpty()
@@ -252,7 +290,7 @@ class SetupActivity : ComponentActivity() {
                     }
                 )
             }
-            val visibleScreens = remember(skipPatch, installMode) {
+            val visibleScreens = remember(skipPatch, installMode, selectedApps) {
                 requiredScreens.filterNot { screen ->
                     if (skipPatch && (screen is PatchSnapchatScreen || screen is RootInstallSnapchatScreen)) {
                         return@filterNot true
@@ -266,10 +304,16 @@ class SetupActivity : ComponentActivity() {
                     if (installMode == InstallMode.NON_ROOT && screen is RootInstallSnapchatScreen) {
                         return@filterNot true
                     }
+                    if (selectedApps.isNotEmpty() && TargetApp.SNAPCHAT !in selectedApps && screen is MappingsScreen) {
+                        return@filterNot true
+                    }
+                    if (selectedApps == setOf(TargetApp.REDDIT) && screen is SaveFolderScreen) {
+                        return@filterNot true
+                    }
                     false
                 }
             }
-            val stepMeta = remember(skipPatch, installMode) { visibleScreens.map { it.meta(setupContext) } }
+            val stepMeta = remember(skipPatch, installMode, selectedApps) { visibleScreens.map { it.meta(setupContext) } }
             val currentStepIndex = visibleScreens.indexOfFirst { it.route == currentRoute }.let {
                 if (it == -1) 0 else it
             }
@@ -277,7 +321,7 @@ class SetupActivity : ComponentActivity() {
                 targetValue = (currentStepIndex + 1f) / stepMeta.size.toFloat(),
                 label = "SetupProgress"
             )
-            LaunchedEffect(skipPatch) {
+            LaunchedEffect(skipPatch, installMode, selectedApps) {
                 val adjustedRoute = visibleScreens.firstOrNull { it.route == currentRoute }?.route
                     ?: run {
                         val currentIndex = requiredScreens.indexOfFirst { it.route == currentRoute }.coerceAtLeast(0)
@@ -290,8 +334,8 @@ class SetupActivity : ComponentActivity() {
                 }
             }
 
-            LaunchedEffect(currentRoute, skipPatch, installMode) {
-                persistProgress(currentRoute, skipPatch, installMode, true)
+            LaunchedEffect(currentRoute, skipPatch, installMode, selectedApps) {
+                persistProgress(currentRoute, skipPatch, installMode, selectedApps, true)
                 if (navController.currentDestination?.route != currentRoute) {
                     navController.navigate(currentRoute) {
                         popUpTo(requiredScreens.first().route) { inclusive = false }
@@ -314,6 +358,9 @@ class SetupActivity : ComponentActivity() {
                         val nextRoute = visibleScreens[currentStepIndex + 1].route
                         currentRoute = nextRoute
                     } else {
+                        val preferredTarget = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT)
+                            .firstOrNull { it in selectedApps }
+                        preferredTarget?.let { setupContext.setActiveTargetApp(it) }
                         clearProgress()
                         endActivity()
                     }
@@ -343,7 +390,7 @@ class SetupActivity : ComponentActivity() {
                 ) {
                     SetupAuroraBackground()
                     SetupTopBar(onAskAi = { setupAiPrompt = "hi" })
-                    val bottomPadding = 118.dp + navBarPadding
+                    val bottomPadding = 80.dp + navBarPadding
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
@@ -354,7 +401,7 @@ class SetupActivity : ComponentActivity() {
                                 bottom = bottomPadding
                             )
                             .statusBarsPadding(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SetupHeader(
                             currentStep = stepMeta[currentStepIndex],
@@ -363,6 +410,9 @@ class SetupActivity : ComponentActivity() {
                         )
                         SetupProgressBar(animatedProgress)
                         val scrollState = rememberScrollState()
+                        LaunchedEffect(currentRoute) {
+                            scrollState.scrollTo(0)
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -399,17 +449,25 @@ class SetupActivity : ComponentActivity() {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .padding(horizontal = 10.dp, vertical = 10.dp),
+                                                .padding(horizontal = 10.dp, vertical = 4.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Column(
+                                            BoxWithConstraints(
                                                 modifier = Modifier
                                                     .widthIn(max = 560.dp)
-                                                    .verticalScroll(scrollState),
-                                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally
+                                                    .fillMaxHeight()
                                             ) {
-                                                screen.Content()
+                                                CompositionLocalProvider(
+                                                    LocalSetupScrollState provides scrollState,
+                                                    LocalSetupViewportHeight provides maxHeight
+                                                ) {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        screen.Content()
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -425,7 +483,7 @@ class SetupActivity : ComponentActivity() {
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
-                            .padding(bottom = 32.dp)
+                            .padding(bottom = 16.dp)
                     )
                     setupAiPrompt?.let { prompt ->
                         ManagerAssistantDialog(
@@ -452,8 +510,8 @@ private fun SetupScreen.meta(context: RemoteSideContext): SetupStepMeta {
         )
         is IntroShowcaseScreen -> SetupStepMeta(
             route = route,
-            title = "Welcome",
-            subtitle = "Preview what PurrfectSnap can do",
+            title = "Supported apps",
+            subtitle = "Choose Snapchat, Reddit, or both",
             icon = Icons.Filled.AutoAwesome
         )
 
@@ -847,7 +905,7 @@ private fun SetupContentCard(
                 )
             )
         ),
-        shadowElevation = 16.dp,
+        shadowElevation = 0.dp,
         tonalElevation = 0.dp
     ) {
         Box(
@@ -891,11 +949,11 @@ private fun NextButton(
         modifier = modifier
             .alpha(alpha)
             .scaleOnPress(interactionSource)
-            .clip(RoundedCornerShape(40.dp))
+            .clip(RoundedCornerShape(36.dp))
             .border(
                 width = 1.dp,
                 color = Color.White.copy(alpha = 0.24f),
-                shape = RoundedCornerShape(40.dp)
+                shape = RoundedCornerShape(36.dp)
             )
             .clickable(
                 enabled = enabled,
@@ -907,7 +965,7 @@ private fun NextButton(
         Box(
             modifier = Modifier
                 .background(if (enabled) gradient else Brush.horizontalGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.08f))))
-                .padding(horizontal = 28.dp, vertical = 18.dp)
+                .padding(horizontal = 24.dp, vertical = 14.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -921,12 +979,13 @@ private fun NextButton(
                     },
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
+                    fontSize = 15.sp
                 )
                 Icon(
                     imageVector = if (isFinalStep) Icons.Filled.Check else Icons.AutoMirrored.Filled.ArrowForwardIos,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }

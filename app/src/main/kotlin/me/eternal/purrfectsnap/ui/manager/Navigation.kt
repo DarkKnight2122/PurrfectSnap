@@ -186,7 +186,7 @@ class Navigation(
             ),
             actions = {
                 currentRoute?.topBarActions?.invoke(this)
-                if (currentRoute?.routeInfo?.id == routes.settings.routeInfo.id) {
+                if (currentRoute?.routeInfo?.id == routes.settings.routeInfo.id && !context.isLimitedTargetMode) {
                     IconButton(onClick = {
                         haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                         openBottomBarCustomization = true
@@ -203,8 +203,13 @@ class Navigation(
         val haptic = LocalHapticFeedback.current
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = remember(navBackStackEntry) { routes.getCurrentRoute(navBackStackEntry) }
-        val availableRoutes = remember {
-            listOf(routes.tasks, routes.features, routes.home, routes.social, routes.scripting, routes.friendTracker)
+        val isLimitedTargetMode = context.isLimitedTargetMode
+        val availableRoutes = remember(isLimitedTargetMode) {
+            if (isLimitedTargetMode) {
+                listOf(routes.home, routes.features)
+            } else {
+                listOf(routes.tasks, routes.features, routes.home, routes.social, routes.scripting, routes.friendTracker)
+            }
         }
         val availableRouteMap = remember(availableRoutes) { availableRoutes.associateBy { it.routeInfo.id } }
 
@@ -216,19 +221,24 @@ class Navigation(
         val iconTranslationY = (10 * focusFactor).dp
 
         val prefs = remember { context.sharedPreferences }
-        val defaultOrder = remember { listOf("tasks", "features", "home", "social", "scripts") }
+        val defaultOrder = remember(isLimitedTargetMode) {
+            if (isLimitedTargetMode) listOf("home", "features") else listOf("tasks", "features", "home", "social", "scripts")
+        }
         fun loadSelected(): List<String> {
+            if (isLimitedTargetMode) return defaultOrder
             val raw = prefs.getString("manager_nav_tabs", null)?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
             val cleaned = raw.filter { availableRouteMap.containsKey(it) }
             val list = (if (cleaned.isNotEmpty()) cleaned else defaultOrder).distinct()
             return list.take(5)
         }
-        var defaultTabId by remember { mutableStateOf(prefs.getString("manager_default_tab", "home") ?: "home") }
+        var defaultTabId by remember(isLimitedTargetMode) { mutableStateOf(if (isLimitedTargetMode) "home" else prefs.getString("manager_default_tab", "home") ?: "home") }
         fun saveDefault(id: String) {
+            if (isLimitedTargetMode) return
             defaultTabId = id
             prefs.edit().putString("manager_default_tab", id).apply()
         }
         fun saveSelected(ids: List<String>) {
+            if (isLimitedTargetMode) return
             if (defaultTabId !in ids) {
                 val candidate = when {
                     "home" in ids -> "home"
@@ -239,7 +249,7 @@ class Navigation(
             }
             prefs.edit().putString("manager_nav_tabs", ids.joinToString(",")).apply()
         }
-        var selectedTabIds by remember { mutableStateOf(loadSelected()) }
+        var selectedTabIds by remember(isLimitedTargetMode) { mutableStateOf(loadSelected()) }
         val selectedRoutes = remember(selectedTabIds) { selectedTabIds.mapNotNull { availableRouteMap[it] } }
         val barShape = RoundedCornerShape(28.dp)
         val barBorder = remember {

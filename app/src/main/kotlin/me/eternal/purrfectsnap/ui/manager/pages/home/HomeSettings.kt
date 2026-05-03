@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
@@ -46,6 +47,7 @@ import androidx.work.WorkManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfectsnap.R
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.common.action.EnumAction
 import me.eternal.purrfectsnap.common.bridge.InternalFileHandleType
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
@@ -123,6 +125,74 @@ class HomeSettings : Routes.Route() {
             val currentTheme = ManagerTheme.fromId(themeId).theme
             with(currentTheme) {
                 this@HomeSettings.SettingsScreen(nav)
+            }
+        }
+    }
+
+    @Composable
+    private fun LimitedTargetSettingsScreen() {
+        val hapticFeedback = LocalHapticFeedback.current
+        val currentTarget = context.activeTargetApp
+        val title = when (currentTarget) {
+            TargetApp.REDDIT -> translation["reddit_settings_title"]
+            TargetApp.SNAPCHAT -> translation["target_app_title"]
+        }
+        val icon = Icons.Filled.Forum
+        fun switchTo(targetApp: TargetApp) {
+            if (context.config.root.global.uiSettings.hapticFeedback.get()) {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            context.setActiveTargetApp(targetApp)
+            routes.home.navigateReset()
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HomeRootSection.pageBackgroundGradient)
+                .padding(horizontal = 18.dp)
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT)
+                    .filter { it != currentTarget }
+                    .forEach { targetApp ->
+                        Button(
+                            onClick = { switchTo(targetApp) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = Color(0xFF1B152E)
+                            )
+                        ) {
+                            Icon(Icons.Filled.Forum, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                when (targetApp) {
+                                    TargetApp.SNAPCHAT -> translation["switch_to_snapchat_button"]
+                                    TargetApp.REDDIT -> translation["switch_to_reddit_button"]
+                                }
+                            )
+                        }
+                }
             }
         }
     }

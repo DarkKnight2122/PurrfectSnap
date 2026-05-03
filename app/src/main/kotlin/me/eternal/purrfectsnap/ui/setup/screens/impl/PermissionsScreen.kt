@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfectsnap.ui.setup.screens.SetupScreen
 import me.eternal.purrfectsnap.ui.util.ActivityLauncherHelper
@@ -64,16 +65,22 @@ data class PermissionData(
     val requestPermission: (PermissionData) -> Unit,
 )
 
-class PermissionsScreen : SetupScreen() {
+class PermissionsScreen(
+    private val selectedAppsProvider: () -> Set<TargetApp> = { setOf(TargetApp.SNAPCHAT) }
+) : SetupScreen() {
     private lateinit var activityLauncherHelper: ActivityLauncherHelper
 
     override fun init() {
         activityLauncherHelper = ActivityLauncherHelper(context.activity!!)
     }
 
-    private fun descriptionFor(key: String): String {
+    private fun descriptionFor(key: String, redditOnly: Boolean): String {
         return when (key) {
-            "notification_access" -> context.translation["setup.permissions.notification_access_description"]
+            "notification_access" -> if (redditOnly) {
+                context.translation["setup.permissions.notification_access_description_reddit"]
+            } else {
+                context.translation["setup.permissions.notification_access_description"]
+            }
             "battery_optimization" -> context.translation["setup.permissions.battery_optimization_description"]
             "display_over_other_apps" -> context.translation["setup.permissions.display_over_other_apps_description"]
             else -> ""
@@ -85,6 +92,7 @@ class PermissionsScreen : SetupScreen() {
         label: String,
         translationKey: String,
         granted: Boolean,
+        redditOnly: Boolean,
         onRequest: () -> Unit
     ) {
         val accent = if (granted) PurrfectPalette.glowSecondary else PurrfectPalette.glowPrimary
@@ -140,7 +148,7 @@ class PermissionsScreen : SetupScreen() {
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        val description = descriptionFor(translationKey)
+                        val description = descriptionFor(translationKey, redditOnly)
                         if (description.isNotBlank()) {
                             Text(
                                 text = description,
@@ -206,10 +214,12 @@ class PermissionsScreen : SetupScreen() {
     @Composable
     override fun Content() {
         val coroutineScope = rememberCoroutineScope()
+        val selectedApps = selectedAppsProvider()
+        val redditOnly = selectedApps == setOf(TargetApp.REDDIT)
         val grantedPermissions = remember {
             mutableStateMapOf<String, Boolean>()
         }
-        val permissions = remember {
+        val permissions = remember(redditOnly) {
             listOf(
                 PermissionData(
                     translationKey = "notification_access",
@@ -264,7 +274,7 @@ class PermissionsScreen : SetupScreen() {
                         }
                     }
                 )
-            )
+            ).filterNot { redditOnly && it.translationKey == "display_over_other_apps" }
         }
 
         fun updateState() {
@@ -302,7 +312,8 @@ class PermissionsScreen : SetupScreen() {
                     PermissionRow(
                         label = context.translation["setup.permissions.${perm.translationKey}"],
                         translationKey = perm.translationKey,
-                        granted = grantedPermissions[perm.translationKey] == true
+                        granted = grantedPermissions[perm.translationKey] == true,
+                        redditOnly = redditOnly
                     ) {
                         if (perm.isPermissionGranted()) {
                             grantedPermissions[perm.translationKey] = true

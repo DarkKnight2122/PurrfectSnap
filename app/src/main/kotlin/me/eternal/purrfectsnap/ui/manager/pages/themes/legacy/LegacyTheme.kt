@@ -59,12 +59,15 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.drawToBitmap
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -84,6 +87,7 @@ import me.eternal.purrfectsnap.LogReader
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.action.EnumQuickActions
 import me.eternal.purrfectsnap.common.BuildConfig
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.common.action.EnumAction
 import me.eternal.purrfectsnap.common.bridge.InternalFileHandleType
 import me.eternal.purrfectsnap.common.bridge.wrapper.LoggerConversationExportTarget
@@ -220,6 +224,7 @@ object LegacyTheme : ThemeContract {
         ) {
             val heroShape = RoundedCornerShape(36.dp)
             val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
+            val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
             Box(
                 modifier = Modifier
                     .padding(horizontal = cardMargin, vertical = 6.dp)
@@ -233,9 +238,20 @@ object LegacyTheme : ThemeContract {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("PurrfectSnap", color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, fontFamily = avenirNext)
+                        Text(
+                            buildAnnotatedString {
+                                append("Purrfect")
+                                withStyle(SpanStyle(color = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100))) {
+                                    append(if (isRedditMode) "Reddit" else "Snap")
+                                }
+                            },
+                            color = Color.White,
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = avenirNext
+                        )
                         Text("By ΞTΞRNAL", color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext)
-                        Text(text = translation["hero_tagline"] ?: "", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
+                        Text(text = if (isRedditMode) (translation["hero_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["hero_tagline"] ?: "", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
                     }
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -298,13 +314,15 @@ object LegacyTheme : ThemeContract {
                         tonalElevation = 0.dp, shadowElevation = 0.dp
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), tonalElevation = 0.dp, shadowElevation = 0.dp) {
-                                Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(if (isPurrAuraActive) PurrfectPalette.glowPrimary else Color(0xFF8C8CA3)))
-                                    Text(
-                                        text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
-                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
-                                    )
+                            if (!isRedditMode) {
+                                Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), tonalElevation = 0.dp, shadowElevation = 0.dp) {
+                                    Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(if (isPurrAuraActive) PurrfectPalette.glowPrimary else Color(0xFF8C8CA3)))
+                                        Text(
+                                            text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
+                                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp
+                                        )
+                                    }
                                 }
                             }
                             OutlinedButton(
@@ -334,7 +352,7 @@ object LegacyTheme : ThemeContract {
                             }
                             ExternalLinkIcon(
                                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
-                                onClick = { context.androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
+                                onClick = { context.androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"]) },
                                 tint = Color.White, containerColor = Color.White.copy(alpha = 0.14f)
                             )
                         }
@@ -345,8 +363,11 @@ object LegacyTheme : ThemeContract {
 
         val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
         val prefs = remember { context.sharedPreferences }
-        val allQuickTileNames = remember(cards) { cards.keys.map { it.first } }
+        val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
+        val activeCards = if (isRedditMode) redditCards else cards
+        val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
         val selectedTiles = rememberAsyncMutableStateList(defaultValue = allQuickTileNames) {
+            if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
             val storedTiles = context.database.getQuickTiles().filter { it.isNotBlank() }
             val hasInitializedQuickTiles = prefs.getBoolean(QUICK_TILES_INITIALIZED_PREF, false)
             when {
@@ -488,6 +509,8 @@ object LegacyTheme : ThemeContract {
         }
 
         var showQuickActionsMenu by remember { mutableStateOf(false) }
+        val quickActionsEnabled = isRedditMode || !context.isLimitedTargetMode
+        val hapticFeedback = LocalHapticFeedback.current
         val scrollState = rememberScrollState()
         val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         val contentBottomPadding = routes.bottomPadding + navigationBarPadding + 96.dp
@@ -528,13 +551,14 @@ object LegacyTheme : ThemeContract {
                     onUpdateAction = onUpdateButtonClick,
                     isPurrAuraActive = isPurrAuraActive,
                     onWebsiteClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app/", context.translation["toast_open_link_failed"]) },
-                    onTelegramClick = { context.androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
+                    onTelegramClick = { context.androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"]) },
                     onGithubClick = { context.androidContext.openLink("https://github.com/particle-box/PurrfectSnap", context.translation["toast_open_link_failed"]) },
                     authorName = "ETERNAL",
                     onManageClick = { routes.settings.navigate() },
                     avenirNext = avenirNext
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                if (quickActionsEnabled) {
                 AnimatedContent(targetState = selectedTiles.isNotEmpty(), label = "QuickActionsAnim") { hasQuickActions ->
                     val quickCardShape = RoundedCornerShape(34.dp)
                     Surface(
@@ -583,7 +607,7 @@ object LegacyTheme : ThemeContract {
                                     val tileWidth = if (computedWidth < preferredTileWidth) computedWidth else preferredTileWidth
                                     FlowRow(modifier = Modifier.fillMaxWidth().padding(all = gridPadding), horizontalArrangement = Arrangement.SpaceEvenly, verticalArrangement = Arrangement.spacedBy(spacing), maxItemsInEachRow = columns) {
                                         selectedTiles.forEach { tileName ->
-                                            val cardEntry = cards.entries.find { entry -> entry.key.first == tileName } ?: return@forEach
+                                                val cardEntry = activeCards.entries.find { entry -> entry.key.first == tileName } ?: return@forEach
                                             val (card, action) = cardEntry
                                             val interactionSource = remember { MutableInteractionSource() }
                                             Surface(
@@ -620,6 +644,7 @@ object LegacyTheme : ThemeContract {
                         }
                     }
                 }
+            }
             }
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -680,16 +705,18 @@ object LegacyTheme : ThemeContract {
             )
         }
 
-        if (showQuickActionsMenu) {
+        if (quickActionsEnabled && showQuickActionsMenu) {
             QuickActionsDialog(
-                quickActions = cards,
+                quickActions = activeCards,
                 selectedQuickActions = selectedTiles,
                 onDismiss = { showQuickActionsMenu = false },
                 onSave = { newList ->
                     val removed = selectedTiles.filter { it !in newList }
                     removed.forEach { clearTileSpan(it); clearTileOffset(it) }
                     selectedTiles.clear(); selectedTiles.addAll(newList)
-                    context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
+                    if (!isRedditMode) {
+                        context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
+                    }
                     showQuickActionsMenu = false
                 },
                 translation = translation
@@ -715,6 +742,194 @@ object LegacyTheme : ThemeContract {
         var showResetSetupDialog by remember { mutableStateOf(false) }
 
         val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        if (context.isLimitedTargetMode) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(PurrfectPalette.backgroundGradient)
+            ) {
+                if (showResetSetupDialog) {
+                    AestheticDialog(
+                        onDismissRequest = { showResetSetupDialog = false },
+                        title = (translation["reset_setup_dialog_title"] ?: "Reset Setup").replace("PurrfectSnap", "PurrfectReddit"),
+                        text = (translation["reset_setup_dialog_text"] ?: "").replace("PurrfectSnap", "PurrfectReddit"),
+                        icon = Icons.Filled.Warning,
+                        confirmButtonText = positiveLabel,
+                        dismissButtonText = negativeLabel,
+                        onConfirm = {
+                            showResetSetupDialog = false
+                            context.sharedPreferences.edit()
+                                .remove("setup_in_progress")
+                                .remove("setup_current_route")
+                                .remove("setup_skip_patch")
+                                .remove("setup_install_mode")
+                                .apply()
+                            context.config.reset()
+                            context.config.writeConfig()
+                            val intent = Intent(context.androidContext, me.eternal.purrfectsnap.ui.setup.SetupActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            context.androidContext.startActivity(intent)
+                            routes.navController.popBackStack()
+                        },
+                        onDismiss = { showResetSetupDialog = false },
+                        showCloseButton = false
+                    )
+                }
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .padding(top = topPadding),
+                        shape = RoundedCornerShape(26.dp),
+                        color = Color.White.copy(alpha = 0.07f),
+                        border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.05f)))),
+                        contentColor = Color.White
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            IconButton(onClick = { routes.navController.popBackStack() }) {
+                                Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+                            }
+                            Text(text = translation["manager.routes.home_settings"] ?: "Settings", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(48.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scrollState)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .padding(bottom = routes.bottomPadding + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        GlassCard {
+                            RowTitle(title = translation["target_app_title"] ?: "Target App")
+                            ShiftedRow {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Text(
+                                        text = translation["target_app_reddit_summary"] ?: "Current: Reddit",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White.copy(alpha = 0.82f)
+                                    )
+                                    Button(
+                                        onClick = {
+                                            if (context.config.root.global.uiSettings.hapticFeedback.get()) {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            }
+                                            context.setActiveTargetApp(TargetApp.SNAPCHAT)
+                                            routes.home.navigateReset()
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 54.dp),
+                                        shape = RoundedCornerShape(18.dp),
+                                        colors = sharedButtonColors,
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+                                    ) {
+                                        Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(translation["switch_to_snapchat_button"] ?: "Switch to Snapchat", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                        GlassCard {
+                            RowTitle(title = translation["actions_title"] ?: "Actions")
+                            RowAction(key = "change_language") { context.checkForRequirements(Requirements.LANGUAGE) }
+                        }
+                        GlassCard {
+                            RowTitle(title = translation["ui_theme_title"] ?: "UI Theme")
+                            ShiftedRow {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = translation["settings_ui_theme"] ?: "Aphelion Theme", fontSize = 14.sp, color = Color.White)
+                                    val currentThemeId = context.config.root.global.uiSettings.managerTheme.get()
+                                    var localThemeId by remember { mutableStateOf(currentThemeId) }
+                                    Switch(
+                                        checked = localThemeId == "APHELION",
+                                        onCheckedChange = { isAphelion ->
+                                            val newId = if (isAphelion) "APHELION" else "LEGACY"
+                                            localThemeId = newId
+                                            AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                            val bitmap = runCatching { view.drawToBitmap() }.getOrNull()
+                                            routes.navigation?.themeRevealState?.requestReveal(
+                                                newThemeId = newId,
+                                                originCenter = switchCenter,
+                                                bitmap = bitmap
+                                            )
+                                            scope.launch {
+                                                kotlinx.coroutines.delay(50)
+                                                context.config.root.global.uiSettings.managerTheme.set(newId)
+                                                val writeJob = launch(kotlinx.coroutines.Dispatchers.IO) {
+                                                    context.config.writeConfig()
+                                                }
+                                                writeJob.join()
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .padding(end = 26.dp)
+                                            .onGloballyPositioned { coords ->
+                                                val rootPos = coords.positionInRoot()
+                                                switchCenter = androidx.compose.ui.geometry.Offset(
+                                                    x = rootPos.x + coords.size.width / 2f,
+                                                    y = rootPos.y + coords.size.height / 2f
+                                                )
+                                            },
+                                        colors = purrfectSwitchColors()
+                                    )
+                                }
+                            }
+                        }
+                        GlassCard {
+                            RowTitle(title = translation["ui_settings_title"] ?: "UI Settings")
+                            ShiftedRow {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(text = translation["haptic_feedback_label"] ?: "Haptic Feedback", fontSize = 14.sp)
+                                        var hapticEnabled by remember { mutableStateOf(context.config.root.global.uiSettings.hapticFeedback.getNullable() ?: true) }
+                                        Switch(checked = hapticEnabled, onCheckedChange = { if (it) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); hapticEnabled = it; context.config.root.global.uiSettings.hapticFeedback.set(it); context.config.writeConfig() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
+                                    }
+                                }
+                            }
+                        }
+                        GlassCard {
+                            RowTitle(title = translation["updates_title"] ?: "Updates")
+                            var autoUpdateCheck by remember { mutableStateOf(context.config.root.global.updateSettings.autoUpdateCheck.getNullable() ?: true) }
+                            ShiftedRow {
+                                Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                                    Text(text = translation["auto_update_check"] ?: "Auto Update Check", fontSize = 14.sp)
+                                    Switch(checked = autoUpdateCheck, onCheckedChange = { if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); autoUpdateCheck = it; context.config.root.global.updateSettings.autoUpdateCheck.set(it); context.config.writeConfig(); scheduleUpdateCheck() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
+                                }
+                            }
+                        }
+                        GlassCard {
+                            RowTitle(title = (translation["reset_setup_title"] ?: "Reset Setup").replace("PurrfectSnap", "PurrfectReddit"))
+                            ShiftedRow(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp).clickable { showResetSetupDialog = true }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = (translation["reset_setup_action"] ?: "Reset and restart PurrfectSnap").replace("PurrfectSnap", "PurrfectReddit"), fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+                                Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 14.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -783,6 +998,47 @@ object LegacyTheme : ThemeContract {
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        GlassCard {
+                            RowTitle(title = translation["target_app_title"] ?: "Target App")
+                            ShiftedRow {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    Text(
+                                        text = translation["target_app_snapchat_summary"] ?: "Current: Snapchat",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White.copy(alpha = 0.82f)
+                                    )
+                                    Button(
+                                        onClick = {
+                                            if (context.config.root.global.uiSettings.hapticFeedback.get()) {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            }
+                                            context.setActiveTargetApp(TargetApp.REDDIT)
+                                            routes.home.navigateReset()
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 54.dp),
+                                        shape = RoundedCornerShape(18.dp),
+                                        colors = sharedButtonColors,
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+                                    ) {
+                                        Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            translation["switch_to_reddit_button"] ?: "Switch to Reddit",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         GlassCard {
                             RowTitle(title = translation["ui_theme_title"] ?: "UI Theme")
                             ShiftedRow {
@@ -1785,7 +2041,7 @@ object LegacyTheme : ThemeContract {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = translation["github_button"] ?: "GitHub", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            OutlinedButton(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"] ?: "") }, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) {
+                            OutlinedButton(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"] ?: "") }, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) {
                                 Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram), contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = translation["telegram_button"] ?: "Telegram", maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -2383,7 +2639,7 @@ object LegacyTheme : ThemeContract {
     }
 
     @Composable override fun FeaturesRootSection.FeaturesScreen(nav: NavBackStackEntry) {
-        Container(context.config.root, stateKey = "${routeInfo.id}:container:root")
+        Container(featureRootContainer(), stateKey = "${routeInfo.id}:container:root")
     }
     @Composable override fun ScriptingRootSection.ScriptingScreen(nav: NavBackStackEntry) {
         val scriptingFolder by rememberAsyncMutableState(

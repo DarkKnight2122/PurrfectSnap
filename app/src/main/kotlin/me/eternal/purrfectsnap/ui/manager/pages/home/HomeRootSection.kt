@@ -55,8 +55,10 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.StopCircle
 import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -119,6 +121,7 @@ import kotlinx.coroutines.withContext
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.action.EnumQuickActions
 import me.eternal.purrfectsnap.common.BuildConfig
+import me.eternal.purrfectsnap.common.Constants
 import me.eternal.purrfectsnap.common.action.EnumAction
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableStateList
@@ -195,6 +198,16 @@ class HomeRootSection : Routes.Route() {
                 }
             }
         }
+    }
+    internal val redditCards by lazy {
+        mutableMapOf<Pair<String, ImageVector>, Routes.() -> Unit>(
+            ("Force Stop Reddit" to Icons.Default.StopCircle) to {
+                context.forceStopTargetPackage(Constants.REDDIT_PACKAGE_NAME, "Reddit")
+            },
+            ("Open Reddit" to Icons.Default.OpenInNew) to {
+                context.openTargetPackage(Constants.REDDIT_PACKAGE_NAME, "Reddit")
+            }
+        )
     }
 
     @Composable

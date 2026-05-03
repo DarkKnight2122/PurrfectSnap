@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FolderOpen
@@ -123,7 +121,6 @@ class SaveFolderScreen : SetupScreen() {
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
             val src = remember { MutableInteractionSource() }
             Button(
                 onClick = {
@@ -152,7 +149,6 @@ class SaveFolderScreen : SetupScreen() {
             ) {
                 Text(text = context.translation["setup.dialogs.select_save_folder_button"])
             }
-            Spacer(modifier = Modifier.height(10.dp))
             val defaultSrc = remember { MutableInteractionSource() }
             OutlinedButton(
                 onClick = {

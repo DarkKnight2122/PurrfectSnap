@@ -33,11 +33,13 @@ import me.eternal.purrfectsnap.bridge.BridgeService
 import me.eternal.purrfectsnap.common.BuildConfig
 import me.eternal.purrfectsnap.common.Constants
 import me.eternal.purrfectsnap.common.ReceiversConfig
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.common.action.EnumAction
 import me.eternal.purrfectsnap.common.bridge.wrapper.LocaleWrapper
 import me.eternal.purrfectsnap.common.bridge.wrapper.LoggerWrapper
 import me.eternal.purrfectsnap.common.bridge.wrapper.MappingsWrapper
 import me.eternal.purrfectsnap.common.config.ModConfig
+import me.eternal.purrfectsnap.common.config.impl.RootConfig
 import me.eternal.purrfectsnap.common.logger.fatalCrash
 import me.eternal.purrfectsnap.common.util.snap.SnapWidgetBroadcastReceiverHelper
 import me.eternal.purrfectsnap.common.util.constantLazyBridge
@@ -62,6 +64,7 @@ import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 
@@ -84,6 +87,13 @@ class RemoteSideContext(
         set(value) { _activity?.clear(); _activity = WeakReference(value) }
 
     val sharedPreferences: SharedPreferences get() = androidContext.getSharedPreferences("prefs", 0)
+    private var targetAppOverride: TargetApp? = null
+    val activeTargetApp: TargetApp
+        get() = targetAppOverride ?: TargetApp.fromKey(sharedPreferences.getString(TargetApp.PREF_KEY, TargetApp.SNAPCHAT.key))
+    val isRedditMode: Boolean
+        get() = activeTargetApp == TargetApp.REDDIT
+    val isLimitedTargetMode: Boolean
+        get() = activeTargetApp != TargetApp.SNAPCHAT
     val fileHandleManager = RemoteFileHandleManager(this)
     val database = AppDatabase(this)
     val trackerDataManager = me.eternal.purrfectsnap.storage.TrackerDataManagerImpl(database)
@@ -135,6 +145,8 @@ class RemoteSideContext(
                 log.init()
                 log.verbose("Loading RemoteSideContext")
                 config.load()
+                config.root.reddit.migrateLegacyFlags()
+                mirrorRedditFeaturePrefs()
                 ensureAutoUpdateCheckOnUpgrade()
                 launch {
                     mappings.apply {
@@ -279,6 +291,164 @@ class RemoteSideContext(
         androidContext.startActivity(intent)
     }
 
+    fun openTargetPackage(packageName: String, appLabel: String) {
+        val intent = androidContext.packageManager
+            .getLaunchIntentForPackage(packageName)
+            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        if (intent == null) {
+            shortToast("$appLabel is not installed")
+            return
+        }
+        androidContext.startActivity(intent)
+    }
+
+    fun forceStopTargetPackage(packageName: String, appLabel: String) {
+        if (packageName != Constants.REDDIT_PACKAGE_NAME) {
+            shortToast("Force stop is only available for Reddit")
+            return
+        }
+        runCatching {
+            androidContext.sendBroadcast(
+                Intent(Constants.REDDIT_FORCE_STOP_ACTION)
+                    .setPackage(Constants.REDDIT_PACKAGE_NAME)
+            )
+        }.onSuccess {
+            shortToast("Close signal sent to $appLabel")
+        }.onFailure {
+            log.warn("Failed to send close signal to $appLabel: ${it.message}")
+            shortToast("Failed to signal $appLabel")
+        }
+    }
+
+    fun setActiveTargetApp(targetApp: TargetApp) {
+        sharedPreferences.edit().putString(TargetApp.PREF_KEY, targetApp.key).apply()
+    }
+
+    fun setTargetAppOverride(targetApp: TargetApp?) {
+        targetAppOverride = targetApp
+    }
+
+    fun mirrorRedditFeaturePrefs() {
+        runCatching {
+            val redditJson = getRedditFeaturesJson()
+            File(androidContext.filesDir, REDDIT_FEATURE_CONFIG_FILE).apply {
+                parentFile?.mkdirs()
+                writeText(redditJson, Charsets.UTF_8)
+            }
+            redditFeatureExternalFiles().forEach { file ->
+                runCatching {
+                    file.parentFile?.mkdirs()
+                    file.writeText(redditJson, Charsets.UTF_8)
+                    file.parentFile?.setReadable(true, false)
+                    file.setReadable(true, false)
+                }.onFailure {
+                    log.warn("Failed to mirror Reddit feature config to ${file.absolutePath}: ${it.message}")
+                }
+            }
+
+            androidContext.getSharedPreferences(REDDIT_FEATURE_PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("block_promoted_posts", config.root.reddit.blockPromotedPostsEnabled())
+                .putBoolean("block_comment_ads", config.root.reddit.blockCommentAdsEnabled())
+                .putBoolean("unlock_reddit_premium", config.root.reddit.unlockRedditPremiumEnabled())
+                .putBoolean("open_links_in_external_browser", config.root.reddit.openLinksInExternalBrowserEnabled())
+                .putBoolean("disable_screenshot_popup", config.root.reddit.disableScreenshotPopupEnabled())
+                .putBoolean("hide_answers_button", false)
+                .putBoolean("hide_chat_button", false)
+                .putBoolean("hide_create_button", config.root.reddit.hideCreateButtonEnabled())
+                .putBoolean("hide_discover_communities_button", false)
+                .putBoolean("hide_games_button", false)
+                .putBoolean("hide_recently_visited_shelf", config.root.reddit.hideRecentlyVisitedShelfEnabled())
+                .putBoolean("hide_games_on_reddit_shelf", config.root.reddit.hideGamesOnRedditShelfEnabled())
+                .putBoolean("hide_reddit_pro_shelf", config.root.reddit.hideRedditProShelfEnabled())
+                .putBoolean("hide_about_shelf", config.root.reddit.hideAboutShelfEnabled())
+                .putBoolean("hide_resources_shelf", config.root.reddit.hideResourcesShelfEnabled())
+                .putBoolean("hide_recommended_communities", false)
+                .putBoolean("hide_trending_today_shelf", config.root.reddit.hideTrendingTodayShelfEnabled())
+                .putBoolean("remove_nsfw_warning_dialog", config.root.reddit.removeNsfwWarningDialogEnabled())
+                .putBoolean("remove_notification_suggestion_dialog", config.root.reddit.removeNotificationSuggestionDialogEnabled())
+                .putBoolean("sanitize_sharing_links", config.root.reddit.sanitizeSharingLinksEnabled())
+                .putBoolean("add_scroll_to_top_button", config.root.reddit.addScrollToTopButtonEnabled())
+                .putBoolean("color_coded_comment_threads", false)
+                .putBoolean("restore_deleted_content", false)
+                .commit()
+
+            val prefsFile = File(androidContext.applicationInfo.dataDir, "shared_prefs/$REDDIT_FEATURE_PREFS.xml")
+            File(androidContext.applicationInfo.dataDir).setExecutable(true, false)
+            File(androidContext.applicationInfo.dataDir).setReadable(true, false)
+            prefsFile.parentFile?.setExecutable(true, false)
+            prefsFile.parentFile?.setReadable(true, false)
+            prefsFile.setReadable(true, false)
+            broadcastRedditFeaturePrefs(redditJson)
+            log.verbose("Mirrored Reddit feature config JSON")
+        }.onFailure {
+            log.error("Failed to mirror Reddit feature prefs", it)
+        }
+    }
+
+    private fun broadcastRedditFeaturePrefs(json: String) {
+        runCatching {
+            androidContext.sendBroadcast(
+                Intent(Constants.REDDIT_CONFIG_UPDATE_ACTION)
+                    .setPackage(Constants.REDDIT_PACKAGE_NAME)
+                    .putExtra(Constants.REDDIT_CONFIG_JSON_EXTRA, json)
+            )
+        }.onFailure {
+            log.warn("Failed to broadcast Reddit feature config: ${it.message}")
+        }
+    }
+
+    fun getRedditFeaturesJson(): String {
+        return Gson().toJson(
+            mapOf(
+                "block_promoted_posts" to config.root.reddit.blockPromotedPostsEnabled(),
+                "block_comment_ads" to config.root.reddit.blockCommentAdsEnabled(),
+                "unlock_reddit_premium" to config.root.reddit.unlockRedditPremiumEnabled(),
+                "open_links_in_external_browser" to config.root.reddit.openLinksInExternalBrowserEnabled(),
+                "disable_screenshot_popup" to config.root.reddit.disableScreenshotPopupEnabled(),
+                "hide_answers_button" to false,
+                "hide_chat_button" to false,
+                "hide_create_button" to config.root.reddit.hideCreateButtonEnabled(),
+                "hide_discover_communities_button" to false,
+                "hide_games_button" to false,
+                "hide_recently_visited_shelf" to config.root.reddit.hideRecentlyVisitedShelfEnabled(),
+                "hide_games_on_reddit_shelf" to config.root.reddit.hideGamesOnRedditShelfEnabled(),
+                "hide_reddit_pro_shelf" to config.root.reddit.hideRedditProShelfEnabled(),
+                "hide_about_shelf" to config.root.reddit.hideAboutShelfEnabled(),
+                "hide_resources_shelf" to config.root.reddit.hideResourcesShelfEnabled(),
+                "hide_recommended_communities" to false,
+                "hide_trending_today_shelf" to config.root.reddit.hideTrendingTodayShelfEnabled(),
+                "remove_nsfw_warning_dialog" to config.root.reddit.removeNsfwWarningDialogEnabled(),
+                "remove_notification_suggestion_dialog" to config.root.reddit.removeNotificationSuggestionDialogEnabled(),
+                "sanitize_sharing_links" to config.root.reddit.sanitizeSharingLinksEnabled(),
+                "add_scroll_to_top_button" to config.root.reddit.addScrollToTopButtonEnabled(),
+                "color_coded_comment_threads" to false,
+                "restore_deleted_content" to false
+            )
+        )
+    }
+
+    fun resetActiveTargetConfig() {
+        if (isRedditMode) {
+            val defaults = RootConfig().apply { lateInit(androidContext) }
+            config.root.reddit.fromJson(defaults.reddit.toJson())
+        } else {
+            val redditConfig = config.root.reddit.toJson()
+            config.reset()
+            config.root.reddit.fromJson(redditConfig)
+        }
+        config.root.reddit.migrateLegacyFlags()
+        config.writeConfig()
+        mirrorRedditFeaturePrefs()
+    }
+
+    private fun redditFeatureExternalFiles(): List<File> {
+        return listOf(
+            File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE"),
+            File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE")
+        ).distinctBy { it.absolutePath }
+    }
+
     fun requestSocialSnapshotRefresh(
         openSnapchatFirst: Boolean = true,
         snapchatWarmupDelayMs: Long = 1200L,
@@ -376,5 +546,10 @@ class RemoteSideContext(
                 .apply()
         }
         sharedPreferences.edit().putLong("last_build_version_code", currentVersion).apply()
+    }
+
+    companion object {
+        const val REDDIT_FEATURE_PREFS = "reddit_features"
+        const val REDDIT_FEATURE_CONFIG_FILE = "reddit_features.json"
     }
 }

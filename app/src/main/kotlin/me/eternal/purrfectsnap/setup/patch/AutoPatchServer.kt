@@ -2,7 +2,7 @@ package me.eternal.purrfectsnap.setup.patch
 
 import com.google.gson.JsonParser
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
+import me.eternal.purrfectsnap.common.TargetApp
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -28,9 +28,23 @@ class AutoPatchServer(
         val downloadUrl: String,
     )
 
-    fun fetchLatestSnapchatApk(): LatestApk? {
+    fun fetchLatestSnapchatApk(): LatestApk? = fetchLatestApk(TargetApp.SNAPCHAT)
+
+    fun fetchLatestRedditApk(): LatestApk? = fetchLatestApk(TargetApp.REDDIT)
+
+    fun fetchLatestApk(targetApp: TargetApp): LatestApk? {
+        targetApp.releaseRepositories().forEach { repository ->
+            fetchLatestApkFromRepository(targetApp, repository)?.let { return it }
+        }
+        return null
+    }
+
+    private fun fetchLatestApkFromRepository(
+        targetApp: TargetApp,
+        repository: GithubRepository
+    ): LatestApk? {
         val request = Request.Builder()
-            .url("https://api.github.com/repos/particle-box/download-snap/releases/latest")
+            .url("https://api.github.com/repos/${repository.owner}/${repository.name}/releases/latest")
             .build()
 
         okHttpClient.newCall(request).execute().use { response ->
@@ -48,14 +62,47 @@ class AutoPatchServer(
                 name to downloadUrl
             }
 
-            val nonPrimary = apkAssets.filterNot { it.first.contains("snapchat", ignoreCase = true) }
-            val selectionPool = if (nonPrimary.isNotEmpty()) nonPrimary else apkAssets
-            val selected = selectionPool.random(Random.Default)
+            val selected = selectApkAsset(targetApp, apkAssets) ?: return null
 
             return LatestApk(
                 tagName = tagName,
                 apkName = selected.first,
                 downloadUrl = selected.second,
+            )
+        }
+    }
+
+    private fun selectApkAsset(
+        targetApp: TargetApp,
+        apkAssets: List<Pair<String, String>>
+    ): Pair<String, String>? {
+        if (apkAssets.isEmpty()) return null
+
+        return when (targetApp) {
+            TargetApp.SNAPCHAT -> {
+                apkAssets.firstOrNull { !it.first.contains("snapchat", ignoreCase = true) }
+                    ?: apkAssets.first()
+            }
+
+            TargetApp.REDDIT -> apkAssets.first()
+        }
+    }
+
+    private data class GithubRepository(
+        val owner: String,
+        val name: String
+    )
+
+    private fun TargetApp.releaseRepositories(): List<GithubRepository> {
+        return when (this) {
+            TargetApp.SNAPCHAT -> listOf(
+                GithubRepository("particle-box", "download-snap"),
+                GithubRepository("curious-freak", "download-snap")
+            )
+
+            TargetApp.REDDIT -> listOf(
+                GithubRepository("particle-box", "download-reddit"),
+                GithubRepository("curious-freak", "download-reddit")
             )
         }
     }

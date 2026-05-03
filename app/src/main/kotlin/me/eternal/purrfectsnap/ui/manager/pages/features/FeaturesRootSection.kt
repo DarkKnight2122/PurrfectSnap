@@ -123,24 +123,33 @@ class FeaturesRootSection : Routes.Route() {
         const val SEARCH_FEATURE_ROUTE = "search_feature/{keyword}"
     }
 
-    internal val allContainers by lazy {
+    internal fun featureRootContainer(): ConfigContainer {
+        return when {
+            context.isRedditMode -> context.config.root.reddit
+            else -> context.config.root
+        }
+    }
+
+    internal val allContainers: Map<String, PropertyPair<*>>
+        get() {
         val containers = mutableMapOf<String, PropertyPair<*>>()
         fun queryContainerRecursive(container: ConfigContainer) {
             container.properties.forEach {
                 if (
                     it.key.dataType.type == DataProcessors.Type.CONTAINER &&
-                    !it.key.params.flags.contains(ConfigFlag.HIDDEN)
+                    isVisibleForCurrentTarget(container, it.key)
                 ) {
                     containers[it.key.name] = (it.key to it.value).toPropertyPair() as PropertyPair<Any>
                     queryContainerRecursive(it.value.get() as ConfigContainer)
                 }
             }
         }
-        queryContainerRecursive(context.config.root)
-        containers
+        queryContainerRecursive(featureRootContainer())
+        return containers
     }
 
-    internal val allProperties by lazy {
+    internal val allProperties: Map<PropertyKey<*>, PropertyValue<*>>
+        get() {
         val properties = mutableMapOf<PropertyKey<*>, PropertyValue<*>>()
         allContainers.values.forEach {
             val container = it.value.get() as ConfigContainer
@@ -148,11 +157,17 @@ class FeaturesRootSection : Routes.Route() {
                 properties[property.key] = property.value
             }
         }
-        properties
+        return properties
     }
 
     internal fun isSearchVisibleProperty(propertyKey: PropertyKey<*>): Boolean {
         return !propertyKey.params.flags.contains(ConfigFlag.HIDDEN)
+    }
+
+    internal fun isVisibleForCurrentTarget(container: ConfigContainer, propertyKey: PropertyKey<*>): Boolean {
+        if (propertyKey.params.flags.contains(ConfigFlag.HIDDEN)) return false
+        if (!context.isLimitedTargetMode && container === context.config.root && propertyKey.name == "reddit") return false
+        return true
     }
 
     internal fun getFolderReadablePath(context: android.content.Context, folderUri: String?): String? {
@@ -459,6 +474,7 @@ class FeaturesRootSection : Routes.Route() {
         val isRandomizedProfileContainer = property.name == "randomize_device_profile"
         fun persistConfig() {
             context.config.writeConfig()
+            context.mirrorRedditFeaturePrefs()
             onConfigChanged()
         }
 
@@ -1229,8 +1245,7 @@ class FeaturesRootSection : Routes.Route() {
                                 Button(
                                     onClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        context.config.reset()
-                                        context.config.writeConfig()
+                                        context.resetActiveTargetConfig()
                                         context.shortToast(context.translation["manager.dialogs.reset_config.success_toast"] ?: "Reset successful")
                                         showResetConfirmationDialog = false
                                     },
@@ -1267,7 +1282,14 @@ class FeaturesRootSection : Routes.Route() {
                 Triple(translation["export_option"] ?: "Export", Icons.Filled.SaveAlt) {
                     {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        showExportDialog = true
+                        if (context.isRedditMode) {
+                            routes.configExportSummary.navigate {
+                                put("exportSensitiveData", "false")
+                                put("includeSavedLocations", "false")
+                            }
+                        } else {
+                            showExportDialog = true
+                        }
                     }
                 },
                 Triple(translation["import_option"] ?: "Import", Icons.Filled.FileDownload) {
@@ -1766,6 +1788,7 @@ class FeaturesRootSection : Routes.Route() {
         fun saveConfig() {
             context.coroutineScope.launch(Dispatchers.IO) {
                 context.config.writeConfig()
+                context.mirrorRedditFeaturePrefs()
                 context.log.verbose("saved config!")
             }
         }
@@ -1899,7 +1922,7 @@ class FeaturesRootSection : Routes.Route() {
         PropertiesView(
             properties = remember(configContainer.globalState) {
                 configContainer.properties.map { (it.key to it.value).toPropertyPair() as PropertyPair<Any> }.filter {
-                    !it.key.params.flags.contains(ConfigFlag.HIDDEN) &&
+                    isVisibleForCurrentTarget(configContainer, it.key) &&
                         (
                             configContainer !== context.config.root.experimental.spoof.randomizeDeviceProfile ||
                                 configContainer.globalState == true ||
@@ -1911,7 +1934,7 @@ class FeaturesRootSection : Routes.Route() {
             activeSectionTitle = sectionTitle,
             activeSectionSubtitle = sectionSubtitle,
             searchKeyword = searchKeyword,
-            enableGlobalSearch = configContainer == context.config.root,
+            enableGlobalSearch = configContainer == featureRootContainer(),
             onBack = onBack
         )
     }

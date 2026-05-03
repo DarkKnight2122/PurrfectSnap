@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.eternal.purrfectsnap.RemoteSideContext
 import me.eternal.purrfectsnap.SharedContextHolder
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.bridge.call.CallDownloadSession
 import me.eternal.purrfectsnap.bridge.snapclient.MessagingBridge
 import me.eternal.purrfectsnap.common.data.MessagingFriendInfo
@@ -293,7 +294,7 @@ class BridgeService : Service() {
         override fun openOverlay(type: String) {
             runCatching {
                 val overlayType = OverlayType.fromKey(type) ?: throw IllegalArgumentException("Unknown overlay type: $type")
-                remoteSideContext.remoteOverlay.show { routes ->
+                remoteSideContext.remoteOverlay.show(TargetApp.SNAPCHAT) { routes ->
                     when (overlayType) {
                         OverlayType.SETTINGS -> routes.features
                         OverlayType.BETTER_LOCATION -> routes.betterLocation
@@ -318,6 +319,11 @@ class BridgeService : Service() {
 
         override fun getDebugProp(key: String, defaultValue: String?): String? {
             return remoteSideContext.sharedPreferences.all["debug_$key"]?.toString() ?: defaultValue
+        }
+
+        override fun getRedditFeaturesJson(): String {
+            remoteSideContext.mirrorRedditFeaturePrefs()
+            return remoteSideContext.getRedditFeaturesJson()
         }
 
         override fun startCallDownload(

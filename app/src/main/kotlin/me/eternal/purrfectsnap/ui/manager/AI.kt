@@ -261,7 +261,7 @@ private class ManagerAssistantEngine(
 
     private fun basicsHelpReply(normalized: String): AssistantResult? {
         if (normalized == "hi" || normalized == "hello" || normalized == "hey") {
-            return AssistantResult("Hi, I am PurrfectSnap AI, an AI assistant designed to help you with anything related to PurrfectSnap and also help our developers and contributors, who deserve a little rest :)")
+            return AssistantResult("Hi, I am Purrfect AI, an AI assistant designed to help you with anything related to PurrfectSnap and also help our developers and contributors, who deserve a little rest :)")
         }
         if (normalized.contains("what is purrfectsnap used for")) {
             return AssistantResult("PurrfectSnap enhances Snapchat with privacy tools, downloader features, automation, UI tweaks, tracking tools, and quality-of-life features.")
@@ -2250,7 +2250,7 @@ fun ManagerAssistantDialog(
                             }
                             Column {
                                 Text(
-                                    text = "PurrfectSnap AI",
+                                    text = "Purrfect AI",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold

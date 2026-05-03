@@ -11,6 +11,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.AnimatedVisibility
@@ -41,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfectsnap.R
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.common.action.EnumAction
 import me.eternal.purrfectsnap.common.bridge.InternalFileHandleType
 import me.eternal.purrfectsnap.common.bridge.wrapper.LoggerConversationExportTarget
@@ -105,6 +107,11 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
         routes.navigation?.globalScrollOffset = computedScrollOffset
     }
 
+    if (context.isLimitedTargetMode) {
+        AphelionLimitedTargetSettingsScreen()
+        return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -152,6 +159,11 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    GlassCard {
+                        RowTitle(title = translation["target_app_title"] ?: "Target App")
+                        TargetAppSwitchRow(TargetApp.REDDIT)
+                    }
+
                     // THEME SWITCHER
                     GlassCard {
                         RowTitle(title = translation["ui_theme_title"] ?: "UI Theme")
@@ -1047,5 +1059,207 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
+    val hapticFeedback = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+    val view = LocalView.current
+    var switchCenter by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var controlsHeight by remember { mutableStateOf(100.dp) }
+    var showResetSetupDialog by remember { mutableStateOf(false) }
+    val computedScrollOffset by remember { derivedStateOf { scrollState.value } }
+
+    LaunchedEffect(computedScrollOffset) {
+        routes.navigation?.globalScrollOffset = computedScrollOffset
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(PurrfectPalette.backgroundGradient)
+    ) {
+        if (showResetSetupDialog) {
+            AestheticDialog(
+                onDismissRequest = { showResetSetupDialog = false },
+                title = (translation["reset_setup_dialog_title"] ?: "Reset Setup").replace("PurrfectSnap", "PurrfectReddit"),
+                text = (translation["reset_setup_dialog_text"] ?: "").replace("PurrfectSnap", "PurrfectReddit"),
+                icon = Icons.Filled.Warning,
+                confirmButtonText = context.translation["button.positive"],
+                dismissButtonText = context.translation["button.negative"],
+                onConfirm = {
+                    showResetSetupDialog = false
+                    context.sharedPreferences.edit()
+                        .remove("setup_in_progress")
+                        .remove("setup_current_route")
+                        .remove("setup_skip_patch")
+                        .remove("setup_install_mode")
+                        .apply()
+                    context.config.reset()
+                    context.config.writeConfig()
+                    val intent = Intent(context.androidContext, me.eternal.purrfectsnap.ui.setup.SetupActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    context.androidContext.startActivity(intent)
+                    routes.navController.popBackStack()
+                },
+                onDismiss = { showResetSetupDialog = false },
+                showCloseButton = false
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 12.dp)
+                .padding(bottom = routes.bottomPadding + 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Spacer(Modifier.height(controlsHeight))
+            GlassCard {
+                RowTitle(title = translation["target_app_title"] ?: "Target App")
+                TargetAppSwitchRow(TargetApp.SNAPCHAT)
+            }
+            GlassCard {
+                RowTitle(title = translation["actions_title"] ?: "Actions")
+                RowAction(key = "change_language") { context.checkForRequirements(Requirements.LANGUAGE) }
+            }
+            GlassCard {
+                RowTitle(title = translation["ui_theme_title"] ?: "UI Theme")
+                ShiftedRow {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = translation["settings_ui_theme"] ?: "Aphelion Theme", fontSize = 14.sp, color = Color.White)
+                        val currentThemeId = context.config.root.global.uiSettings.managerTheme.get()
+                        var localThemeId by remember { mutableStateOf(currentThemeId) }
+                        Switch(
+                            checked = localThemeId == "APHELION",
+                            onCheckedChange = { isAphelion ->
+                                val newId = if (isAphelion) "APHELION" else "LEGACY"
+                                localThemeId = newId
+                                AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                val bitmap = runCatching { view.drawToBitmap() }.getOrNull()
+                                routes.navigation?.themeRevealState?.requestReveal(
+                                    newThemeId = newId,
+                                    originCenter = switchCenter,
+                                    bitmap = bitmap
+                                )
+                                scope.launch {
+                                    kotlinx.coroutines.delay(50)
+                                    context.config.root.global.uiSettings.managerTheme.set(newId)
+                                    val writeJob = launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        context.config.writeConfig()
+                                    }
+                                    writeJob.join()
+                                }
+                            },
+                            modifier = Modifier
+                                .padding(end = 26.dp)
+                                .onGloballyPositioned { coords ->
+                                    val rootPos = coords.positionInRoot()
+                                    switchCenter = androidx.compose.ui.geometry.Offset(
+                                        x = rootPos.x + coords.size.width / 2f,
+                                        y = rootPos.y + coords.size.height / 2f
+                                    )
+                                },
+                            colors = purrfectSwitchColors()
+                        )
+                    }
+                }
+            }
+            GlassCard {
+                RowTitle(title = translation["ui_settings_title"] ?: "UI Settings")
+                ShiftedRow {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(text = translation["haptic_feedback_label"] ?: "Haptic Feedback", fontSize = 14.sp)
+                            var hapticEnabled by remember { mutableStateOf(context.config.root.global.uiSettings.hapticFeedback.getNullable() ?: true) }
+                            Switch(checked = hapticEnabled, onCheckedChange = { if (it) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); hapticEnabled = it; context.config.root.global.uiSettings.hapticFeedback.set(it); context.config.writeConfig() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
+                        }
+                    }
+                }
+            }
+            GlassCard {
+                RowTitle(title = translation["updates_title"] ?: "Updates")
+                var autoUpdateCheck by remember { mutableStateOf(context.config.root.global.updateSettings.autoUpdateCheck.getNullable() ?: true) }
+                ShiftedRow {
+                    Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(text = translation["auto_update_check"] ?: "Auto Update Check", fontSize = 14.sp)
+                        Switch(checked = autoUpdateCheck, onCheckedChange = { if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); autoUpdateCheck = it; context.config.root.global.updateSettings.autoUpdateCheck.set(it); context.config.writeConfig(); scheduleUpdateCheck() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
+                    }
+                }
+            }
+            GlassCard {
+                RowTitle(title = (translation["reset_setup_title"] ?: "Reset Setup").replace("PurrfectSnap", "PurrfectReddit"))
+                ShiftedRow(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp).clickable { showResetSetupDialog = true }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = (translation["reset_setup_action"] ?: "Reset and restart PurrfectSnap").replace("PurrfectSnap", "PurrfectReddit"), fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+                    Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 14.dp))
+                }
+            }
+        }
+
+        FloatingTopBar(
+            title = routeInfo.translatedKey?.value ?: translation["manager.routes.home_settings"] ?: "Settings",
+            onBack = { routes.navController.popBackStack() },
+            scrollOffset = computedScrollOffset,
+            enableMorph = true,
+            titleAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.headerHeightTracker { controlsHeight = it },
+            actions = {}
+        )
+    }
+}
+
+@Composable
+private fun HomeSettings.TargetAppSwitchRow(targetApp: TargetApp) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val currentLabel = when (context.activeTargetApp) {
+        TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
+        TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
+    }
+    val buttonLabel = when (targetApp) {
+        TargetApp.SNAPCHAT -> translation["switch_to_snapchat_button"] ?: "Switch to Snapchat"
+        TargetApp.REDDIT -> translation["switch_to_reddit_button"] ?: "Switch to Reddit"
+    }
+
+    ShiftedRow {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = currentLabel,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.82f)
+            )
+            Button(
+                onClick = {
+                    AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                    context.setActiveTargetApp(targetApp)
+                    routes.home.navigateReset()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 54.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White.copy(alpha = 0.1f),
+                    contentColor = Color.White
+                ),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+            ) {
+                Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(buttonLabel, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }

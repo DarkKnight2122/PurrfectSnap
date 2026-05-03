@@ -29,6 +29,7 @@ import androidx.navigation.compose.rememberNavController
 import com.arthenica.ffmpegkit.Packages.getPackageName
 import me.eternal.purrfectsnap.R
 import me.eternal.purrfectsnap.RemoteSideContext
+import me.eternal.purrfectsnap.common.TargetApp
 import me.eternal.purrfectsnap.common.ui.AppMaterialTheme
 import me.eternal.purrfectsnap.common.ui.ThemeMode
 import me.eternal.purrfectsnap.common.ui.createComposeView
@@ -78,13 +79,14 @@ class RemoteOverlay(
     fun close() {
         if (!::dialog.isInitialized || !dialog.isShowing) return
         dismissCallback = null
+        context.setTargetAppOverride(null)
         context.sharedPreferences.edit().putBoolean("overlay_active", false).apply()
         context.androidContext.mainExecutor.execute {
             dialog.dismiss()
         }
     }
 
-    fun show(route: (Routes) -> Routes.Route) {
+    fun show(targetAppOverride: TargetApp? = null, route: (Routes) -> Routes.Route) {
         if (!checkForPermissions()) {
             return
         }
@@ -93,6 +95,7 @@ class RemoteOverlay(
             return
         }
 
+        context.setTargetAppOverride(targetAppOverride)
         context.sharedPreferences.edit().putBoolean("overlay_active", true).apply()
         context.androidContext.mainExecutor.execute {
             dialog = object: Dialog(context.androidContext, R.style.FullscreenOverlayDialog) {
@@ -104,6 +107,7 @@ class RemoteOverlay(
                     this@RemoteOverlay.context.sharedPreferences.edit()
                         .putBoolean("overlay_active", false)
                         .apply()
+                    this@RemoteOverlay.context.setTargetAppOverride(null)
                     this@RemoteOverlay.context.config.writeConfig()
                 }
             }

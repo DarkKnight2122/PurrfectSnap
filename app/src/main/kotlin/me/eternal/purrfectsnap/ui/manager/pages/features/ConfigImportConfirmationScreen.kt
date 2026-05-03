@@ -229,7 +229,9 @@ class ConfigImportConfirmationScreen : Routes.Route() {
     override val content: @Composable (androidx.navigation.NavBackStackEntry) -> Unit = {
         val parser = remember { ConfigParser() }
         val featuresByCategory = remember {
-            routes.configJsonForImport?.let { parser.parse(it) } ?: emptyMap()
+            routes.configJsonForImport?.let {
+                parser.parse(ScopedConfigJson.importForActiveTarget(context, it))
+            } ?: emptyMap()
         }
         val expandedState = remember { mutableStateMapOf<String, Boolean>() }
         val importLabel = translation["confirm_button"]
@@ -298,12 +300,15 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                             onClick = {
                                 routes.configJsonForImport?.let { json ->
                                     runCatching {
-                                        val savedLocationsJson = context.config.loadFromString(json)
+                                        val scopedJson = ScopedConfigJson.importForActiveTarget(context, json)
+                                        val savedLocationsJson = context.config.loadFromString(scopedJson)
+                                        context.config.root.reddit.migrateLegacyFlags()
                                         
                                         // Import saved locations if present in the JSON
                                         savedLocationsJson?.let { locationsArray ->
-                                            importSavedLocations(locationsArray)
+                                            if (!context.isRedditMode) importSavedLocations(locationsArray)
                                         }
+                                        context.mirrorRedditFeaturePrefs()
                                     }.onFailure { err ->
                                         context.longToast(
                                             context.translation.format(

@@ -39,9 +39,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -175,17 +172,6 @@ class InstallModeScreen(
                             )
                             Text(
                                 text = context.translation["setup.install_mode.notice_issues_hint"],
-                                style = bodyStyle,
-                                textAlign = TextAlign.Start,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Text(
-                                text = buildAnnotatedString {
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
-                                        append(context.translation["setup.install_mode.notice_note_prefix"])
-                                    }
-                                    append(context.translation["setup.install_mode.notice_note_body"])
-                                },
                                 style = bodyStyle,
                                 textAlign = TextAlign.Start,
                                 modifier = Modifier.fillMaxWidth()
