@@ -416,7 +416,13 @@ open class TargetAppInstallScreen(
                             obfuscate = false,
                             printLog = { pushLog("[LSPatch] $it") }
                         )
-                        val outputs = withContext(Dispatchers.IO) { lsPatch.patchSplits(listOf(downloaded)) }
+                        val outputs = withContext(Dispatchers.IO) {
+                            if (target.targetApp == TargetApp.REDDIT) {
+                                mapOf("base.apk" to lsPatch.patchBaseApk(downloaded))
+                            } else {
+                                lsPatch.patchSplits(listOf(downloaded))
+                            }
+                        }
                         val patched = outputs["base.apk"] ?: outputs.values.firstOrNull()
                             ?: throw IllegalStateException(
                                 translation.format(

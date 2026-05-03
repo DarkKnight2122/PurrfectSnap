@@ -36,6 +36,7 @@ class LSPatch(
 
     private fun resignApk(inputApkFile: File, outputFile: File) {
         printLog("Resigning ${inputApkFile.absolutePath} to ${outputFile.absolutePath}")
+        if (outputFile.exists()) outputFile.delete()
         val dstZFile = ZFile.openReadWrite(outputFile, ZFileOptions())
         val inZFile = ZFile.openReadOnly(inputApkFile)
         inZFile.entries().forEach { entry -> dstZFile.add(entry.centralDirectoryHeader.name, entry.open()) }
@@ -176,7 +177,7 @@ class LSPatch(
         val extCacheDir = context.externalCacheDir ?: context.cacheDir ?: throw IllegalStateException("No valid cache dir")
         inputs.forEach { input ->
             val outputFile = File.createTempFile("patched", ".apk", extCacheDir)
-            if (input.name.contains("split")) {
+            if (input.isSplitApk()) {
                 resignApk(input, outputFile)
                 outputs[input.name] = outputFile
                 return@forEach
@@ -185,6 +186,24 @@ class LSPatch(
             outputs["base.apk"] = outputFile
         }
         return outputs
+    }
+
+    fun patchBaseApk(input: File): File {
+        val extCacheDir = context.externalCacheDir ?: context.cacheDir ?: throw IllegalStateException("No valid cache dir")
+        val outputFile = File.createTempFile("patched", ".apk", extCacheDir)
+        patch(input, outputFile)
+        if (!outputFile.exists() || outputFile.length() == 0L) {
+            outputFile.delete()
+            throw IllegalStateException("Patched APK was not produced")
+        }
+        return outputFile
+    }
+
+    private fun File.isSplitApk(): Boolean {
+        val normalizedName = name.lowercase()
+        return normalizedName.startsWith("split_") ||
+            normalizedName.startsWith("split.") ||
+            normalizedName.startsWith("config.")
     }
 
     private fun patch(input: File, outputFile: File) {
