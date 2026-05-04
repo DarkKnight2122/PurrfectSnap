@@ -22,6 +22,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,7 +47,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -142,6 +142,15 @@ class SetupActivity : ComponentActivity() {
         }
         val requirements = intent.getIntExtra("requirements", Requirements.FIRST_RUN)
         val isRedditRepatchFlow = requirements and Requirements.REDDIT_REPATCH == Requirements.REDDIT_REPATCH
+        val isSnapchatInstallFlow = requirements and Requirements.INSTALL_SNAPCHAT == Requirements.INSTALL_SNAPCHAT
+        val isRedditInstallFlow = requirements and Requirements.INSTALL_REDDIT == Requirements.INSTALL_REDDIT
+        val isRedditUpdateFlow = requirements and Requirements.UPDATE_REDDIT == Requirements.UPDATE_REDDIT
+        val isTargetInstallFlow = isSnapchatInstallFlow || isRedditInstallFlow || isRedditUpdateFlow
+        val targetInstallApps = when {
+            isSnapchatInstallFlow -> setOf(TargetApp.SNAPCHAT)
+            isRedditInstallFlow || isRedditUpdateFlow -> setOf(TargetApp.REDDIT)
+            else -> emptySet()
+        }
         val setupPrefs = setupContext.sharedPreferences
         val setupRoutes = Routes(setupContext).apply {
             activityLauncher = ActivityLauncherHelper(this@SetupActivity)
@@ -153,15 +162,19 @@ class SetupActivity : ComponentActivity() {
         val persistedSkipPatch = setupPrefs.getBoolean("setup_skip_patch", false)
         val persistedInstallMode = setupPrefs.getString("setup_install_mode", null)
         val persistedSelectedApps = setupPrefs.getString(SETUP_SELECTED_APPS_PREF, null)
-        val skipPatchChoice = mutableStateOf(persistedSkipPatch)
+        val storedInstallMode = SetupPreferences.lastInstallModeName(setupPrefs)
+            ?.let { runCatching { InstallMode.valueOf(it) }.getOrNull() }
+        val storedSkipAutoSetup = SetupPreferences.wasAutoSetupSkipped(setupPrefs)
+        val skipPatchChoice = mutableStateOf(if (isTargetInstallFlow) storedSkipAutoSetup else persistedSkipPatch)
         val installModeChoice = mutableStateOf(
             runCatching { persistedInstallMode?.let { InstallMode.valueOf(it) } }.getOrNull()
+                ?: if (isTargetInstallFlow && !storedSkipAutoSetup) storedInstallMode else null
         )
         val selectedAppsChoice = mutableStateOf(
-            if (isRedditRepatchFlow) {
-                setOf(TargetApp.REDDIT)
-            } else {
-                parseSetupTargetApps(
+            when {
+                isRedditRepatchFlow -> setOf(TargetApp.REDDIT)
+                isTargetInstallFlow -> targetInstallApps
+                else -> parseSetupTargetApps(
                     persistedSelectedApps,
                     fallback = if (wasInProgress && persistedRoute != null) setOf(TargetApp.SNAPCHAT) else emptySet()
                 )
@@ -216,14 +229,33 @@ class SetupActivity : ComponentActivity() {
                         }
                     ).apply { route = "installMode" })
                 }
-                if (isFirstRunFlow) {
-                    add(RootInstallSnapchatScreen(
-                        selectedAppsProvider = { selectedAppsChoice.value }
-                    ).apply { route = "rootInstallSnapchat" })
-                    add(PatchSnapchatScreen(
-                        selectedAppsProvider = { selectedAppsChoice.value }
-                    ).apply { route = "patchSnapchat" })
-                }
+            }
+            if (isTargetInstallFlow && (installModeChoice.value == null || skipPatchChoice.value)) {
+                add(InstallModeScreen(
+                    onModeChosen = { mode ->
+                        installModeChoice.value = mode
+                        skipPatchChoice.value = false
+                    },
+                    onSkipAutoSetup = {
+                        skipPatchChoice.value = true
+                        installModeChoice.value = null
+                    },
+                    allowSkip = false
+                ).apply { route = "installMode" })
+            }
+            if (isFirstRunFlow || isTargetInstallFlow) {
+                add(RootInstallSnapchatScreen(
+                    selectedAppsProvider = { selectedAppsChoice.value },
+                    allowInstalledTarget = isRedditUpdateFlow
+                ).apply { route = "rootInstallSnapchat" })
+                add(PatchSnapchatScreen(
+                    selectedAppsProvider = { selectedAppsChoice.value },
+                    flow = if (isRedditUpdateFlow) {
+                        me.eternal.purrfect.ui.setup.screens.impl.SetupInstallFlow.REPATCH
+                    } else {
+                        me.eternal.purrfect.ui.setup.screens.impl.SetupInstallFlow.PATCH
+                    }
+                ).apply { route = "patchSnapchat" })
             }
             if (isRedditRepatchFlow) {
                 add(PatchSnapchatScreen(
@@ -231,15 +263,15 @@ class SetupActivity : ComponentActivity() {
                     flow = me.eternal.purrfect.ui.setup.screens.impl.SetupInstallFlow.REPATCH
                 ).apply { route = "repatchReddit" })
             }
-            if (isFirstRunFlow || hasRequirement(Requirements.GRANT_PERMISSIONS)) {
+            if (isFirstRunFlow || hasRequirement(Requirements.GRANT_PERMISSIONS) || isSnapchatInstallFlow) {
                 add(PermissionsScreen(
                     selectedAppsProvider = { selectedAppsChoice.value }
                 ).apply { route = "permissions" })
             }
-            if (isFirstRunFlow || hasRequirement(Requirements.SAVE_FOLDER)) {
+            if (isFirstRunFlow || hasRequirement(Requirements.SAVE_FOLDER) || isSnapchatInstallFlow) {
                 add(SaveFolderScreen().apply { route = "saveFolder" })
             }
-            if (isFirstRunFlow || hasRequirement(Requirements.MAPPINGS)) {
+            if (isFirstRunFlow || hasRequirement(Requirements.MAPPINGS) || isSnapchatInstallFlow) {
                 add(MappingsScreen().apply { route = "mappings" })
             }
         }
@@ -254,7 +286,7 @@ class SetupActivity : ComponentActivity() {
             screen.init()
         }
 
-            if (!isFirstRunFlow) {
+            if (!isFirstRunFlow && !isTargetInstallFlow) {
                 clearProgress()
                 skipPatchChoice.value = false
                 installModeChoice.value = null
@@ -371,7 +403,20 @@ class SetupActivity : ComponentActivity() {
                     } else {
                         val preferredTarget = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT)
                             .firstOrNull { it in selectedApps }
-                        preferredTarget?.let { setupContext.setActiveTargetApp(it) }
+                        if (isFirstRunFlow || isTargetInstallFlow) {
+                            SetupPreferences.saveSetupChoices(
+                                setupPrefs,
+                                selectedApps = selectedApps,
+                                installModeName = installMode?.name,
+                                skippedAutoSetup = skipPatch
+                            )
+                        }
+                        if (isFirstRunFlow || (isTargetInstallFlow && !skipPatch)) {
+                            SetupPreferences.addCompletedTargets(setupPrefs, selectedApps)
+                        }
+                        if (isFirstRunFlow || !skipPatch) {
+                            preferredTarget?.let { setupContext.setActiveTargetApp(it) }
+                        }
                         clearProgress()
                         endActivity()
                     }
@@ -420,10 +465,6 @@ class SetupActivity : ComponentActivity() {
                             total = stepMeta.size
                         )
                         SetupProgressBar(animatedProgress)
-                        val scrollState = rememberScrollState()
-                        LaunchedEffect(currentRoute) {
-                            scrollState.scrollTo(0)
-                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -463,6 +504,10 @@ class SetupActivity : ComponentActivity() {
                                                 .padding(horizontal = 10.dp, vertical = 4.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
+                                            val scrollState = remember(screenRoute) { ScrollState(0) }
+                                            LaunchedEffect(screenRoute) {
+                                                scrollState.scrollTo(0)
+                                            }
                                             BoxWithConstraints(
                                                 modifier = Modifier
                                                     .widthIn(max = 560.dp)
@@ -658,7 +703,7 @@ private fun SetupTopBar(onAskAi: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "PurrfectSnap",
+                text = "Purrfect",
                 color = PurrfectPalette.textPrimary,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 18.sp,

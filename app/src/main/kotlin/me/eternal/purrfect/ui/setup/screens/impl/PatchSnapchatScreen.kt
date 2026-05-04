@@ -4,8 +4,10 @@ import me.eternal.purrfect.common.TargetApp
 
 class PatchSnapchatScreen(
     selectedAppsProvider: () -> Set<TargetApp> = { setOf(TargetApp.SNAPCHAT) },
-    flow: SetupInstallFlow = SetupInstallFlow.PATCH
+    flow: SetupInstallFlow = SetupInstallFlow.PATCH,
+    allowInstalledTarget: Boolean = false
 ) : TargetAppInstallScreen(
     selectedAppsProvider = selectedAppsProvider,
-    flow = flow
+    flow = flow,
+    allowInstalledTarget = allowInstalledTarget
 )

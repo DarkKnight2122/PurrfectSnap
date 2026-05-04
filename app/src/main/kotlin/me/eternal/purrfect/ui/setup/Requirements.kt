@@ -8,5 +8,8 @@ object Requirements {
     const val GRANT_PERMISSIONS = 0b010000
     const val SIF = 0b100000
     const val REDDIT_REPATCH = 0b1000000
+    const val INSTALL_SNAPCHAT = 0b10000000
+    const val INSTALL_REDDIT = 0b100000000
+    const val UPDATE_REDDIT = 0b1000000000
 }
 

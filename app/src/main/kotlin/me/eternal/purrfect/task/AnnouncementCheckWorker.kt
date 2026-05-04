@@ -27,7 +27,8 @@ class AnnouncementCheckWorker(
     override suspend fun doWork(): Result {
         return runCatching {
             val url = inputData.getString("announcements_url") ?: return Result.failure()
-            val body = fetchBody(url)?.trim().orEmpty()
+            val urls = listOfNotNull(url, inputData.getString("announcements_fallback_url"))
+            val body = fetchBody(urls)?.trim().orEmpty()
             if (body.isEmpty()) return Result.success()
 
             val hash = sha256(body)
@@ -48,13 +49,19 @@ class AnnouncementCheckWorker(
         }
     }
 
-    private fun fetchBody(url: String): String? {
+    private fun fetchBody(urls: List<String>): String? {
         val client = OkHttpClient()
-        val request = Request.Builder().url(url).build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            return response.body?.string()
+        urls.forEach { url ->
+            runCatching {
+                val request = Request.Builder().url(url).build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        return response.body?.string()
+                    }
+                }
+            }
         }
+        return null
     }
 
     private fun sha256(text: String): String {

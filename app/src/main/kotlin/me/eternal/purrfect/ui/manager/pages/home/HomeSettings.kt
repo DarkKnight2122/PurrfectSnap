@@ -61,6 +61,7 @@ import me.eternal.purrfect.ui.manager.ManagerTheme
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.ui.setup.Requirements
+import me.eternal.purrfect.ui.setup.SetupPreferences
 import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.util.AlertDialogs
 import me.eternal.purrfect.ui.util.openFile
@@ -142,6 +143,53 @@ class HomeSettings : Routes.Route() {
         }
     }
 
+    internal fun launchTargetInstallSetup(targetApp: TargetApp) {
+        val currentContext = context.activity ?: context.androidContext
+        val requirement = when (targetApp) {
+            TargetApp.SNAPCHAT -> Requirements.INSTALL_SNAPCHAT
+            TargetApp.REDDIT -> Requirements.INSTALL_REDDIT
+        }
+        Intent(currentContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java).apply {
+            putExtra("requirements", requirement)
+            if (currentContext !is Activity) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            currentContext.startActivity(this)
+        }
+    }
+
+    internal fun shouldShowRedditRepatchAction(): Boolean {
+        return context.activeTargetApp == TargetApp.REDDIT &&
+                !SetupPreferences.wasAutoSetupSkipped(context.sharedPreferences) &&
+                SetupPreferences.lastInstallModeName(context.sharedPreferences) == "NON_ROOT"
+    }
+
+    internal fun isTargetReady(targetApp: TargetApp): Boolean {
+        return SetupPreferences.hasCompletedTarget(context.sharedPreferences, targetApp)
+    }
+
+    internal fun targetSwitchLabel(targetApp: TargetApp): String {
+        if (isTargetReady(targetApp)) {
+            return when (targetApp) {
+                TargetApp.SNAPCHAT -> translation["switch_to_snapchat_button"] ?: "Switch to Snapchat"
+                TargetApp.REDDIT -> translation["switch_to_reddit_button"] ?: "Switch to Reddit"
+            }
+        }
+        return when (targetApp) {
+            TargetApp.SNAPCHAT -> translation["install_snapchat_button"] ?: "Snapchat Available: Install!"
+            TargetApp.REDDIT -> translation["install_reddit_button"] ?: "Reddit Available: Install!"
+        }
+    }
+
+    internal fun handleTargetSwitch(targetApp: TargetApp) {
+        if (isTargetReady(targetApp)) {
+            context.setActiveTargetApp(targetApp)
+            routes.home.navigateReset()
+        } else {
+            launchTargetInstallSetup(targetApp)
+        }
+    }
+
     @Composable
     private fun LimitedTargetSettingsScreen() {
         val hapticFeedback = LocalHapticFeedback.current
@@ -155,8 +203,7 @@ class HomeSettings : Routes.Route() {
             if (context.config.root.global.uiSettings.hapticFeedback.get()) {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
             }
-            context.setActiveTargetApp(targetApp)
-            routes.home.navigateReset()
+            handleTargetSwitch(targetApp)
         }
         Box(
             modifier = Modifier
@@ -199,10 +246,7 @@ class HomeSettings : Routes.Route() {
                             Icon(Icons.Filled.Forum, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                when (targetApp) {
-                                    TargetApp.SNAPCHAT -> translation["switch_to_snapchat_button"]
-                                    TargetApp.REDDIT -> translation["switch_to_reddit_button"]
-                                }
+                                targetSwitchLabel(targetApp)
                             )
                         }
                 }

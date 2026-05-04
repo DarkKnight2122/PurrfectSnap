@@ -1,5 +1,7 @@
 package me.eternal.purrfect.ui.manager.pages.home
 
+import android.app.Activity
+import android.content.Intent
 import android.content.SharedPreferences
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -114,6 +116,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavBackStackEntry
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -137,6 +140,8 @@ import me.eternal.purrfect.ui.manager.data.UpdateDownloader
 import me.eternal.purrfect.ui.manager.data.Updater
 import me.eternal.purrfect.ui.manager.data.Updater.Channel
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
+import me.eternal.purrfect.ui.setup.Requirements
+import me.eternal.purrfect.ui.setup.SetupPreferences
 import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.util.AlertDialogs
 import me.eternal.purrfect.ui.util.scaleOnPress
@@ -159,9 +164,76 @@ class HomeRootSection : Routes.Route() {
     }
 
     internal val changelogClient by lazy { OkHttpClient() }
-    internal val changelogStableUrl = "https://raw.githubusercontent.com/particle-box/Purrfect/dev/changelogs-stable.txt"
-    internal val changelogPrereleaseUrl = "https://raw.githubusercontent.com/particle-box/Purrfect/dev/changelogs-prerelease.txt"
-    internal val announcementsUrl = "https://raw.githubusercontent.com/particle-box/Purrfect/dev/announcements.txt"
+    internal val changelogStableUrls = listOf(
+        "https://raw.githubusercontent.com/particle-box/Purrfect/dev/changelogs-stable.txt",
+        "https://raw.githubusercontent.com/curious-freak/Purrfect/dev/changelogs-stable.txt",
+    )
+    internal val changelogPrereleaseUrls = listOf(
+        "https://raw.githubusercontent.com/particle-box/Purrfect/dev/changelogs-prerelease.txt",
+        "https://raw.githubusercontent.com/curious-freak/Purrfect/dev/changelogs-prerelease.txt",
+    )
+    internal val announcementsUrls = listOf(
+        "https://raw.githubusercontent.com/particle-box/Purrfect/dev/announcements.txt",
+        "https://raw.githubusercontent.com/curious-freak/Purrfect/dev/announcements.txt",
+    )
+    internal val changelogStableUrl = changelogStableUrls.first()
+    internal val changelogPrereleaseUrl = changelogPrereleaseUrls.first()
+    internal val announcementsUrl = announcementsUrls.first()
+    internal val purrfectRepositoryUrl = "https://github.com/particle-box/Purrfect"
+    internal val purrfectFallbackRepositoryUrl = "https://github.com/curious-freak/Purrfect"
+
+    internal fun fetchTextWithFallback(urls: List<String>): String {
+        var lastError: Throwable? = null
+        urls.forEach { url ->
+            runCatching {
+                changelogClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
+                    if (!response.isSuccessful) throw IllegalStateException("Failed to fetch $url (${response.code})")
+                    response.body?.string() ?: throw IllegalStateException("Empty body from $url")
+                }
+            }.onSuccess { return it }
+                .onFailure { lastError = it }
+        }
+        throw lastError ?: IllegalStateException("No fallback URLs configured")
+    }
+
+    internal fun openPurrfectRepository(scope: CoroutineScope) {
+        scope.launch(Dispatchers.IO) {
+            val url = if (isUrlReachable(purrfectRepositoryUrl)) {
+                purrfectRepositoryUrl
+            } else {
+                purrfectFallbackRepositoryUrl
+            }
+            withContext(Dispatchers.Main) {
+                context.androidContext.openLink(url, context.translation["toast_open_link_failed"])
+            }
+        }
+    }
+
+    private fun isUrlReachable(url: String): Boolean {
+        return runCatching {
+            changelogClient.newCall(Request.Builder().url(url).head().build()).execute().use { response ->
+                response.code in 200..399
+            }
+        }.getOrDefault(false)
+    }
+
+    internal fun launchRedditUpdateSetup() {
+        val installMode = SetupPreferences.lastInstallModeName(context.sharedPreferences)
+        val skippedAutoSetup = SetupPreferences.wasAutoSetupSkipped(context.sharedPreferences)
+        val requirement = if (!skippedAutoSetup && installMode == "NON_ROOT") {
+            Requirements.REDDIT_REPATCH
+        } else {
+            Requirements.UPDATE_REDDIT
+        }
+        val currentContext = context.activity ?: context.androidContext
+        Intent(currentContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java).apply {
+            putExtra("requirements", requirement)
+            if (currentContext !is Activity) {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            currentContext.startActivity(this)
+        }
+    }
 
     internal val heroGradientColors = listOf(
         Color(0xFF5C4B99),

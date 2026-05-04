@@ -77,8 +77,6 @@ import me.eternal.purrfect.ui.util.Motion
 import me.eternal.purrfect.ui.util.PurrfectMarqueeText
 import me.eternal.purrfect.ui.util.headerHeightTracker
 import me.eternal.purrfect.ui.util.scaleOnPress
-import okhttp3.OkHttpClient
-import okhttp3.Request
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -251,6 +249,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         onUpdateAction: () -> Unit,
         isPurrAuraActive: Boolean,
         onAboutClick: () -> Unit,
+        onGithubClick: () -> Unit,
         avenirNext: FontFamily,
         scrollOffset: () -> Int,
         haptic: HapticFeedback
@@ -318,6 +317,19 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 }
 
                 if (latestUpdate != null) {
+                    val isRedditUpdate = latestUpdate.target == Updater.UpdateTarget.REDDIT
+                    val updateTitle = if (isRedditUpdate) {
+                        translation.getOrNull("reddit_update_title") ?: "Update Reddit"
+                    } else {
+                        translation["update_title"] ?: ""
+                    }
+                    val updateContent = if (isRedditUpdate) {
+                        translation.getOrNull("reddit_update_content")?.let {
+                            translation.format("reddit_update_content", "version" to latestUpdate.versionName)
+                        } ?: translation.format("update_content", "version" to latestUpdate.versionName)
+                    } else {
+                        translation.format("update_content", "version" to latestUpdate.versionName)
+                    }
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
@@ -330,8 +342,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                             horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(translation["update_title"] ?: "", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                Text(translation.format("update_content", "version" to latestUpdate.versionName), color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp)
+                                Text(updateTitle, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text(updateContent, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp)
                             }
                             AnimatedContent(targetState = downloadState, label = "UpdateDownloadHero") { state ->
                                 when (state) {
@@ -398,6 +410,14 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                                 }
                             }
                         }
+                        Text(
+                            text = if (isRedditMode) "Switch to Snapchat in Settings" else "Switch to Reddit in Settings",
+                            color = Color.White.copy(alpha = 0.78f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         OutlinedButton(
                             onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onAboutClick() },
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
@@ -425,7 +445,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         val androidContext = context.androidContext
                         Button(
                             modifier = Modifier.weight(1f).height(44.dp),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://purrfect.me", context.translation["toast_open_link_failed"]) },
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://purrfectsnap.vercel.app", context.translation["toast_open_link_failed"]) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E)),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
@@ -437,7 +457,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         }
                         OutlinedButton(
                             modifier = Modifier.weight(1f).height(44.dp),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://github.com/particle-box/Purrfect", context.translation["toast_open_link_failed"]) },
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onGithubClick() },
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                             contentPadding = PaddingValues(horizontal = 12.dp)
@@ -486,8 +506,12 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         }
     }
 
-    val latestUpdate by rememberAsyncMutableState(defaultValue = null) {
-        Updater.getLatestRelease(Channel.STABLE)
+    val latestUpdate by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(isRedditMode)) {
+        if (isRedditMode) {
+            Updater.getLatestRedditUpdate(context.sharedPreferences.getString(Updater.REDDIT_INSTALLED_RELEASE_TAG_PREF, null))
+        } else {
+            Updater.getLatestRelease(Channel.STABLE)
+        }
     }
     val downloadState by UpdateDownloader.downloadState.collectAsState()
     val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
@@ -518,13 +542,17 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
 
     val handleUpdateAction: () -> Unit = {
         latestUpdate?.let { latest ->
+            if (latest.target == Updater.UpdateTarget.REDDIT) {
+                launchRedditUpdateSetup()
+                return@let
+            }
             val abiName = android.os.Build.SUPPORTED_ABIS.firstNotNullOfOrNull {
                 when (it) { "arm64-v8a" -> "arm64"; "armeabi-v7a" -> "armv7"; else -> null }
             }
             if (latest.workflowId != null) {
                 if (abiName != null) {
                     val artifactName = "purrfect-${if (abiName == "arm64") "armv8" else "armv7"}-debug"
-                    UpdateDownloader.downloadAndInstall(context, "https://nightly.link/particle-box/Purrfect/actions/runs/${latest.workflowId}/$artifactName.zip", "$artifactName.zip", coroutineScope)
+                    UpdateDownloader.downloadAndInstall(context, "https://nightly.link/${latest.repositoryFullName}/actions/runs/${latest.workflowId}/$artifactName.zip", "$artifactName.zip", coroutineScope)
                 }
             } else {
                 abiName?.let { arch -> latest.assetDownloads[arch] }?.let { url ->
@@ -540,12 +568,9 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         changelogLoading = true
         changelogError = null
         coroutineScope.launch(Dispatchers.IO) {
-            val url = changelogStableUrl
             runCatching {
-                OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use { response ->
-                    val body = response.body?.string() ?: throw IllegalStateException("Empty body")
-                    extractChangelogForVersion(body, targetVersion).ifBlank { body.trim() }
-                }
+                val body = fetchTextWithFallback(changelogStableUrls)
+                extractChangelogForVersion(body, targetVersion).ifBlank { body.trim() }
             }.onSuccess { text ->
                 withContext(Dispatchers.Main) { 
                     changelogText = text
@@ -566,7 +591,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         announcementsLoading = true
         coroutineScope.launch(Dispatchers.IO) {
             runCatching {
-                OkHttpClient().newCall(Request.Builder().url(announcementsUrl).build()).execute().use { it.body?.string() ?: "" }
+                fetchTextWithFallback(announcementsUrls)
             }
                 .onSuccess { withContext(Dispatchers.Main) { announcementsText = it; announcementsLoading = false } }
                 .onFailure { withContext(Dispatchers.Main) { announcementsLoading = false } }
@@ -578,12 +603,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         fullChangelogLoading = true
         fullChangelogError = null
         coroutineScope.launch(Dispatchers.IO) {
-            val url = changelogStableUrl
             runCatching {
-                OkHttpClient().newCall(Request.Builder().url(url).build()).execute().use { response ->
-                    val body = response.body?.string() ?: throw IllegalStateException("Empty body")
-                    body.trim()
-                }
+                fetchTextWithFallback(changelogStableUrls).trim()
             }.onSuccess { text ->
                 withContext(Dispatchers.Main) {
                     fullChangelogText = text
@@ -719,9 +740,19 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 latestUpdate = latestUpdate,
                 downloadState = downloadState,
                 downloadProgress = downloadProgress,
-                onUpdateAction = { latestUpdate?.let { showChangelogDialog = true; loadChangelog() } },
+                onUpdateAction = {
+                    latestUpdate?.let {
+                        if (it.target == Updater.UpdateTarget.REDDIT) {
+                            handleUpdateAction()
+                        } else {
+                            showChangelogDialog = true
+                            loadChangelog()
+                        }
+                    }
+                },
                 isPurrAuraActive = isPurrAuraActive,
                 onAboutClick = { routes.about.navigate() },
+                onGithubClick = { openPurrfectRepository(coroutineScope) },
                 avenirNext = avenirNext,
                 scrollOffset = { scrollState.value },
                 haptic = haptic

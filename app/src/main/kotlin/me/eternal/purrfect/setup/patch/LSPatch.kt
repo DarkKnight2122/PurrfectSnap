@@ -165,8 +165,8 @@ class LSPatch(
 
         printLog("Writing apk")
         dstZFile.realign()
-        dstZFile.close()
         sourceApkFile.close()
+        dstZFile.close()
         printLog("Cleaning obfuscation cache")
         obfuscationCacheFolder.deleteRecursively()
         printLog("Done")
@@ -179,10 +179,12 @@ class LSPatch(
             val outputFile = File.createTempFile("patched", ".apk", extCacheDir)
             if (input.isSplitApk()) {
                 resignApk(input, outputFile)
+                outputFile.requireValidZip("Resigned split APK")
                 outputs[input.name] = outputFile
                 return@forEach
             }
             patch(input, outputFile)
+            outputFile.requireValidZip("Patched base APK")
             outputs["base.apk"] = outputFile
         }
         return outputs
@@ -196,7 +198,22 @@ class LSPatch(
             outputFile.delete()
             throw IllegalStateException("Patched APK was not produced")
         }
+        outputFile.requireValidZip("Patched APK")
         return outputFile
+    }
+
+    private fun File.requireValidZip(label: String) {
+        if (!exists() || length() == 0L) {
+            throw IllegalStateException("$label was not produced")
+        }
+        ZipFile(this).use { zipFile ->
+            checkNotNull(zipFile.getEntry("AndroidManifest.xml")) {
+                "$label is missing AndroidManifest.xml"
+            }
+            check(zipFile.entries().asSequence().any { it.name.startsWith("classes") && it.name.endsWith(".dex") }) {
+                "$label is missing dex files"
+            }
+        }
     }
 
     private fun File.isSplitApk(): Boolean {

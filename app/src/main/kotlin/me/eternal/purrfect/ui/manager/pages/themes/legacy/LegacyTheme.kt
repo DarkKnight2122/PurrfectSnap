@@ -134,6 +134,7 @@ import me.eternal.purrfect.ui.manager.pages.social.sortSocialFriends
 import me.eternal.purrfect.ui.manager.pages.tracker.FriendTrackerManagerRoot
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.ui.setup.Requirements
+import me.eternal.purrfect.ui.setup.SetupPreferences
 import me.eternal.purrfect.ui.util.OnLifecycleEvent
 import me.eternal.purrfect.ui.util.PurrfectMarqueeText
 import me.eternal.purrfect.ui.util.openFile
@@ -143,8 +144,6 @@ import me.eternal.purrfect.ui.util.pullrefresh.pullRefresh
 import me.eternal.purrfect.ui.util.pullrefresh.rememberPullRefreshState
 import me.eternal.purrfect.ui.util.saveFile
 import me.eternal.purrfect.ui.util.scaleOnPress
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder
@@ -265,6 +264,19 @@ object LegacyTheme : ThemeContract {
                     }
 
                     if (latestUpdate != null) {
+                        val isRedditUpdate = latestUpdate.target == Updater.UpdateTarget.REDDIT
+                        val updateTitle = if (isRedditUpdate) {
+                            translation.getOrNull("reddit_update_title") ?: "Update Reddit"
+                        } else {
+                            translation["update_title"] ?: ""
+                        }
+                        val updateContent = if (isRedditUpdate) {
+                            translation.getOrNull("reddit_update_content")?.let {
+                                translation.format("reddit_update_content", "version" to latestUpdate.versionName)
+                            } ?: translation.format("update_content", "version" to latestUpdate.versionName)
+                        } else {
+                            translation.format("update_content", "version" to latestUpdate.versionName)
+                        }
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
@@ -278,8 +290,8 @@ object LegacyTheme : ThemeContract {
                                 horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(translation["update_title"] ?: "", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(translation.format("update_content", "version" to latestUpdate.versionName), color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(updateTitle, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(updateContent, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 AnimatedContent(targetState = downloadState, label = "UpdateDownloadHero") { state ->
                                     when (state) {
@@ -325,6 +337,14 @@ object LegacyTheme : ThemeContract {
                                     }
                                 }
                             }
+                            Text(
+                                text = if (isRedditMode) "Switch to Snapchat in Settings" else "Switch to Reddit in Settings",
+                                color = Color.White.copy(alpha = 0.78f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                             OutlinedButton(
                                 onClick = { routes.settings.navigate() },
                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
@@ -340,12 +360,12 @@ object LegacyTheme : ThemeContract {
 
                     Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(26.dp), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), tonalElevation = 0.dp, shadowElevation = 0.dp) {
                         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://purrfect.vercel.app/", context.translation["toast_open_link_failed"]) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E))) {
+                            Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app", context.translation["toast_open_link_failed"]) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E))) {
                                 Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = "Site", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            OutlinedButton(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://github.com/particle-box/Purrfect", context.translation["toast_open_link_failed"]) }, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) {
+                            OutlinedButton(modifier = Modifier.weight(1f), onClick = onGithubClick, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) {
                                 Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(text = translation["github_button"] ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -385,10 +405,14 @@ object LegacyTheme : ThemeContract {
                 }
             }
         }
-        val latestUpdate by rememberAsyncMutableState(defaultValue = null) {
-            Updater.getLatestRelease(Channel.STABLE)
+        val latestUpdate by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(isRedditMode)) {
+            if (isRedditMode) {
+                Updater.getLatestRedditUpdate(context.sharedPreferences.getString(Updater.REDDIT_INSTALLED_RELEASE_TAG_PREF, null))
+            } else {
+                Updater.getLatestRelease(Channel.STABLE)
+            }
         }
-        val changelogUrl = changelogStableUrl
+        val changelogUrls = changelogStableUrls
         val downloadState by UpdateDownloader.downloadState.collectAsState()
         val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
         val coroutineScope = rememberCoroutineScope()
@@ -409,6 +433,10 @@ object LegacyTheme : ThemeContract {
 
         val handleUpdateAction: () -> Unit = {
             latestUpdate?.let { latest ->
+                if (latest.target == Updater.UpdateTarget.REDDIT) {
+                    launchRedditUpdateSetup()
+                    return@let
+                }
                 val supportedAbis = android.os.Build.SUPPORTED_ABIS
                 var abiName: String? = null
                 for (abi in supportedAbis) {
@@ -422,7 +450,7 @@ object LegacyTheme : ThemeContract {
                         android.widget.Toast.makeText(context.androidContext, translation["update_arch_not_supported_toast"], android.widget.Toast.LENGTH_LONG).show()
                     } else {
                         val artifactName = "purrfect-${abiName}-debug"
-                        val downloadUrl = "https://nightly.link/particle-box/Purrfect/actions/runs/${latest.workflowId}/$artifactName.zip"
+                        val downloadUrl = "https://nightly.link/${latest.repositoryFullName}/actions/runs/${latest.workflowId}/$artifactName.zip"
                         UpdateDownloader.downloadAndInstall(context, downloadUrl, "$artifactName.zip", coroutineScope)
                     }
                     return@let
@@ -437,16 +465,13 @@ object LegacyTheme : ThemeContract {
             }
         }
 
-        fun loadChangelog(targetVersion: String, url: String) {
+        fun loadChangelog(targetVersion: String, urls: List<String>) {
             if (changelogVersion == targetVersion && changelogText != null) return
             changelogLoading = true; changelogError = null
             coroutineScope.launch(Dispatchers.IO) {
                 runCatching {
-                    changelogClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
-                        if (!response.isSuccessful) throw IllegalStateException("Failed to fetch changelog (${response.code})")
-                        val body = response.body?.string() ?: throw IllegalStateException("Empty changelog body")
-                        extractChangelogForVersion(body, targetVersion).ifBlank { body.trim() }
-                    }
+                    val body = fetchTextWithFallback(urls)
+                    extractChangelogForVersion(body, targetVersion).ifBlank { body.trim() }
                 }.onSuccess { text ->
                     withContext(Dispatchers.Main) { changelogText = text; changelogVersion = targetVersion; changelogLoading = false }
                 }.onFailure { error ->
@@ -460,10 +485,7 @@ object LegacyTheme : ThemeContract {
             announcementsLoading = true; announcementsError = null
             coroutineScope.launch(Dispatchers.IO) {
                 runCatching {
-                    changelogClient.newCall(Request.Builder().url(announcementsUrl).build()).execute().use { response ->
-                        if (!response.isSuccessful) throw IllegalStateException("Failed to fetch announcements (${response.code})")
-                        response.body?.string()?.trim() ?: throw IllegalStateException("Empty announcements body")
-                    }
+                    fetchTextWithFallback(announcementsUrls).trim()
                 }.onSuccess { text ->
                     withContext(Dispatchers.Main) { announcementsText = text; announcementsLoading = false }
                 }.onFailure { error ->
@@ -472,15 +494,12 @@ object LegacyTheme : ThemeContract {
             }
         }
 
-        fun loadFullChangelog(url: String) {
+        fun loadFullChangelog(urls: List<String>) {
             if (fullChangelogText != null) return
             fullChangelogLoading = true; fullChangelogError = null
             coroutineScope.launch(Dispatchers.IO) {
                 runCatching {
-                    changelogClient.newCall(Request.Builder().url(url).build()).execute().use { response ->
-                        if (!response.isSuccessful) throw IllegalStateException("Failed to fetch changelog (${response.code})")
-                        response.body?.string()?.trim() ?: throw IllegalStateException("Empty changelog body")
-                    }
+                    fetchTextWithFallback(urls).trim()
                 }.onSuccess { text ->
                     withContext(Dispatchers.Main) { fullChangelogText = text; fullChangelogLoading = false }
                 }.onFailure { error ->
@@ -493,7 +512,7 @@ object LegacyTheme : ThemeContract {
             if (context.sharedPreferences.getBoolean("show_changelog_on_launch", false)) {
                 val version = context.sharedPreferences.getString("changelog_version_on_launch", null)
                 context.sharedPreferences.edit().putBoolean("show_changelog_on_launch", false).remove("changelog_version_on_launch").apply()
-                version?.let { showChangelogDialog = true; loadChangelog(it, changelogUrl) }
+                version?.let { showChangelogDialog = true; loadChangelog(it, changelogUrls) }
             }
         }
 
@@ -505,7 +524,14 @@ object LegacyTheme : ThemeContract {
         }
 
         val onUpdateButtonClick: () -> Unit = {
-            latestUpdate?.let { showChangelogDialog = true; loadChangelog(it.versionName, changelogUrl) }
+            latestUpdate?.let {
+                if (it.target == Updater.UpdateTarget.REDDIT) {
+                    handleUpdateAction()
+                } else {
+                    showChangelogDialog = true
+                    loadChangelog(it.versionName, changelogUrls)
+                }
+            }
         }
 
         var showQuickActionsMenu by remember { mutableStateOf(false) }
@@ -533,7 +559,7 @@ object LegacyTheme : ThemeContract {
                         label = null,
                         modifier = Modifier.width(56.dp),
                         contentDescription = translation.getOrNull("changelog_button_description") ?: "Open full changelog"
-                    ) { showFullChangelogDialog = true; loadFullChangelog(changelogUrl) }
+                    ) { showFullChangelogDialog = true; loadFullChangelog(changelogUrls) }
                     Row(
                         modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -550,9 +576,9 @@ object LegacyTheme : ThemeContract {
                     downloadProgress = downloadProgress,
                     onUpdateAction = onUpdateButtonClick,
                     isPurrAuraActive = isPurrAuraActive,
-                    onWebsiteClick = { context.androidContext.openLink("https://purrfect.vercel.app/", context.translation["toast_open_link_failed"]) },
+                    onWebsiteClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app", context.translation["toast_open_link_failed"]) },
                     onTelegramClick = { context.androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"]) },
-                    onGithubClick = { context.androidContext.openLink("https://github.com/particle-box/Purrfect", context.translation["toast_open_link_failed"]) },
+                    onGithubClick = { openPurrfectRepository(coroutineScope) },
                     authorName = "ETERNAL",
                     onManageClick = { routes.settings.navigate() },
                     avenirNext = avenirNext
@@ -751,8 +777,8 @@ object LegacyTheme : ThemeContract {
                 if (showResetSetupDialog) {
                     AestheticDialog(
                         onDismissRequest = { showResetSetupDialog = false },
-                        title = (translation["reset_setup_dialog_title"] ?: "Reset Setup").replace("Purrfect", "PurrfectReddit"),
-                        text = (translation["reset_setup_dialog_text"] ?: "").replace("Purrfect", "PurrfectReddit"),
+                        title = translation["reset_setup_dialog_title"] ?: "Reset Setup",
+                        text = translation["reset_setup_dialog_text"] ?: "",
                         icon = Icons.Filled.Warning,
                         confirmButtonText = positiveLabel,
                         dismissButtonText = negativeLabel,
@@ -763,7 +789,9 @@ object LegacyTheme : ThemeContract {
                                 .remove("setup_current_route")
                                 .remove("setup_skip_patch")
                                 .remove("setup_install_mode")
+                                .remove("setup_selected_apps")
                                 .apply()
+                            SetupPreferences.clearSetupChoices(context.sharedPreferences)
                             context.config.reset()
                             context.config.writeConfig()
                             val intent = Intent(context.androidContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java)
@@ -827,8 +855,7 @@ object LegacyTheme : ThemeContract {
                                             if (context.config.root.global.uiSettings.hapticFeedback.get()) {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                             }
-                                            context.setActiveTargetApp(TargetApp.SNAPCHAT)
-                                            routes.home.navigateReset()
+                                            handleTargetSwitch(TargetApp.SNAPCHAT)
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -840,7 +867,7 @@ object LegacyTheme : ThemeContract {
                                     ) {
                                         Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))
                                         Spacer(Modifier.width(10.dp))
-                                        Text(translation["switch_to_snapchat_button"] ?: "Switch to Snapchat", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        Text(targetSwitchLabel(TargetApp.SNAPCHAT), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -848,7 +875,9 @@ object LegacyTheme : ThemeContract {
                         GlassCard {
                             RowTitle(title = translation["actions_title"] ?: "Actions")
                             RowAction(key = "change_language") { context.checkForRequirements(Requirements.LANGUAGE) }
-                            RowAction(key = "repatch_reddit") { launchRedditRepatchSetup() }
+                            if (shouldShowRedditRepatchAction()) {
+                                RowAction(key = "repatch_reddit") { launchRedditRepatchSetup() }
+                            }
                         }
                         GlassCard {
                             RowTitle(title = translation["ui_theme_title"] ?: "UI Theme")
@@ -919,9 +948,9 @@ object LegacyTheme : ThemeContract {
                             }
                         }
                         GlassCard {
-                            RowTitle(title = (translation["reset_setup_title"] ?: "Reset Setup").replace("Purrfect", "PurrfectReddit"))
+                            RowTitle(title = translation["reset_setup_title"] ?: "Reset Setup")
                             ShiftedRow(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp).clickable { showResetSetupDialog = true }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                                Text(text = (translation["reset_setup_action"] ?: "Reset and restart Purrfect").replace("Purrfect", "PurrfectReddit"), fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+                                Text(text = translation["reset_setup_action"] ?: "Reset and restart Purrfect", fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
                                 Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 14.dp))
                             }
                         }
@@ -951,7 +980,9 @@ object LegacyTheme : ThemeContract {
                             .remove("setup_current_route")
                             .remove("setup_skip_patch")
                             .remove("setup_install_mode")
+                            .remove("setup_selected_apps")
                             .apply()
+                        SetupPreferences.clearSetupChoices(context.sharedPreferences)
 
                         context.config.reset()
                         context.config.writeConfig()
@@ -1017,8 +1048,7 @@ object LegacyTheme : ThemeContract {
                                             if (context.config.root.global.uiSettings.hapticFeedback.get()) {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                             }
-                                            context.setActiveTargetApp(TargetApp.REDDIT)
-                                            routes.home.navigateReset()
+                                            handleTargetSwitch(TargetApp.REDDIT)
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1031,7 +1061,7 @@ object LegacyTheme : ThemeContract {
                                         Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))
                                         Spacer(Modifier.width(10.dp))
                                         Text(
-                                            translation["switch_to_reddit_button"] ?: "Switch to Reddit",
+                                            targetSwitchLabel(TargetApp.REDDIT),
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -1920,6 +1950,16 @@ object LegacyTheme : ThemeContract {
         val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
         val scrollState = rememberScrollState()
         val aboutStory = remember { translation["about_story"] ?: "" }
+        val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
+        val targetAccent = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100)
+        val targetSuffix = if (isRedditMode) "Reddit" else "Snap"
+        val aboutTagline = remember(isRedditMode) {
+            if (isRedditMode) {
+                (translation["about_tagline"] ?: "").replace("Snapchat", "Reddit")
+            } else {
+                translation["about_tagline"] ?: ""
+            }
+        }
         val pagePadding = 16.dp
         val bottomPadding = routes.bottomPadding + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
         val tapSource = remember { MutableInteractionSource() }
@@ -1975,7 +2015,12 @@ object LegacyTheme : ThemeContract {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = translation["about_title"] ?: "About",
+                            text = buildAnnotatedString {
+                                append("Purrfect")
+                                withStyle(SpanStyle(color = targetAccent)) {
+                                    append(targetSuffix)
+                                }
+                            },
                             fontSize = 28.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
@@ -1988,7 +2033,7 @@ object LegacyTheme : ThemeContract {
                                 if (tapCount.intValue >= 5) { tapCount.intValue = 0; routes.retroGame.navigate() }
                             }
                         )
-                        Text(text = translation["about_tagline"] ?: "", fontSize = 13.sp, color = Color(0xFFD9D3FF), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                        Text(text = aboutTagline, fontSize = 13.sp, color = Color(0xFFD9D3FF), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                         Text(text = translation["about_lead_developers_title"] ?: "Lead Developers", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(top = 10.dp))
                         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {

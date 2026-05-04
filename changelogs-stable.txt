@@ -1,3 +1,25 @@
+## v1.7.5
+- Reddit: We now support reddit too!
+- New: Reddit is now supported! Features:
+- New: Ad Blocker
+- New: Premium spoof
+- New: Link controls
+- New: Navigation controls
+- New: Shelf controls
+- New: Dialog controls
+- New: Scroll to top button
+- Snapchat side changes:
+- Fix: Converted Media now opens reliably(tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
+- Fix: Social Tab Disappearing bug fixes.
+- Fix: Randomised Device profile not applying in spoof options has been fixed.
+- Fix: Disappearing chats when "Hide Story Suggestions" is enabled is fixed.
+- Fix: Blank snaps when filters are used is fixed.
+- Fix: Continuous send notification UI fix, now all buttons have been removed.
+- Fix: Unlimited pins issue fix.
+- Fix: Snap Auto Open engine revert.
+- Feat: Implemented new Config Import/Export layout.
+- Feat: Implemented new Randomized Device profile viewer layout.
+
 ## v1.7.1
 - Auto-Open Engine ghost notification fix.
 - Continous Send notifiction bug fix.
@@ -6,7 +28,7 @@
 
 ## v1.7.0
 - Features:
-- Implemented "Purrfect AI" (tq ΞTΞRNAL)
+- Implemented "PurrfectSnap AI" (tq ΞTΞRNAL)
 - Implemented app intro showcase (tq ΞTΞRNAL)
 - Implemented "Spoof follower count" (tq RSR)
 - Implemented Social Tab sorting by Streak Length (tq Javalsta)
@@ -240,7 +262,7 @@
 
 ## v1.5.3
 - New: Mark as Seen Mode(Limit per run[Custom] or Complete Queue)
-- Fix: Purrfect crash if you try to open any dialog setting through in-app overlay
+- Fix: PurrfectSnap crash if you try to open any dialog setting through in-app overlay
 - New: Translucent Dialogs & refreshed animation
 - Fix: Adjusted Snap Preview Location
 
@@ -308,7 +330,7 @@
 - Fix: Snap Downloading issue for some devices
 - New: Story Snap Batch Download(tq to RSR)
 - New: Aphelion Theme!(tq to Kaladin)
-- Fix: Monochrome icon of Purrfect(tq to Kaladin)
+- Fix: Monochrome icon of PurrfectSnap(tq to Kaladin)
 
 ## v1.3.9
 - Fix: Improve ads & metrics blocking
@@ -321,7 +343,7 @@
 - Fix: Video playback rate slider mobility
 - New: Redesign Convert Message dialog
 - Fix: Media File Picker issues
-- Fix: REQUEST_NOT_SUCCESSFUL issues while updating Purrfect for some devices
+- Fix: REQUEST_NOT_SUCCESSFUL issues while updating PurrfectSnap for some devices
 
 ## v1.3.6
 - Fix: Crash issues for some devices
@@ -358,7 +380,7 @@
 - Fix: Prevent Story Rewatch(tq to Brandon)
 - Fix: Location search(tq to Brandon)
 - Fix: story download & decryption(tq to Hazelnut)
-- New: Add confirmation dialogs for Reset Purrfect option
+- New: Add confirmation dialogs for Reset PurrfectSnap option
 - New: Google Maps Integration(tq to Brandon)
 - Fix: support more translation keys
 - Fix: several inconsistencies

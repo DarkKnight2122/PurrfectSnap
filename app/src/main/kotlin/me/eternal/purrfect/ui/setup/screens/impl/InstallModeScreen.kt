@@ -54,7 +54,8 @@ enum class InstallMode { ROOT, NON_ROOT }
 
 class InstallModeScreen(
     private val onModeChosen: (InstallMode) -> Unit,
-    private val onSkipAutoSetup: () -> Unit
+    private val onSkipAutoSetup: () -> Unit,
+    private val allowSkip: Boolean = true
 ) : SetupScreen() {
     private var selectedMode: InstallMode? = null
     private var skipAutoSetup = false
@@ -78,7 +79,7 @@ class InstallModeScreen(
         LaunchedEffect(choice, skipSelected) {
             selectedMode = choice
             skipAutoSetup = skipSelected
-            allowNext(choice != null || skipSelected)
+            allowNext(choice != null || (allowSkip && skipSelected))
             if (!skipSelected) {
                 choice?.let(onModeChosen)
             }
@@ -226,45 +227,47 @@ class InstallModeScreen(
                 )
             }
             val interactionSource = remember { MutableInteractionSource() }
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .scaleOnPress(interactionSource)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null
-                    ) {
-                        skipSelected = true
-                        choice = null
-                        onSkipAutoSetup()
-                        goNext()
-                    },
-                color = Color.White.copy(alpha = 0.04f),
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
-            ) {
-                Row(
+            if (allowSkip) {
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .scaleOnPress(interactionSource)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) {
+                            skipSelected = true
+                            choice = null
+                            onSkipAutoSetup()
+                            goNext()
+                        },
+                    color = Color.White.copy(alpha = 0.04f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                 ) {
-                    Text(
-                        text = context.translation["setup.install_mode.skip_auto_setup"],
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                        contentDescription = null,
-                        tint = PurrfectPalette.glowSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = context.translation["setup.install_mode.skip_auto_setup"],
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = null,
+                            tint = PurrfectPalette.glowSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }

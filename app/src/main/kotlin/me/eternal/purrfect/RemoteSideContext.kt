@@ -57,6 +57,7 @@ import me.eternal.purrfect.ui.manager.data.SnapchatAppInfo
 import me.eternal.purrfect.ui.overlay.RemoteOverlay
 import me.eternal.purrfect.ui.setup.Requirements
 import me.eternal.purrfect.ui.setup.SetupActivity
+import me.eternal.purrfect.ui.setup.SetupPreferences
 import me.eternal.purrfect.task.AnnouncementCheckWorker
 import java.io.ByteArrayInputStream
 import java.lang.ref.WeakReference
@@ -247,22 +248,26 @@ class RemoteSideContext(
             requirements = requirements or Requirements.FIRST_RUN
         }
 
-        config.root.downloader.saveFolder.get().let {
-            val allowDefaultSaveFolder = sharedPreferences.getBoolean("downloader_use_default_save_folder", false)
-            if (it.isEmpty()) {
-                if (!allowDefaultSaveFolder) {
+        val shouldCheckSnapchatSetup = activeTargetApp == TargetApp.SNAPCHAT ||
+                SetupPreferences.hasCompletedTarget(sharedPreferences, TargetApp.SNAPCHAT)
+        if (shouldCheckSnapchatSetup) {
+            config.root.downloader.saveFolder.get().let {
+                val allowDefaultSaveFolder = sharedPreferences.getBoolean("downloader_use_default_save_folder", false)
+                if (it.isEmpty()) {
+                    if (!allowDefaultSaveFolder) {
+                        requirements = requirements or Requirements.SAVE_FOLDER
+                    }
+                } else if (run {
+                        val documentFile = runCatching { DocumentFile.fromTreeUri(androidContext, Uri.parse(it)) }.getOrNull()
+                        documentFile == null || !documentFile.exists() || !documentFile.canWrite()
+                    }) {
                     requirements = requirements or Requirements.SAVE_FOLDER
                 }
-            } else if (run {
-                    val documentFile = runCatching { DocumentFile.fromTreeUri(androidContext, Uri.parse(it)) }.getOrNull()
-                    documentFile == null || !documentFile.exists() || !documentFile.canWrite()
-                }) {
-                requirements = requirements or Requirements.SAVE_FOLDER
             }
-        }
 
-        if (!sharedPreferences.getBoolean("debug_disable_mapper", false) && mappings.getSnapchatPackageInfo() != null && mappings.isMappingsOutdated()) {
-            requirements = requirements or Requirements.MAPPINGS
+            if (!sharedPreferences.getBoolean("debug_disable_mapper", false) && mappings.getSnapchatPackageInfo() != null && mappings.isMappingsOutdated()) {
+                requirements = requirements or Requirements.MAPPINGS
+            }
         }
 
         if (requirements == 0) return false
@@ -517,6 +522,7 @@ class RemoteSideContext(
             .build()
         val inputData = Data.Builder()
             .putString("announcements_url", "https://raw.githubusercontent.com/particle-box/Purrfect/dev/announcements.txt")
+            .putString("announcements_fallback_url", "https://raw.githubusercontent.com/curious-freak/Purrfect/dev/announcements.txt")
             .putString("channel_name", "Announcements")
             .putString("channel_description", "Notifications for Purrfect announcements")
             .putString("notification_title", "New announcement available")

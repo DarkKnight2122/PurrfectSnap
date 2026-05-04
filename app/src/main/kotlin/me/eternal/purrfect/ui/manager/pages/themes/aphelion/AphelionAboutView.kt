@@ -24,17 +24,21 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
 import me.eternal.purrfect.R
+import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.util.ktx.openLink
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
@@ -51,6 +55,16 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
     }
     val scrollState = rememberScrollState()
     val aboutStory = remember { translation["about_story"]?.trim() ?: "" }
+    val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
+    val targetAccent = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100)
+    val targetSuffix = if (isRedditMode) "Reddit" else "Snap"
+    val aboutTagline = remember(isRedditMode) {
+        if (isRedditMode) {
+            (translation["about_tagline"] ?: "").replace("Snapchat", "Reddit")
+        } else {
+            translation["about_tagline"] ?: ""
+        }
+    }
     val horizontalPadding = 24.dp
     val bottomPadding = routes.bottomPadding
     val tapSource = remember { MutableInteractionSource() }
@@ -99,7 +113,12 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = translation["about_title"] ?: "About",
+                            text = buildAnnotatedString {
+                                append("Purrfect")
+                                withStyle(SpanStyle(color = targetAccent)) {
+                                    append(targetSuffix)
+                                }
+                            },
                             fontSize = 32.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = PurrfectPalette.textPrimary,
@@ -123,7 +142,7 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                             )
                         )
                         Text(
-                            text = translation["about_tagline"] ?: "",
+                            text = aboutTagline,
                             fontSize = 14.sp,
                             color = PurrfectPalette.textSecondary,
                             textAlign = TextAlign.Center,

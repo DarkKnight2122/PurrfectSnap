@@ -62,6 +62,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.LogLine
 import me.eternal.purrfect.LogReader
+import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.logger.LogChannel
 import me.eternal.purrfect.common.logger.LogLevel
 import me.eternal.purrfect.ui.manager.Routes
@@ -92,12 +93,16 @@ class HomeLogs : Routes.Route() {
     }
 
     internal fun exportLogs() {
-        activityLauncherHelper.saveFile("purrfect-logs-${System.currentTimeMillis()}.zip", "application/zip") { uri ->
+        val targetPrefix = when (context.activeTargetApp) {
+            TargetApp.REDDIT -> "purrfectreddit"
+            TargetApp.SNAPCHAT -> "purrfectsnap"
+        }
+        activityLauncherHelper.saveFile("$targetPrefix-logs-${System.currentTimeMillis()}.zip", "application/zip") { uri ->
             context.coroutineScope.launch {
                 context.shortToast(translation["saving_logs_toast"])
                 context.androidContext.contentResolver.openOutputStream(Uri.parse(uri))?.use {
                     runCatching {
-                        context.log.exportLogsToZip(it)
+                        context.log.exportLogsToZip(it, context.activeTargetApp)
                         context.longToast(translation["saved_logs_success_toast"])
                     }.onFailure { error ->
                         context.longToast(translation["saved_logs_failure_toast"])
@@ -496,6 +501,8 @@ class HomeLogs : Routes.Route() {
     }
 
     internal fun shouldHideLog(line: LogLine): Boolean {
+        if (!context.log.isLogForTarget(line, context.activeTargetApp)) return true
+
         val category = getCategoryForLog(line)
         if (category != null && enabledCategories[category] == false) return true
 

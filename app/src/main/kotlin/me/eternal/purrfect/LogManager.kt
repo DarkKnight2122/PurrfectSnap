@@ -2,6 +2,7 @@ package me.eternal.purrfect
 
 import android.util.Log
 import com.google.gson.GsonBuilder
+import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.data.FileType
 import me.eternal.purrfect.common.logger.AbstractLogger
 import me.eternal.purrfect.common.logger.LogChannel
@@ -206,6 +207,10 @@ class LogManager(
     }
 
     fun exportLogsToZip(outputStream: OutputStream) {
+        exportLogsToZip(outputStream, null)
+    }
+
+    fun exportLogsToZip(outputStream: OutputStream, targetApp: TargetApp?) {
         ZipOutputStream(outputStream).use { zipOutputStream ->
             fun putEntry(fileName: String, writer: ZipOutputStream.() -> Unit) {
                 zipOutputStream.putNextEntry(ZipEntry(fileName))
@@ -227,12 +232,55 @@ class LogManager(
             // add log files to zip
             logFolder.walk().forEach {
                 if (it.isFile) {
-                    putEntry(it.name) {
-                        write(it.readBytes())
+                    val content = if (targetApp == null) {
+                        it.readText(Charsets.UTF_8)
+                    } else {
+                        it.readLines(Charsets.UTF_8)
+                            .filter { line ->
+                                val parsed = LogLine.fromString(line.removePrefix("|"))
+                                parsed != null && isLogForTarget(parsed, targetApp)
+                            }
+                            .joinToString("\n")
+                            .let { text -> if (text.isBlank()) text else "$text\n" }
+                    }
+                    if (targetApp == null || content.isNotBlank()) {
+                        putEntry(it.name) {
+                            write(content.toByteArray(Charsets.UTF_8))
+                        }
                     }
                 }
             }
         }
+    }
+
+    fun isLogForTarget(line: LogLine, targetApp: TargetApp): Boolean {
+        val isReddit = isRedditLog(line)
+        return when (targetApp) {
+            TargetApp.REDDIT -> isReddit
+            TargetApp.SNAPCHAT -> !isReddit
+        }
+    }
+
+    private fun isRedditLog(line: LogLine): Boolean {
+        return line.tag.contains("reddit", ignoreCase = true) ||
+                line.message.contains("[reddit]", ignoreCase = true) ||
+                line.message.contains("reddit:", ignoreCase = true)
+    }
+
+    private fun markExternalRedditLogs(text: String): String {
+        return text.lineSequence()
+            .filter { it.isNotBlank() }
+            .joinToString("\n") { rawLine ->
+                val lineBody = rawLine.removePrefix("|").trimEnd()
+                val parsed = LogLine.fromString(lineBody)
+                val marked = if (parsed == null || isRedditLog(parsed)) {
+                    lineBody
+                } else {
+                    LogLine(parsed.logLevel, parsed.dateTime, "PurrfectReddit", parsed.message).toString()
+                }
+                "|$marked"
+            }
+            .let { marked -> if (marked.isBlank()) marked else "$marked\n" }
     }
 
     private fun syncExternalRedditLogs() {
@@ -255,8 +303,7 @@ class LogManager(
                     val text = String(bytes, 0, read, Charsets.UTF_8)
                     val completeText = if (text.endsWith("\n")) text else text.substringBeforeLast("\n", "")
                     if (completeText.isNotBlank()) {
-                        logFile?.appendText(completeText, Charsets.UTF_8)
-                        if (!completeText.endsWith("\n")) logFile?.appendText("\n", Charsets.UTF_8)
+                        logFile?.appendText(markExternalRedditLogs(completeText), Charsets.UTF_8)
                     }
                     prefs.edit().putLong(REDDIT_LOG_OFFSET_PREF, input.filePointer).apply()
                 }

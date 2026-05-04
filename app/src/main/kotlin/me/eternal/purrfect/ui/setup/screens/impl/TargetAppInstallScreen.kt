@@ -1,6 +1,5 @@
 package me.eternal.purrfect.ui.setup.screens.impl
 
-import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -61,21 +60,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.bridge.wrapper.LocaleWrapper
+import me.eternal.purrfect.setup.install.ApkInstallEvents
+import me.eternal.purrfect.setup.install.ApkInstaller
+import me.eternal.purrfect.setup.install.PatchedApkDiagnostics
 import me.eternal.purrfect.setup.patch.AutoPatchServer
 import me.eternal.purrfect.setup.patch.LSPatch
 import me.eternal.purrfect.ui.manager.ManagerAssistantDialog
 import me.eternal.purrfect.ui.manager.Routes
+import me.eternal.purrfect.ui.manager.data.Updater
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.ui.setup.SetupPreferences
 import me.eternal.purrfect.ui.setup.screens.SetupScreen
 import me.eternal.purrfect.ui.util.scaleOnPress
 import okhttp3.OkHttpClient
@@ -89,7 +93,8 @@ enum class SetupInstallFlow {
 
 open class TargetAppInstallScreen(
     private val selectedAppsProvider: () -> Set<TargetApp>,
-    private val flow: SetupInstallFlow
+    private val flow: SetupInstallFlow,
+    private val allowInstalledTarget: Boolean = false
 ) : SetupScreen() {
     private val autoPatchServer = AutoPatchServer()
     private val okHttpClient = OkHttpClient.Builder()
@@ -118,6 +123,7 @@ open class TargetAppInstallScreen(
         val clipboard = LocalClipboardManager.current
         var progress by remember { mutableFloatStateOf(-1f) }
         var downloadedApkPath by rememberSaveable { mutableStateOf<String?>(null) }
+        var downloadedReleaseTag by rememberSaveable { mutableStateOf<String?>(null) }
         var patchedApkPath by rememberSaveable { mutableStateOf<String?>(null) }
         val downloadedApk = remember(downloadedApkPath) { downloadedApkPath?.let(::File) }
         val patchedApk = remember(patchedApkPath) { patchedApkPath?.let(::File) }
@@ -159,6 +165,16 @@ open class TargetAppInstallScreen(
             logs.add(message)
         }
 
+        LaunchedEffect(Unit) {
+            ApkInstallEvents.events.collect { event ->
+                val packagePrefix = event.packageName?.let { "$it: " }.orEmpty()
+                pushLog("[Installer] $packagePrefix${event.message}")
+                if (event.isFailure) {
+                    error = event.message
+                }
+            }
+        }
+
         fun queueText(fromIndex: Int = currentTargetIndex + 1): String? {
             return installTargets
                 .drop(fromIndex)
@@ -194,6 +210,7 @@ open class TargetAppInstallScreen(
         fun resetTargetState() {
             progress = -1f
             downloadedApkPath = null
+            downloadedReleaseTag = null
             patchedApkPath = null
             isRunning = false
             error = null
@@ -206,6 +223,17 @@ open class TargetAppInstallScreen(
         fun completeCurrentTarget(target: SetupInstallTarget) {
             val completed = completedTargets()
             if (target.targetApp.key in completed) return
+
+            SetupPreferences.addCompletedTarget(context.sharedPreferences, target.targetApp)
+
+            if (target.targetApp == TargetApp.REDDIT) {
+                downloadedReleaseTag?.takeIf { it.isNotBlank() }?.let { releaseTag ->
+                    context.sharedPreferences.edit()
+                        .putString(Updater.REDDIT_INSTALLED_RELEASE_TAG_PREF, releaseTag)
+                        .apply()
+                    Updater.clearRedditUpdateCache()
+                }
+            }
 
             completedTargetKeys = (completed + target.targetApp.key).joinToString(",")
             listOfNotNull(downloadedApkPath, patchedApkPath)
@@ -261,9 +289,13 @@ open class TargetAppInstallScreen(
 
         suspend fun pushStatus(message: String) = withContext(Dispatchers.Main) { pushLog(message) }
         suspend fun setProgress(value: Float) = withContext(Dispatchers.Main) { progress = value }
+        suspend fun setDownloadedReleaseTag(value: String?) = withContext(Dispatchers.Main) { downloadedReleaseTag = value }
 
         suspend fun downloadTargetFromAutoPatchServer(target: SetupInstallTarget): File? = withContext(Dispatchers.IO) {
             val latestApk = autoPatchServer.fetchLatestApk(target.targetApp) ?: return@withContext null
+            if (target.targetApp == TargetApp.REDDIT) {
+                setDownloadedReleaseTag(latestApk.tagName)
+            }
             pushStatus(
                 translation.format(
                     "$stringPrefix.download_recommended_status",
@@ -304,16 +336,22 @@ open class TargetAppInstallScreen(
         fun installApk(target: SetupInstallTarget, apk: File) {
             installRequested = true
             startInstallWatcher(target)
-            val uri = FileProvider.getUriForFile(
-                context.androidContext,
-                "${context.androidContext.packageName}.fileprovider",
-                apk
-            )
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            val logInstaller: (String) -> Unit = { line ->
+                coroutineScope.launch(Dispatchers.Main) {
+                    pushLog("[Installer] $line")
+                }
             }
-            context.androidContext.startActivity(intent)
+            coroutineScope.launch(Dispatchers.IO) {
+                runCatching {
+                    ApkInstaller.install(context.androidContext, apk, target.packageName, logInstaller)
+                }.onFailure { throwable ->
+                    withContext(Dispatchers.Main) {
+                        val message = throwable.message ?: throwable.toString()
+                        error = message
+                        pushLog(message)
+                    }
+                }
+            }
         }
 
         fun markAlreadyInstalled() {
@@ -336,6 +374,7 @@ open class TargetAppInstallScreen(
                 error = null
                 progress = -1f
                 downloadedApkPath = null
+                downloadedReleaseTag = null
                 patchedApkPath = null
                 installVerified = false
                 installRequested = false
@@ -350,7 +389,7 @@ open class TargetAppInstallScreen(
                 )
                 pushQueueLog()
                 runCatching {
-                    if (flow != SetupInstallFlow.REPATCH && isTargetInstalled(target)) {
+                    if (!allowInstalledTarget && flow != SetupInstallFlow.REPATCH && isTargetInstalled(target)) {
                         pushStatus(
                             translation.format(
                                 "$stringPrefix.uninstall_prompt_status",
@@ -431,6 +470,8 @@ open class TargetAppInstallScreen(
                                     "app" to target.displayName
                                 )
                             )
+                        PatchedApkDiagnostics.inspect(context.androidContext, patched, target.packageName)
+                            .forEach { diagnosticLine -> pushStatus(diagnosticLine) }
                         patchedApkPath = patched.absolutePath
                         pushStatus(
                             translation.format(
@@ -541,7 +582,8 @@ open class TargetAppInstallScreen(
                 JingmatrixBadge(accent, translation)
             }
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
                 color = Color.White.copy(alpha = 0.03f),
                 tonalElevation = 0.dp,
@@ -880,6 +922,7 @@ private fun LogsPanel(
     ) {
         Column(
             modifier = Modifier
+                .fillMaxWidth()
                 .background(animatedBrush)
                 .background(Color.Black.copy(alpha = 0.25f))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -936,9 +979,14 @@ private fun LogsPanel(
                     }
                 }
             }
-            AnimatedVisibility(visible = expanded) {
+            AnimatedVisibility(
+                visible = expanded,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Column(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     logs.forEach { line ->

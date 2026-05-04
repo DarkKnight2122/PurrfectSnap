@@ -67,6 +67,7 @@ import me.eternal.purrfect.ui.manager.theme.aphelion.AphelionHaptics
 import me.eternal.purrfect.ui.util.headerHeightTracker
 import me.eternal.purrfect.ui.util.Motion
 import me.eternal.purrfect.ui.setup.Requirements
+import me.eternal.purrfect.ui.setup.SetupPreferences
 import me.eternal.purrfect.ui.util.purrfectSwitchColors
 import me.eternal.purrfect.ui.util.saveFile
 import me.eternal.purrfect.ui.util.openFile
@@ -134,7 +135,9 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                         .remove("setup_current_route")
                         .remove("setup_skip_patch")
                         .remove("setup_install_mode")
+                        .remove("setup_selected_apps")
                         .apply()
+                    SetupPreferences.clearSetupChoices(context.sharedPreferences)
                     context.config.reset()
                     context.config.writeConfig()
                     val intent = Intent(context.androidContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java)
@@ -1087,8 +1090,8 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
         if (showResetSetupDialog) {
             AestheticDialog(
                 onDismissRequest = { showResetSetupDialog = false },
-                title = (translation["reset_setup_dialog_title"] ?: "Reset Setup").replace("Purrfect", "PurrfectReddit"),
-                text = (translation["reset_setup_dialog_text"] ?: "").replace("Purrfect", "PurrfectReddit"),
+                title = translation["reset_setup_dialog_title"] ?: "Reset Setup",
+                text = translation["reset_setup_dialog_text"] ?: "",
                 icon = Icons.Filled.Warning,
                 confirmButtonText = context.translation["button.positive"],
                 dismissButtonText = context.translation["button.negative"],
@@ -1099,7 +1102,9 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                         .remove("setup_current_route")
                         .remove("setup_skip_patch")
                         .remove("setup_install_mode")
+                        .remove("setup_selected_apps")
                         .apply()
+                    SetupPreferences.clearSetupChoices(context.sharedPreferences)
                     context.config.reset()
                     context.config.writeConfig()
                     val intent = Intent(context.androidContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java)
@@ -1128,7 +1133,9 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
             GlassCard {
                 RowTitle(title = translation["actions_title"] ?: "Actions")
                 RowAction(key = "change_language") { context.checkForRequirements(Requirements.LANGUAGE) }
-                RowAction(key = "repatch_reddit") { launchRedditRepatchSetup() }
+                if (shouldShowRedditRepatchAction()) {
+                    RowAction(key = "repatch_reddit") { launchRedditRepatchSetup() }
+                }
             }
             GlassCard {
                 RowTitle(title = translation["ui_theme_title"] ?: "UI Theme")
@@ -1199,9 +1206,9 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                 }
             }
             GlassCard {
-                RowTitle(title = (translation["reset_setup_title"] ?: "Reset Setup").replace("Purrfect", "PurrfectReddit"))
+                RowTitle(title = translation["reset_setup_title"] ?: "Reset Setup")
                 ShiftedRow(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp).clickable { showResetSetupDialog = true }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = (translation["reset_setup_action"] ?: "Reset and restart Purrfect").replace("Purrfect", "PurrfectReddit"), fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+                    Text(text = translation["reset_setup_action"] ?: "Reset and restart Purrfect", fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
                     Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 14.dp))
                 }
             }
@@ -1227,8 +1234,8 @@ private fun HomeSettings.TargetAppSwitchRow(targetApp: TargetApp) {
         TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
     }
     val buttonLabel = when (targetApp) {
-        TargetApp.SNAPCHAT -> translation["switch_to_snapchat_button"] ?: "Switch to Snapchat"
-        TargetApp.REDDIT -> translation["switch_to_reddit_button"] ?: "Switch to Reddit"
+        TargetApp.SNAPCHAT -> targetSwitchLabel(TargetApp.SNAPCHAT)
+        TargetApp.REDDIT -> targetSwitchLabel(TargetApp.REDDIT)
     }
 
     ShiftedRow {
@@ -1245,8 +1252,7 @@ private fun HomeSettings.TargetAppSwitchRow(targetApp: TargetApp) {
             Button(
                 onClick = {
                     AphelionHaptics.themeRevealTick(context, hapticFeedback)
-                    context.setActiveTargetApp(targetApp)
-                    routes.home.navigateReset()
+                    handleTargetSwitch(targetApp)
                 },
                 modifier = Modifier
                     .fillMaxWidth()
