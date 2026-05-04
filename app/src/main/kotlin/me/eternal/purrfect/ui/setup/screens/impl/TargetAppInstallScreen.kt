@@ -1,5 +1,6 @@
 package me.eternal.purrfect.ui.setup.screens.impl
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -60,19 +61,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.bridge.wrapper.LocaleWrapper
-import me.eternal.purrfect.setup.install.ApkInstallEvents
-import me.eternal.purrfect.setup.install.ApkInstaller
-import me.eternal.purrfect.setup.install.PatchedApkDiagnostics
 import me.eternal.purrfect.setup.patch.AutoPatchServer
 import me.eternal.purrfect.setup.patch.LSPatch
 import me.eternal.purrfect.ui.manager.ManagerAssistantDialog
@@ -163,16 +161,6 @@ open class TargetAppInstallScreen(
         fun pushLog(message: String) {
             if (logs.size > 160) logs.removeAt(0)
             logs.add(message)
-        }
-
-        LaunchedEffect(Unit) {
-            ApkInstallEvents.events.collect { event ->
-                val packagePrefix = event.packageName?.let { "$it: " }.orEmpty()
-                pushLog("[Installer] $packagePrefix${event.message}")
-                if (event.isFailure) {
-                    error = event.message
-                }
-            }
         }
 
         fun queueText(fromIndex: Int = currentTargetIndex + 1): String? {
@@ -336,22 +324,16 @@ open class TargetAppInstallScreen(
         fun installApk(target: SetupInstallTarget, apk: File) {
             installRequested = true
             startInstallWatcher(target)
-            val logInstaller: (String) -> Unit = { line ->
-                coroutineScope.launch(Dispatchers.Main) {
-                    pushLog("[Installer] $line")
-                }
+            val uri = FileProvider.getUriForFile(
+                context.androidContext,
+                "${context.androidContext.packageName}.fileprovider",
+                apk
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            coroutineScope.launch(Dispatchers.IO) {
-                runCatching {
-                    ApkInstaller.install(context.androidContext, apk, target.packageName, logInstaller)
-                }.onFailure { throwable ->
-                    withContext(Dispatchers.Main) {
-                        val message = throwable.message ?: throwable.toString()
-                        error = message
-                        pushLog(message)
-                    }
-                }
-            }
+            context.androidContext.startActivity(intent)
         }
 
         fun markAlreadyInstalled() {
@@ -470,8 +452,6 @@ open class TargetAppInstallScreen(
                                     "app" to target.displayName
                                 )
                             )
-                        PatchedApkDiagnostics.inspect(context.androidContext, patched, target.packageName)
-                            .forEach { diagnosticLine -> pushStatus(diagnosticLine) }
                         patchedApkPath = patched.absolutePath
                         pushStatus(
                             translation.format(

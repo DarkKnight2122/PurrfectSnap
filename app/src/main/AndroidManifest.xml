@@ -81,9 +81,6 @@
                 <action android:name="me.eternal.purrfect.REDDIT_LOG" />
             </intent-filter>
         </receiver>
-        <receiver
-            android:name=".setup.install.ApkInstallStatusReceiver"
-            android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="me.eternal.purrfect.fileprovider"

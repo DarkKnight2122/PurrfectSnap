@@ -80,8 +80,9 @@ class AutoPatchServer(
 
         return when (targetApp) {
             TargetApp.SNAPCHAT -> {
-                apkAssets.firstOrNull { !it.first.contains("snapchat", ignoreCase = true) }
-                    ?: apkAssets.first()
+                val snapchatCandidates = apkAssets.filter { !it.first.contains("snapchat", ignoreCase = true) }
+                    .ifEmpty { apkAssets }
+                snapchatCandidates.random()
             }
 
             TargetApp.REDDIT -> apkAssets.first()
