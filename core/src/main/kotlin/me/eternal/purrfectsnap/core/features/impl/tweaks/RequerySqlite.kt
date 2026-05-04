@@ -8,10 +8,13 @@ import me.eternal.purrfectsnap.core.util.hook.hook
 class RequerySqlite : Feature("Requery Sqlite") {
     override fun init() {
         val hideQuickAddSuggestions = context.config.userInterface.hideQuickAddSuggestions.get()
-        val hideFriendFeedEntry = context.config.userInterface.hideFriendFeedEntry.get()
-        val hideSuggestedStories = context.config.userInterface.hideStorySuggestions.get().contains("hide_suggested_friend_stories")
 
-        if (!hideQuickAddSuggestions && !hideFriendFeedEntry && !hideSuggestedStories) return
+        // 1. Database Integrity Restoration:
+        // We have decommissioned the 'hideSuggestedStories' and 'hideFriendFeedEntry' SQL hooks.
+        // These were causing global friend disappearance and database corruption.
+        // Hiding is now handled at the safe UI layer (UITweaks.kt and HideFriendFeedEntry.kt).
+        
+        if (!hideQuickAddSuggestions) return
 
         findClass("io.requery.android.database.sqlite.SQLiteDatabase").hook("rawQueryWithFactory", HookStage.BEFORE) { param ->
             var sqlRequest = param.argNullable<String>(1) ?: return@hook
@@ -38,18 +41,6 @@ class RequerySqlite : Feature("Requery Sqlite") {
                 if (isDisplayQuery || isCountQuery) {
                     patchRequest("0 = 1")
                 }
-            }
-
-            if (hideSuggestedStories && sqlRequest.contains("DiscoverFeedFriendStoriesViewV2 AS DFStories")) {
-                patchRequest("DFStories.isFriendOfFriend = 0")
-            }
-
-            if (hideFriendFeedEntry && sqlUpper.startsWith("SELECT") && sqlRequest.contains("FriendWithUsername") && sqlRequest.contains("userId")) {
-                if (isSuggestionQuery()) return@hook
-                
-                val ids = context.bridgeClient.getRuleIds(MessagingRuleType.HIDE_FRIEND_FEED).takeIf { it.isNotEmpty() } ?: return@hook
-                val userIdField = if (sqlRequest.contains("Friend.userId")) "Friend.userId" else "userId"
-                patchRequest(ids.joinToString(" AND ") { "$userIdField != '$it'" })
             }
         }
     }

@@ -6,6 +6,8 @@ import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.MediaRecorder
+import android.media.MediaCodec
+import android.media.MediaFormat
 import android.hardware.camera2.CaptureRequest
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraCharacteristics.Key
@@ -33,22 +35,8 @@ class CameraTweaks : Feature("Camera Tweaks") {
             Build.HARDWARE.contains("exynos", ignoreCase = true) ||
             Build.BRAND.equals("samsung", ignoreCase = true)
 
-        // Toggle A: Audio & Video Optimizations (Bitrates)
-        if (config.audioVideoOptimizations.get()) {
-            MediaRecorder::class.java.hook("setVideoEncodingBitRate", HookStage.BEFORE) { param ->
-                val currentRate = param.arg<Int>(0)
-                if (currentRate < 30_000_000) param.setArg(0, 30_000_000) 
-            }
-            MediaRecorder::class.java.hook("setAudioEncodingBitRate", HookStage.BEFORE) { param ->
-                param.setArg(0, 320_000)
-            }
-            MediaRecorder::class.java.hook("setAudioSamplingRate", HookStage.BEFORE) { param ->
-                param.setArg(0, 48_000)
-            }
-        }
-
-        // Toggle B: Camera Optimizations (Hardware ISP - UNSTABLE)
-        if (config.cameraOptimizations.get() && !skipUnstableStillCaptureTweaks) {
+        // Pillar 1: Lossless Image Processing (Hardware ISP - UNSTABLE)
+        if (config.losslessImageProcessing.get() && !skipUnstableStillCaptureTweaks) {
             CaptureRequest.Builder::class.java.hook("set", HookStage.BEFORE) { param ->
                 val key = param.arg<CaptureRequest.Key<*>>(0)
                 when (key) {
@@ -58,6 +46,43 @@ class CameraTweaks : Feature("Camera Tweaks") {
                     CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE -> param.setArg(1, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY)
                     CaptureRequest.CONTROL_AF_MODE -> param.setArg(1, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                 }
+            }
+        }
+
+        // Pillar 2: Lossless Video Processing (CBR Overdrive - UNSTABLE)
+        if (config.losslessVideoProcessing.get()) {
+            // Legacy Video Pipeline Overdrive
+            MediaRecorder::class.java.hook("setVideoEncodingBitRate", HookStage.BEFORE) { param ->
+                val currentRate = param.arg<Int>(0)
+                if (currentRate < 30_000_000) param.setArg(0, 30_000_000) 
+            }
+            
+            // Modern Arroyo Video Pipeline Overdrive (Hardware Encoder)
+            MediaCodec::class.java.hook("configure", HookStage.BEFORE) { param ->
+                val format = param.argNullable<MediaFormat>(0) ?: return@hook
+                
+                // Only override video encoding formats
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
+                if (mime.startsWith("video/")) {
+                    // Force 50Mbps Constant Bitrate (CBR) for absolute maximum quality
+                    format.setInteger(MediaFormat.KEY_BIT_RATE, 50_000_000)
+                    format.setInteger(MediaFormat.KEY_BITRATE_MODE, android.media.MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
+                    
+                    // Force hardware encoder to prioritize quality over speed
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        format.setInteger(MediaFormat.KEY_COMPLEXITY, 2) // Typically highest complexity for H264/HEVC
+                    }
+                }
+            }
+        }
+
+        // Pillar 3: Enhanced Audio Processing (Studio Quality)
+        if (config.enhancedAudioProcessing.get()) {
+            MediaRecorder::class.java.hook("setAudioEncodingBitRate", HookStage.BEFORE) { param ->
+                param.setArg(0, 320_000)
+            }
+            MediaRecorder::class.java.hook("setAudioSamplingRate", HookStage.BEFORE) { param ->
+                param.setArg(0, 48_000)
             }
         }
 

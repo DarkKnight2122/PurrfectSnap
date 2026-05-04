@@ -34,7 +34,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import kotlinx.coroutines.*
 import me.eternal.purrfectsnap.bridge.task.TaskListener
 import me.eternal.purrfectsnap.common.data.ContentType
-import me.eternal.purrfectsnap.common.config.PropertyValue
 import me.eternal.purrfectsnap.common.ui.createComposeAlertDialog
 import me.eternal.purrfectsnap.common.util.protobuf.ProtoEditor
 import me.eternal.purrfectsnap.common.util.protobuf.ProtoReader
@@ -64,6 +63,7 @@ import java.util.Calendar
 import java.util.Collections
 import java.util.IdentityHashMap
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -76,47 +76,49 @@ class SendOverride : Feature("Send Override") {
         private const val STATUS_NOTIFICATION_ID = 54322
         private const val COMPLETION_NOTIFICATION_ID = 54323
 
-        const val ACTION_PAUSE_RESUME = "me.eternal.purrfectsnap.CONTINUOUS_SEND_PAUSE_RESUME"
-        const val ACTION_STOP = "me.eternal.purrfectsnap.CONTINUOUS_SEND_STOP"
-
         private val internalMultipartSend = ThreadLocal.withInitial { false }
         private var queuedOriginalItemRepeatCount = 0
         private var queuedOriginalItemRepeatOverrideType: String? = null
-        private var queuedOriginalItemRepeatSnapDurationMs: Int? = null
-
-        // Notification & Loop Tracking
+        
+        // Progress Tracking
         private var totalRepeatCount = 0
         private var processedRepeatCount = 0
         private var currentRecipientName: String = "Unknown"
-        private val isPaused = java.util.concurrent.atomic.AtomicBoolean(false)
-        private val isStopped = java.util.concurrent.atomic.AtomicBoolean(false)
-        private val engineActive = java.util.concurrent.atomic.AtomicBoolean(true)
+        private val engineActive = AtomicBoolean(false)
 
-        private fun queueOriginalItemRepeats(repeatCount: Int, overrideType: String, snapDurationMs: Int?) {
+        private fun queueOriginalItemRepeats(context: ModContext, repeatCount: Int, overrideType: String) {
             queuedOriginalItemRepeatCount = repeatCount
             queuedOriginalItemRepeatOverrideType = overrideType
-            queuedOriginalItemRepeatSnapDurationMs = snapDurationMs
-            MediaFilePicker.setQueuedOverrideType(overrideType, snapDurationMs)
+            MediaFilePicker.setQueuedOverrideType(overrideType)
+            engineActive.set(true)
+            context.log.info("Continuous Send: Starting task for $currentRecipientName (Total: ${repeatCount + 1})")
         }
 
-        private fun clearQueuedOriginalItemRepeats() {
+        private fun resetEngine(context: ModContext) {
+            context.log.info("Continuous Send: Engine reset. All states cleared.")
             queuedOriginalItemRepeatCount = 0
             queuedOriginalItemRepeatOverrideType = null
-            queuedOriginalItemRepeatSnapDurationMs = null
+            totalRepeatCount = 0
+            processedRepeatCount = 0
+            engineActive.set(false)
+            MediaFilePicker.clearQueuedSplitItems(true)
         }
 
         private fun updateContinuousSendNotification(context: ModContext) {
-            if (!engineActive.get()) return
-
             val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
             val remaining = queuedOriginalItemRepeatCount
             val processed = processedRepeatCount
             val total = totalRepeatCount
-            val isWorking = remaining > 0 && !isStopped.get() && engineActive.get()
+            
+            // Logic: If there is a total but nothing remaining, we are finished.
+            val isFinished = total > 0 && remaining <= 0
 
-            if (!isWorking) {
-                notificationManager.cancel(STATUS_NOTIFICATION_ID)
-                showCompletionNotification(context, processed, total)
+            if (isFinished || !engineActive.get()) {
+                if (total > 0) {
+                    notificationManager.cancel(STATUS_NOTIFICATION_ID)
+                    showCompletionNotification(context, processed, total)
+                    resetEngine(context)
+                }
                 return
             }
 
@@ -132,21 +134,19 @@ class SendOverride : Feature("Send Override") {
                 .setSubText("$processed / $total")
                 .setProgress(total, processed, false)
 
-            val pauseResumeLabel = if (isPaused.get()) "Resume" else "Pause"
-            builder.addAction(Notification.Action.Builder(null, pauseResumeLabel, createPendingIntent(context, ACTION_PAUSE_RESUME)).build())
-            builder.addAction(Notification.Action.Builder(null, "Stop", createPendingIntent(context, ACTION_STOP)).build())
-
             notificationManager.notify(STATUS_NOTIFICATION_ID, builder.build())
         }
 
         private fun showCompletionNotification(context: ModContext, sent: Int, total: Int) {
-            val isError = sent < total && !isStopped.get()
-            val title = when {
-                isStopped.get() -> "Continuous Send Stopped"
-                isError -> "Continuous Send Failed"
-                else -> "Continuous Send Finished"
-            }
+            val isError = sent < total
+            val title = if (isError) "Continuous Send Failed" else "Continuous Send Finished"
             val content = "Sent $sent / $total snaps to $currentRecipientName"
+            
+            if (isError) {
+                context.log.error("Continuous Send: Task ended prematurely. Failed at step ${sent + 1} of $total")
+            } else {
+                context.log.info("Continuous Send: Task completed successfully ($total/$total)")
+            }
 
             val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
             val builder = Notification.Builder(context.androidContext, CONTINUOUS_SEND_CHANNEL_ID)
@@ -159,44 +159,31 @@ class SendOverride : Feature("Send Override") {
             notificationManager.notify(COMPLETION_NOTIFICATION_ID, builder.build())
         }
 
-        private fun createPendingIntent(context: ModContext, action: String): PendingIntent {
-            val intent = Intent(action).setPackage(context.androidContext.packageName)
-            return PendingIntent.getBroadcast(
-                context.androidContext,
-                action.hashCode(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-        }
-
         private fun handleQueuedOriginalItemRepeatSuccess(context: ModContext): Boolean {
-            if (isStopped.get() || queuedOriginalItemRepeatCount <= 0) {
-                clearQueuedOriginalItemRepeats()
+            if (queuedOriginalItemRepeatCount <= 0 || !engineActive.get()) {
                 updateContinuousSendNotification(context)
                 return false
             }
 
             val overrideType = queuedOriginalItemRepeatOverrideType ?: run {
-                clearQueuedOriginalItemRepeats()
                 updateContinuousSendNotification(context)
                 return false
             }
-            val snapDurationMs = queuedOriginalItemRepeatSnapDurationMs
 
             processedRepeatCount++
             queuedOriginalItemRepeatCount--
             updateContinuousSendNotification(context)
 
-            MediaFilePicker.setQueuedOverrideType(overrideType, snapDurationMs)
+            MediaFilePicker.setQueuedOverrideType(overrideType)
             val result = MediaFilePicker.sendReusableOriginalItem()
             if (!result) {
-                clearQueuedOriginalItemRepeats()
+                context.log.error("Continuous Send: Failed to trigger reusable item send at step $processedRepeatCount.")
                 updateContinuousSendNotification(context)
             }
             return result
         }
     }
-    
+
     private var selectedType by mutableStateOf("SNAP")
     private var disableSplitForCurrentSend by mutableStateOf(false)
     private var customDuration by mutableFloatStateOf(10f)
@@ -241,7 +228,7 @@ class SendOverride : Feature("Send Override") {
                 if (released) return@synchronized
                 released = true
                 if (backgroundHookRefs > 0) backgroundHookRefs--
-                if (backgroundHookRefs == 0) {
+                if (backgroundHooks != null && backgroundHookRefs == 0) {
                     backgroundHooks?.forEach { it.unhook() }
                     backgroundHooks = null
                 }
@@ -273,7 +260,7 @@ class SendOverride : Feature("Send Override") {
             false
         }
     }
-    
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
@@ -286,7 +273,7 @@ class SendOverride : Feature("Send Override") {
             notificationManager.createNotificationChannel(channel)
         }
     }
-    
+
     private fun showNotification(title: String, content: String) {
         val notificationManager = context.androidContext.getSystemService(NotificationManager::class.java)
         val builder = NotificationCompat.Builder(context.androidContext, NOTIFICATION_CHANNEL_ID)
@@ -304,33 +291,6 @@ class SendOverride : Feature("Send Override") {
         createNotificationChannel()
         createContinuousNotificationChannel()
 
-        val actionReceiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                when (intent?.action) {
-                    ACTION_PAUSE_RESUME -> {
-                        isPaused.set(!isPaused.get())
-                        updateContinuousSendNotification(context)
-                    }
-                    ACTION_STOP -> {
-                        isStopped.set(true)
-                        if (isPaused.get()) {
-                            isPaused.set(false)
-                        }
-                        updateContinuousSendNotification(context)
-                    }
-                }
-            }
-        }
-        val filter = IntentFilter().apply {
-            addAction(ACTION_PAUSE_RESUME)
-            addAction(ACTION_STOP)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.androidContext.registerReceiver(actionReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.androidContext.registerReceiver(actionReceiver, filter)
-        }
-
         val stripMediaMetadata = context.config.messaging.stripMediaMetadata.get()
         var postSavePolicy: Int? = null
 
@@ -339,9 +299,9 @@ class SendOverride : Feature("Send Override") {
 
         context.event.subscribe(MediaUploadEvent::class) { event ->
             // Handle audio notes separately since they don't have path 11, 5
-            if (stripMediaMetadata.isNotEmpty() && 
-                (event.localMessageContent.contentType == ContentType.NOTE || 
-                 stripMediaMetadata.contains("remove_audio_note_duration") || 
+            if (stripMediaMetadata.isNotEmpty() &&
+                (event.localMessageContent.contentType == ContentType.NOTE ||
+                 stripMediaMetadata.contains("remove_audio_note_duration") ||
                  stripMediaMetadata.contains("remove_audio_note_transcript_capability"))) {
                 event.onMediaUploaded { result ->
                     if (result.messageContent.contentType == ContentType.NOTE) {
@@ -350,7 +310,7 @@ class SendOverride : Feature("Send Override") {
                             // Check which path structure exists - try both to be safe
                             val hasFullPath = contentReader.followPath(4, 4, 6, 1, 1) != null
                             val hasDirectPath = contentReader.followPath(6, 1, 1) != null
-                            
+
                             if (stripMediaMetadata.contains("remove_audio_note_duration")) {
                                 // Audio note duration is at field 13 (confirmed from MessageDecoder line 94 and MessageSender line 27)
                                 if (hasFullPath) {
@@ -484,12 +444,12 @@ class SendOverride : Feature("Send Override") {
                             }
                         }
                     }
-                    
+
                     // Handle NOTE messages (field 6) - audio notes
                     // Check both root level (6) and nested under media (4, 4, 6)
                     val noteAtRoot = protoReader.followPath(6) != null
                     val noteNested = protoReader.followPath(4, 4, 6) != null
-                    
+
                     if (noteAtRoot || noteNested) {
                         // Set save policy in the NOTE path
                         val hasNestedPath = if (noteNested) {
@@ -497,7 +457,7 @@ class SendOverride : Feature("Send Override") {
                         } else {
                             protoReader.followPath(6, 1, 1) != null
                         }
-                        
+
                         if (noteNested) {
                             if (hasNestedPath) {
                                 edit(4, 4, 6, 1, 1) {
@@ -555,7 +515,7 @@ class SendOverride : Feature("Send Override") {
             if (event.destinations.stories?.isNotEmpty() == true && event.destinations.conversations?.isEmpty() == true) return@subscribe
             val localMessageContent = event.messageContent
             // Allow both EXTERNAL_MEDIA (gallery) and SNAP (camera)
-            if (localMessageContent.contentType != ContentType.EXTERNAL_MEDIA && 
+            if (localMessageContent.contentType != ContentType.EXTERNAL_MEDIA &&
                 localMessageContent.contentType != ContentType.SNAP &&
                 localMessageContent.instanceNonNull().getObjectFieldOrNull("mExternalContentMetadata") == null) return@subscribe
             val includeCameraSnaps = context.config.messaging.galleryMediaSendOverride.includeCameraSnaps.get()
@@ -567,7 +527,7 @@ class SendOverride : Feature("Send Override") {
 
             val conversationIds = event.destinations.conversations?.map { it.toString() } ?: return@subscribe
             if (conversationIds.isEmpty()) return@subscribe
-            
+
             val recipientNames = conversationIds.mapNotNull { convId ->
                 runCatching {
                     val dmParticipant = context.database.getDMOtherParticipant(convId)
@@ -578,7 +538,7 @@ class SendOverride : Feature("Send Override") {
                     }
                 }.getOrNull()
             }.ifEmpty { listOf("Unknown") }
-            
+
             val recipientName = recipientNames.joinToString(", ")
 
             event.canceled = true
@@ -719,13 +679,13 @@ class SendOverride : Feature("Send Override") {
                             durationForProto,
                             if (omitTranscript) null else Locale.getDefault().toLanguageTag()
                         )
-                        
+
                         // Set save policy in the proto if prevent audio is enabled
                         targetMessageContent.content = if (shouldPreventSave) {
                             // Check which path structure exists in the audio note proto
                             val protoReader = ProtoReader(audioNoteProto)
                             val hasNestedPath = protoReader.followPath(6, 1, 1) != null
-                            
+
                             ProtoEditor(audioNoteProto).apply {
                                 // Set save policy to PROHIBITED (1) in the NOTE path
                                 if (hasNestedPath) {
@@ -743,7 +703,7 @@ class SendOverride : Feature("Send Override") {
                         } else {
                             audioNoteProto
                         }
-                        
+
                     }
                 }
 
@@ -865,10 +825,10 @@ class SendOverride : Feature("Send Override") {
                 completionCallback: Any?
             ): Boolean {
                 val sourceReader = ProtoReader(sourceMessageContent.content ?: return false)
-                val mediaCount = (sourceReader.followPath(3) as? ProtoReader)?.getCount(3) ?: 0
+                val mediaCount = sourceReader.followPath(3)?.getCount(3) ?: 0
                 if (overrideType != "ORIGINAL" && mediaCount > 1) {
                     val mediaBuffers = mutableListOf<ByteArray>()
-                    (sourceReader.followPath(3) as? ProtoReader)?.eachBuffer { id, buffer ->
+                    sourceReader.followPath(3)?.eachBuffer { id, buffer ->
                         if (id == 3) mediaBuffers.add(buffer)
                     }
                     if (mediaBuffers.isEmpty()) return false
@@ -940,54 +900,41 @@ class SendOverride : Feature("Send Override") {
                 if (repeatCount <= 0) return false
 
                 fun sendIteration(index: Int) {
-                    context.coroutineScope.launch {
-                        while (isPaused.get() && !isStopped.get()) {
-                            delay(500)
-                        }
-                        if (isStopped.get()) {
-                            clearQueuedOriginalItemRepeats()
+                    val callback = CallbackBuilder(sendMessageCallbackClass)
+                        .override("onSuccess") {
+                            processedRepeatCount++
+                            queuedOriginalItemRepeatCount--
                             updateContinuousSendNotification(context)
-                            return@launch
-                        }
-
-                        val callback = CallbackBuilder(sendMessageCallbackClass)
-                            .override("onSuccess") {
-                                processedRepeatCount++
-                                queuedOriginalItemRepeatCount--
-                                updateContinuousSendNotification(context)
-                                
-                                if (index < repeatCount - 1) {
-                                    sendIteration(index + 1)
-                                } else {
-                                    // Batch Finished: Trigger original Snapchat callback
-                                    originalCallback?.let { cb ->
-                                        runCatching {
-                                            val method = cb.javaClass.methods.firstOrNull { it.name == "onSuccess" }
-                                            if (method != null) {
-                                                if (method.parameterCount == 0) {
-                                                    method.invoke(cb)
-                                                } else {
-                                                    // Pass null for all required parameters to safely trigger the completion UI
-                                                    method.invoke(cb, *arrayOfNulls<Any>(method.parameterCount))
-                                                }
+                            
+                            if (index < repeatCount - 1) {
+                                sendIteration(index + 1)
+                            } else {
+                                // Batch Finished: Trigger original Snapchat callback
+                                originalCallback?.let { cb ->
+                                    runCatching {
+                                        val method = cb.javaClass.methods.firstOrNull { it.name == "onSuccess" }
+                                        if (method != null) {
+                                            if (method.parameterCount == 0) {
+                                                method.invoke(cb)
+                                            } else {
+                                                // Pass null for all required parameters to safely trigger the completion UI
+                                                method.invoke(cb, *arrayOfNulls<Any>(method.parameterCount))
                                             }
-                                        }.onFailure { context.log.error("Failed to trigger completion handshake", it) }
+                                        }
                                     }
                                 }
                             }
-                            .override("onError", shouldUnhook = false) {
-                                invokeCallbackError(originalCallback, it.argNullable<Any>(0))
-                                clearQueuedOriginalItemRepeats()
-                                updateContinuousSendNotification(context)
-                            }
-                            .build()
-
-                        if (index > 0) delay(1000) // Human-like delay
-                        
-                        val preparedContent = createMessageContentFromOriginal()
-                        if (!sendMediaManual(preparedContent, overrideType, snapDurationMs, callback)) {
-                            invokeCallbackError(originalCallback, "Failed to send")
                         }
+                        .override("onError", shouldUnhook = false) {
+                            invokeCallbackError(originalCallback, it.argNullable<Any>(0))
+                            resetEngine(context)
+                            updateContinuousSendNotification(context)
+                        }
+                        .build()
+
+                    val preparedContent = createMessageContentFromOriginal()
+                    if (!sendMediaManual(preparedContent, overrideType, snapDurationMs, callback)) {
+                        invokeCallbackError(originalCallback, "Failed to send")
                     }
                 }
 
@@ -1000,14 +947,8 @@ class SendOverride : Feature("Send Override") {
                 return applyOverride(localMessageContent, messageProtoReader, overrideType, snapDurationMs)
             }
 
-            val queuedOverrideType = MediaFilePicker.getQueuedOverrideType()
-            val resolvedOverrideType = queuedOverrideType
+            val resolvedOverrideType = MediaFilePicker.getQueuedOverrideType()
                 ?: configOverrideType?.takeIf { it != "always_ask" }
-            val resolvedSnapDurationMs = if (queuedOverrideType != null) {
-                MediaFilePicker.getQueuedOverrideSnapDurationMs()
-            } else {
-                10000
-            }
 
             fun attachQueuedRepeatCallbacks(sendEvent: SendMessageWithContentEvent) {
                 sendEvent.addCallbackResult("onSuccess") {
@@ -1019,14 +960,16 @@ class SendOverride : Feature("Send Override") {
                             false
                         }
                         if (!handledSplit && !handledRepeat) {
-                            MediaFilePicker.clearQueuedSplitItems()
-                            clearQueuedOriginalItemRepeats()
+                            resetEngine(context)
+                            updateContinuousSendNotification(context)
                         }
                     }
                 }
                 sendEvent.addCallbackResult("onError") {
-                    MediaFilePicker.clearQueuedSplitItems()
-                    clearQueuedOriginalItemRepeats()
+                    context.runOnUiThread {
+                        resetEngine(context)
+                        updateContinuousSendNotification(context)
+                    }
                 }
             }
 
@@ -1034,7 +977,7 @@ class SendOverride : Feature("Send Override") {
                 if (MediaFilePicker.hasPendingSplitCleanup() || MediaFilePicker.getQueuedOverrideType() != null || queuedOriginalItemRepeatCount > 0) {
                     attachQueuedRepeatCallbacks(event)
                 }
-                if (sendMedia(resolvedOverrideType, resolvedSnapDurationMs)) {
+                if (sendMedia(resolvedOverrideType, 10000)) {
                     if (event.canceled) invokeOriginalAndRestoreResult(event)
                 }
                 return@subscribe
@@ -1449,11 +1392,6 @@ class SendOverride : Feature("Send Override") {
                             }
                             Button(onClick = {
                                 val finalSelectedType = selectedType
-                                val selectedSnapDurationMs = if (finalSelectedType != "SAVEABLE_SNAP") {
-                                    convertDuration(customDuration)
-                                } else {
-                                    null
-                                }
                                 val repeatCount = if (continuousSendEnabled) {
                                     continuousSendCount.toIntOrNull()?.takeIf { it > 0 }
                                 } else {
@@ -1475,13 +1413,13 @@ class SendOverride : Feature("Send Override") {
                                 }
                                 alertDialog.dismiss()
                                 if (disableSplitForCurrentSend && MediaFilePicker.hasOriginalUnsplitItem()) {
-                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType, selectedSnapDurationMs)
+                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType)
                                     if (!MediaFilePicker.sendOriginalUnsplitItem()) {
                                         MediaFilePicker.setQueuedOverrideType(null)
                                     }
                                     return@Button
                                 } else if (MediaFilePicker.hasPendingSplitCleanup()) {
-                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType, selectedSnapDurationMs)
+                                    MediaFilePicker.setQueuedOverrideType(finalSelectedType)
                                     event.addCallbackResult("onSuccess") {
                                         context.runOnUiThread {
                                             if (!MediaFilePicker.handleCurrentQueuedItemSuccess()) {
@@ -1541,7 +1479,7 @@ class SendOverride : Feature("Send Override") {
                                         if (sendRepeatedMediaManual(
                                                 repeatCount,
                                                 finalSelectedType,
-                                                selectedSnapDurationMs
+                                                if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null
                                             )) {
                                             val successText = context.translation.format("schedule_sent_to", "name" to recipientNameForTask) ?: "Sent to $recipientNameForTask"
                                             context.inAppOverlay.showStatusToast(
@@ -1590,7 +1528,7 @@ class SendOverride : Feature("Send Override") {
                                     }
                                 } else {
                                     if (repeatCount == 1) {
-                                        if (sendMedia(finalSelectedType, selectedSnapDurationMs)) {
+                                        if (sendMedia(finalSelectedType, if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null)) {
                                             invokeOriginalAndRestoreResult(event)
                                         }
                                     } else if (MediaFilePicker.hasReusableOriginalItem()) {
@@ -1598,12 +1536,12 @@ class SendOverride : Feature("Send Override") {
                                         processedRepeatCount = 1
                                         currentRecipientName = recipientNameForTask
                                         
-                                        queueOriginalItemRepeats(repeatCount - 1, finalSelectedType, selectedSnapDurationMs)
+                                        queueOriginalItemRepeats(context, repeatCount - 1, finalSelectedType)
                                         attachQueuedRepeatCallbacks(event)
-                                        if (sendMedia(finalSelectedType, selectedSnapDurationMs)) {
+                                        if (sendMedia(finalSelectedType, if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null)) {
                                             invokeOriginalAndRestoreResult(event)
                                         } else {
-                                            clearQueuedOriginalItemRepeats()
+                                            resetEngine(context)
                                             updateContinuousSendNotification(context)
                                         }
                                     } else {
@@ -1615,7 +1553,7 @@ class SendOverride : Feature("Send Override") {
                                         sendRepeatedMediaManual(
                                             repeatCount,
                                             finalSelectedType,
-                                            selectedSnapDurationMs
+                                            if (finalSelectedType != "SAVEABLE_SNAP") convertDuration(customDuration) else null
                                         )
                                     }
                                 }

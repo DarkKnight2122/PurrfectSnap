@@ -70,37 +70,33 @@ class MediaFilePicker : Feature("Media File Picker") {
         private const val SNAP_CHUNK_DURATION_MS = 10_000L
         private val queuedSplitItems = ArrayDeque<Any>()
         private val queuedSplitItemIds = ArrayDeque<String>()
-        private val queuedSplitCleanupItems = mutableMapOf<String, PreparedMediaItem>()
+        private val queuedSplitCleanupUris = mutableMapOf<String, String>()
         private var originalUnsplitItem: Any? = null
         private var reusableOriginalItem: Any? = null
         private var queuedOverrideType: String? = null
-        private var queuedOverrideSnapDurationMs: Int? = null
         private var bypassSplitOnce = false
         private var sendSingleItemHandler: ((Any) -> Boolean)? = null
-        private var cleanupItemHandler: ((String, String?) -> Unit)? = null
+        private var cleanupItemHandler: ((String) -> Unit)? = null
         fun hasQueuedSplitItems(): Boolean = queuedSplitItems.isNotEmpty()
         fun hasPendingSplitCleanup(): Boolean = queuedSplitItemIds.isNotEmpty()
         fun hasOriginalUnsplitItem(): Boolean = originalUnsplitItem != null
         fun hasReusableOriginalItem(): Boolean = reusableOriginalItem != null
-        fun setQueuedOverrideType(value: String?, snapDurationMs: Int? = 10_000) {
+        fun setQueuedOverrideType(value: String?) {
             queuedOverrideType = value
-            queuedOverrideSnapDurationMs = if (value == null) null else snapDurationMs
         }
         fun getQueuedOverrideType(): String? = queuedOverrideType
-        fun getQueuedOverrideSnapDurationMs(): Int? = queuedOverrideSnapDurationMs
         fun clearQueuedSplitItems(deleteTempItems: Boolean = true) {
             if (deleteTempItems) {
                 val cleanup = cleanupItemHandler
-                queuedSplitCleanupItems.values.toList().forEach { item ->
-                    cleanup?.invoke(item.uri, item.filePath)
+                queuedSplitCleanupUris.values.toList().forEach { uri ->
+                    cleanup?.invoke(uri)
                 }
             }
             queuedSplitItems.clear()
             queuedSplitItemIds.clear()
-            queuedSplitCleanupItems.clear()
+            queuedSplitCleanupUris.clear()
             originalUnsplitItem = null
             queuedOverrideType = null
-            queuedOverrideSnapDurationMs = null
         }
         fun sendReusableOriginalItem(): Boolean {
             val item = reusableOriginalItem ?: return false
@@ -114,34 +110,30 @@ class MediaFilePicker : Feature("Media File Picker") {
             items.drop(1).forEach { queuedSplitItems.addLast(it) }
             preparedItems.forEach {
                 queuedSplitItemIds.addLast(it.itemId)
-                queuedSplitCleanupItems[it.itemId] = it
+                queuedSplitCleanupUris[it.itemId] = it.uri
             }
         }
         fun sendOriginalUnsplitItem(): Boolean {
             val item = originalUnsplitItem ?: return false
             val overrideType = queuedOverrideType
-            val overrideSnapDurationMs = queuedOverrideSnapDurationMs
             clearQueuedSplitItems(deleteTempItems = true)
             queuedOverrideType = overrideType
-            queuedOverrideSnapDurationMs = overrideSnapDurationMs
             bypassSplitOnce = true
             val sender = sendSingleItemHandler ?: return false
             return sender(item)
         }
         fun handleCurrentQueuedItemSuccess(): Boolean {
             queuedSplitItemIds.removeFirstOrNull()?.let { itemId ->
-                queuedSplitCleanupItems.remove(itemId)?.let { item ->
-                    cleanupItemHandler?.invoke(item.uri, item.filePath)
+                queuedSplitCleanupUris.remove(itemId)?.let { uri ->
+                    cleanupItemHandler?.invoke(uri)
                 }
             }
             if (queuedSplitItems.isEmpty()) {
                 queuedOverrideType = null
-                queuedOverrideSnapDurationMs = null
                 return false
             }
             val next = queuedSplitItems.removeFirstOrNull() ?: run {
                 queuedOverrideType = null
-                queuedOverrideSnapDurationMs = null
                 return false
             }
             val sender = sendSingleItemHandler ?: return false
@@ -159,8 +151,7 @@ class MediaFilePicker : Feature("Media File Picker") {
     private data class PreparedMediaItem(
         val itemId: String,
         val durationMs: Long,
-        val uri: String,
-        val filePath: String? = null
+        val uri: String
     )
 
     private fun splitVideoIntoChunks(
@@ -310,12 +301,7 @@ class MediaFilePicker : Feature("Media File Picker") {
             runCatching { resolver.delete(uri, null, null) }
         }
 
-        return PreparedMediaItem(
-            itemId = itemId,
-            durationMs = durationMs,
-            uri = uri.toString(),
-            filePath = file.absolutePath
-        )
+        return PreparedMediaItem(itemId = itemId, durationMs = durationMs, uri = uri.toString())
     }
 
     private fun buildDrawerItems(itemClass: Any, mediaItems: List<PreparedMediaItem>): List<Any> {
@@ -437,18 +423,11 @@ class MediaFilePicker : Feature("Media File Picker") {
                             false
                         }
                     }
-                    cleanupItemHandler = { uriString, filePath ->
+                    cleanupItemHandler = { uriString ->
                         runCatching {
-                            // Industrial Cleanup: Direct file deletion is the gold standard for Android 14
-                            filePath?.let { path ->
-                                val file = File(path)
-                                if (file.exists()) file.delete()
-                            }
                             context.androidContext.contentResolver.delete(Uri.parse(uriString), null, null)
                         }.onFailure {
-                            if (it.message?.contains("no access") == false) {
-                                context.log.warn("MediaFilePicker: Failed to delete temp split media: ${it.message}")
-                            }
+                            context.log.warn("MediaFilePicker: Failed to delete temp split media: ${it.message}")
                         }
                     }
                     if (sendItemsHookedHandler === handlerInstance) return@hook

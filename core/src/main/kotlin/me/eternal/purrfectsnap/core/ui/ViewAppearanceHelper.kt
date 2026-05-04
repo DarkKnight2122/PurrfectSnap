@@ -150,7 +150,7 @@ fun View.hideViewCompletely() {
     }
     hide()
     post { hide() }
-    onLayoutChange { hide() }
+    onLayoutChange { post { hide() } }
 }
 
 fun View.getValdiViewNode(): ValdiViewNode? {

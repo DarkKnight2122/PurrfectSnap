@@ -147,13 +147,13 @@ pub extern "system" fn JNI_OnLoad(_vm: JavaVM, _: *mut c_void) -> jint {
 }
 
 #[allow(non_snake_case)]
-fn setChecksums(mut env: JNIEnv, _class: JClass, checksums_json: JString) {
+extern "system" fn setChecksums(mut env: JNIEnv, _class: JClass, checksums_json: JString) {
     let checksums_str: String = env.get_string(&checksums_json).unwrap().into();
     let checksums: HashMap<String, u32> = serde_json::from_str(&checksums_str).unwrap();
     *CHECKSUMS.lock().unwrap() = checksums;
 }
 
-fn pre_init(_env: JNIEnv, _class: JObject) {
+extern "system" fn pre_init(_env: JNIEnv, _class: JObject) {
     debug!("Pre init");
     for (name, init) in [
         ("linker_hook", linker_hook::init as fn()),
@@ -166,7 +166,7 @@ fn pre_init(_env: JNIEnv, _class: JObject) {
     }
 }
 
-fn init(mut env: JNIEnv, _class: JObject, signature_cache: JString) -> jstring {
+extern "system" fn init(mut env: JNIEnv, _class: JObject, signature_cache: JString) -> jstring {
     debug!("Initializing native lib");
 
     let start_time = std::time::Instant::now();
@@ -481,7 +481,7 @@ fn set_string_field(env: &mut JNIEnv, obj: &JObject, field: &str, value: Option<
 }
 
 #[allow(non_snake_case)]
-fn evaluateEndpoint(
+extern "system" fn evaluateEndpoint(
     mut env: JNIEnv,
     _class: JClass,
     uri: JString,
@@ -502,7 +502,7 @@ fn evaluateEndpoint(
 }
 
 #[allow(non_snake_case)]
-fn evaluateNetworkRequest(
+extern "system" fn evaluateNetworkRequest(
     mut env: JNIEnv,
     _class: JClass,
     url: JString,
@@ -520,7 +520,7 @@ fn evaluateNetworkRequest(
 }
 
 #[allow(non_snake_case)]
-fn shouldBlockDuplexClient(
+extern "system" fn shouldBlockDuplexClient(
     mut env: JNIEnv,
     _class: JClass,
     path: JString,
@@ -540,7 +540,7 @@ fn shouldBlockDuplexClient(
 }
 
 #[allow(non_snake_case)]
-fn evaluateAuthContext(
+extern "system" fn evaluateAuthContext(
     mut env: JNIEnv,
     _class: JClass,
     request_path: JString,
@@ -559,7 +559,7 @@ fn evaluateAuthContext(
 }
 
 #[allow(non_snake_case)]
-fn evaluateApiInvocation(
+extern "system" fn evaluateApiInvocation(
     mut env: JNIEnv,
     _class: JClass,
     method_id: JString,
@@ -640,17 +640,17 @@ fn run_blocker_self_test(allow_unverified: bool) -> bool {
 }
 
 #[allow(non_snake_case)]
-fn setTestMode(_env: JNIEnv, _class: JClass, test_mode: jboolean) {
+extern "system" fn setTestMode(_env: JNIEnv, _class: JClass, test_mode: jboolean) {
     TEST_MODE.store(test_mode == JNI_TRUE, Ordering::Relaxed);
 }
 
 #[allow(non_snake_case)]
-fn setInLoginSignup(_env: JNIEnv, _class: JClass, in_login_signup: jboolean) {
+extern "system" fn setInLoginSignup(_env: JNIEnv, _class: JClass, in_login_signup: jboolean) {
     IN_LOGIN_SIGNUP.store(in_login_signup == JNI_TRUE, Ordering::Relaxed);
 }
 
 #[allow(non_snake_case)]
-fn runEndpointSelfTest(_env: JNIEnv, _class: JClass, test_mode: jboolean) -> jboolean {
+extern "system" fn runEndpointSelfTest(_env: JNIEnv, _class: JClass, test_mode: jboolean) -> jboolean {
     if run_blocker_self_test(test_mode == JNI_TRUE) {
         JNI_TRUE
     } else {

@@ -15,38 +15,49 @@ import java.util.Collections
 
 class PinConversations : MessagingRuleFeature("PinConversations", MessagingRuleType.PIN_CONVERSATION) {
     companion object {
-        // 3-year offset for persistent local conversation sorting
-        private const val PIN_OFFSET = 100000000000L 
+        // Year 2030 Static Baseline to prevent jitter/jumbling during feed refreshes
+        private const val STATIC_PIN_TIMESTAMP = 1893456000000L 
     }
 
     private fun forcePinsInFeed(entries: ArrayList<Any>) {
-        val now = System.currentTimeMillis()
-        // Capture stable timestamp once to prevent jitter during the sweep
-        val stableTimestamp = now + PIN_OFFSET
-        
         entries.forEach { entry ->
             val conversationIdObject = entry.getObjectFieldOrNull("mConversationId") ?: return@forEach
             runCatching {
                 val conversationUUID = SnapUUID(conversationIdObject)
                 if (getState(conversationUUID.toString())) {
-                    // Apply identical timestamp lead to all pinned items
-                    entry.setObjectField("mPinnedTimestampMs", stableTimestamp)
+                    // Apply identical STATIC timestamp lead to all pinned items
+                    entry.setObjectField("mPinnedTimestampMs", STATIC_PIN_TIMESTAMP)
                 } else {
-                    // Reset timestamp if it's currently a "Future" timestamp but shouldn't be pinned
+                    // Reset timestamp if it was previously forced to our static baseline but shouldn't be pinned
                     val currentTs = entry.getObjectFieldOrNull("mPinnedTimestampMs") as? Long ?: 0L
-                    if (currentTs > now + (PIN_OFFSET / 2)) {
-                        entry.setObjectField("mPinnedTimestampMs", now)
+                    if (currentTs == STATIC_PIN_TIMESTAMP) {
+                        entry.setObjectField("mPinnedTimestampMs", 0L)
                     }
                 }
             }
         }
 
-        // Manual sort to ensure stable UI transition and prevent list jumping
+        // Manual sort with stable tie-breaker to ensure UI consistency
         runCatching {
             Collections.sort(entries) { a, b ->
                 val tsA = a.getObjectFieldOrNull("mPinnedTimestampMs") as? Long ?: 0L
                 val tsB = b.getObjectFieldOrNull("mPinnedTimestampMs") as? Long ?: 0L
-                tsB.compareTo(tsA)
+                
+                if (tsA == tsB) {
+                    // Stable Tie-Breaker: Use interaction timestamp if available, otherwise fallback to ID
+                    val interactionA = a.getObjectFieldOrNull("mLastInteractionTimestamp") as? Long 
+                        ?: a.getObjectFieldOrNull("mLastMessageTimestamp") as? Long ?: 0L
+                    val interactionB = b.getObjectFieldOrNull("mLastInteractionTimestamp") as? Long 
+                        ?: b.getObjectFieldOrNull("mLastMessageTimestamp") as? Long ?: 0L
+                    
+                    if (interactionA == interactionB) {
+                        a.toString().compareTo(b.toString())
+                    } else {
+                        interactionB.compareTo(interactionA)
+                    }
+                } else {
+                    tsB.compareTo(tsA)
+                }
             }
         }
     }
@@ -89,26 +100,25 @@ class PinConversations : MessagingRuleFeature("PinConversations", MessagingRuleT
             }
         }
 
-        // Apply pinning lead to newly created conversation objects
+        // Apply static pinning lead to newly created objects
         context.classCache.conversation.hookConstructor(HookStage.AFTER) { param ->
             val instance = param.thisObject<Any>()
             val conversationIdObject = instance.getObjectFieldOrNull("mConversationId") ?: return@hookConstructor
             runCatching {
                 val conversationUUID = SnapUUID(conversationIdObject)
                 if (getState(conversationUUID.toString())) {
-                    instance.setObjectField("mPinnedTimestampMs", System.currentTimeMillis() + PIN_OFFSET)
+                    instance.setObjectField("mPinnedTimestampMs", STATIC_PIN_TIMESTAMP)
                 }
             }
         }
 
-        // Apply pinning lead to newly created feed entry objects
         context.classCache.feedEntry.hookConstructor(HookStage.AFTER) { param ->
             val instance = param.thisObject<Any>()
             val conversationIdObject = instance.getObjectFieldOrNull("mConversationId") ?: return@hookConstructor
             runCatching {
                 val conversationUUID = SnapUUID(conversationIdObject)
                 if (getState(conversationUUID.toString())) {
-                    instance.setObjectField("mPinnedTimestampMs", System.currentTimeMillis() + PIN_OFFSET)
+                    instance.setObjectField("mPinnedTimestampMs", STATIC_PIN_TIMESTAMP)
                 }
             }
         }

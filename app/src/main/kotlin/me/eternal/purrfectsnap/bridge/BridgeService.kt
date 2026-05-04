@@ -7,6 +7,7 @@ import android.os.ParcelFileDescriptor
 import android.os.RemoteException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.eternal.purrfectsnap.RemoteSideContext
@@ -36,6 +37,8 @@ class BridgeService : Service() {
     var messagingBridge: MessagingBridge? = null
     @Volatile
     private var pendingSocialSnapshotCallback: ((List<MessagingFriendInfo>, List<MessagingGroupInfo>) -> Unit)? = null
+
+    private val isBridgeWarmed = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private fun clearSyncCallback() {
         syncCallback = null
@@ -81,9 +84,11 @@ class BridgeService : Service() {
                 }
             } ?: run {
                 if (updateOnly) {
-                    when (scope) {
-                        SocialScope.FRIEND -> database.deleteFriend(id)
-                        SocialScope.GROUP -> database.deleteGroup(id)
+                    if (isBridgeWarmed.get()) {
+                        when (scope) {
+                            SocialScope.FRIEND -> database.deleteFriend(id)
+                            SocialScope.GROUP -> database.deleteGroup(id)
+                        }
                     }
                     return
                 }
@@ -95,7 +100,9 @@ class BridgeService : Service() {
                 SocialScope.FRIEND -> {
                     toParcelable<MessagingFriendInfo>(syncedObject)?.let { database.syncFriend(it) } ?: run {
                         if (updateOnly) {
-                            database.deleteFriend(id)
+                            if (isBridgeWarmed.get()) {
+                                database.deleteFriend(id)
+                            }
                             return
                         }
                         remoteSideContext.log.warn("Failed to sync $scope $id")
@@ -105,7 +112,9 @@ class BridgeService : Service() {
                 SocialScope.GROUP -> {
                     toParcelable<MessagingGroupInfo>(syncedObject)?.let { database.syncGroupInfo(it) } ?: run {
                         if (updateOnly) {
-                            database.deleteGroup(id)
+                            if (isBridgeWarmed.get()) {
+                                database.deleteGroup(id)
+                            }
                             return
                         }
                         remoteSideContext.log.warn("Failed to sync $scope $id")
@@ -206,15 +215,28 @@ class BridgeService : Service() {
         override fun sync(callback: SyncCallback) {
             clearSyncCallback()
             syncCallback = callback
-            measureTimeMillis {
-                remoteSideContext.database.getFriends().map { it.userId } .forEach { friendId ->
-                    triggerScopeSync(SocialScope.FRIEND, friendId, true)
+            remoteSideContext.coroutineScope.launch(Dispatchers.IO) {
+                delay(300) // 300ms Stabilizer: Ensures Binder connection is solid on cold starts
+                isBridgeWarmed.set(true) // Immediate Unblock: Allow UI features to start loading data from cache
+                
+                val time = measureTimeMillis {
+                    // Safety Net: Only sync the Top 50 most recently added friends and all groups
+                    val activeFriendIds: List<String> = remoteSideContext.database.getFriends(descOrder = true).take(50).map { it.userId }
+                    val groupIds: List<String> = remoteSideContext.database.getGroups().map { it.conversationId }
+
+                    // Throttled Group Sync
+                    for (groupId in groupIds) {
+                        triggerScopeSync(SocialScope.GROUP, groupId, true)
+                        delay(50) // High-quality breather to keep IPC pipe clear
+                    }
+
+                    // Throttled Friend Sync
+                    for (friendId in activeFriendIds) {
+                        triggerScopeSync(SocialScope.FRIEND, friendId, true)
+                        delay(50)
+                    }
                 }
-                remoteSideContext.database.getGroups().map { it.conversationId }.forEach { groupId ->
-                    triggerScopeSync(SocialScope.GROUP, groupId, true)
-                }
-            }.also {
-                remoteSideContext.log.verbose("Syncing remote took $it ms")
+                remoteSideContext.log.verbose("Background 'Active 50' sync completed in ${time}ms")
             }
         }
 

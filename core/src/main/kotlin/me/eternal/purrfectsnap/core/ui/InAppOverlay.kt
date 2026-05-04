@@ -86,9 +86,11 @@ class InAppOverlay(
             }
 
             Hooker.ephemeralHook(Activity::class.java, "onPostCreate", HookStage.AFTER) { param ->
-                val contentView = param.thisObject<Activity>().findViewById<FrameLayout>(android.R.id.content)
+                val activity = param.thisObject<Activity>()
+                val safeContext = android.view.ContextThemeWrapper(activity, android.R.style.Theme_DeviceDefault_NoActionBar)
+                val contentView = activity.findViewById<FrameLayout>(android.R.id.content)
                 contentView.children().forEach { it.visibility = View.GONE }
-                val screenView = createComposeView(param.thisObject()) {
+                val screenView = createComposeView(safeContext) {
                     AppMaterialTheme(isDarkTheme = true) {
                         val auroraGradient = Brush.verticalGradient(
                             listOf(Color(0xFF2E2E69), Color(0xFF1E1E45))
@@ -615,11 +617,17 @@ class InAppOverlay(
     private val overlayTag = Random.nextLong()
 
     private fun injectOverlay(activity: Activity) {
-        val root = activity.findViewById<FrameLayout>(android.R.id.content)
+        val activityName = activity.javaClass.name
+        if (activityName.startsWith("com.google.") || activityName.startsWith("android.")) return
+        
+        val root = activity.findViewById<FrameLayout>(android.R.id.content) ?: return
         activity.runOnUiThread {
             if (root.findViewWithTag<View>(overlayTag) != null) return@runOnUiThread
-            root.addView(createComposeView(activity) {
-                AppMaterialTheme(isDarkTheme = remember { activity.isDarkTheme() }) {
+            val safeContext = android.view.ContextThemeWrapper(activity, android.R.style.Theme_DeviceDefault_NoActionBar)
+            val isDark = runCatching { safeContext.isDarkTheme() }.getOrDefault(true)
+            
+            root.addView(createComposeView(safeContext) {
+                AppMaterialTheme(isDarkTheme = isDark) {
                     OverlayContent()
                 }
             }.apply {

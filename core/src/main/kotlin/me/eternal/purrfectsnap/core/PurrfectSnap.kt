@@ -570,14 +570,22 @@ class PurrfectSnap {
     }
 
     private fun jetpackComposeResourceHook() {
-        fun strings(vararg classes: KClass<*>): Map<Int, String> {
-            return classes.fold(mapOf()) { map, clazz ->
-                map + clazz.java.fields.filter {
+        val stringResources = mutableMapOf<Int, String>()
+        
+        fun loadStrings(className: String) {
+            runCatching {
+                val clazz = classLoader.loadClass(className)
+                clazz.fields.filter {
                     java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == Int::class.javaPrimitiveType
-                }.associate { it.getInt(null) to it.name }
+                }.forEach { field ->
+                    stringResources[field.getInt(null)] = field.name
+                }
             }
         }
-        val stringResources = strings(androidx.compose.material3.R.string::class, androidx.compose.ui.R.string::class)
+        
+        loadStrings("androidx.compose.material3.R\$string")
+        loadStrings("androidx.compose.ui.R\$string")
+
         fun resolveComposeString(key: Int): String? {
             val name = stringResources[key]?.replaceFirst("m3c_", "") ?: return null
             return appContext.translation.getOrNull("material3_strings.${name}") ?: ""

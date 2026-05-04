@@ -79,7 +79,7 @@ pub fn get_blocker_config() -> BlockerConfig {
     }
 }
 
-pub fn load_config(mut env: JNIEnv, _class: JObject, obj: JObject)  {
+pub extern "system" fn load_config(mut env: JNIEnv, _class: JObject, obj: JObject)  {
     NATIVE_CONFIG.lock().unwrap().replace(
         NativeConfig::new(&mut env, obj).expect("Failed to load NativeConfig")
     );

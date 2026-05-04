@@ -269,9 +269,25 @@ class UITweaks : Feature("UITweaks") {
                         width = 0
                         height = 0
                     } ?: return
+                    event.view.visibility = View.GONE
                 }
 
                 val viewModelString = event.prevModel.toString()
+                
+                // 1. Precise Story Suggestion Hiding (O(1) UI String Match)
+                // This replaces the dangerous SQL injection in RequerySqlite.
+                if (hideStorySuggestions.contains("hide_suggested_friend_stories")) {
+                    val isSuggestedStory = viewModelString.let {
+                        it.startsWith("StoryCarouselItemViewModel") && 
+                        (it.contains("suggested") || it.contains("mutual") || it.contains("friendOfFriend"))
+                    }
+                    if (isSuggestedStory) {
+                        removeView()
+                        return@subscribe
+                    }
+                }
+
+                // 2. Hide My Stories
                 val isMyStory by lazy {
                     viewModelString.let {
                         it.startsWith("StoryCarouselItemViewModel") && it.contains("storyId=")

@@ -140,12 +140,14 @@ class TasksRootSection : Routes.Route() {
             }
         }
 
-        LaunchedEffect(computedScrollOffset) {
-            val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
-            if (isAphelion) {
-                routes.navigation?.globalScrollOffset = computedScrollOffset
-            } else {
-                routes.navigation?.globalScrollOffset = 0
+        LaunchedEffect(listState) {
+            androidx.compose.runtime.snapshotFlow { computedScrollOffset }.collect { offset ->
+                val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+                if (isAphelion) {
+                    routes.navigation?.globalScrollOffset = offset
+                } else {
+                    routes.navigation?.globalScrollOffset = 0
+                }
             }
         }
 

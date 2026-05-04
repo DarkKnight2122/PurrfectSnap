@@ -65,8 +65,9 @@ class Camera : ConfigContainer() {
         inputCheck = { (it.toFloatOrNull() ?: 0f) in 1f..500f }
     }
 
-    val audioVideoOptimizations = boolean("audio_video", defaultValue = true) { requireRestart() }
-    val cameraOptimizations = boolean("camera_tweaks", defaultValue = false) { addNotices(FeatureNotice.UNSTABLE); requireRestart() }
+    val losslessImageProcessing = boolean("lossless_image_processing", defaultValue = false) { addNotices(FeatureNotice.UNSTABLE); requireRestart() }
+    val losslessVideoProcessing = boolean("lossless_video_processing", defaultValue = false) { addNotices(FeatureNotice.UNSTABLE); requireRestart() }
+    val enhancedAudioProcessing = boolean("enhanced_audio_processing", defaultValue = true) { requireRestart() }
 
     val customResolution = string("custom_resolution") { addNotices(FeatureNotice.UNSTABLE); inputCheck = { it.matches(Regex("\\d+x\\d+")) } }
 }

@@ -142,29 +142,6 @@ class EventDispatcher(
             }
         }
 
-        LayoutInflater::class.java.getMethod(
-            "inflate",
-            Int::class.java,
-            ViewGroup::class.java,
-            Boolean::class.javaPrimitiveType
-        ).hook(HookStage.AFTER) { param ->
-            val layoutId = param.argNullable<Int>(0) ?: return@hook
-            val parent = param.argNullable<ViewGroup>(1)
-            val result = param.getResult() as? View
-
-            context.event.post(
-                LayoutInflateEvent(
-                    layoutId = layoutId,
-                    parent = parent,
-                    view = result
-                ).apply {
-                    adapter = param
-                }
-            ) {
-                postHookEvent()
-            }
-        }
-
         context.classCache.networkApi.hook("submit", HookStage.BEFORE) { param ->
             val request = param.arg<Any>(0)
 

@@ -138,6 +138,14 @@ class RemoteFileHandleManager(
         }.getOrDefault(false)
     }
 
+    fun readFile(name: String): String? {
+        return runCatching {
+            File(userImportFolder, name).readText()
+        }.onFailure {
+            context.log.error("Failed to read file: ${it.message}", it)
+        }.getOrNull()
+    }
+
     fun deleteFile(name: String): Boolean {
         return runCatching {
             File(userImportFolder, name).delete()

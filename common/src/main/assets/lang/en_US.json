@@ -670,6 +670,8 @@
                 "copied": "Randomized profile copied",
                 "empty": "No generated profile is available yet. Enable the feature in Snapchat first.",
                 "refresh_requested": "Fresh randomized profile requested. Restart Snapchat to apply it.",
+                "requested": "Fresh profile requested. Restart Snapchat to apply.",
+                "full_settings_list": "Full Configuration List",
                 "phase": {
                     "allocating": "Allocating a randomized device fingerprint",
                     "network": "Preparing network, locale, and telephony values",
@@ -883,6 +885,7 @@
                 "title": "Import Config Summary",
                 "back_button_description": "Go back",
                 "confirm_button": "Import",
+                "full_settings_list": "Full Configuration List",
                 "expand_button_description": "Expand or collapse category",
                 "enabled": "Enabled",
                 "disabled": "Disabled",
@@ -2448,13 +2451,17 @@
                         "name": "HEVC Recording",
                         "description": "Uses HEVC (H.265) codec for video recording"
                     },
-                    "camera_tweaks": {
-                        "name": "Upgraded Camera Engine",
-                        "description": "Enables professional hardware ISP processing modes for better dynamic range"
+                    "lossless_image_processing": {
+                        "name": "Lossless Image Processing",
+                        "description": "Forces 100% JPEG quality and disables Snapchat's native image compression for razor-sharp photos."
                     },
-                    "audio_video": {
-                        "name": "Upgraded Audio and Video",
-                        "description": "Increases Video bitrate to 30Mbps and Audio to 320kbps/48kHz"
+                    "lossless_video_processing": {
+                        "name": "Lossless Video Processing",
+                        "description": "Bypasses bitrate limits (Forces 50Mbps CBR) using low-level MediaCodec hooking. Warning: Significantly increases upload file size."
+                    },
+                    "enhanced_audio_processing": {
+                        "name": "Enhanced Audio Processing",
+                        "description": "Upgrades video audio to 320kbps / 48kHz and utilizes hardware noise cancellation arrays."
                     },
                     "video_record_timer": {
                         "name": "Video Recording Timer",
@@ -3352,8 +3359,71 @@
             "custom_android_id": {
                 "null": "Use real Android ID"
             },
+            "cof_experiments": {
+                "android_action_menu_v2": "Android Action Menu v2",
+                "android_action_menu_adjust_message_position": "Adjust Message Position",
+                "chat_emoji_reactions_sending_enabled": "Emoji Reactions",
+                "chat_text_message_plugin": "Text Message Plugin"
+            },
             "persistent_app_language": {
-                "system_default": "System Default"
+                "system_default": "System Default",
+                "System_default": "System Default",
+                "ar": "Arabic",
+                "bn": "Bengali",
+                "bn-BD": "Bengali (Bangladesh)",
+                "bn-IN": "Bengali (India)",
+                "da": "Danish",
+                "de": "German",
+                "el": "Greek",
+                "en-GB": "English (UK)",
+                "es": "Spanish",
+                "es-AR": "Spanish (Argentina)",
+                "es-ES": "Spanish (Spain)",
+                "es-MX": "Spanish (Mexico)",
+                "fi": "Finnish",
+                "fil": "Filipino",
+                "fil-PH": "Filipino (Philippines)",
+                "fr": "French",
+                "gu": "Gujarati",
+                "gu-IN": "Gujarati (India)",
+                "hi": "Hindi",
+                "hi-IN": "Hindi (India)",
+                "in": "Indonesian",
+                "it": "Italian",
+                "ja": "Japanese",
+                "kn": "Kannada",
+                "kn-IN": "Kannada (India)",
+                "ko": "Korean",
+                "ml": "Malayalam",
+                "ml-IN": "Malayalam (India)",
+                "mr": "Marathi",
+                "mr-IN": "Marathi (India)",
+                "ms": "Malay",
+                "ms-MY": "Malay (Malaysia)",
+                "nb": "Norwegian",
+                "nl": "Dutch",
+                "pa": "Punjabi",
+                "pa-IN": "Punjabi (India)",
+                "pl": "Polish",
+                "pt": "Portuguese",
+                "pt-PT": "Portuguese (Portugal)",
+                "ro": "Romanian",
+                "ru": "Russian",
+                "sv": "Swedish",
+                "ta": "Tamil",
+                "ta-IN": "Tamil (India)",
+                "te": "Telugu",
+                "te-IN": "Telugu (India)",
+                "th": "Thai",
+                "th-TH": "Thai (Thailand)",
+                "tr": "Turkish",
+                "ur": "Urdu",
+                "ur-PK": "Urdu (Pakistan)",
+                "vi": "Vietnamese",
+                "vi-VN": "Vietnamese (Vietnam)",
+                "zh": "Chinese",
+                "zh-CN": "Chinese (Simplified)",
+                "zh-TW": "Chinese (Traditional)"
             },
             "add_friend_source_spoof": {
                 "added_by_username": "By Username",

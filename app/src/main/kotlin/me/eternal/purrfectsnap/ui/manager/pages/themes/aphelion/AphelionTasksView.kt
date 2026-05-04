@@ -69,9 +69,12 @@ fun TasksRootSection.AphelionTasksScreen(nav: NavBackStackEntry) {
     val haptic = LocalHapticFeedback.current
     var controlsHeight by remember { mutableStateOf(100.dp) }
 
-    LaunchedEffect(scrollState.firstVisibleItemScrollOffset, scrollState.firstVisibleItemIndex) {
-        val offset = if (scrollState.firstVisibleItemIndex > 0) Motion.HEADER_MORPH_THRESHOLD.toInt() else scrollState.firstVisibleItemScrollOffset
-        routes.navigation?.globalScrollOffset = offset
+    LaunchedEffect(scrollState) {
+        androidx.compose.runtime.snapshotFlow { 
+            if (scrollState.firstVisibleItemIndex > 0) Motion.HEADER_MORPH_THRESHOLD.toInt() else scrollState.firstVisibleItemScrollOffset
+        }.collect { offset ->
+            routes.navigation?.globalScrollOffset = offset
+        }
     }
 
     val scope = rememberCoroutineScope()

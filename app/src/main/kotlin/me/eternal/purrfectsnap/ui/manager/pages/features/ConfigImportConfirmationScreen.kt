@@ -14,15 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,7 +28,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -70,31 +66,24 @@ class ConfigImportConfirmationScreen : Routes.Route() {
     )
 
     companion object {
-        private const val COORDINATE_TOLERANCE = 0.0001 // ~11 meters tolerance for de-duplication
+        private const val COORDINATE_TOLERANCE = 0.0001
     }
 
-    /**
-     * Imports saved locations from JSON array into database with de-duplication.
-     * Only adds locations that don't already exist (within coordinate tolerance).
-     */
     private fun importSavedLocations(locationsArray: com.google.gson.JsonArray) {
         val existingLocations = context.database.getLocationCoordinates()
-        
         for (i in 0 until locationsArray.size()) {
             val locationObj = locationsArray.get(i).asJsonObject
             val name = locationObj.get("name")?.asString ?: continue
             val latitude = locationObj.get("latitude")?.asDouble ?: continue
             val longitude = locationObj.get("longitude")?.asDouble ?: continue
             val radius = locationObj.get("radius")?.asDouble ?: 100.0
-            
-            // Check for existing location with similar coordinates (de-duplication)
+
             val existingMatch = existingLocations.find { existing ->
                 abs(existing.latitude - latitude) < COORDINATE_TOLERANCE &&
                 abs(existing.longitude - longitude) < COORDINATE_TOLERANCE
             }
-            
+
             if (existingMatch == null) {
-                // No duplicate found, add as new location
                 val newLocation = LocationCoordinates().apply {
                     this.name = name
                     this.latitude = latitude
@@ -103,7 +92,6 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                 }
                 context.database.addOrUpdateLocationCoordinate(null, newLocation)
             }
-            // If duplicate exists, skip (do not update or delete existing)
         }
     }
 
@@ -111,86 +99,32 @@ class ConfigImportConfirmationScreen : Routes.Route() {
         fun parse(configJson: String): Map<String, List<ImportedFeature>> {
             val featureList = mutableListOf<ImportedFeature>()
             val json = JSONObject(configJson)
-            fun parseProperties(
-                categoryKey: String,
-                niceCategoryName: String,
-                properties: JSONObject,
-                prefix: String,
-                indent: Int
-            ) {
+            fun parseProperties(categoryKey: String, niceCategoryName: String, properties: JSONObject, prefix: String, indent: Int) {
                 for (key in properties.keys()) {
                     val value = properties.get(key)
                     val currentPrefix = if (prefix.isEmpty()) key else "$prefix.$key"
                     if (value is JSONObject && value.has("state") && value.has("properties")) {
-                        val featureNameKey =
-                            "features.properties.$categoryKey.properties.${currentPrefix.split('.')
-                                .joinToString(".properties.")}.name"
+                        val featureNameKey = "features.properties.$categoryKey.properties.${currentPrefix.split('.').joinToString(".properties.")}.name"
                         val featureName = context.translation[featureNameKey] ?: key
-                        featureList.add(
-                            ImportedFeature(
-                                niceCategoryName,
-                                featureName,
-                                key,
-                                value.getBoolean("state"),
-                                indent
-                            )
-                        )
-                        parseProperties(
-                            categoryKey,
-                            niceCategoryName,
-                            value.getJSONObject("properties"),
-                            currentPrefix,
-                            indent + 1
-                        )
+                        featureList.add(ImportedFeature(niceCategoryName, featureName, key, value.getBoolean("state"), indent))
+                        parseProperties(categoryKey, niceCategoryName, value.getJSONObject("properties"), currentPrefix, indent + 1)
                     } else if (value is JSONObject && value.has("properties")) {
-                        parseProperties(
-                            categoryKey,
-                            niceCategoryName,
-                            value.getJSONObject("properties"),
-                            currentPrefix,
-                            indent
-                        )
+                        parseProperties(categoryKey, niceCategoryName, value.getJSONObject("properties"), currentPrefix, indent)
                     } else {
-                        val featureNameKey =
-                            "features.properties.$categoryKey.properties.${currentPrefix.split('.')
-                                .joinToString(".properties.")}.name"
+                        val featureNameKey = "features.properties.$categoryKey.properties.${currentPrefix.split('.').joinToString(".properties.")}.name"
                         val featureName = context.translation[featureNameKey] ?: key
-                        featureList.add(
-                            ImportedFeature(
-                                niceCategoryName,
-                                featureName,
-                                key,
-                                value,
-                                indent
-                            )
-                        )
+                        featureList.add(ImportedFeature(niceCategoryName, featureName, key, value, indent))
                     }
                 }
             }
             for (categoryKey in json.keys()) {
                 val value = json.get(categoryKey)
                 if (value is JSONObject) {
-                    val niceCategoryName =
-                        context.translation["features.properties.$categoryKey.name"]
-                            ?: categoryKey.replaceFirstChar { it.uppercase() }
+                    val niceCategoryName = context.translation["features.properties.$categoryKey.name"] ?: categoryKey.replaceFirstChar { it.uppercase() }
                     if (value.has("state") && !value.has("properties")) {
-                        featureList.add(
-                            ImportedFeature(
-                                niceCategoryName,
-                                translation["enable_feature"],
-                                categoryKey,
-                                value.getBoolean("state"),
-                                0
-                            )
-                        )
+                        featureList.add(ImportedFeature(niceCategoryName, translation["enable_feature"], categoryKey, value.getBoolean("state"), 0))
                     } else if (value.has("properties")) {
-                        parseProperties(
-                            categoryKey,
-                            niceCategoryName,
-                            value.getJSONObject("properties"),
-                            "",
-                            0
-                        )
+                        parseProperties(categoryKey, niceCategoryName, value.getJSONObject("properties"), "", 0)
                     }
                 }
             }
@@ -228,13 +162,16 @@ class ConfigImportConfirmationScreen : Routes.Route() {
 
     override val content: @Composable (androidx.navigation.NavBackStackEntry) -> Unit = {
         val parser = remember { ConfigParser() }
+        val activeTargetJson = remember {
+            routes.configJsonForImport?.let { json ->
+                ScopedConfigJson.importForActiveTarget(context, json)
+            }
+        }
         val featuresByCategory = remember {
-            routes.configJsonForImport?.let {
-                parser.parse(ScopedConfigJson.importForActiveTarget(context, it))
-            } ?: emptyMap()
+            activeTargetJson?.let { parser.parse(it) } ?: emptyMap()
         }
         val expandedState = remember { mutableStateMapOf<String, Boolean>() }
-        val importLabel = translation["confirm_button"]
+        val importLabel = translation["confirm_button"] ?: "Confirm Import"
 
         Box(
             modifier = Modifier
@@ -246,6 +183,7 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                     .fillMaxSize()
                     .statusBarsPadding()
             ) {
+                // 1. Sleek Top Header
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -270,214 +208,204 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = { routes.navController.popBackStack() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                                contentColor = Color.White
-                            )
-                        ) {
+                        IconButton(onClick = { routes.navController.popBackStack() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.padding(end = 6.dp)
+                                contentDescription = context.translation["common.back"],
+                                tint = Color.White
                             )
-                            Text(context.translation["common.back"])
                         }
+
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = translation["title"],
+                                text = translation["title"] ?: "Import Confirmation",
                                 color = Color.White,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 18.sp
                             )
                         }
-                        Button(
-                            onClick = {
-                                routes.configJsonForImport?.let { json ->
-                                    runCatching {
-                                        val scopedJson = ScopedConfigJson.importForActiveTarget(context, json)
-                                        val savedLocationsJson = context.config.loadFromString(scopedJson)
-                                        context.config.root.reddit.migrateLegacyFlags()
-                                        
-                                        // Import saved locations if present in the JSON
-                                        savedLocationsJson?.let { locationsArray ->
-                                            if (!context.isRedditMode) importSavedLocations(locationsArray)
-                                        }
-                                        context.mirrorRedditFeaturePrefs()
-                                    }.onFailure { err ->
-                                        context.longToast(
-                                            context.translation.format(
-                                                "config_import_failure_toast",
-                                                "error" to (err.message ?: context.translation["common.unknown_error"])
-                                            )
-                                        )
-                                    }
-                                    context.shortToast(translation["config_imported_toast"])
-                                    context.coroutineScope.launch(Dispatchers.Main) {
-                                        routes.features.navigateReload()
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.3f),
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text(importLabel)
-                        }
+
+                        Spacer(Modifier.width(48.dp))
                     }
                 }
 
+                // 2. Scrollable Content
                 LazyColumn(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
                         .padding(horizontal = 12.dp),
                     contentPadding = PaddingValues(
                         top = 8.dp,
-                        bottom = 16.dp + routes.bottomPadding
+                        bottom = 140.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                items(featuresByCategory.toList()) { (category, features) ->
-                    val isExpanded = expandedState[category] ?: false
-                    val rotationState by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f)
+                    item {
+                        activeTargetJson?.let { json ->
+                            ConfigPreviewer(configJson = json)
+                        }
+                    }
 
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expandedState[category] = !isExpanded },
-                        shape = RoundedCornerShape(18.dp),
-                        color = PurrfectPalette.cardOverlayColor,
-                        tonalElevation = 0.dp,
-                        shadowElevation = 10.dp,
-                        border = BorderStroke(
-                            1.dp,
-                            Brush.linearGradient(
-                                listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.32f)
-                                )
+                    items(featuresByCategory.toList()) { pair ->
+                        val category = pair.first
+                        val features = pair.second
+                        val isExpanded = expandedState[category] ?: false
+                        val rotationState by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f)
+
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedState[category] = !isExpanded },
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color.White.copy(alpha = 0.05f),
+                            tonalElevation = 0.dp,
+                            border = BorderStroke(
+                                1.dp,
+                                if (isExpanded) Brush.linearGradient(
+                                    listOf(
+                                        PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
+                                        PurrfectPalette.glowSecondary.copy(alpha = 0.5f)
+                                    )
+                                ) else SolidColor(Color.White.copy(alpha = 0.12f))
                             )
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = category,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 17.sp,
-                                        color = Color.White
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp,
+                                        color = if (isExpanded) PurrfectPalette.glowPrimary else Color.White,
+                                        modifier = Modifier.weight(1f)
                                     )
+                                    IconButton(onClick = { expandedState[category] = !isExpanded }) {
+                                        Icon(
+                                            imageVector = Icons.Default.KeyboardArrowDown,
+                                            contentDescription = null,
+                                            modifier = Modifier.graphicsLayer(rotationZ = rotationState),
+                                            tint = Color.White.copy(alpha = 0.6f)
+                                        )
+                                    }
                                 }
-                                IconButton(onClick = { expandedState[category] = !isExpanded }) {
-                                    Icon(
-                                        imageVector = Icons.Default.KeyboardArrowDown,
-                                        contentDescription = translation["expand_button_description"],
-                                        modifier = Modifier.graphicsLayer(rotationZ = rotationState),
-                                        tint = Color.White
-                                    )
-                                }
-                            }
 
-                            AnimatedVisibility(visible = isExpanded) {
-                                Column(
-                                    modifier = Modifier.padding(top = 10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    features.forEachIndexed { index, feature ->
-                                        when (val parsedValue = parser.parseValue(feature.key, feature.value)) {
-                                            is List<*> -> {
-                                                Column(
-                                                    modifier = Modifier.padding(start = (feature.indentation * 16).dp),
-                                                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    Text(
-                                                        text = feature.name,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = Color.White
-                                                    )
-                                                    Column(
-                                                        modifier = Modifier.padding(start = 6.dp),
-                                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                                    ) {
-                                                        parsedValue.forEachIndexed { itemIndex, item ->
-                                                            Row(
-                                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                NumberBubble(itemIndex + 1)
-                                                                Text(
-                                                                    text = item.toString(),
-                                                                    color = PurrfectPalette.textSecondary
-                                                                )
-                                                            }
-                                                        }
+                                AnimatedVisibility(visible = isExpanded) {
+                                    Column(
+                                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        features.forEach { feature ->
+                                            val parsedValue = parser.parseValue(feature.key, feature.value)
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = (feature.indentation * 12).dp)
+                                            ) {
+                                                Text(
+                                                    text = feature.name,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color.White
+                                                )
+                                                Spacer(Modifier.height(2.dp))
+                                                if (parsedValue is List<*>) {
+                                                    parsedValue.forEach { item ->
+                                                        Text(
+                                                            text = "• ${item.toString()}",
+                                                            fontSize = 13.sp,
+                                                            color = PurrfectPalette.textSecondary,
+                                                            fontWeight = FontWeight.Normal
+                                                        )
                                                     }
-                                                }
-                                            }
-
-                                            is String -> {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(start = (feature.indentation * 16).dp),
-                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                                ) {
+                                                } else {
                                                     Text(
-                                                        text = feature.name,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = Color.White
-                                                    )
-                                                    Text(
-                                                        text = parsedValue,
-                                                        color = PurrfectPalette.glowSecondary,
-                                                        textAlign = TextAlign.Start,
+                                                        text = parsedValue.toString(),
+                                                        fontSize = 13.sp,
+                                                        color = PurrfectPalette.textSecondary,
+                                                        fontWeight = FontWeight.Normal
                                                     )
                                                 }
                                             }
                                         }
-                                        if (index < features.size - 1) {
-                                            Spacer(modifier = Modifier.height(6.dp))
+                                    }
+                                }
                             }
                         }
                     }
-                }
+
+                    item {
+                        Spacer(Modifier.height(24.dp))
+                    }
                 }
             }
-        }
-    }
-}
-        }
-    }
 
-    @Composable
-    private fun NumberBubble(number: Int) {
-        Surface(
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.08f),
-            tonalElevation = 0.dp,
-            shadowElevation = 6.dp,
-            border = BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
-                    )
-                )
-            )
-        ) {
+            // 3. Fixed Bottom Action Bar
             Box(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+                    .navigationBarsPadding()
             ) {
-                Text(number.toString(), color = Color.White, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = {
+                        activeTargetJson?.let { json ->
+                            runCatching {
+                                val savedLocationsJson = context.config.loadFromString(json)
+                                savedLocationsJson?.let { locationsArray ->
+                                    importSavedLocations(locationsArray)
+                                }
+                            }.onFailure { err ->
+                                context.longToast(
+                                    context.translation.format(
+                                        "config_import_failure_toast",
+                                        "error" to (err.message ?: context.translation["common.unknown_error"])
+                                    )
+                                )
+                            }
+                            context.shortToast(translation["config_imported_toast"] ?: "Settings imported successfully")
+                            context.coroutineScope.launch(Dispatchers.Main) {
+                                routes.features.navigateReload()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        PurrfectPalette.glowPrimary,
+                                        PurrfectPalette.glowSecondary
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = importLabel,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
             }
         }
     }

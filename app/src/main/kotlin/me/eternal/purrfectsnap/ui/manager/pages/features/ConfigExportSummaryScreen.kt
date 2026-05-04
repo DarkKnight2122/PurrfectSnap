@@ -14,28 +14,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -44,9 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.eternal.purrfectsnap.ui.manager.Routes
@@ -140,20 +134,21 @@ class ConfigExportSummaryScreen : Routes.Route() {
         val includeSavedLocations = !context.isRedditMode &&
             (it.arguments?.getString("includeSavedLocations")?.toBoolean() ?: false)
         val defaultFileName = if (context.isRedditMode) "reddit-config.json" else "snap-config.json"
-        val exportLabel = context.translation["manager.sections.features.export_option"]
+        val exportLabel = context.translation["manager.sections.features.export_option"] ?: "Confirm Export"
         val parser = remember { ConfigParser() }
         val savedLocations = remember {
             if (includeSavedLocations) context.database.getLocationCoordinates() else null
         }
-        val featuresByCategory = remember {
-            parser.parse(
-                ScopedConfigJson.exportForActiveTarget(
-                    context,
-                    exportSensitiveData,
-                    includeSavedLocations,
-                    savedLocations
-                )
+        val exportedJson = remember {
+            ScopedConfigJson.exportForActiveTarget(
+                context,
+                exportSensitiveData,
+                includeSavedLocations,
+                savedLocations
             )
+        }
+        val featuresByCategory = remember {
+            parser.parse(exportedJson)
         }
         val expandedState = remember { mutableStateMapOf<String, Boolean>() }
 
@@ -166,8 +161,8 @@ class ConfigExportSummaryScreen : Routes.Route() {
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Bottom))
             ) {
+                // 1. Sleek Top Header (Industrial Restoration)
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -192,215 +187,197 @@ class ConfigExportSummaryScreen : Routes.Route() {
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Button(
-                            onClick = { routes.navController.popBackStack() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                                contentColor = Color.White
-                            )
-                        ) {
+                        IconButton(onClick = { routes.navController.popBackStack() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.padding(end = 6.dp)
+                                contentDescription = context.translation["common.back"],
+                                tint = Color.White
                             )
-                            Text(context.translation["common.back"])
                         }
+
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = translation["title"],
+                                text = translation["title"] ?: "Export Confirmation",
                                 color = Color.White,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 18.sp
                             )
                         }
-                        Button(
-                            onClick = {
-                                routes.activityLauncher.saveFile(defaultFileName, "application/json") { uri ->
-                                    runCatching {
-                                        context.androidContext.contentResolver.openOutputStream(android.net.Uri.parse(uri))?.use {
-                                            context.config.writeConfig()
-                                            ScopedConfigJson.exportForActiveTarget(
-                                                context,
-                                                exportSensitiveData,
-                                                includeSavedLocations,
-                                                savedLocations
-                                            ).byteInputStream().copyTo(it)
-                                            context.shortToast(context.translation["manager.sections.features.config_export_success_toast"])
-                                        }
-                                    }.onFailure {
-                                        context.longToast(
-                                            context.translation.format(
-                                                "manager.sections.features.config_export_failure_toast",
-                                                "error" to it.message.toString()
-                                            )
-                                        )
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowDownward,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.padding(end = 6.dp)
-                            )
-                            Text(exportLabel)
-                        }
+
+                        Spacer(Modifier.width(48.dp)) // Maintain symmetry
                     }
                 }
 
+                // 2. Scrollable Content (Industrial Restoration)
                 LazyColumn(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
                         .padding(horizontal = 12.dp),
                     contentPadding = PaddingValues(
                         top = 8.dp,
-                        bottom = 16.dp + routes.bottomPadding
+                        bottom = 140.dp // 140dp Standard Padding
                     ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
+                    item {
+                        ConfigPreviewer(configJson = exportedJson)
+                    }
+
                     items(featuresByCategory.toList()) { (category, features) ->
                         val isExpanded = expandedState[category] ?: false
                         val rotationState by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f)
+
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { expandedState[category] = !isExpanded },
                             shape = RoundedCornerShape(18.dp),
-                            color = PurrfectPalette.cardOverlayColor,
+                            color = Color.White.copy(alpha = 0.05f),
                             tonalElevation = 0.dp,
-                            shadowElevation = 10.dp,
                             border = BorderStroke(
                                 1.dp,
-                                Brush.linearGradient(
+                                if (isExpanded) Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.32f)
+                                        PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
+                                        PurrfectPalette.glowSecondary.copy(alpha = 0.5f)
                                     )
-                                )
+                                ) else SolidColor(Color.White.copy(alpha = 0.12f))
                             )
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = category,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 17.sp,
-                                            color = Color.White
-                                        )
-                                    }
+                                    Text(
+                                        text = category,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 15.sp,
+                                        color = if (isExpanded) PurrfectPalette.glowPrimary else Color.White,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                     IconButton(onClick = { expandedState[category] = !isExpanded }) {
                                         Icon(
                                             imageVector = Icons.Default.KeyboardArrowDown,
-                                            contentDescription = translation["expand_button_description"],
+                                            contentDescription = null,
                                             modifier = Modifier.graphicsLayer(rotationZ = rotationState),
-                                            tint = Color.White
+                                            tint = Color.White.copy(alpha = 0.6f)
                                         )
                                     }
                                 }
+
                                 AnimatedVisibility(visible = isExpanded) {
                                     Column(
-                                        modifier = Modifier
-                                            .padding(top = 10.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        features.forEachIndexed { index, feature ->
-                                            when (val parsedValue = parser.parseValue(feature.key, feature.value)) {
-                                                is List<*> -> {
-                                                    Column(
-                                                        modifier = Modifier.padding(start = (feature.indentation * 16).dp),
-                                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                                    ) {
+                                        features.forEachIndexed { _, feature ->
+                                            val parsedValue = parser.parseValue(feature.key, feature.value)
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(start = (feature.indentation * 12).dp)
+                                            ) {
+                                                Text(
+                                                    text = feature.name,
+                                                    fontSize = 12.sp, // Industrial Standard Font
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color.White
+                                                )
+                                                Spacer(Modifier.height(2.dp))
+                                                if (parsedValue is List<*>) {
+                                                    parsedValue.forEach { item ->
                                                         Text(
-                                                            text = feature.name,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            color = Color.White
+                                                            text = "• ${item.toString()}",
+                                                            fontSize = 13.sp,
+                                                            color = PurrfectPalette.textSecondary,
+                                                            fontWeight = FontWeight.Normal
                                                         )
-                                                        Column(
-                                                            modifier = Modifier.padding(start = 6.dp),
-                                                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                                                        ) {
-                                                            parsedValue.forEachIndexed { itemIndex, item ->
-                                                                Row(
-                                                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                                                    verticalAlignment = Alignment.CenterVertically
-                                                                ) {
-                                                                    NumberBubble(itemIndex + 1)
-                                                                    Text(
-                                                                        text = item.toString(),
-                                                                        color = PurrfectPalette.textSecondary
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
                                                     }
-                                            }
-                                            is String -> {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(start = (feature.indentation * 16).dp),
-                                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                                ) {
+                                                } else {
                                                     Text(
-                                                        text = feature.name,
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        color = Color.White
-                                                    )
-                                                    Text(
-                                                        text = parsedValue,
-                                                        color = PurrfectPalette.glowSecondary,
-                                                        textAlign = TextAlign.Start
+                                                        text = parsedValue.toString(),
+                                                        fontSize = 13.sp,
+                                                        color = PurrfectPalette.textSecondary,
+                                                        fontWeight = FontWeight.Normal
                                                     )
                                                 }
                                             }
-                                        }
-                                        if (index < features.size - 1) {
-                                            Spacer(modifier = Modifier.height(6.dp))
-                                        }
                                         }
                                     }
                                 }
                             }
                         }
                     }
+
+                    item {
+                        Spacer(Modifier.height(24.dp))
+                    }
                 }
             }
-        }
-    }
 
-    @Composable
-    private fun NumberBubble(number: Int) {
-        Surface(
-            shape = CircleShape,
-            color = Color.White.copy(alpha = 0.08f),
-            tonalElevation = 0.dp,
-            shadowElevation = 6.dp,
-            border = BorderStroke(
-                1.dp,
-                Brush.linearGradient(
-                    listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
-                    )
-                )
-            )
-        ) {
+            // 3. Fixed Bottom Action Bar
             Box(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+                    .navigationBarsPadding()
             ) {
-                Text(number.toString(), color = Color.White, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = {
+                        routes.activityLauncher.saveFile(defaultFileName, "application/json") { uri ->
+                            runCatching {
+                                context.androidContext.contentResolver.openOutputStream(android.net.Uri.parse(uri))?.use {
+                                    context.config.writeConfig()
+                                    exportedJson.byteInputStream().copyTo(it)
+                                    context.shortToast(context.translation["manager.sections.features.config_export_success_toast"] ?: "Config exported")
+                                }
+                            }.onFailure {
+                                context.longToast(
+                                    context.translation.format(
+                                        "manager.sections.features.config_export_failure_toast",
+                                        "error" to it.message.toString()
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        PurrfectPalette.glowPrimary,
+                                        PurrfectPalette.glowSecondary
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = exportLabel,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
             }
         }
     }

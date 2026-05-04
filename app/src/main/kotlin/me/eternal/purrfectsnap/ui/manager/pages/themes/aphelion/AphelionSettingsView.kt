@@ -103,8 +103,10 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
         }
     }
 
-    LaunchedEffect(computedScrollOffset) {
-        routes.navigation?.globalScrollOffset = computedScrollOffset
+    LaunchedEffect(listState) {
+        androidx.compose.runtime.snapshotFlow { computedScrollOffset }.collect {
+            routes.navigation?.globalScrollOffset = it
+        }
     }
 
     if (context.isLimitedTargetMode) {

@@ -479,7 +479,8 @@ class HomeLogs : Routes.Route() {
         MEDIA("log_category_media", listOf("downloader", "ffmpeg", "media", "video")),
         BRIDGE("log_category_bridge", listOf("messagingbridge", "bridge", "ipc")),
         SYSTEM("log_category_system", listOf("systemguard", "thermal", "battery", "wakelock")),
-        TRACKER("log_category_tracker", listOf("tracker", "friendtracker"))
+        TRACKER("log_category_tracker", listOf("tracker", "friendtracker")),
+        CONTINUOUS_SEND("log_category_continuous_send", listOf("continuoussend", "sendoverride", "scheduledsend"))
     }
 
     val enabledCategories = mutableStateMapOf<LogCategory, Boolean>().apply {

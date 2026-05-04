@@ -2,6 +2,7 @@ package me.eternal.purrfectsnap.core.util.ktx
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.content.res.Resources.Theme
 import android.content.res.TypedArray
@@ -57,9 +58,5 @@ fun Context.vibrateLongPress() {
 }
 
 fun Context.isDarkTheme(): Boolean {
-    return theme.obtainStyledAttributes(
-        intArrayOf(android.R.attr.colorPrimary)
-    ).getColor(0, 0).let {
-        ColorUtils.calculateLuminance(it) < 0.5
-    }
+    return (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 }

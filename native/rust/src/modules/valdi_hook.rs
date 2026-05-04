@@ -140,7 +140,7 @@ def_hook!(
     }
 );
 
-pub fn set_valdi_loader(mut env: JNIEnv, _: *mut c_void, code: JString) {
+pub extern "system" fn set_valdi_loader(mut env: JNIEnv, _: *mut c_void, code: JString) {
     if let Ok(new_code) = get_jni_string(&mut env, code) {
         LOADER_DATA.lock().unwrap().replace(new_code);
     }

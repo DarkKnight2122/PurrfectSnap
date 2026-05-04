@@ -14,7 +14,9 @@ object RemoteMediaResolver {
     val okHttpClient = OkHttpClient.Builder()
         .followRedirects(true)
         .retryOnConnectionFailure(true)
-        .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(40, java.util.concurrent.TimeUnit.SECONDS)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .build()
 
     fun newResolveRequest(protoKey: ByteArray): Request {

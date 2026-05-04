@@ -46,7 +46,7 @@ def_hook!(
 );
 
 
-pub fn lock_database(mut env: JNIEnv, _: *mut c_void, filename: JString, runnable: JObject) {
+pub extern "system" fn lock_database(mut env: JNIEnv, _: *mut c_void, filename: JString, runnable: JObject) {
     let database_filename = get_jni_string(&mut env, filename).expect("Failed to get database filename");
     let mutex = SQLITE3_MUTEX_MAP.lock().unwrap().get(&database_filename).map(|mutex| *mutex);
 

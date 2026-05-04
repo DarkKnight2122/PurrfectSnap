@@ -59,8 +59,10 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
     val lastTapTime = remember { mutableLongStateOf(0L) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
-    LaunchedEffect(scrollState.value) {
-        routes.navigation?.globalScrollOffset = scrollState.value
+    LaunchedEffect(scrollState) {
+        androidx.compose.runtime.snapshotFlow { scrollState.value }.collect {
+            routes.navigation?.globalScrollOffset = it
+        }
     }
 
     Box(

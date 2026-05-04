@@ -76,8 +76,10 @@ import me.eternal.purrfectsnap.common.config.FeatureNotice
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import me.eternal.purrfectsnap.common.ui.TopBarActionButton
+import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableState
 import me.eternal.purrfectsnap.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfectsnap.core.features.impl.experiments.RandomizedDeviceProfile
+import me.eternal.purrfectsnap.core.features.impl.experiments.RandomizedDeviceProfileStore
 import me.eternal.purrfectsnap.ui.manager.components.AestheticDialog
 import me.eternal.purrfectsnap.ui.manager.Routes
 import me.eternal.purrfectsnap.ui.manager.ManagerTheme
@@ -191,15 +193,51 @@ class FeaturesRootSection : Routes.Route() {
 
     internal fun requestFreshRandomizedProfile() {
         val randomizeConfig = context.config.root.experimental.spoof.randomizeDeviceProfile
-        randomizeConfig.profileGenerationToken.set(UUID.randomUUID().toString())
-        randomizeConfig.currentProfileSnapshot.set("")
+        val newToken = UUID.randomUUID().toString()
+        
+        // 1. Generate the profile immediately in the Manager app
+        val newProfile = RandomizedDeviceProfileStore.getOrCreate(context.androidContext, context.log, newToken)
+        val profileJsonString = newProfile.toJson().toString()
+        
+        // 2. Update ModConfig (Primary source)
+        randomizeConfig.profileGenerationToken.set(newToken)
+        randomizeConfig.currentProfileSnapshot.set(newProfile.toJson().toString(2))
+        randomizeConfig.profileData.set(profileJsonString)
+        
+        // 3. Force immediate write to disk
+        context.config.writeConfig()
+        
+        // 4. Sync with legacy SharedPreferences (Used by the Hook process)
+        context.androidContext.getSharedPreferences("purrfectsnap_spoof", 0)
+            .edit()
+            .putString("randomized_device_profile", profileJsonString)
+            .putString("randomized_device_profile_token", newToken)
+            .putString("android_id", newProfile.androidId)
+            .putString("advertising_id", newProfile.advertisingId)
+            .putString("bluetooth_address", newProfile.bluetoothMacAddress)
+            .putString("gsf_id", newProfile.gsfId)
+            .putString("random_device", newProfile.deviceInfo.model)
+            .putString("device_fingerprint", newProfile.buildFingerprint)
+            .apply()
     }
 
     internal fun getRandomizedProfileSnapshot(): String {
-        return context.config.root.experimental.spoof.randomizeDeviceProfile.currentProfileSnapshot.getNullable()
-            ?.takeIf { it.isNotBlank() }
-            ?: (context.translation["manager.dialogs.randomize_device_profile.empty"]
-                ?: "No generated profile is available yet. Enable the feature in Snapchat first.")
+        // Priority 1: Read from legacy SharedPreferences where the Hook process actually writes the generated profile
+        val legacyPrefs = context.androidContext.getSharedPreferences("purrfectsnap_spoof", 0)
+        val hookedProfileJson = legacyPrefs.getString("randomized_device_profile", null)
+        
+        if (!hookedProfileJson.isNullOrBlank()) {
+            return hookedProfileJson
+        }
+
+        // Priority 2: Fallback to ModConfig profileData (e.g. if a profile was manually imported but Snapchat hasn't launched yet)
+        val configProfileJson = context.config.root.experimental.spoof.randomizeDeviceProfile.profileData.getNullable()
+        if (!configProfileJson.isNullOrBlank()) {
+            return configProfileJson
+        }
+
+        return context.translation["manager.dialogs.randomize_device_profile.empty"]
+            ?: "No generated profile is available yet. Enable the feature in Snapchat first."
     }
 
     internal fun isRandomizedProfileActionProperty(propertyName: String): Boolean {
@@ -497,6 +535,12 @@ class FeaturesRootSection : Routes.Route() {
         if (showCurrentRandomProfileDialog) {
             val profileSnapshot = getRandomizedProfileSnapshot()
             val clipboardManager = LocalClipboardManager.current
+            
+            // Try to parse the snapshot into a structured profile object
+            val parsedProfile = remember(profileSnapshot) {
+                runCatching { RandomizedDeviceProfile.fromJson(profileSnapshot) }.getOrNull()
+            }
+
             AestheticDialog(
                 onDismissRequest = { showCurrentRandomProfileDialog = false },
                 title = context.translation["manager.dialogs.randomize_device_profile.view_title"]
@@ -515,16 +559,26 @@ class FeaturesRootSection : Routes.Route() {
                 onConfirm = { showCurrentRandomProfileDialog = false },
                 showCloseButton = false,
                 customContent = {
-                    SelectionContainer {
-                        Text(
-                            text = profileSnapshot,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 360.dp)
-                                .verticalScroll(rememberScrollState()),
-                            color = PurrfectPalette.textSecondary,
-                            textAlign = TextAlign.Start
+                    if (parsedProfile != null) {
+                        RandomizedProfileViewer(
+                            profile = parsedProfile,
+                            onCopy = { textToCopy ->
+                                clipboardManager.setText(AnnotatedString(textToCopy))
+                                context.shortToast("Copied to clipboard")
+                            }
                         )
+                    } else {
+                        SelectionContainer {
+                            Text(
+                                text = profileSnapshot,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 360.dp)
+                                    .verticalScroll(rememberScrollState()),
+                                color = PurrfectPalette.textSecondary,
+                                textAlign = TextAlign.Start
+                            )
+                        }
                     }
                 }
             )
@@ -610,64 +664,85 @@ class FeaturesRootSection : Routes.Route() {
                             }
                             items(files, key = { it.name }) { file ->
                                 val isSelected = selectedFile == file.name
-                                Surface(
+                                val fileContent = rememberAsyncMutableState(defaultValue = "") {
+                                    if (isSelected) {
+                                        context.fileHandleManager.readFile(file.name) ?: ""
+                                    } else ""
+                                }
+
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp)
-                                        .clickable {
-                                            selectedFile = if (isSelected) null else file.name
-                                            propertyValue.setAny(selectedFile)
-                                            persistConfig()
-                                        },
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = Color.White.copy(alpha = 0.05f),
-                                    tonalElevation = 0.dp,
-                                    shadowElevation = 0.dp,
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (isSelected) Brush.linearGradient(
-                                            listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.48f)
-                                            )
-                                        ) else SolidColor(Color.White.copy(alpha = 0.08f))
-                                    )
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f)
-                                        ) {
-                                            Icon(
-                                                Icons.Filled.AttachFile,
-                                                contentDescription = null,
-                                                modifier = Modifier.padding(10.dp),
-                                                tint = Color.White
-                                            )
-                                        }
-                                        Text(
-                                            text = file.name,
-                                            modifier = Modifier.weight(1f),
-                                            fontSize = 14.sp,
-                                            lineHeight = 16.sp,
-                                            color = Color.White
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                selectedFile = if (isSelected) null else file.name
+                                                propertyValue.setAny(selectedFile)
+                                                persistConfig()
+                                            },
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = Color.White.copy(alpha = 0.05f),
+                                        tonalElevation = 0.dp,
+                                        shadowElevation = 0.dp,
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (isSelected) Brush.linearGradient(
+                                                listOf(
+                                                    PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
+                                                    PurrfectPalette.glowSecondary.copy(alpha = 0.48f)
+                                                )
+                                            ) else SolidColor(Color.White.copy(alpha = 0.08f))
                                         )
-                                        if (isSelected) {
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
                                             Surface(
                                                 shape = CircleShape,
-                                                color = PurrfectPalette.glowSecondary.copy(alpha = 0.18f)
+                                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f)
                                             ) {
                                                 Icon(
-                                                    Icons.Filled.Check,
+                                                    Icons.Filled.AttachFile,
                                                     contentDescription = null,
-                                                    modifier = Modifier.padding(8.dp),
-                                                    tint = PurrfectPalette.glowSecondary
+                                                    modifier = Modifier.padding(10.dp),
+                                                    tint = Color.White
                                                 )
                                             }
+                                            Text(
+                                                text = file.name,
+                                                modifier = Modifier.weight(1f),
+                                                fontSize = 14.sp,
+                                                lineHeight = 16.sp,
+                                                color = Color.White
+                                            )
+                                            if (isSelected) {
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = PurrfectPalette.glowSecondary.copy(alpha = 0.18f)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Filled.Check,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.padding(8.dp),
+                                                        tint = PurrfectPalette.glowSecondary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if (isSelected && fileContent.value.isNotEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(top = 8.dp, start = 8.dp, end = 8.dp)
+                                                .fillMaxWidth()
+                                        ) {
+                                            ConfigPreviewer(configJson = fileContent.value)
                                         }
                                     }
                                 }
@@ -1732,8 +1807,10 @@ class FeaturesRootSection : Routes.Route() {
             }
         }
 
-        LaunchedEffect(computedScrollOffset) {
-            routes.navigation?.globalScrollOffset = computedScrollOffset
+        LaunchedEffect(listState) {
+            androidx.compose.runtime.snapshotFlow { computedScrollOffset }.collect {
+                routes.navigation?.globalScrollOffset = it
+            }
         }
 
         Box(modifier = Modifier.fillMaxSize()) {

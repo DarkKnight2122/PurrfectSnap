@@ -3,6 +3,7 @@ package me.eternal.purrfectsnap.core.features.impl
 import me.eternal.purrfectsnap.core.features.Feature
 import me.eternal.purrfectsnap.core.util.hook.HookStage
 import me.eternal.purrfectsnap.core.util.hook.hookConstructor
+import me.eternal.purrfectsnap.core.util.hook.hook
 import me.eternal.purrfectsnap.core.wrapper.impl.media.opera.ParamMap
 import me.eternal.purrfectsnap.mapper.impl.OperaViewerParamsMapper
 import java.util.concurrent.ConcurrentHashMap
@@ -71,16 +72,36 @@ class OperaViewerParamsOverride : Feature("OperaViewerParamsOverride") {
                     return value
                 }
 
-                classReference.get()?.hookConstructor(HookStage.AFTER) { param ->
-                    ParamMap(param.thisObject()).paramMapField.set(param.thisObject(), object: ConcurrentHashMap<Any, Any>() {
-                        override fun put(key: Any, value: Any): Any? {
-                            return super.put(key, overrideParamResult(key, value) ?: return value)
-                        }
+                if (overrideMap.isEmpty()) return@useMapper
 
-                        override fun get(key: Any): Any? {
-                            return overrideParamResult(key, super.get(key))
+                val targetClass = classReference.get() ?: return@useMapper
+                val getMethod = targetClass.methods.firstOrNull { 
+                    it.returnType == Any::class.java && it.parameterTypes.size == 1 
+                }
+                
+                if (getMethod != null) {
+                    targetClass.hook(getMethod.name, HookStage.AFTER) { param ->
+                        val originalValue = param.getResult()
+                        val overriddenValue = overrideParamResult(param.arg(0), originalValue)
+                        if (overriddenValue != originalValue) {
+                            param.setResult(overriddenValue)
                         }
-                    })
+                    }
+                }
+                
+                val putMethod = targetClass.methods.firstOrNull { 
+                    it.parameterTypes.size == 2 && it.parameterTypes[0] != Int::class.javaPrimitiveType
+                }
+                
+                if (putMethod != null) {
+                    targetClass.hook(putMethod.name, HookStage.BEFORE) { param ->
+                        val key = param.arg<Any>(0)
+                        val value = param.argNullable<Any>(1)
+                        val overriddenValue = overrideParamResult(key, value)
+                        if (overriddenValue != value) {
+                            param.setArg(1, overriddenValue)
+                        }
+                    }
                 }
             }
         }

@@ -225,7 +225,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
             routes = routes,
             style = ManagerAssistantTriggerStyle.APHELION,
             shrinkFactor = shrinkFactor,
-            modifier = Modifier.width(lerp(36.dp, 118.dp, shrinkFactor))
+            modifier = Modifier.width(lerp(36.dp, 66.dp, shrinkFactor))
         )
         AphelionTopBarActionChip(
             icon = Icons.Filled.BugReport,
@@ -510,7 +510,11 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     val coroutineScope = rememberCoroutineScope()
     var controlsHeight by remember { mutableStateOf(100.dp) }
 
-    LaunchedEffect(scrollState.value) { routes.navigation?.globalScrollOffset = scrollState.value }
+    LaunchedEffect(scrollState) {
+        androidx.compose.runtime.snapshotFlow { scrollState.value }.collect {
+            routes.navigation?.globalScrollOffset = it
+        }
+    }
 
     val handleUpdateAction: () -> Unit = {
         latestUpdate?.let { latest ->

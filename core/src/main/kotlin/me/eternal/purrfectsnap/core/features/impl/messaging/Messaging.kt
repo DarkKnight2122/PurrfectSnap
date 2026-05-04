@@ -288,13 +288,40 @@ class Messaging : Feature("Messaging") {
             context.classCache.feedEntry.hookConstructor(HookStage.AFTER) { param ->
                 val instance = param.thisObject<Any>()
                 val interactionInfo = instance.getObjectFieldOrNull("mInteractionInfo") ?: return@hookConstructor
-                val messages = (interactionInfo.getObjectFieldOrNull("mMessages") as? List<*>)?.map { Message(it) } ?: return@hookConstructor
-                val conversationId = SnapUUID(instance.getObjectFieldOrNull("mConversationId") ?: return@hookConstructor).toString()
+                val nativeMessages = (interactionInfo.getObjectFieldOrNull("mMessages") as? List<*>) ?: return@hookConstructor
+                val conversationIdObject = instance.getObjectFieldOrNull("mConversationId") ?: return@hookConstructor
+                val conversationId = SnapUUID(conversationIdObject).toString()
+                
                 val myUserId = context.database.myUserId
+                val myUserIdBytes = runCatching { UUID.fromString(myUserId).toBytes() }.getOrNull()
+                
+                // Extraction loop: Direct access to avoid creating expensive Message wrappers (JNI memory fix)
+                val unreadIds = mutableListOf<Pair<Long, Long>>() // orderKey to messageId
+                for (nativeMsg in nativeMessages) {
+                    if (nativeMsg == null) continue
+                    val metadata = nativeMsg.getObjectFieldOrNull("mMetadata") ?: continue
+                    val openedBy = metadata.getObjectFieldOrNull("mOpenedBy") as? List<*> ?: continue
+                    
+                    var openedByMe = false
+                    if (myUserIdBytes != null) {
+                        for (nativeUuid in openedBy) {
+                            val bytes = nativeUuid?.getObjectFieldOrNull("mId") as? ByteArray
+                            if (bytes != null && bytes.contentEquals(myUserIdBytes)) {
+                                openedByMe = true
+                                break
+                            }
+                        }
+                    }
 
-                feedCachedSnapMessages[conversationId] = messages.filter { msg ->
-                    msg.messageMetadata?.openedBy?.none { it.toString() == myUserId } == true
-                }.sortedBy { it.orderKey }.mapNotNull { it.messageDescriptor?.messageId }
+                    if (!openedByMe) {
+                        val orderKey = nativeMsg.getObjectFieldOrNull("mOrderKey") as? Long ?: 0L
+                        val descriptor = nativeMsg.getObjectFieldOrNull("mDescriptor") ?: continue
+                        val messageId = descriptor.getObjectFieldOrNull("mMessageId") as? Long ?: continue
+                        unreadIds.add(orderKey to messageId)
+                    }
+                }
+
+                feedCachedSnapMessages[conversationId] = unreadIds.sortedBy { it.first }.map { it.second }
             }
 
             context.classCache.conversationManager.apply {

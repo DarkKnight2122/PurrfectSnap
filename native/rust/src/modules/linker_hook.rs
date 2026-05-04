@@ -38,7 +38,7 @@ def_hook!(
     }
 );
 
-pub fn add_linker_shared_library(mut env: JNIEnv, _: *mut c_void, path: JString, content: JByteArray) {
+pub extern "system" fn add_linker_shared_library(mut env: JNIEnv, _: *mut c_void, path: JString, content: JByteArray) {
     let path = env.get_string(&path).unwrap().to_str().unwrap().to_string();
     let content_length = env.get_array_length(&content).expect("Failed to get array length");
     let mut content_buffer = Box::new(vec![0i8; content_length as usize]);

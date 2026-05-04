@@ -74,7 +74,7 @@ class Experimental : ConfigContainer() {
     val voiceNoteAutoPlay = boolean("voice_note_auto_play") { requireRestart() }
     val friendNotes = boolean("friend_notes") { requireRestart() }
     val contextMenuFix = boolean("context_menu_fix") { requireRestart() }
-    val cofExperiments = multiple("cof_experiments", *cofExperimentList.toTypedArray()) { requireRestart(); addFlags(ConfigFlag.NO_TRANSLATE); addNotices(FeatureNotice.UNSTABLE) }
+    val cofExperiments = multiple("cof_experiments", *cofExperimentList.toTypedArray()) { requireRestart(); addNotices(FeatureNotice.UNSTABLE) }
     val appLock = container("app_lock", AppLockConfig()) { requireRestart(); addNotices(FeatureNotice.UNSTABLE) }
     val infiniteStoryBoost = boolean("infinite_story_boost")
     val meoPasscodeBypass = boolean("meo_passcode_bypass")
