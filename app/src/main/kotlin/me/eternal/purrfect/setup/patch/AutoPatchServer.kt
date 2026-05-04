@@ -1,6 +1,7 @@
 package me.eternal.purrfect.setup.patch
 
 import com.google.gson.JsonParser
+import java.security.SecureRandom
 import java.util.concurrent.TimeUnit
 import me.eternal.purrfect.common.TargetApp
 import okhttp3.OkHttpClient
@@ -22,6 +23,8 @@ class AutoPatchServer(
         }
         .build()
 ) {
+    private val snapchatAssetRandom = SecureRandom()
+
     data class LatestApk(
         val tagName: String,
         val apkName: String,
@@ -80,9 +83,7 @@ class AutoPatchServer(
 
         return when (targetApp) {
             TargetApp.SNAPCHAT -> {
-                val snapchatCandidates = apkAssets.filter { !it.first.contains("snapchat", ignoreCase = true) }
-                    .ifEmpty { apkAssets }
-                snapchatCandidates.random()
+                apkAssets[snapchatAssetRandom.nextInt(apkAssets.size)]
             }
 
             TargetApp.REDDIT -> apkAssets.first()
