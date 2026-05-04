@@ -115,7 +115,7 @@ android {
     }
     signingConfigs {
         create("release") {
-            storeFile = File(System.getProperty("user.home"), ".android/purrfectsnap-release.keystore")
+            storeFile = File(System.getProperty("user.home"), ".android/purrfect-release.keystore")
             storePassword = gradleOrEnv("PS_RELEASE_STORE_PASSWORD", providers)
             keyAlias = gradleOrEnv("PS_RELEASE_KEY_ALIAS", providers)
             keyPassword = gradleOrEnv("PS_RELEASE_KEY_PASSWORD", providers)
@@ -124,7 +124,7 @@ android {
 
     defaultConfig {
         val autoCertSha = providers.provider {
-            val releaseStore = File(System.getProperty("user.home"), ".android/purrfectsnap-release.keystore")
+            val releaseStore = File(System.getProperty("user.home"), ".android/purrfect-release.keystore")
             val releaseStorePass = gradleOrEnv("PS_RELEASE_STORE_PASSWORD", providers)
             val releaseKeyAlias = gradleOrEnv("PS_RELEASE_KEY_ALIAS", providers)
             val releaseKeyPass = gradleOrEnv("PS_RELEASE_KEY_PASSWORD", providers)
@@ -160,7 +160,7 @@ android {
         release {
             isMinifyEnabled = true
             proguardFiles += file("proguard-rules.pro")
-            val releaseStore = File(System.getProperty("user.home"), ".android/purrfectsnap-release.keystore")
+            val releaseStore = File(System.getProperty("user.home"), ".android/purrfect-release.keystore")
             val releaseStorePass = gradleOrEnv("PS_RELEASE_STORE_PASSWORD", providers)
             val releaseKeyAlias = gradleOrEnv("PS_RELEASE_KEY_ALIAS", providers)
             if (releaseStore.exists() && !releaseStorePass.isNullOrBlank() && !releaseKeyAlias.isNullOrBlank()) {
@@ -236,7 +236,7 @@ androidComponents {
             variantOutput.outputFileName.set(
                 when {
                     variant.name.startsWith("core") -> "core.apk"
-                    else -> "purrfectsnap_${rootProject.ext["appVersionName"]}-${variant.name}.apk"
+                    else -> "purrfect_${rootProject.ext["appVersionName"]}-${variant.name}.apk"
                 }
             )
         }

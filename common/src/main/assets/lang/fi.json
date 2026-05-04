@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Ymmärrän ({seconds}s)",
             "important_confirm": "Ymmärrän",
             "important_title": "Tärkeää!",
-            "important_message": "Jos olet käyttänyt SnapEnhancea tai muuta modia PurrfectSnapin lisäksi, suosittelemme poistamaan kaiken ja käyttämään virallista Snapchatia viikon ajan. Vaihda PurrfectSnapiin vasta ensi perjantaina.",
-            "language_subtitle": "Viritä PurrfectSnap puhumaan kieltäsi ennen muita asetuksia.",
+            "important_message": "Jos olet käyttänyt SnapEnhancea tai muuta modia Purrfectin lisäksi, suosittelemme poistamaan kaiken ja käyttämään virallista Snapchatia viikon ajan. Vaihda Purrfectiin vasta ensi perjantaina.",
+            "language_subtitle": "Viritä Purrfect puhumaan kieltäsi ennen muita asetuksia.",
             "install_mode_title": "Valitse laitteesi",
-            "install_mode_subtitle": "Valitse tapa, jolla asennat PurrfectSnapin.",
+            "install_mode_subtitle": "Valitse tapa, jolla asennat Purrfectin.",
             "permissions_subtitle": "Myönnä tärkeät luvat, jotta päällekkäiskerrokset, lataukset ja ilmoitukset toimivat luotettavasti.",
             "patch_title": "Automaattinen paikkaus",
             "patch_subtitle": "Lataus, paikkaus ja asennus virtaviivaistettuna yhdellä kertaa.",
@@ -37,12 +37,12 @@
             "notice_title": "Huomio!",
             "notice_intro": "Valitse laitteesi tyyppi: rootattu tai ei-rootattu. Jos olet epävarma, valitse Ei-root ja jatka.",
             "notice_non_root_title": "Ei-rootatut laitteet",
-            "notice_non_root_body": "Valitse Ei-root, ja sovellus hoitaa kaiken. Napauta 'Asenna paikattu Snapchat', kun se ilmestyy. Asennuksen jälkeen älä avaa Snapchatia vielä. Jatka PurrfectSnapin asennusta; kun se on valmis, voit avata Snapchatin ja nauttia.",
+            "notice_non_root_body": "Valitse Ei-root, ja sovellus hoitaa kaiken. Napauta 'Asenna paikattu Snapchat', kun se ilmestyy. Asennuksen jälkeen älä avaa Snapchatia vielä. Jatka Purrfectin asennusta; kun se on valmis, voit avata Snapchatin ja nauttia.",
             "notice_root_title": "Rootatut laitteet",
-            "notice_root_body": "Varmista ensin, että olet flashannyt LSPosedin. Suosittelemme JingMatrix LSPosedia tai LSPosed Irenaa. Kun valitset Root, sovellus asentaa suositellun Snapchat-version. Älä avaa sitä vielä; jatka PurrfectSnapin asennusta. Kun asennus on valmis, ota PurrfectSnap käyttöön LSPosedissa ja käynnistä puhelin uudelleen. Aloita sitten Snapchatin käyttö. Suosittelemme vahvasti Snapchatin irrottamista Play Kaupasta Zygisk Detach -moduulilla automaattisten päivitysten estämiseksi.",
+            "notice_root_body": "Varmista ensin, että olet flashannyt LSPosedin. Suosittelemme JingMatrix LSPosedia tai LSPosed Irenaa. Kun valitset Root, sovellus asentaa suositellun Snapchat-version. Älä avaa sitä vielä; jatka Purrfectin asennusta. Kun asennus on valmis, ota Purrfect käyttöön LSPosedissa ja käynnistä puhelin uudelleen. Aloita sitten Snapchatin käyttö. Suosittelemme vahvasti Snapchatin irrottamista Play Kaupasta Zygisk Detach -moduulilla automaattisten päivitysten estämiseksi.",
             "notice_issues_hint": "Jos kohtaat asennusongelmia, ratkaisu ilmestyy tähän. Lue se huolellisesti.",
             "notice_note_prefix": "Huomio: ",
-            "notice_note_body": "Uudet tilit lukitaan helposti! On suositeltavaa käyttää vanhempaa tiliä PurrfectSnapin kanssa.",
+            "notice_note_body": "Uudet tilit lukitaan helposti! On suositeltavaa käyttää vanhempaa tiliä Purrfectin kanssa.",
             "step_title": "Valitse laitteesi",
             "step_subtitle": "Jos et tiedä, valitse Ei-rootattu laite ja jatka.",
             "root_option_title": "Rootattu laite",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Luodaan kohdistuksia...",
-            "generate_failure_no_snapchat": "PurrfectSnap ei havainnut Snapchatia. Yritä asentaa Snapchat uudelleen.",
+            "generate_failure_no_snapchat": "Purrfect ei havainnut Snapchatia. Yritä asentaa Snapchat uudelleen.",
             "generate_failure": "Virhe luotaessa kohdistuksia. Yritä uudelleen.",
             "confirm_understand_timeout": "Ymmärrän ({seconds}s)",
             "confirm_understand": "Ymmärrän",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Jos se epäonnistuu edelleen, napauta kirjautumispainiketta toistuvasti. Tämä yleensä auttaa.",
             "notice_step_3": "3. Jos se epäonnistuu edelleen, tyhjennä Snapchatin tiedot, poista VPN käytöstä ja kirjaudu uudelleen.",
             "notice_rooted_title": "Root-käyttäjille:",
-            "notice_rooted_body": "Avaa Snapchat uudelleen ja kirjaudu sisään. Jos se epäonnistuu edelleen, poista PurrfectSnap käytöstä LSPosedissa, kirjaudu sisään ja ota PurrfectSnap uudelleen käyttöön.",
+            "notice_rooted_body": "Avaa Snapchat uudelleen ja kirjaudu sisään. Jos se epäonnistuu edelleen, poista Purrfect käytöstä LSPosedissa, kirjaudu sisään ja ota Purrfect uudelleen käyttöön.",
             "warnings_info": "{count} varoitus(ta) ilmeni luotaessa kohdistuksia:\n\n{warnings}",
             "progress_hint": "Tämä kestää vain hetken. Pidä sovellus auki, kun taika tapahtuu!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Korjaus: Lataa Snapchat Play Kaupasta ja poista se säilyttämättä tietoja. Suorita automaattinen paikkaus uudelleen. Jos se ei vieläkään toimi, suorita:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Ongelma: Sovellusta ei asennettu, koska paketti vaikuttaa virheelliselt.",
-            "issues_invalid_fix": "Korjaus: Lataa ja asenna JingMatrix LSPatch, ja paikkaa sitten mikä tahansa Snapchat-versio väliltä 13.65.1.0 – 13.71.0.51 Integrated-tilassa. Valitse 'Embed Modules' ja upota PurrfectSnap APK. Valitse sitten PurrfectSnap-asennuksessa 'Skip auto setup' ohittaaksesi automaattisen paikkauksen.",
+            "issues_invalid_fix": "Korjaus: Lataa ja asenna JingMatrix LSPatch, ja paikkaa sitten mikä tahansa Snapchat-versio väliltä 13.65.1.0 – 13.71.0.51 Integrated-tilassa. Valitse 'Embed Modules' ja upota Purrfect APK. Valitse sitten Purrfect-asennuksessa 'Skip auto setup' ohittaaksesi automaattisen paikkauksen.",
             "status_downloading": "Ladataan Snapchatia {percent}%",
             "status_patching": "Paikataan...",
             "status_initializing": "Alustetaan...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Nykyinen valinta",
             "browse_languages": "Selaa kieliä",
-            "change_anytime_hint": "Voit vaihtaa tämän milloin tahansa PurrfectSnapin asetuksista.",
+            "change_anytime_hint": "Voit vaihtaa tämän milloin tahansa Purrfectin asetuksista.",
             "available_languages": "Saatavilla olevat kielet"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Kansion valitsin ei käytettävissä",
             "no_picker_message": "Jotkin klooni-/kaksoissovellusympäristöt estävät järjestelmän kansion valitsimen. Voit jatkaa järjestelmän oletustallennuspaikalla tai avata sovelluksen kloonitilan ulkopuolella valitaksesi mukautetun kansion.",
             "use_default_button": "Käytä oletusta",
-            "permission_hint": "PurrfectSnap vaatii tallennustilaluvat median lataamiseen ja tallentamiseen Snapchatista."
+            "permission_hint": "Purrfect vaatii tallennustilaluvat median lataamiseen ja tallentamiseen Snapchatista."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
-                "update_title": "PurrfectSnap-päivitys",
+                "update_title": "Purrfect-päivitys",
                 "update_content": "Versio {version} on saatavilla!",
                 "update_button": "Lataa",
                 "hero_tagline": "Xposed-moduuli, joka on tarkoitettu parantamaan Snapchat-kokemustasi",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Lataus valmistui",
                 "update_install_failed_toast": "Päivityksen asennus epäonnistui. Tarkista lokit saadaksesi lisätietoja.",
                 "update_download_failed_toast": "Lataus epäonnistui: {error}",
-                "debug_build_summary_title": "Käytät PurrfectSnapin debug-versiota",
+                "debug_build_summary_title": "Käytät Purrfectin debug-versiota",
                 "debug_build_summary_content": "Versio {versionName} ({versionCode})",
                 "debug_build_summary_date": "Käännöspäivä: {date} ({days} päivää sitten)",
                 "quick_actions_title": "Pikatoiminnot",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Ilmoituksia ei saatavilla"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Xposed-moduuli, joka on tarkoitettu parantamaan Snapchat-kokemustasi!",
                 "about_lead_developers_title": "Pääkehittäjät",
                 "about_story_title": "Tarinamme",
-                "about_story": "PurrfectSnap perustettiin 2. lokakuuta 2025, kun ΞTΞRNAL teki forkkausversion SnapEnhancesta visionaan tarjota käyttäjille laadukas Snapchat-kokemus. Tämän sovelluksen piti olla vain pieni päivitys SnapEnhance-repositoriossa, mutta siitä tuli pian erillinen sovellus, johon avustajat lisäsivät ominaisuuksia. Sitten kehittäjä <RSR/> liittyi tiimiin, ja sovelluksesta tuli suuri menestys. Saimme paljon rakkautta ja tukea, saavuttaen yli 1000 latausta vain kahdessa päivässä! Kiitämme kaikkia käyttäjiä ja avustajia; ilman tukeanne emme olisi päässeet tähän pisteeseen. Haluamme myös välittää suuret kiitokset rhunkille, SnapEnhancen pääkehittäjälle, sillä ilman häntä tätä sovellusta ei olisi edes olemassa. Olemme hänelle erittäin kiitollisia. Lopuksi haluamme kiittää kaikkia ylläpitäjiämme, erityisesti: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, jotka olivat mukana alusta alkaen. Haluamme myös kiittää kaikkia testaajia, erityisesti Leo & Toxic, jotka testasivat ja raportoivat bugeja jatkuvasti. Olemme erittäin kiitollisia panoksestanne.",
-                "about_thanks_title": "Rakkaudella, PurrfectSnap-tiimi",
+                "about_story": "Purrfect perustettiin 2. lokakuuta 2025, kun ΞTΞRNAL teki forkkausversion SnapEnhancesta visionaan tarjota käyttäjille laadukas Snapchat-kokemus. Tämän sovelluksen piti olla vain pieni päivitys SnapEnhance-repositoriossa, mutta siitä tuli pian erillinen sovellus, johon avustajat lisäsivät ominaisuuksia. Sitten kehittäjä <RSR/> liittyi tiimiin, ja sovelluksesta tuli suuri menestys. Saimme paljon rakkautta ja tukea, saavuttaen yli 1000 latausta vain kahdessa päivässä! Kiitämme kaikkia käyttäjiä ja avustajia; ilman tukeanne emme olisi päässeet tähän pisteeseen. Haluamme myös välittää suuret kiitokset rhunkille, SnapEnhancen pääkehittäjälle, sillä ilman häntä tätä sovellusta ei olisi edes olemassa. Olemme hänelle erittäin kiitollisia. Lopuksi haluamme kiittää kaikkia ylläpitäjiämme, erityisesti: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, jotka olivat mukana alusta alkaen. Haluamme myös kiittää kaikkia testaajia, erityisesti Leo & Toxic, jotka testasivat ja raportoivat bugeja jatkuvasti. Olemme erittäin kiitollisia panoksestanne.",
+                "about_thanks_title": "Rakkaudella, Purrfect-tiimi",
                 "about_magic_toast": "Napauta 5 kertaa tässä näytössä nähdäksesi taikaa 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Päivitykset",
                 "update_notification_channel_description": "Saa ilmoitus, kun uusia julkaisuja on saatavilla",
                 "update_notification_title": "Uusi päivitys saatavilla",
-                "update_notification_text": "Napauta avataksesi PurrfectSnap ja ladataksesi uusin versio.",
+                "update_notification_text": "Napauta avataksesi Purrfect ja ladataksesi uusin versio.",
                 "app_theme_title": "Sovelluksen teema",
                 "theme_icon_description": "Avaa teeman valitsin",
                 "theme_mode_system": "Järjestelmä",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Muokkaa alapalkkia",
                 "customize_bottom_bar_subtitle": "Valitse mitkä välilehdet näkyvät aloitusnäytöllä",
                 "available_tabs_title": "Saatavilla olevat välilehdet",
-                "reset_setup_title": "Nollaa PurrfectSnap",
+                "reset_setup_title": "Nollaa Purrfect",
                 "reset_setup_action": "Nollaa ja käynnistä asennus uudelleen",
                 "reset_setup_dialog_title": "Oletko varma?",
-                "reset_setup_dialog_text": "Tämä nollaa PurrfectSnapin ja käynnistää asennuksen uudelleen.",
+                "reset_setup_dialog_text": "Tämä nollaa Purrfectin ja käynnistää asennuksen uudelleen.",
                 "reset_button": "Nollaa",
                 "done_button": "Valmis",
                 "clear_friend_feed": "Tyhjennä kaverinäkymä",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Varoitus",
-                "content": "PurrfectSnap sisältää skriptaustyökalun, joka mahdollistaa käyttäjän määrittelemän koodin suorittamisen laitteellasi. Noudata äärimmäistä varovaisuutta ja asenna moduuleja vain tunnetuista, luotettavista lähteistä. Luvattomat tai vahvistamattomat moduulit voivat aiheuttaa turvallisuusriskejä järjestelmällesi."
+                "content": "Purrfect sisältää skriptaustyökalun, joka mahdollistaa käyttäjän määrittelemän koodin suorittamisen laitteellasi. Noudata äärimmäistä varovaisuutta ja asenna moduuleja vain tunnetuista, luotettavista lähteistä. Luvattomat tai vahvistamattomat moduulit voivat aiheuttaa turvallisuusriskejä järjestelmällesi."
             },
             "reset_config": {
                 "title": "Nollaa asetukset",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Vaihda kieli",
-            "description": "Vaihda PurrfectSnapin kieli"
+            "description": "Vaihda Purrfectin kieli"
         },
         "file_imports": {
             "name": "Tiedostojen tuonti",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Composer-lokit",
-                                        "description": "Uudelleenohjaa Composerin konsolilokit PurrfectSnapiin"
+                                        "description": "Uudelleenohjaa Composerin konsolilokit Purrfectiin"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Skriptaus",
-                "description": "Suorita mukautettuja skriptejä laajentaaksesi PurrfectSnapia",
+                "description": "Suorita mukautettuja skriptejä laajentaaksesi Purrfectia",
                 "properties": {
                     "developer_mode": {
                         "name": "Kehittäjätila",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Lataa vain Snapchat uudelleen",
-                "all": "Lataa Snapchat + PurrfectSnap uudelleen",
+                "all": "Lataa Snapchat + Purrfect uudelleen",
                 "null": "Oletus"
             },
             "walk_radius": {
@@ -3579,9 +3579,9 @@
     "toast_init_script_runtime_failed": "Skriptin ajonaikaisen ympäristön alustus epäonnistui!",
     "toast_database_corrupted": "Tietokanta {path} on korruptoitunut! Käynnistetään uudelleen ...",
     "toast_feature_init_failed": "Ominaisuuden {feature} alustus epäonnistui! Tarkista logcat lisätietoja varten.",
-    "toast_updating_purrfectsnap": "Päivitetään PurrfectSnap. Odota hetki...",
-    "toast_update_purrfectsnap_failed": "PurrfectSnapin päivitys epäonnistui. Tarkista logcat lisätietoja varten.",
-    "toast_purrfectsnap_updated": "PurrfectSnap päivitetty!",
+    "toast_updating_purrfect": "Päivitetään Purrfect. Odota hetki...",
+    "toast_update_purrfect_failed": "Purrfectin päivitys epäonnistui. Tarkista logcat lisätietoja varten.",
+    "toast_purrfect_updated": "Purrfect päivitetty!",
     "toast_export_memories_failed": "Muistojen vienti epäonnistui",
     "toast_exported_to_path": "Viety kohteeseen {path}",
     "toast_open_memories_db_failed": "Muistojen tietokannan avaaminen epäonnistui",

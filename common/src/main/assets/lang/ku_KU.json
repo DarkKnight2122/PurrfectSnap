@@ -7,10 +7,10 @@
             "important_confirm_timeout": "تێدەگەم ({seconds}s)",
             "important_confirm": "تێدەگەم",
             "important_title": "گرنگ!",
-            "important_message": "ئەگەر SnapEnhance یان هەر مۆدێکی ترت جگە لە PurrfectSnap بەکارهێناوە، پێشنیار دەکەین هەمووی بسڕیتەوە و بۆ ماوەی یەک هەفتە لەسەر سناپچاتی ئەسڵی بمێنیتەوە. پاشان دوای هەینی داهاتوو بگۆڕە بۆ PurrfectSnap.",
-            "language_subtitle": "PurrfectSnap ڕێکبخە بۆ ئەوەی پێش هەر شتێک بە زمانی تۆ قسە بکات.",
+            "important_message": "ئەگەر SnapEnhance یان هەر مۆدێکی ترت جگە لە Purrfect بەکارهێناوە، پێشنیار دەکەین هەمووی بسڕیتەوە و بۆ ماوەی یەک هەفتە لەسەر سناپچاتی ئەسڵی بمێنیتەوە. پاشان دوای هەینی داهاتوو بگۆڕە بۆ Purrfect.",
+            "language_subtitle": "Purrfect ڕێکبخە بۆ ئەوەی پێش هەر شتێک بە زمانی تۆ قسە بکات.",
             "install_mode_title": "ئامێرەکەت هەڵبژێرە",
-            "install_mode_subtitle": "ئەو ڕێگایە هەڵبژێرە کە دەگونجێت لەگەڵ چۆنیەتی دامەزراندنی PurrfectSnap.",
+            "install_mode_subtitle": "ئەو ڕێگایە هەڵبژێرە کە دەگونجێت لەگەڵ چۆنیەتی دامەزراندنی Purrfect.",
             "permissions_subtitle": "ڕێپێدانە سەرەکییەکان بدە بۆ ئەوەی داپۆشەرەکان، دابەزاندنەکان و ئاگادارکردنەوەکان جێگیر بن.",
             "patch_title": "پاچەر (Patcher)ـی خۆکار",
             "patch_subtitle": "دابەزاندن، پاچکردن، و دامەزراندن بە یەک هەنگاو.",
@@ -37,12 +37,12 @@
             "notice_title": "تکایە ئاگاداربە!",
             "notice_intro": "جۆری ئامێرەکەت دیاری بکە: ڕووتکراو (Rooted) یان ڕووتنەکراو (Non-rooted). ئەگەر دڵنیا نیت، Non-root هەڵبژێرە و بەردەوام بە.",
             "notice_non_root_title": "ئامێرە ڕووتنەکراوەکان",
-            "notice_non_root_body": "Non-root هەڵبژێرە و بەرنامەکە هەموو شتێک دەکات. کاتێک دەردەکەوێت، داگرتنی 'Install Patched Snapchat' بکە. دوای دامەزراندن، هێشتا سناپچات مەکەرەوە. بەردەوام بە لە ڕێکخستنی PurrfectSnap؛ کاتێک تەواو بوو، دەتوانیت سناپچات بکەیتەوە و چێژی لێ ببینیت.",
+            "notice_non_root_body": "Non-root هەڵبژێرە و بەرنامەکە هەموو شتێک دەکات. کاتێک دەردەکەوێت، داگرتنی 'Install Patched Snapchat' بکە. دوای دامەزراندن، هێشتا سناپچات مەکەرەوە. بەردەوام بە لە ڕێکخستنی Purrfect؛ کاتێک تەواو بوو، دەتوانیت سناپچات بکەیتەوە و چێژی لێ ببینیت.",
             "notice_root_title": "ئامێرە ڕووتکراوەکان",
-            "notice_root_body": "دڵنیابە سەرەتا LSPosedـت داناوە. ئێمە JingMatrix LSPosed یان LSPosed Irena پێشنیار دەکەین. دوای هەڵبژاردنی Root، بەرنامەکە وەشانی پێشنیارکراوی سناپچات دادەمەزرێنێت. هێشتا نەیکەیتەوە؛ بەردەوام بە لە ڕێکخستنی PurrfectSnap. کاتێک ڕێکخستن تەواو بوو، PurrfectSnap لە ناو LSPosed چالاک بکە و مۆبایلەکەت ریستارت (Reboot) بکەرەوە. پاشان دەست بکە بە بەکارهێنانی سناپچات. زۆر پێشنیار دەکەین سناپچات لە Play Store جیابکەیتەوە (Detach) بە بەکارهێنانی مۆدیولی Zygisk Detach بۆ ڕێگریکردن لە نوێبوونەوەی خۆکار.",
+            "notice_root_body": "دڵنیابە سەرەتا LSPosedـت داناوە. ئێمە JingMatrix LSPosed یان LSPosed Irena پێشنیار دەکەین. دوای هەڵبژاردنی Root، بەرنامەکە وەشانی پێشنیارکراوی سناپچات دادەمەزرێنێت. هێشتا نەیکەیتەوە؛ بەردەوام بە لە ڕێکخستنی Purrfect. کاتێک ڕێکخستن تەواو بوو، Purrfect لە ناو LSPosed چالاک بکە و مۆبایلەکەت ریستارت (Reboot) بکەرەوە. پاشان دەست بکە بە بەکارهێنانی سناپچات. زۆر پێشنیار دەکەین سناپچات لە Play Store جیابکەیتەوە (Detach) بە بەکارهێنانی مۆدیولی Zygisk Detach بۆ ڕێگریکردن لە نوێبوونەوەی خۆکار.",
             "notice_issues_hint": "ئەگەر تووشی هەر کێشەیەکی دامەزراندن بوویت، چارەسەرەکە لێرە دەردەکەوێت. تکایە بە وردی بیخوێنەرەوە.",
             "notice_note_prefix": "تێبینی: ",
-            "notice_note_body": "ئەکاونتە نوێیەکان بە ئاسانی دادەخرێن (Lock)! پێشنیار دەکرێت ئەکاونتێکی کۆنتر بەکاربهێنیت لەگەڵ PurrfectSnap.",
+            "notice_note_body": "ئەکاونتە نوێیەکان بە ئاسانی دادەخرێن (Lock)! پێشنیار دەکرێت ئەکاونتێکی کۆنتر بەکاربهێنیت لەگەڵ Purrfect.",
             "step_title": "ئامێرەکەت هەڵبژێرە",
             "step_subtitle": "ئەگەر نازانیت، ئامێری ڕووتنەکراو (Non-rooted) هەڵبژێرە و بەردەوام بە.",
             "root_option_title": "ئامێری ڕووتکراو",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "دروستکردنی نەخشەکان (Mappings)...",
-            "generate_failure_no_snapchat": "PurrfectSnap نەیتوانی سناپچات بدۆزێتەوە، تکایە هەوڵی دووبارە دامەزراندنەوەی سناپچات بدە.",
+            "generate_failure_no_snapchat": "Purrfect نەیتوانی سناپچات بدۆزێتەوە، تکایە هەوڵی دووبارە دامەزراندنەوەی سناپچات بدە.",
             "generate_failure": "هەڵەیەک ڕوویدا لە کاتی دروستکردنی نەخشەکان، تکایە هەوڵ بدەرەوە.",
             "confirm_understand_timeout": "تێدەگەم ({seconds}s)",
             "confirm_understand": "تێدەگەم",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. ئەگەر هەر شکست دەهێنێت، دوگمەی چوونەژوورەوە (login) چەند جارێک داگرە. ئەمە بەزۆری کێشەکە چارەسەر دەکات.",
             "notice_step_3": "3. ئەگەر هەر شکست دەهێنێت، داتای سناپچات پاک بکەرەوە (Clear Data)، هەر VPNێک بوەستێنە، و دیسان بچۆرەوە ژوورەوە.",
             "notice_rooted_title": "بۆ بەکارهێنەرانی ڕووت (Root):",
-            "notice_rooted_body": "سناپچات بکەرەوە و بچۆرە ژوورەوە. ئەگەر هەر شکستی هێنا، PurrfectSnap لە LSPosed بوەستێنە (Disable)، بچۆرە ژوورەوە، پاشان PurrfectSnap چالاک بکەرەوە.",
+            "notice_rooted_body": "سناپچات بکەرەوە و بچۆرە ژوورەوە. ئەگەر هەر شکستی هێنا، Purrfect لە LSPosed بوەستێنە (Disable)، بچۆرە ژوورەوە، پاشان Purrfect چالاک بکەرەوە.",
             "warnings_info": "{count} ئاگادارکردنەوە ڕوویدا لە کاتی دروستکردنی نەخشەکان:\n\n{warnings}",
             "progress_hint": "ئەمە تەنها کەمێک دەخایەنێت. بەرنامەکە بە کراوەیی بهێڵەرەوە تا جادووەکە ڕوودەدات!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "چارەسەر: سناپچات لە Play Store دابەزێنە و بیسڕەوە بەبێ ئەوەی داتاکان بهێڵیتەوە. پاچەری خۆکار جارێکی تر کارپێبکە. ئەگەر هەر کاری نەکرد، ئەمە جێبەجێ بکە:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "کێشە: بەرنامە دانامەزرێت چونکە پاکێجەکە بە نادروست دەردەکەوێت.",
-            "issues_invalid_fix": "چارەسەر: JingMatrix LSPatch دابەزێنە و دایمەزرێنە، پاشان وەشانێکی سناپچات پاچ بکە (هەر یەکێک) لەم مەودایە، واتە لە نێوان 13.65.1.0 و 13.71.0.51، لە دۆخی Integrated. بژاردەی Embed Modules هەڵبژێرە و PurrfectSnap APK تێخە (Embed). پاشان Skip auto setup هەڵبژێرە لە کاتی ڕێکخستنی PurrfectSnap بۆ تێپەڕاندنی پاچەری خۆکار.",
+            "issues_invalid_fix": "چارەسەر: JingMatrix LSPatch دابەزێنە و دایمەزرێنە، پاشان وەشانێکی سناپچات پاچ بکە (هەر یەکێک) لەم مەودایە، واتە لە نێوان 13.65.1.0 و 13.71.0.51، لە دۆخی Integrated. بژاردەی Embed Modules هەڵبژێرە و Purrfect APK تێخە (Embed). پاشان Skip auto setup هەڵبژێرە لە کاتی ڕێکخستنی Purrfect بۆ تێپەڕاندنی پاچەری خۆکار.",
             "status_downloading": "دابەزاندنی سناپچات {percent}%",
             "status_patching": "پاچکردن...",
             "status_initializing": "دەستپێکردن...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "هەڵبژاردنی ئێستا",
             "browse_languages": "گەڕان بەدوای زمانەکان",
-            "change_anytime_hint": "دەتوانیت هەر کاتێک بێت ئەمە بگۆڕیت لە ڕێکخستنەکانی PurrfectSnap.",
+            "change_anytime_hint": "دەتوانیت هەر کاتێک بێت ئەمە بگۆڕیت لە ڕێکخستنەکانی Purrfect.",
             "available_languages": "زمانە بەردەستەکان"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "دیاریکەری فۆڵدەر بەردەست نییە",
             "no_picker_message": "هەندێک ژینگەی دوانە/کۆپی (cloned/dual-app) ڕێگری دەکەن لە دیاریکەری فۆڵدەری سیستم. دەتوانیت بەردەوام بیت بە بەکارهێنانی شوێنی بنەڕەتی سیستم، یان بەرنامەکە لە دەرەوەی دۆخی کۆپی بکەیتەوە بۆ دیاریکردنی فۆڵدەرێکی تایبەت.",
             "use_default_button": "بنەڕەتی بەکاربهێنە",
-            "permission_hint": "PurrfectSnap پێویستی بە مۆڵەتی بیرگە (Storage) هەیە بۆ دابەزاندن و پاشەکەوتکردنی میدیا لە سناپچات."
+            "permission_hint": "Purrfect پێویستی بە مۆڵەتی بیرگە (Storage) هەیە بۆ دابەزاندن و پاشەکەوتکردنی میدیا لە سناپچات."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 لەلایەن ΞTΞRNAL",
-                "update_title": "نوێکردنەوەی PurrfectSnap",
+                "update_title": "نوێکردنەوەی Purrfect",
                 "update_content": "وەشانی {version} بەردەستە!",
                 "update_button": "دابەزاندن",
                 "hero_tagline": "مۆدیولێکی Xposed کە مەبەست لێی باشترکردنی ئەزموونی سناپچاتتە",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "دابەزاندن تەواو بوو",
                 "update_install_failed_toast": "نوێکردنەوەکە دانەمەزرا. بۆ وردەکاری زیاتر سەیری تۆمارەکان (logs) بکە.",
                 "update_download_failed_toast": "دابەزاندن سەرکەوتوو نەبوو: {error}",
-                "debug_build_summary_title": "تۆ وەشانی دیبەگ (debug)ـی PurrfectSnap بەکاردەهێنیت",
+                "debug_build_summary_title": "تۆ وەشانی دیبەگ (debug)ـی Purrfect بەکاردەهێنیت",
                 "debug_build_summary_content": "وەشان {versionName} ({versionCode})",
                 "debug_build_summary_date": "بەرواری بیڵد: {date} ({days} ڕۆژ لەمەوبەر)",
                 "quick_actions_title": "کردارە خێراکان",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "ڕاگەیاندنەکان بەردەست نین"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "مۆدیولێکی Xposed کە مەبەست لێی باشترکردنی ئەزموونی سناپچاتتە!",
                 "about_lead_developers_title": "گەشەپێدەرە سەرەکییەکان",
                 "about_story_title": "چیرۆکی ئێمە",
-                "about_story": "PurrfectSnap لە ٢ی ئۆکتۆبەری ٢٠٢٥ دامەزراوە، وەک لقێک (fork) لە SnapEnhance لەلایەن ΞTΞRNAL بە دیدگایەک بۆ پێشکەشکردنی ئەزموونێکی سناپچاتی باڵا بۆ بەکارهێنەران. ئەم بەرنامەیە سەرەتا تەنها نوێکردنەوەیەکی بچووک بوو لە SnapEnhance، بەڵام زوو بوو بە بەرنامەیەکی سەربەخۆ کە بەشداربووان تایبەتمەندییان بۆ زیاد دەکرد. پاشان گەشەپێدەر <RSR/> پەیوەندی بە تیمەکەوە کرد، و ئەم بەرنامەیە زوو بوو بە سەرکەوتنێکی گەورە. خۆشەویستی و پشتگیرییەکی زۆرمان پێگەیشت و لە ماوەی تەنها دوو ڕۆژدا ١٠٠٠+ دابەزاندنمان هەبوو! سوپاسی هەموو بەکارهێنەران و بەشداربووان دەکەین؛ بەبێ پشتگیری ئێوە نەدەگەیشتین بەم شوێنە. هەروەها سوپاسی تایبەتمان بۆ rhunk، گەشەپێدەری سەرەکی SnapEnhance، چونکە بەبێ ئەو، ئەم بەرنامەیە هەر بوونی نەدەبوو. ئێمە زۆر سوپاسگوزاری ئەوین. لە کۆتاییدا، دەمانەوێت سوپاسی هەموو ئەدمینەکانمان بکەین، بەتایبەتی: CLASSIC GENIUS، Harry، Sujal، Zain و schrodingerspet، کە لە سەرەتاوە لەگەڵمان بوون. هەروەها سوپاسی هەموو تاقیکەرەوەکان (testers) دەکەین، بەتایبەتی Leo و Toxic، کە بە بەردەوامی تاقیکردنەوەیان دەکرد و کێشەکانیان ڕادەگەیاند. ئێمە زۆر سوپاسگوزاری بەشداریتانین.",
-                "about_thanks_title": "بە خۆشەویستییەوە، تیمی PurrfectSnap",
+                "about_story": "Purrfect لە ٢ی ئۆکتۆبەری ٢٠٢٥ دامەزراوە، وەک لقێک (fork) لە SnapEnhance لەلایەن ΞTΞRNAL بە دیدگایەک بۆ پێشکەشکردنی ئەزموونێکی سناپچاتی باڵا بۆ بەکارهێنەران. ئەم بەرنامەیە سەرەتا تەنها نوێکردنەوەیەکی بچووک بوو لە SnapEnhance، بەڵام زوو بوو بە بەرنامەیەکی سەربەخۆ کە بەشداربووان تایبەتمەندییان بۆ زیاد دەکرد. پاشان گەشەپێدەر <RSR/> پەیوەندی بە تیمەکەوە کرد، و ئەم بەرنامەیە زوو بوو بە سەرکەوتنێکی گەورە. خۆشەویستی و پشتگیرییەکی زۆرمان پێگەیشت و لە ماوەی تەنها دوو ڕۆژدا ١٠٠٠+ دابەزاندنمان هەبوو! سوپاسی هەموو بەکارهێنەران و بەشداربووان دەکەین؛ بەبێ پشتگیری ئێوە نەدەگەیشتین بەم شوێنە. هەروەها سوپاسی تایبەتمان بۆ rhunk، گەشەپێدەری سەرەکی SnapEnhance، چونکە بەبێ ئەو، ئەم بەرنامەیە هەر بوونی نەدەبوو. ئێمە زۆر سوپاسگوزاری ئەوین. لە کۆتاییدا، دەمانەوێت سوپاسی هەموو ئەدمینەکانمان بکەین، بەتایبەتی: CLASSIC GENIUS، Harry، Sujal، Zain و schrodingerspet، کە لە سەرەتاوە لەگەڵمان بوون. هەروەها سوپاسی هەموو تاقیکەرەوەکان (testers) دەکەین، بەتایبەتی Leo و Toxic، کە بە بەردەوامی تاقیکردنەوەیان دەکرد و کێشەکانیان ڕادەگەیاند. ئێمە زۆر سوپاسگوزاری بەشداریتانین.",
+                "about_thanks_title": "بە خۆشەویستییەوە، تیمی Purrfect",
                 "about_magic_toast": "٥ جار پەنجە بنێ بەم شاشەیەدا بۆ بینینی جادوو 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "نوێکردنەوەکان",
                 "update_notification_channel_description": "ئاگادارکردنەوە وەربگرە کاتێک وەشانی نوێ بەردەست دەبێت",
                 "update_notification_title": "نوێکردنەوەی نوێ بەردەستە",
-                "update_notification_text": "داگرە بۆ کردنەوەی PurrfectSnap و دابەزاندنی دوایین بیڵد.",
+                "update_notification_text": "داگرە بۆ کردنەوەی Purrfect و دابەزاندنی دوایین بیڵد.",
                 "app_theme_title": "ڕووکاری (Theme) بەرنامە",
                 "theme_icon_description": "کردنەوەی هەڵبژێری ڕووکار",
                 "theme_mode_system": "سیستم",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "دەستکاریکردنی باڕی خوارەوە",
                 "customize_bottom_bar_subtitle": "هەڵبژێرە کام تاب دەربکەوێت لەسەر شاشەی سەرەکیت",
                 "available_tabs_title": "تابە بەردەستەکان",
-                "reset_setup_title": "ڕیستکردنەوەی PurrfectSnap",
+                "reset_setup_title": "ڕیستکردنەوەی Purrfect",
                 "reset_setup_action": "ڕیستکردنەوە و دەستپێکردنەوەی setup",
                 "reset_setup_dialog_title": "دڵنیایت؟",
-                "reset_setup_dialog_text": "ئەمە PurrfectSnap ڕیست دەکاتەوە و setup دەستپێدەکاتەوە.",
+                "reset_setup_dialog_text": "ئەمە Purrfect ڕیست دەکاتەوە و setup دەستپێدەکاتەوە.",
                 "reset_button": "ڕیستکردنەوە",
                 "done_button": "تەواو",
                 "clear_friend_feed": "پاککردنەوەی لیستی هاوڕێکان (Feed)",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "ئاگاداری",
-                "content": "PurrfectSnap ئامرازی سکریپتینگ لەخۆدەگرێت، کە ڕێگە دەدات کۆدی بەکارهێنەر لەسەر ئامێرەکەت جێبەجێ بکرێت. زۆر ئاگاداربە و تەنها مۆدیول لە سەرچاوەی ناسراو و باوەڕپێکراو دابمەزرێنە. مۆدیولی ڕێگەپێنەدراو یان پشتڕاستنەکراو ڕەنگە مەترسی ئاسایش بۆ سیستمەکەت دروست بکات."
+                "content": "Purrfect ئامرازی سکریپتینگ لەخۆدەگرێت، کە ڕێگە دەدات کۆدی بەکارهێنەر لەسەر ئامێرەکەت جێبەجێ بکرێت. زۆر ئاگاداربە و تەنها مۆدیول لە سەرچاوەی ناسراو و باوەڕپێکراو دابمەزرێنە. مۆدیولی ڕێگەپێنەدراو یان پشتڕاستنەکراو ڕەنگە مەترسی ئاسایش بۆ سیستمەکەت دروست بکات."
             },
             "reset_config": {
                 "title": "ڕیستکردنەوەی ڕێکخستن",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "گۆڕینی زمان",
-            "description": "زمانی PurrfectSnap دەگۆڕێت"
+            "description": "زمانی Purrfect دەگۆڕێت"
         },
         "file_imports": {
             "name": "هێنانی فایل",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Composer Logs",
-                                        "description": "تۆمارەکانی (logs) کۆنسۆڵی Composer ئاڕاستە دەکات بۆ PurrfectSnap"
+                                        "description": "تۆمارەکانی (logs) کۆنسۆڵی Composer ئاڕاستە دەکات بۆ Purrfect"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "سکریپتینگ",
-                "description": "سکریپتی تایبەت جێبەجێ دەکات بۆ فراوانکردنی PurrfectSnap",
+                "description": "سکریپتی تایبەت جێبەجێ دەکات بۆ فراوانکردنی Purrfect",
                 "properties": {
                     "developer_mode": {
                         "name": "دۆخی گەشەپێدەر",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "بارکردنەوەی سناپچات بە تەنها",
-                "all": "بارکردنەوەی سناپچات + PurrfectSnap",
+                "all": "بارکردنەوەی سناپچات + Purrfect",
                 "null": "بنەڕەتی"
             },
             "walk_radius": {
@@ -3580,9 +3580,9 @@
     "toast_init_script_runtime_failed": "دەستپێکردنی script runtime سەرکەوتوو نەبوو!",
     "toast_database_corrupted": "داتابەیسی {path} تێکچووە! دەستپێدەکاتەوە ...",
     "toast_feature_init_failed": "دەستپێکردنی تایبەتمەندی {feature} سەرکەوتوو نەبوو! سەیری logcat بکە بۆ وردەکاری زیاتر.",
-    "toast_updating_purrfectsnap": "نوێکردنەوەی PurrfectSnap. تکایە چاوەڕێ بکە...",
-    "toast_update_purrfectsnap_failed": "نوێکردنەوەی PurrfectSnap سەرکەوتوو نەبوو. تکایە سەیری logcat بکە بۆ وردەکاری زیاتر.",
-    "toast_purrfectsnap_updated": "PurrfectSnap نوێکرایەوە!",
+    "toast_updating_purrfect": "نوێکردنەوەی Purrfect. تکایە چاوەڕێ بکە...",
+    "toast_update_purrfect_failed": "نوێکردنەوەی Purrfect سەرکەوتوو نەبوو. تکایە سەیری logcat بکە بۆ وردەکاری زیاتر.",
+    "toast_purrfect_updated": "Purrfect نوێکرایەوە!",
     "toast_export_memories_failed": "هەناردەکردنی یادگارییەکان سەرکەوتوو نەبوو",
     "toast_exported_to_path": "هەناردە کرا بۆ {path}",
     "toast_open_memories_db_failed": "کردنەوەی داتابەیسی یادگارییەکان سەرکەوتوو نەبوو",

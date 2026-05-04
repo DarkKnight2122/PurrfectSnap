@@ -82,7 +82,7 @@ ensure_ndk_for_host() {
 }
 
 provision_linux_ndk() {
-  local tmp_ndk="${ANDROID_NDK_TMP:-$HOME/.cache/purrfectsnap-ndk}"
+  local tmp_ndk="${ANDROID_NDK_TMP:-$HOME/.cache/purrfect-ndk}"
   local extracted_dir="$tmp_ndk/android-ndk-r28b"
   if [ -d "$extracted_dir/toolchains/llvm/prebuilt" ]; then
     if ensure_ndk_for_host "$extracted_dir"; then
@@ -149,7 +149,7 @@ ensure_omvll_bundle() {
     export OMVLL_PYTHONPATH="$py_root/Lib"
   fi
 
-  local plugin_target="/tmp/purrfectsnap-omvll/$OMVLL_VERSION/omvll-ndk.so"
+  local plugin_target="/tmp/purrfect-omvll/$OMVLL_VERSION/omvll-ndk.so"
   mkdir -p "$(dirname "$plugin_target")"
   cp -f "$OMVLL_PLUGIN_PATH" "$plugin_target"
   OMVLL_PLUGIN_PATH="$plugin_target"

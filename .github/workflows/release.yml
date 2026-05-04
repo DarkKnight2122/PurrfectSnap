@@ -1,4 +1,4 @@
-name: PurrfectSnap Release CI
+name: Purrfect Release CI
 on:
   workflow_dispatch:
     inputs:
@@ -41,8 +41,8 @@ jobs:
             exit 1
           fi
           mkdir -p "${HOME}/.android"
-          printf '%s' "${SIGNING_KEY_BASE64}" | base64 --decode > "${HOME}/.android/purrfectsnap-release.keystore"
-          if [ ! -s "${HOME}/.android/purrfectsnap-release.keystore" ]; then
+          printf '%s' "${SIGNING_KEY_BASE64}" | base64 --decode > "${HOME}/.android/purrfect-release.keystore"
+          if [ ! -s "${HOME}/.android/purrfect-release.keystore" ]; then
             echo "Decoded keystore is empty or invalid." >&2
             exit 1
           fi
@@ -81,15 +81,15 @@ jobs:
             exit 1
           fi
           APK_INPUT=$(ls "${SIGNING_DIR}"/*.apk | head -n 1)
-          "${SDK_ROOT}/build-tools/${BUILD_TOOLS_VERSION}/zipalign" -v 4 "${APK_INPUT}" "${SIGNING_DIR}/purrfectsnap-armv8Release-aligned.apk"
+          "${SDK_ROOT}/build-tools/${BUILD_TOOLS_VERSION}/zipalign" -v 4 "${APK_INPUT}" "${SIGNING_DIR}/purrfect-armv8Release-aligned.apk"
           "${SDK_ROOT}/build-tools/${BUILD_TOOLS_VERSION}/apksigner" sign \
             --ks "${KEYSTORE_PATH}" \
             --ks-key-alias "${SIGNING_KEY_ALIAS}" \
             --ks-pass "pass:${SIGNING_STORE_PASSWORD}" \
             --key-pass "pass:${SIGNING_KEY_PASSWORD}" \
             --ks-type JKS \
-            --out "${SIGNING_DIR}/purrfectsnap-armv8Release-signed.apk" \
-            "${SIGNING_DIR}/purrfectsnap-armv8Release-aligned.apk"
+            --out "${SIGNING_DIR}/purrfect-armv8Release-signed.apk" \
+            "${SIGNING_DIR}/purrfect-armv8Release-aligned.apk"
       - name: Get current build version
         id: version-env
         run: |
@@ -98,12 +98,12 @@ jobs:
       - name: Delete unsigned APK file and rename the signed one
         run: |
           find app/build/outputs/apk/armv8/release/ -type f ! -name '*-signed*' -delete
-          mv app/build/outputs/apk/armv8/release/purrfectsnap-armv8Release-signed.apk app/build/outputs/apk/armv8/release/purrfectsnap_${{ env.version }}-armv8Release.apk
+          mv app/build/outputs/apk/armv8/release/purrfect-armv8Release-signed.apk app/build/outputs/apk/armv8/release/purrfect_${{ env.version }}-armv8Release.apk
       - name: Upload artifact
         id: upload_apk
         uses: actions/upload-artifact@v4
         with:
-          name: purrfectsnap-armv8-release
+          name: purrfect-armv8-release
           path: app/build/outputs/apk/armv8/release/*.apk
   job_armv7:
     runs-on: ubuntu-latest
@@ -139,8 +139,8 @@ jobs:
             exit 1
           fi
           mkdir -p "${HOME}/.android"
-          printf '%s' "${SIGNING_KEY_BASE64}" | base64 --decode > "${HOME}/.android/purrfectsnap-release.keystore"
-          if [ ! -s "${HOME}/.android/purrfectsnap-release.keystore" ]; then
+          printf '%s' "${SIGNING_KEY_BASE64}" | base64 --decode > "${HOME}/.android/purrfect-release.keystore"
+          if [ ! -s "${HOME}/.android/purrfect-release.keystore" ]; then
             echo "Decoded keystore is empty or invalid." >&2
             exit 1
           fi
@@ -179,15 +179,15 @@ jobs:
             exit 1
           fi
           APK_INPUT=$(ls "${SIGNING_DIR}"/*.apk | head -n 1)
-          "${SDK_ROOT}/build-tools/${BUILD_TOOLS_VERSION}/zipalign" -v 4 "${APK_INPUT}" "${SIGNING_DIR}/purrfectsnap-armv7Release-aligned.apk"
+          "${SDK_ROOT}/build-tools/${BUILD_TOOLS_VERSION}/zipalign" -v 4 "${APK_INPUT}" "${SIGNING_DIR}/purrfect-armv7Release-aligned.apk"
           "${SDK_ROOT}/build-tools/${BUILD_TOOLS_VERSION}/apksigner" sign \
             --ks "${KEYSTORE_PATH}" \
             --ks-key-alias "${SIGNING_KEY_ALIAS}" \
             --ks-pass "pass:${SIGNING_STORE_PASSWORD}" \
             --key-pass "pass:${SIGNING_KEY_PASSWORD}" \
             --ks-type JKS \
-            --out "${SIGNING_DIR}/purrfectsnap-armv7Release-signed.apk" \
-            "${SIGNING_DIR}/purrfectsnap-armv7Release-aligned.apk"
+            --out "${SIGNING_DIR}/purrfect-armv7Release-signed.apk" \
+            "${SIGNING_DIR}/purrfect-armv7Release-aligned.apk"
       - name: Get current build version
         id: version-env
         run: |
@@ -196,12 +196,12 @@ jobs:
       - name: Delete unsigned APK file and rename the signed one
         run: |
           find app/build/outputs/apk/armv7/release/ -type f ! -name '*-signed*' -delete
-          mv app/build/outputs/apk/armv7/release/purrfectsnap-armv7Release-signed.apk app/build/outputs/apk/armv7/release/purrfectsnap_${{ env.version }}-armv7Release.apk
+          mv app/build/outputs/apk/armv7/release/purrfect-armv7Release-signed.apk app/build/outputs/apk/armv7/release/purrfect_${{ env.version }}-armv7Release.apk
       - name: Upload artifact
         id: upload_apk
         uses: actions/upload-artifact@v4
         with:
-          name: purrfectsnap-armv7-release
+          name: purrfect-armv7-release
           path: app/build/outputs/apk/armv7/release/*.apk
   make_release:
     needs: [job_armv7, job_armv8]

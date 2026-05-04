@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Anladım ({seconds}s)",
             "important_confirm": "Anladım",
             "important_title": "Önemli!",
-            "important_message": "Eğer PurrfectSnap dışında SnapEnhance veya başka bir mod kullandıysanız, her şeyi kaldırmanızı ve bir hafta boyunca stok Snapchat'te kalmanızı öneririz. Gelecek Cuma'dan sonra PurrfectSnap'e geçebilirsiniz.",
-            "language_subtitle": "Her şeyden önce PurrfectSnap'in sizin dilinizde konuşmasını sağlayın.",
+            "important_message": "Eğer Purrfect dışında SnapEnhance veya başka bir mod kullandıysanız, her şeyi kaldırmanızı ve bir hafta boyunca stok Snapchat'te kalmanızı öneririz. Gelecek Cuma'dan sonra Purrfect'e geçebilirsiniz.",
+            "language_subtitle": "Her şeyden önce Purrfect'in sizin dilinizde konuşmasını sağlayın.",
             "install_mode_title": "Cihazınızı seçin",
-            "install_mode_subtitle": "PurrfectSnap'i nasıl kuracağınıza uygun yolu seçin.",
+            "install_mode_subtitle": "Purrfect'i nasıl kuracağınıza uygun yolu seçin.",
             "permissions_subtitle": "Katmanların, indirmelerin ve uyarıların güvenilir kalması için gerekli izinleri verin.",
             "patch_title": "Otomatik Yamalayıcı",
             "patch_subtitle": "Tek bir akışla indirme, yamalama ve kurulum işlemlerini gerçekleştirin.",
@@ -37,12 +37,12 @@
             "notice_title": "Lütfen dikkat!",
             "notice_intro": "Sahip olduğunuz cihaz türünü seçin: Rootlu veya Rootsuz. Emin değilseniz, Rootsuz (Non-root) seçeneğini seçin ve devam edin.",
             "notice_non_root_title": "Rootsuz cihazlar",
-            "notice_non_root_body": "Rootsuz (Non-root) seçeneğini seçin, uygulama her şeyi halledecektir. Göründüğünde 'Yamalı Snapchat'i Yükle'ye dokunun. Yüklendikten sonra Snapchat'i henüz açmayın. PurrfectSnap kurulumuna devam edin; bittiğinde Snapchat'i açıp keyfini çıkarabilirsiniz.",
+            "notice_non_root_body": "Rootsuz (Non-root) seçeneğini seçin, uygulama her şeyi halledecektir. Göründüğünde 'Yamalı Snapchat'i Yükle'ye dokunun. Yüklendikten sonra Snapchat'i henüz açmayın. Purrfect kurulumuna devam edin; bittiğinde Snapchat'i açıp keyfini çıkarabilirsiniz.",
             "notice_root_title": "Rootlu cihazlar",
-            "notice_root_body": "Öncelikle LSPosed'u flashladığınızdan emin olun. JingMatrix LSPosed veya LSPosed Irena öneririz. Root seçeneğini seçtikten sonra uygulama önerilen Snapchat sürümünü yükleyecektir. Henüz açmayın; PurrfectSnap kurulumuna devam edin. Kurulum bittiğinde, LSPosed'da PurrfectSnap'i etkinleştirin ve telefonunuzu yeniden başlatın. Ardından Snapchat'i kullanmaya başlayın. Otomatik güncellemeleri önlemek için Snapchat'i Play Store'dan Zygisk Detach modülü ile ayırmanızı şiddetle tavsiye ederiz.",
+            "notice_root_body": "Öncelikle LSPosed'u flashladığınızdan emin olun. JingMatrix LSPosed veya LSPosed Irena öneririz. Root seçeneğini seçtikten sonra uygulama önerilen Snapchat sürümünü yükleyecektir. Henüz açmayın; Purrfect kurulumuna devam edin. Kurulum bittiğinde, LSPosed'da Purrfect'i etkinleştirin ve telefonunuzu yeniden başlatın. Ardından Snapchat'i kullanmaya başlayın. Otomatik güncellemeleri önlemek için Snapchat'i Play Store'dan Zygisk Detach modülü ile ayırmanızı şiddetle tavsiye ederiz.",
             "notice_issues_hint": "Herhangi bir kurulum sorunuyla karşılaşırsanız, çözüm burada görünecektir. Lütfen dikkatlice okuyun.",
             "notice_note_prefix": "Not: ",
-            "notice_note_body": "Yeni Hesaplar kolayca kilitlenir! PurrfectSnap ile daha eski bir hesap kullanmanız önerilir.",
+            "notice_note_body": "Yeni Hesaplar kolayca kilitlenir! Purrfect ile daha eski bir hesap kullanmanız önerilir.",
             "step_title": "Cihazınızı seçin",
             "step_subtitle": "Bilmiyorsanız, Rootsuz cihazı seçin ve devam edin.",
             "root_option_title": "Rootlu cihaz",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Eşlemeler Oluşturuluyor...",
-            "generate_failure_no_snapchat": "PurrfectSnap Snapchat'i algılayamadı, lütfen Snapchat'i yeniden yüklemeyi deneyin.",
+            "generate_failure_no_snapchat": "Purrfect Snapchat'i algılayamadı, lütfen Snapchat'i yeniden yüklemeyi deneyin.",
             "generate_failure": "Eşlemeler oluşturulurken bir hata oluştu, lütfen tekrar deneyin.",
             "confirm_understand_timeout": "Anladım ({seconds}s)",
             "confirm_understand": "Anladım",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Hâlâ başarısız olursa, giriş düğmesine tekrar tekrar dokunun. Bu genellikle sonraki engeli aşar.",
             "notice_step_3": "3. Hâlâ başarısız olursa, Snapchat verilerini temizleyin, VPN'i devre dışı bırakın ve tekrar giriş yapın.",
             "notice_rooted_title": "Rootlu kullanıcılar için:",
-            "notice_rooted_body": "Snapchat'i yeniden açın ve giriş yapın. Hâlâ başarısız olursa, LSPosed'da PurrfectSnap'i devre dışı bırakın, giriş yapın ve ardından PurrfectSnap'i tekrar etkinleştirin.",
+            "notice_rooted_body": "Snapchat'i yeniden açın ve giriş yapın. Hâlâ başarısız olursa, LSPosed'da Purrfect'i devre dışı bırakın, giriş yapın ve ardından Purrfect'i tekrar etkinleştirin.",
             "warnings_info": "Eşlemeler oluşturulurken {count} uyarı oluştu:\n\n{warnings}",
             "progress_hint": "Bu sadece bir an sürer. Sihir gerçekleşirken uygulamayı açık tutun!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Çözüm: Snapchat'i Play Store'dan indirin ve verileri saklamadan kaldırın. Otomatik Yamalayıcıyı tekrar çalıştırın. Hâlâ çalışmazsa şunu çalıştırın:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Sorun: Paket geçersiz göründüğü için uygulama yüklenmedi.",
-            "issues_invalid_fix": "Çözüm: JingMatrix LSPatch'i indirip yükleyin, ardından bu aralıktaki (13.65.1.0 ile 13.71.0.51 arası) bir Snapchat sürümünü Entegre modda yamalayın. 'Modülleri Göm'ü seçin ve PurrfectSnap APK'sını gömün. Sonra PurrfectSnap kurulumu sırasında Otomatik Yamalayıcıyı atlamak için 'Otomatik kurulumu atla'yı seçin.",
+            "issues_invalid_fix": "Çözüm: JingMatrix LSPatch'i indirip yükleyin, ardından bu aralıktaki (13.65.1.0 ile 13.71.0.51 arası) bir Snapchat sürümünü Entegre modda yamalayın. 'Modülleri Göm'ü seçin ve Purrfect APK'sını gömün. Sonra Purrfect kurulumu sırasında Otomatik Yamalayıcıyı atlamak için 'Otomatik kurulumu atla'yı seçin.",
             "status_downloading": "Snapchat indiriliyor %{percent}",
             "status_patching": "Yamalanıyor...",
             "status_initializing": "Başlatılıyor...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Mevcut seçim",
             "browse_languages": "Dillere göz at",
-            "change_anytime_hint": "Bunu istediğiniz zaman PurrfectSnap ayarlarından değiştirebilirsiniz.",
+            "change_anytime_hint": "Bunu istediğiniz zaman Purrfect ayarlarından değiştirebilirsiniz.",
             "available_languages": "Mevcut Diller"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Klasör seçici kullanılamıyor",
             "no_picker_message": "Bazı klonlanmış/çift uygulama ortamları sistem klasör seçicisini engeller. Sistem varsayılan kayıt konumunu kullanmaya devam edebilir veya özel bir klasör seçmek için uygulamayı klon modu dışında açabilirsiniz.",
             "use_default_button": "Varsayılanı kullan",
-            "permission_hint": "PurrfectSnap, Snapchat'ten Medya indirmek ve Kaydetmek için Depolama izinlerine ihtiyaç duyar."
+            "permission_hint": "Purrfect, Snapchat'ten Medya indirmek ve Kaydetmek için Depolama izinlerine ihtiyaç duyar."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 \u039eT\u039eRNAL tarafından",
-                "update_title": "PurrfectSnap Güncellemesi",
+                "update_title": "Purrfect Güncellemesi",
                 "update_content": "Sürüm {version} mevcut!",
                 "update_button": "İndir",
                 "hero_tagline": "Snapchat deneyiminizi geliştirmek için tasarlanmış bir Xposed Modülü",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "İndirme tamamlandı",
                 "update_install_failed_toast": "Güncelleme yüklenemedi. Daha fazla ayrıntı için günlüklere bakın.",
                 "update_download_failed_toast": "İndirme başarısız: {error}",
-                "debug_build_summary_title": "PurrfectSnap'in hata ayıklama sürümünü kullanıyorsunuz",
+                "debug_build_summary_title": "Purrfect'in hata ayıklama sürümünü kullanıyorsunuz",
                 "debug_build_summary_content": "Sürüm {versionName} ({versionCode})",
                 "debug_build_summary_date": "Yapı tarihi: {date} ({days} gün önce)",
                 "quick_actions_title": "Hızlı Eylemler",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Duyuru mevcut değil"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Snapchat deneyiminizi geliştirmek için tasarlanmış bir Xposed Modülü!",
                 "about_lead_developers_title": "Baş Geliştiriciler",
                 "about_story_title": "Hikayemiz",
-                "about_story": "PurrfectSnap, 2 Ekim 2025'te \u039eT\u039eRNAL tarafından SnapEnhance'in bir çatalı olarak, kullanıcılara hak ettikleri kaliteli Snapchat deneyimini sunma vizyonuyla kuruldu. Bu uygulama, SnapEnhance deposunda sadece küçük bir güncelleme olacaktı, ancak katkıda bulunanların özellikler eklemeye devam etmesiyle kısa sürede ayrı bir uygulama haline geldi. Ardından geliştirici <RSR/> ekibe katıldı ve bu uygulama kısa sürede büyük bir başarıya ulaştı. Çok sevgi ve destek gördük ve sadece iki gün içinde 1000'den fazla indirmeye ulaştık! Tüm kullanıcılara ve katkıda bulunanlara teşekkür ederiz; desteğiniz olmasaydı bu noktaya gelemezdik. Ayrıca, o olmasaydı bu uygulama var bile olamayacağı için SnapEnhance'in baş geliştiricisi rhunk'a büyük teşekkürlerimizi iletmek istiyoruz. Ona minnettarız. Son olarak, en başından beri bizimle olan yöneticilerimiz CLASSIC GENIUS, Harry, Sujal, Zain ve schrodingerspet'e teşekkür etmek istiyoruz. Ayrıca, sürekli test yapan ve hataları bildiren testçilerimiz Leo & Toxic'e de teşekkür ederiz. Katkılarınız için minnettarız.",
-                "about_thanks_title": "Sevgilerle, PurrfectSnap Ekibi",
+                "about_story": "Purrfect, 2 Ekim 2025'te \u039eT\u039eRNAL tarafından SnapEnhance'in bir çatalı olarak, kullanıcılara hak ettikleri kaliteli Snapchat deneyimini sunma vizyonuyla kuruldu. Bu uygulama, SnapEnhance deposunda sadece küçük bir güncelleme olacaktı, ancak katkıda bulunanların özellikler eklemeye devam etmesiyle kısa sürede ayrı bir uygulama haline geldi. Ardından geliştirici <RSR/> ekibe katıldı ve bu uygulama kısa sürede büyük bir başarıya ulaştı. Çok sevgi ve destek gördük ve sadece iki gün içinde 1000'den fazla indirmeye ulaştık! Tüm kullanıcılara ve katkıda bulunanlara teşekkür ederiz; desteğiniz olmasaydı bu noktaya gelemezdik. Ayrıca, o olmasaydı bu uygulama var bile olamayacağı için SnapEnhance'in baş geliştiricisi rhunk'a büyük teşekkürlerimizi iletmek istiyoruz. Ona minnettarız. Son olarak, en başından beri bizimle olan yöneticilerimiz CLASSIC GENIUS, Harry, Sujal, Zain ve schrodingerspet'e teşekkür etmek istiyoruz. Ayrıca, sürekli test yapan ve hataları bildiren testçilerimiz Leo & Toxic'e de teşekkür ederiz. Katkılarınız için minnettarız.",
+                "about_thanks_title": "Sevgilerle, Purrfect Ekibi",
                 "about_magic_toast": "Biraz sihir görmek için bu ekranda 5 kez dokunun \ud83d\ude09!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Güncellemeler",
                 "update_notification_channel_description": "Yeni sürümler mevcut olduğunda bildirim alın",
                 "update_notification_title": "Yeni güncelleme mevcut",
-                "update_notification_text": "PurrfectSnap'i açmak ve en son sürümü indirmek için dokunun.",
+                "update_notification_text": "Purrfect'i açmak ve en son sürümü indirmek için dokunun.",
                 "app_theme_title": "Uygulama Teması",
                 "theme_icon_description": "Tema seçiciyi aç",
                 "theme_mode_system": "Sistem",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Alt Çubuğu Özelleştir",
                 "customize_bottom_bar_subtitle": "Ana ekranınızda hangi sekmelerin görüneceğini seçin",
                 "available_tabs_title": "Mevcut Sekmeler",
-                "reset_setup_title": "PurrfectSnap'i Sıfırla",
+                "reset_setup_title": "Purrfect'i Sıfırla",
                 "reset_setup_action": "Sıfırla ve kurulumu yeniden başlat",
                 "reset_setup_dialog_title": "Emin misiniz?",
-                "reset_setup_dialog_text": "Bu işlem PurrfectSnap'i sıfırlayacak ve kurulumu yeniden başlatacaktır.",
+                "reset_setup_dialog_text": "Bu işlem Purrfect'i sıfırlayacak ve kurulumu yeniden başlatacaktır.",
                 "reset_button": "Sıfırla",
                 "done_button": "Bitti",
                 "clear_friend_feed": "Arkadaş Akışını Temizle",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Uyarı",
-                "content": "PurrfectSnap bir komut dosyası aracı içerir ve cihazınızda kullanıcı tanımlı kodların çalıştırılmasına izin verir. Son derece dikkatli olun ve yalnızca bilinen, güvenilir kaynaklardan modül yükleyin. Yetkisiz veya doğrulanmamış modüller sisteminiz için güvenlik riski oluşturabilir."
+                "content": "Purrfect bir komut dosyası aracı içerir ve cihazınızda kullanıcı tanımlı kodların çalıştırılmasına izin verir. Son derece dikkatli olun ve yalnızca bilinen, güvenilir kaynaklardan modül yükleyin. Yetkisiz veya doğrulanmamış modüller sisteminiz için güvenlik riski oluşturabilir."
             },
             "reset_config": {
                 "title": "Yapılandırmayı sıfırla",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Dili Değiştir",
-            "description": "PurrfectSnap'in dilini değiştirin"
+            "description": "Purrfect'in dilini değiştirin"
         },
         "file_imports": {
             "name": "Dosya İçe Aktarımları",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Besteci Günlükleri",
-                                        "description": "Composer konsol günlüklerini PurrfectSnap'e yönlendirir"
+                                        "description": "Composer konsol günlüklerini Purrfect'e yönlendirir"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Komut Dosyası (Scripting)",
-                "description": "PurrfectSnap'i genişletmek için özel komut dosyaları çalıştırın",
+                "description": "Purrfect'i genişletmek için özel komut dosyaları çalıştırın",
                 "properties": {
                     "developer_mode": {
                         "name": "Geliştirici Modu",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Yalnızca Snapchat'i Yenile",
-                "all": "Snapchat + PurrfectSnap'i Yenile",
+                "all": "Snapchat + Purrfect'i Yenile",
                 "null": "Varsayılan"
             },
             "walk_radius": {
@@ -3572,9 +3572,9 @@
     "toast_init_script_runtime_failed": "Komut dosyası çalışma zamanı başlatılamadı!",
     "toast_database_corrupted": "{path} veritabanı bozuk! Yeniden başlatılıyor...",
     "toast_feature_init_failed": "{feature} özelliği başlatılamadı! Daha fazla ayrıntı için logcat'e bakın.",
-    "toast_updating_purrfectsnap": "PurrfectSnap güncelleniyor. Lütfen bekleyin...",
-    "toast_update_purrfectsnap_failed": "PurrfectSnap güncellenemedi. Lütfen daha fazla ayrıntı için logcat'e bakın.",
-    "toast_purrfectsnap_updated": "PurrfectSnap güncellendi!",
+    "toast_updating_purrfect": "Purrfect güncelleniyor. Lütfen bekleyin...",
+    "toast_update_purrfect_failed": "Purrfect güncellenemedi. Lütfen daha fazla ayrıntı için logcat'e bakın.",
+    "toast_purrfect_updated": "Purrfect güncellendi!",
     "toast_export_memories_failed": "Anılar dışa aktarılamadı",
     "toast_exported_to_path": "{path} konumuna dışa aktarıldı",
     "toast_open_memories_db_failed": "Anılar veritabanı açılamadı",

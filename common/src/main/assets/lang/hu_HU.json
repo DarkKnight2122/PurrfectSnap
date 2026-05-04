@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Értem ({seconds}mp)",
             "important_confirm": "Értem",
             "important_title": "Fontos!",
-            "important_message": "Ha használtad a SnapEnhance-t vagy bármilyen más modot a PurrfectSnap mellett, javasoljuk, hogy távolíts el mindent, és maradj a gyári Snapchat-en egy hétig. Ezután válts a PurrfectSnap-re jövő pénteken.",
-            "language_subtitle": "Állítsd be a PurrfectSnap nyelvét minden más előtt.",
+            "important_message": "Ha használtad a SnapEnhance-t vagy bármilyen más modot a Purrfect mellett, javasoljuk, hogy távolíts el mindent, és maradj a gyári Snapchat-en egy hétig. Ezután válts a Purrfect-re jövő pénteken.",
+            "language_subtitle": "Állítsd be a Purrfect nyelvét minden más előtt.",
             "install_mode_title": "Válaszd ki az eszközöd",
-            "install_mode_subtitle": "Válaszd ki azt az útvonalat, amely megfelel a PurrfectSnap telepítési módjának.",
+            "install_mode_subtitle": "Válaszd ki azt az útvonalat, amely megfelel a Purrfect telepítési módjának.",
             "permissions_subtitle": "Engedélyezd a szükségeseket, hogy az átfedések, letöltések és értesítések megbízhatóak maradjanak.",
             "patch_title": "Auto Patcher",
             "patch_subtitle": "Egyszerűsített letöltés, patchelés és telepítés egyetlen folyamatban.",
@@ -37,12 +37,12 @@
             "notice_title": "Kérlek vedd figyelembe!",
             "notice_intro": "Válaszd ki az eszközöd típusát: rootolt vagy nem rootolt. Ha bizonytalan vagy, válaszd a Nem rootolt lehetőséget és folytasd.",
             "notice_non_root_title": "Nem rootolt eszközök",
-            "notice_non_root_body": "Válaszd a Nem rootolt lehetőséget, és az alkalmazás mindent elintéz. Koppints a Patchelt Snapchat telepítése gombra, amikor megjelenik. A telepítés után még ne nyisd meg a Snapchatet. Folytasd a PurrfectSnap beállítását; amint befejeződött, megnyithatod a Snapchatet és élvezheted.",
+            "notice_non_root_body": "Válaszd a Nem rootolt lehetőséget, és az alkalmazás mindent elintéz. Koppints a Patchelt Snapchat telepítése gombra, amikor megjelenik. A telepítés után még ne nyisd meg a Snapchatet. Folytasd a Purrfect beállítását; amint befejeződött, megnyithatod a Snapchatet és élvezheted.",
             "notice_root_title": "Rootolt eszközök",
-            "notice_root_body": "Győződj meg róla, hogy először flashelted az LSPosed-et. A JingMatrix LSPosed vagy az LSPosed Irena ajánlott. Miután kiválasztottad a Root lehetőséget, az alkalmazás telepíti az ajánlott Snapchat verziót. Még ne nyisd meg; folytasd a PurrfectSnap beállítását. Amikor a beállítás befejeződött, engedélyezd a PurrfectSnap-et az LSPosed-ben, és indítsd újra a telefont. Ezután kezdheted használni a Snapchatet. Erősen ajánljuk a Snapchat leválasztását a Play Áruházról a Zygisk Detach modullal az automatikus frissítések elkerülése érdekében.",
+            "notice_root_body": "Győződj meg róla, hogy először flashelted az LSPosed-et. A JingMatrix LSPosed vagy az LSPosed Irena ajánlott. Miután kiválasztottad a Root lehetőséget, az alkalmazás telepíti az ajánlott Snapchat verziót. Még ne nyisd meg; folytasd a Purrfect beállítását. Amikor a beállítás befejeződött, engedélyezd a Purrfect-et az LSPosed-ben, és indítsd újra a telefont. Ezután kezdheted használni a Snapchatet. Erősen ajánljuk a Snapchat leválasztását a Play Áruházról a Zygisk Detach modullal az automatikus frissítések elkerülése érdekében.",
             "notice_issues_hint": "Ha bármilyen telepítési problémába ütközöl, a megoldás itt fog megjelenni. Kérlek, olvasd el figyelmesen.",
             "notice_note_prefix": "Megjegyzés: ",
-            "notice_note_body": "Az új fiókokat könnyen zárolják! Ajánlott régebbi fiókot használni a PurrfectSnap-hez.",
+            "notice_note_body": "Az új fiókokat könnyen zárolják! Ajánlott régebbi fiókot használni a Purrfect-hez.",
             "step_title": "Válaszd ki az eszközöd",
             "step_subtitle": "Ha nem tudod, válaszd a Nem rootolt eszközt és folytasd.",
             "root_option_title": "Rootolt eszköz",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Mappingek generálása...",
-            "generate_failure_no_snapchat": "A PurrfectSnap nem észlelte a Snapchatet, kérlek próbáld meg újratelepíteni a Snapchatet.",
+            "generate_failure_no_snapchat": "A Purrfect nem észlelte a Snapchatet, kérlek próbáld meg újratelepíteni a Snapchatet.",
             "generate_failure": "Hiba történt a mappingek generálása közben, kérlek próbáld újra.",
             "confirm_understand_timeout": "Értem ({seconds}mp)",
             "confirm_understand": "Értem",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Ha még mindig sikertelen, nyomkodd ismételten a bejelentkezés gombot. Ez általában lefedi a következő részt.",
             "notice_step_3": "3. Ha még mindig sikertelen, töröld a Snapchat adatait, kapcsold ki a VPN-t, és jelentkezz be újra.",
             "notice_rooted_title": "Rootolt felhasználóknak:",
-            "notice_rooted_body": "Nyisd meg újra a Snapchatet és jelentkezz be. Ha még mindig sikertelen, tiltsd le a PurrfectSnap-et az LSPosed-ben, jelentkezz be, majd engedélyezd újra a PurrfectSnap-et.",
+            "notice_rooted_body": "Nyisd meg újra a Snapchatet és jelentkezz be. Ha még mindig sikertelen, tiltsd le a Purrfect-et az LSPosed-ben, jelentkezz be, majd engedélyezd újra a Purrfect-et.",
             "warnings_info": "{count} figyelmeztetés történt a mappingek generálása közben:\n\n{warnings}",
             "progress_hint": "Ez csak egy pillanatot vesz igénybe. Tartsd nyitva az alkalmazást, amíg a varázslat megtörténik!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Megoldás: Töltsd le a Snapchatet a Play Áruházból, és távolítsd el adatok megtartása nélkül. Futtasd újra az Auto Patchert. Ha még mindig nem működik, futtasd ezt:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Probléma: Az alkalmazás nincs telepítve, mert a csomag érvénytelennek tűnik.",
-            "issues_invalid_fix": "Megoldás: Töltsd le és telepítsd a JingMatrix LSPatch-et, majd patchelj egy Snapchat verziót (bármelyiket) ebből a tartományból, pl. 13.65.1.0 és 13.71.0.51 között, Integrated módban. Válaszd az Embed Modules lehetőséget, és ágyazd be a PurrfectSnap APK-t. Ezután válaszd az Automatikus beállítás kihagyása lehetőséget a PurrfectSnap beállítása során az Auto Patcher kihagyásához.",
+            "issues_invalid_fix": "Megoldás: Töltsd le és telepítsd a JingMatrix LSPatch-et, majd patchelj egy Snapchat verziót (bármelyiket) ebből a tartományból, pl. 13.65.1.0 és 13.71.0.51 között, Integrated módban. Válaszd az Embed Modules lehetőséget, és ágyazd be a Purrfect APK-t. Ezután válaszd az Automatikus beállítás kihagyása lehetőséget a Purrfect beállítása során az Auto Patcher kihagyásához.",
             "status_downloading": "Snapchat letöltése {percent}%",
             "status_patching": "Patchelés...",
             "status_initializing": "Inicializálás...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Jelenlegi kiválasztás",
             "browse_languages": "Nyelvek böngészése",
-            "change_anytime_hint": "Ezt bármikor megváltoztathatod a PurrfectSnap beállításaiban.",
+            "change_anytime_hint": "Ezt bármikor megváltoztathatod a Purrfect beállításaiban.",
             "available_languages": "Elérhető nyelvek"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Mappaválasztó nem elérhető",
             "no_picker_message": "Néhány klónozott/kettős alkalmazás környezet blokkolja a rendszer mappaválasztóját. Folytathatod a rendszer alapértelmezett mentési helyével, vagy megnyithatod az alkalmazást klón mód nélkül egy egyéni mappa kiválasztásához.",
             "use_default_button": "Alapértelmezett használata",
-            "permission_hint": "A PurrfectSnap Tárolási engedélyeket igényel a médiafájlok letöltéséhez és mentéséhez a Snapchatről."
+            "permission_hint": "A Purrfect Tárolási engedélyeket igényel a médiafájlok letöltéséhez és mentéséhez a Snapchatről."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
-                "update_title": "PurrfectSnap Frissítés",
+                "update_title": "Purrfect Frissítés",
                 "update_content": "A(z) {version} verzió elérhető!",
                 "update_button": "Letöltés",
                 "hero_tagline": "Egy Xposed modul a Snapchat élményed fokozására",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Letöltés befejezve",
                 "update_install_failed_toast": "A frissítés telepítése sikertelen. Részletekért ellenőrizd a naplókat.",
                 "update_download_failed_toast": "Letöltés sikertelen: {error}",
-                "debug_build_summary_title": "A PurrfectSnap debug verzióját futtatod",
+                "debug_build_summary_title": "A Purrfect debug verzióját futtatod",
                 "debug_build_summary_content": "Verzió {versionName} ({versionCode})",
                 "debug_build_summary_date": "Build dátuma: {date} ({days} napja)",
                 "quick_actions_title": "Gyorsműveletek",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Közlemények nem elérhetők"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Egy Xposed modul a Snapchat élményed fokozására!",
                 "about_lead_developers_title": "Vezető fejlesztők",
                 "about_story_title": "Történetünk",
-                "about_story": "A PurrfectSnap 2025. október 2-án alakult a SnapEnhance elágazásaként ΞTΞRNAL által, azzal a vízióval, hogy a felhasználóknak azt a minőségi Snapchat élményt nyújtsa, amit megérdemelnek. Ez az alkalmazás csak egy kisebb frissítésnek indult a SnapEnhance repository-ban, de hamarosan önálló alkalmazássá vált, ahol a közreműködők folyamatosan új funkciókat adtak hozzá. Aztán csatlakozott a csapathoz <RSR/> fejlesztő, és az alkalmazás hamarosan hatalmas siker lett. Sok szeretetet és támogatást kaptunk, és mindössze két nap alatt elértük az 1000+ letöltést! Köszönjük minden felhasználónak és közreműködőnek; a támogatásotok nélkül nem jutottunk volna el idáig. Szeretnénk továbbá hatalmas köszönetet mondani rhunknak, a SnapEnhance vezető fejlesztőjének, mivel nélküle ez az alkalmazás nem is létezne. Végtelenül hálásak vagyunk neki. Végül szeretnénk köszönetet mondani minden adminunknak, különösen: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, akik a kezdetektől fogva velünk voltak. Szeretnénk köszönetet mondani minden tesztelőnek is, különösen Leonak és Toxicnak, akik folyamatosan teszteltek és jelentették a hibákat. Végtelenül hálásak vagyunk a hozzájárulásotokért.",
-                "about_thanks_title": "Szeretettel, PurrfectSnap Csapat",
+                "about_story": "A Purrfect 2025. október 2-án alakult a SnapEnhance elágazásaként ΞTΞRNAL által, azzal a vízióval, hogy a felhasználóknak azt a minőségi Snapchat élményt nyújtsa, amit megérdemelnek. Ez az alkalmazás csak egy kisebb frissítésnek indult a SnapEnhance repository-ban, de hamarosan önálló alkalmazássá vált, ahol a közreműködők folyamatosan új funkciókat adtak hozzá. Aztán csatlakozott a csapathoz <RSR/> fejlesztő, és az alkalmazás hamarosan hatalmas siker lett. Sok szeretetet és támogatást kaptunk, és mindössze két nap alatt elértük az 1000+ letöltést! Köszönjük minden felhasználónak és közreműködőnek; a támogatásotok nélkül nem jutottunk volna el idáig. Szeretnénk továbbá hatalmas köszönetet mondani rhunknak, a SnapEnhance vezető fejlesztőjének, mivel nélküle ez az alkalmazás nem is létezne. Végtelenül hálásak vagyunk neki. Végül szeretnénk köszönetet mondani minden adminunknak, különösen: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, akik a kezdetektől fogva velünk voltak. Szeretnénk köszönetet mondani minden tesztelőnek is, különösen Leonak és Toxicnak, akik folyamatosan teszteltek és jelentették a hibákat. Végtelenül hálásak vagyunk a hozzájárulásotokért.",
+                "about_thanks_title": "Szeretettel, Purrfect Csapat",
                 "about_magic_toast": "Koppints 5-ször ezen a képernyőn, hogy láss egy kis varázslatot 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Frissítések",
                 "update_notification_channel_description": "Értesítést kapsz, ha új kiadások érhetők el",
                 "update_notification_title": "Új frissítés elérhető",
-                "update_notification_text": "Koppints a PurrfectSnap megnyitásához és a legújabb build letöltéséhez.",
+                "update_notification_text": "Koppints a Purrfect megnyitásához és a legújabb build letöltéséhez.",
                 "app_theme_title": "Alkalmazás téma",
                 "theme_icon_description": "Témaválasztó megnyitása",
                 "theme_mode_system": "Rendszer",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Alsó sáv testreszabása",
                 "customize_bottom_bar_subtitle": "Válaszd ki, mely lapok jelenjenek meg a kezdőképernyőn",
                 "available_tabs_title": "Elérhető lapok",
-                "reset_setup_title": "PurrfectSnap visszaállítása",
+                "reset_setup_title": "Purrfect visszaállítása",
                 "reset_setup_action": "Visszaállítás és beállítás újraindítása",
                 "reset_setup_dialog_title": "Biztos vagy benne?",
-                "reset_setup_dialog_text": "Ez visszaállítja a PurrfectSnap-et és újraindítja a beállítást.",
+                "reset_setup_dialog_text": "Ez visszaállítja a Purrfect-et és újraindítja a beállítást.",
                 "reset_button": "Visszaállítás",
                 "done_button": "Kész",
                 "clear_friend_feed": "Barátlista törlése",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Figyelmeztetés",
-                "content": "A PurrfectSnap tartalmaz egy szkriptelő eszközt, amely lehetővé teszi felhasználó által definiált kód futtatását az eszközödön. Használd fokozott óvatossággal, és csak ismert, megbízható forrásból telepíts modulokat. A nem engedélyezett vagy nem ellenőrzött modulok biztonsági kockázatot jelenthetnek a rendszeredre."
+                "content": "A Purrfect tartalmaz egy szkriptelő eszközt, amely lehetővé teszi felhasználó által definiált kód futtatását az eszközödön. Használd fokozott óvatossággal, és csak ismert, megbízható forrásból telepíts modulokat. A nem engedélyezett vagy nem ellenőrzött modulok biztonsági kockázatot jelenthetnek a rendszeredre."
             },
             "reset_config": {
                 "title": "Konfiguráció visszaállítása",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Nyelv megváltoztatása",
-            "description": "A PurrfectSnap nyelvének megváltoztatása"
+            "description": "A Purrfect nyelvének megváltoztatása"
         },
         "file_imports": {
             "name": "Fájl importálások",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Composer Naplók",
-                                        "description": "Átirányítja a Composer konzolnaplóit a PurrfectSnap-be"
+                                        "description": "Átirányítja a Composer konzolnaplóit a Purrfect-be"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Szkriptelés",
-                "description": "Egyéni szkriptek futtatása a PurrfectSnap kiterjesztéséhez",
+                "description": "Egyéni szkriptek futtatása a Purrfect kiterjesztéséhez",
                 "properties": {
                     "developer_mode": {
                         "name": "Fejlesztői mód",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Csak Snapchat újratöltése",
-                "all": "Snapchat + PurrfectSnap újratöltése",
+                "all": "Snapchat + Purrfect újratöltése",
                 "null": "Alapértelmezett"
             },
             "walk_radius": {
@@ -3579,9 +3579,9 @@
     "toast_init_script_runtime_failed": "Szkript futtatókörnyezet inicializálása sikertelen!",
     "toast_database_corrupted": "A(z) {path} adatbázis sérült! Újraindítás...",
     "toast_feature_init_failed": "A(z) {feature} funkció inicializálása sikertelen! Ellenőrizd a logcat-et a részletekért.",
-    "toast_updating_purrfectsnap": "A PurrfectSnap frissítése. Kérlek várj...",
-    "toast_update_purrfectsnap_failed": "A PurrfectSnap frissítése sikertelen. Kérlek, ellenőrizd a logcat-et a részletekért.",
-    "toast_purrfectsnap_updated": "PurrfectSnap frissítve!",
+    "toast_updating_purrfect": "A Purrfect frissítése. Kérlek várj...",
+    "toast_update_purrfect_failed": "A Purrfect frissítése sikertelen. Kérlek, ellenőrizd a logcat-et a részletekért.",
+    "toast_purrfect_updated": "Purrfect frissítve!",
     "toast_export_memories_failed": "Emlékek exportálása sikertelen",
     "toast_exported_to_path": "Exportálva ide: {path}",
     "toast_open_memories_db_failed": "Emlékek adatbázis megnyitása sikertelen",

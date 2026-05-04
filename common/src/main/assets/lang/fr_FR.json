@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Je comprends ({seconds}s)",
             "important_confirm": "Je comprends",
             "important_title": "Important !",
-            "important_message": "Si vous avez utilisé SnapEnhance ou tout autre mod autre que PurrfectSnap, nous vous recommandons de tout désinstaller et de rester sur la version officielle de Snapchat pendant une semaine. Ensuite, passez à PurrfectSnap après le vendredi suivant.",
-            "language_subtitle": "Configurez PurrfectSnap pour qu'il parle votre langue avant tout.",
+            "important_message": "Si vous avez utilisé SnapEnhance ou tout autre mod autre que Purrfect, nous vous recommandons de tout désinstaller et de rester sur la version officielle de Snapchat pendant une semaine. Ensuite, passez à Purrfect après le vendredi suivant.",
+            "language_subtitle": "Configurez Purrfect pour qu'il parle votre langue avant tout.",
             "install_mode_title": "Choisissez votre appareil",
-            "install_mode_subtitle": "Choisissez la méthode qui correspond à votre installation de PurrfectSnap.",
+            "install_mode_subtitle": "Choisissez la méthode qui correspond à votre installation de Purrfect.",
             "permissions_subtitle": "Accordez les autorisations essentielles pour que les superpositions, les téléchargements et les alertes restent fiables.",
             "patch_title": "Patcher Auto",
             "patch_subtitle": "Téléchargement, patch et installation simplifiés en une seule étape.",
@@ -37,12 +37,12 @@
             "notice_title": "Veuillez noter !",
             "notice_intro": "Sélectionnez le type d'appareil que vous possédez : rooté ou non rooté. Si vous n'êtes pas sûr, choisissez Non rooté et continuez.",
             "notice_non_root_title": "Appareils non rootés",
-            "notice_non_root_body": "Sélectionnez Non rooté et l'application s'occupera de tout. Appuyez sur Installer Snapchat Patché quand cela apparaît. Après l'installation, n'ouvrez pas encore Snapchat. Continuez la configuration de PurrfectSnap ; une fois terminée, vous pourrez ouvrir Snapchat et en profiter.",
+            "notice_non_root_body": "Sélectionnez Non rooté et l'application s'occupera de tout. Appuyez sur Installer Snapchat Patché quand cela apparaît. Après l'installation, n'ouvrez pas encore Snapchat. Continuez la configuration de Purrfect ; une fois terminée, vous pourrez ouvrir Snapchat et en profiter.",
             "notice_root_title": "Appareils rootés",
-            "notice_root_body": "Assurez-vous d'abord d'avoir flashé LSPosed. Nous recommandons JingMatrix LSPosed ou LSPosed Irena. Après avoir sélectionné Root, l'application installera la version recommandée de Snapchat. Ne l'ouvrez pas encore ; continuez la configuration de PurrfectSnap. Une fois la configuration terminée, activez PurrfectSnap dans LSPosed et redémarrez votre téléphone. Ensuite, commencez à utiliser Snapchat. Nous recommandons vivement de détacher Snapchat du Play Store avec le module Zygisk Detach pour empêcher les mises à jour automatiques.",
+            "notice_root_body": "Assurez-vous d'abord d'avoir flashé LSPosed. Nous recommandons JingMatrix LSPosed ou LSPosed Irena. Après avoir sélectionné Root, l'application installera la version recommandée de Snapchat. Ne l'ouvrez pas encore ; continuez la configuration de Purrfect. Une fois la configuration terminée, activez Purrfect dans LSPosed et redémarrez votre téléphone. Ensuite, commencez à utiliser Snapchat. Nous recommandons vivement de détacher Snapchat du Play Store avec le module Zygisk Detach pour empêcher les mises à jour automatiques.",
             "notice_issues_hint": "Si vous rencontrez des problèmes d'installation, la solution apparaîtra ici. Veuillez la lire attentivement.",
             "notice_note_prefix": "Note : ",
-            "notice_note_body": "Les nouveaux comptes sont facilement verrouillés ! Il est recommandé d'utiliser un compte plus ancien avec PurrfectSnap.",
+            "notice_note_body": "Les nouveaux comptes sont facilement verrouillés ! Il est recommandé d'utiliser un compte plus ancien avec Purrfect.",
             "step_title": "Choisissez votre appareil",
             "step_subtitle": "Si vous ne savez pas, sélectionnez Appareil non rooté et continuez.",
             "root_option_title": "Appareil rooté",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Génération des mappages...",
-            "generate_failure_no_snapchat": "PurrfectSnap n'a pas pu détecter Snapchat, veuillez essayer de réinstaller Snapchat.",
+            "generate_failure_no_snapchat": "Purrfect n'a pas pu détecter Snapchat, veuillez essayer de réinstaller Snapchat.",
             "generate_failure": "Une erreur s'est produite lors de la génération des mappages, veuillez réessayer.",
             "confirm_understand_timeout": "Je comprends ({seconds}s)",
             "confirm_understand": "Je comprends",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Si cela échoue encore, appuyez plusieurs fois sur le bouton de connexion.",
             "notice_step_3": "3. Si cela échoue toujours, effacez les données de Snapchat, désactivez tout VPN et connectez-vous à nouveau.",
             "notice_rooted_title": "Pour les utilisateurs rootés :",
-            "notice_rooted_body": "Rouvrez Snapchat et connectez-vous. Si cela échoue encore, désactivez PurrfectSnap dans LSPosed, connectez-vous, puis réactivez PurrfectSnap.",
+            "notice_rooted_body": "Rouvrez Snapchat et connectez-vous. Si cela échoue encore, désactivez Purrfect dans LSPosed, connectez-vous, puis réactivez Purrfect.",
             "warnings_info": "{count} avertissement(s) survenu(s) lors de la génération des mappages :\n\n{warnings}",
             "progress_hint": "Cela ne prend qu'un instant. Gardez l'application ouverte pendant que la magie opère !"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Solution : Téléchargez Snapchat depuis le Play Store et désinstallez-le sans conserver les données. Relancez le Patcher Auto. Si cela ne fonctionne toujours pas, exécutez :",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Problème : L'application n'est pas installée car le package semble invalide.",
-            "issues_invalid_fix": "Solution : Téléchargez et installez JingMatrix LSPatch, puis patchez une version de Snapchat (n'importe laquelle) de cette plage, c'est-à-dire entre 13.65.1.0 et 13.71.0.51, en mode Intégré. Sélectionnez Intégrer les modules et intégrez l'APK PurrfectSnap. Ensuite, choisissez Passer la configuration auto lors de la configuration de PurrfectSnap pour ignorer le Patcher Auto.",
+            "issues_invalid_fix": "Solution : Téléchargez et installez JingMatrix LSPatch, puis patchez une version de Snapchat (n'importe laquelle) de cette plage, c'est-à-dire entre 13.65.1.0 et 13.71.0.51, en mode Intégré. Sélectionnez Intégrer les modules et intégrez l'APK Purrfect. Ensuite, choisissez Passer la configuration auto lors de la configuration de Purrfect pour ignorer le Patcher Auto.",
             "status_downloading": "Téléchargement de Snapchat {percent}%",
             "status_patching": "Patch en cours...",
             "status_initializing": "Initialisation...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Sélection actuelle",
             "browse_languages": "Parcourir les langues",
-            "change_anytime_hint": "Vous pouvez changer cela à tout moment dans les paramètres de PurrfectSnap.",
+            "change_anytime_hint": "Vous pouvez changer cela à tout moment dans les paramètres de Purrfect.",
             "available_languages": "Langues disponibles"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Sélecteur de dossier indisponible",
             "no_picker_message": "Certains environnements d'applications clonées/doubles bloquent le sélecteur de dossier système. Vous pouvez continuer à utiliser l'emplacement de sauvegarde par défaut du système ou ouvrir l'application en dehors du mode clone pour sélectionner un dossier personnalisé.",
             "use_default_button": "Utiliser par défaut",
-            "permission_hint": "PurrfectSnap nécessite des autorisations de stockage pour télécharger et enregistrer des médias depuis Snapchat."
+            "permission_hint": "Purrfect nécessite des autorisations de stockage pour télécharger et enregistrer des médias depuis Snapchat."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 par ΞTΞRNAL",
-                "update_title": "Mise à jour PurrfectSnap",
+                "update_title": "Mise à jour Purrfect",
                 "update_content": "La version {version} est disponible !",
                 "update_button": "Télécharger",
                 "hero_tagline": "Un module Xposed conçu pour améliorer votre expérience Snapchat",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Téléchargement terminé",
                 "update_install_failed_toast": "Échec de l'installation de la mise à jour. Vérifiez les journaux pour plus de détails.",
                 "update_download_failed_toast": "Échec du téléchargement : {error}",
-                "debug_build_summary_title": "Vous utilisez une version de débogage de PurrfectSnap",
+                "debug_build_summary_title": "Vous utilisez une version de débogage de Purrfect",
                 "debug_build_summary_content": "Version {versionName} ({versionCode})",
                 "debug_build_summary_date": "Date de build : {date} (il y a {days} jours)",
                 "quick_actions_title": "Actions rapides",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Annonces non disponibles"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Un module Xposed conçu pour améliorer votre expérience Snapchat !",
                 "about_lead_developers_title": "Développeurs principaux",
                 "about_story_title": "Notre histoire",
-                "about_story": "PurrfectSnap a été fondé le 2 octobre 2025, en tant que fork de SnapEnhance par ΞTΞRNAL avec la vision d'offrir aux utilisateurs l'expérience Snapchat de qualité qu'ils méritent. Cette application ne devait être qu'une mise à jour mineure du dépôt SnapEnhance, mais elle est rapidement devenue une application distincte où les contributeurs ont continué à ajouter des fonctionnalités. Ensuite, le développeur <RSR/> a rejoint l'équipe, et cette application est rapidement devenue un énorme succès. Nous avons reçu beaucoup d'amour et de soutien et avons gagné plus de 1000 téléchargements en seulement deux jours ! Nous remercions tous les utilisateurs et contributeurs ; sans votre soutien, nous n'aurions pas atteint ce stade. Nous tenons également à remercier chaleureusement rhunk, le développeur principal de SnapEnhance, car sans lui, cette application n'existerait même pas. Nous lui sommes immensément reconnaissants. Enfin, nous tenons à remercier tous nos administrateurs, notamment : CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, qui étaient là avec nous dès le tout début. Nous tenons également à remercier tous les testeurs, notamment Leo & Toxic, qui ont testé et signalé les bugs en continu. Nous sommes immensément reconnaissants pour votre contribution.",
-                "about_thanks_title": "Avec amour, l'équipe PurrfectSnap",
+                "about_story": "Purrfect a été fondé le 2 octobre 2025, en tant que fork de SnapEnhance par ΞTΞRNAL avec la vision d'offrir aux utilisateurs l'expérience Snapchat de qualité qu'ils méritent. Cette application ne devait être qu'une mise à jour mineure du dépôt SnapEnhance, mais elle est rapidement devenue une application distincte où les contributeurs ont continué à ajouter des fonctionnalités. Ensuite, le développeur <RSR/> a rejoint l'équipe, et cette application est rapidement devenue un énorme succès. Nous avons reçu beaucoup d'amour et de soutien et avons gagné plus de 1000 téléchargements en seulement deux jours ! Nous remercions tous les utilisateurs et contributeurs ; sans votre soutien, nous n'aurions pas atteint ce stade. Nous tenons également à remercier chaleureusement rhunk, le développeur principal de SnapEnhance, car sans lui, cette application n'existerait même pas. Nous lui sommes immensément reconnaissants. Enfin, nous tenons à remercier tous nos administrateurs, notamment : CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, qui étaient là avec nous dès le tout début. Nous tenons également à remercier tous les testeurs, notamment Leo & Toxic, qui ont testé et signalé les bugs en continu. Nous sommes immensément reconnaissants pour votre contribution.",
+                "about_thanks_title": "Avec amour, l'équipe Purrfect",
                 "about_magic_toast": "Appuyez 5 fois sur cet écran pour voir un peu de magie 😉 !",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Mises à jour",
                 "update_notification_channel_description": "Soyez notifié quand de nouvelles versions sont disponibles",
                 "update_notification_title": "Nouvelle mise à jour disponible",
-                "update_notification_text": "Appuyez pour ouvrir PurrfectSnap et télécharger la dernière version.",
+                "update_notification_text": "Appuyez pour ouvrir Purrfect et télécharger la dernière version.",
                 "app_theme_title": "Thème de l'app",
                 "theme_icon_description": "Ouvrir le sélecteur de thème",
                 "theme_mode_system": "Système",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Personnaliser la barre inférieure",
                 "customize_bottom_bar_subtitle": "Choisissez les onglets à afficher sur votre écran d'accueil",
                 "available_tabs_title": "Onglets disponibles",
-                "reset_setup_title": "Réinitialiser PurrfectSnap",
+                "reset_setup_title": "Réinitialiser Purrfect",
                 "reset_setup_action": "Réinitialiser et redémarrer la configuration",
                 "reset_setup_dialog_title": "Êtes-vous sûr ?",
-                "reset_setup_dialog_text": "Cela réinitialisera PurrfectSnap et relancera la configuration.",
+                "reset_setup_dialog_text": "Cela réinitialisera Purrfect et relancera la configuration.",
                 "reset_button": "Réinitialiser",
                 "done_button": "Terminé",
                 "clear_friend_feed": "Effacer le fil d'amis",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Attention",
-                "content": "PurrfectSnap inclut un outil de script, permettant l'exécution de code défini par l'utilisateur sur votre appareil. Soyez extrêmement prudent et n'installez que des modules provenant de sources connues et fiables. Les modules non autorisés ou non vérifiés peuvent poser des risques de sécurité pour votre système."
+                "content": "Purrfect inclut un outil de script, permettant l'exécution de code défini par l'utilisateur sur votre appareil. Soyez extrêmement prudent et n'installez que des modules provenant de sources connues et fiables. Les modules non autorisés ou non vérifiés peuvent poser des risques de sécurité pour votre système."
             },
             "reset_config": {
                 "title": "Réinitialiser la configuration",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Changer la langue",
-            "description": "Changer la langue de PurrfectSnap"
+            "description": "Changer la langue de Purrfect"
         },
         "file_imports": {
             "name": "Imports de fichiers",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Journaux Composer",
-                                        "description": "Redirige les journaux de la console de Composer vers PurrfectSnap"
+                                        "description": "Redirige les journaux de la console de Composer vers Purrfect"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Scripting",
-                "description": "Exécuter des scripts personnalisés pour étendre PurrfectSnap",
+                "description": "Exécuter des scripts personnalisés pour étendre Purrfect",
                 "properties": {
                     "developer_mode": {
                         "name": "Mode développeur",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Recharger Snapchat uniquement",
-                "all": "Recharger Snapchat + PurrfectSnap",
+                "all": "Recharger Snapchat + Purrfect",
                 "null": "Défaut"
             },
             "walk_radius": {
@@ -3579,9 +3579,9 @@
     "toast_init_script_runtime_failed": "Échec de l'initialisation de l'exécution du script !",
     "toast_database_corrupted": "La base de données {path} est corrompue ! Redémarrage...",
     "toast_feature_init_failed": "Échec de l'init de la fonctionnalité {feature} ! Vérifiez logcat pour plus de détails.",
-    "toast_updating_purrfectsnap": "Mise à jour de PurrfectSnap. Veuillez patienter...",
-    "toast_update_purrfectsnap_failed": "Échec de la mise à jour de PurrfectSnap. Veuillez vérifier logcat pour plus de détails.",
-    "toast_purrfectsnap_updated": "PurrfectSnap mis à jour !",
+    "toast_updating_purrfect": "Mise à jour de Purrfect. Veuillez patienter...",
+    "toast_update_purrfect_failed": "Échec de la mise à jour de Purrfect. Veuillez vérifier logcat pour plus de détails.",
+    "toast_purrfect_updated": "Purrfect mis à jour !",
     "toast_export_memories_failed": "Échec de l'exportation des memories",
     "toast_exported_to_path": "Exporté vers {path}",
     "toast_open_memories_db_failed": "Échec de l'ouverture de la base de données memories",

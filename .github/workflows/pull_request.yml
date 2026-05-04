@@ -39,12 +39,12 @@ jobs:
 
       - name: Rename APK file
         run: |
-          mv app/build/outputs/apk/armv8/debug/*.apk app/build/outputs/apk/armv8/debug/purrfectsnap-${{ env.version }}-armv8-${GITHUB_SHA::7}.apk
+          mv app/build/outputs/apk/armv8/debug/*.apk app/build/outputs/apk/armv8/debug/purrfect-${{ env.version }}-armv8-${GITHUB_SHA::7}.apk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: purrfectsnap-armv8-debug
+          name: purrfect-armv8-debug
           path: app/build/outputs/apk/armv8/debug/*.apk
           
   job_armv7:
@@ -82,12 +82,12 @@ jobs:
 
       - name: Rename APK file
         run: |
-          mv app/build/outputs/apk/armv7/debug/*.apk app/build/outputs/apk/armv7/debug/purrfectsnap-${{ env.version }}-armv7-${GITHUB_SHA::7}.apk
+          mv app/build/outputs/apk/armv7/debug/*.apk app/build/outputs/apk/armv7/debug/purrfect-${{ env.version }}-armv7-${GITHUB_SHA::7}.apk
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: purrfectsnap-armv7-debug
+          name: purrfect-armv7-debug
           path: app/build/outputs/apk/armv7/debug/*.apk
 
   job_manager:

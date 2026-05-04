@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Razumem ({seconds}s)",
             "important_confirm": "Razumem",
             "important_title": "Pomembno!",
-            "important_message": "Če si uporabljal SnapEnhance ali kateri koli drug mod razen PurrfectSnap, priporočamo, da vse odstraniš in en teden uporabljaš originalni Snapchat. Po naslednjem petku preklopi na PurrfectSnap.",
-            "language_subtitle": "Nastavi PurrfectSnap v svoj jezik pred vsem ostalim.",
+            "important_message": "Če si uporabljal SnapEnhance ali kateri koli drug mod razen Purrfect, priporočamo, da vse odstraniš in en teden uporabljaš originalni Snapchat. Po naslednjem petku preklopi na Purrfect.",
+            "language_subtitle": "Nastavi Purrfect v svoj jezik pred vsem ostalim.",
             "install_mode_title": "Izberi svojo napravo",
-            "install_mode_subtitle": "Izberi pot, ki ustreza tvojemu načinu namestitve PurrfectSnap.",
+            "install_mode_subtitle": "Izberi pot, ki ustreza tvojemu načinu namestitve Purrfect.",
             "permissions_subtitle": "Dovoli nujna dovoljenja, da bodo prekrivni elementi, prenosi in opozorila zanesljivi.",
             "patch_title": "Samodejni popravljalnik",
             "patch_subtitle": "Poenostavljen prenos, popravek in namestitev v enem toku.",
@@ -37,12 +37,12 @@
             "notice_title": "Prosimo, upoštevaj!",
             "notice_intro": "Izberi vrsto naprave, ki jo imaš: rootano ali nerootano. Če nisi prepričan, izberi Nerootano in nadaljuj.",
             "notice_non_root_title": "Nerootane naprave",
-            "notice_non_root_body": "Izberi Nerootano in aplikacija bo uredila vse. Tapni Namesti popravljen Snapchat, ko se pojavi. Po namestitvi še ne odpiraj Snapchata. Nadaljuj z nastavitvijo PurrfectSnap; ko se konča, lahko odpreš Snapchat in uživaš.",
+            "notice_non_root_body": "Izberi Nerootano in aplikacija bo uredila vse. Tapni Namesti popravljen Snapchat, ko se pojavi. Po namestitvi še ne odpiraj Snapchata. Nadaljuj z nastavitvijo Purrfect; ko se konča, lahko odpreš Snapchat in uživaš.",
             "notice_root_title": "Rootane naprave",
-            "notice_root_body": "Najprej se prepričaj, da imaš nameščen LSPosed. Priporočamo JingMatrix LSPosed ali LSPosed Irena. Ko izbereš Root, bo aplikacija namestila priporočeno različico Snapchata. Še je ne odpiraj; nadaljuj z nastavitvijo PurrfectSnap. Ko se nastavitev konča, omogoči PurrfectSnap v LSPosed in znova zaženi telefon. Nato začni uporabljati Snapchat. Močno priporočamo ločitev Snapchata od Trgovine Play z modulom Zygisk Detach, da preprečiš samodejne posodobitve.",
+            "notice_root_body": "Najprej se prepričaj, da imaš nameščen LSPosed. Priporočamo JingMatrix LSPosed ali LSPosed Irena. Ko izbereš Root, bo aplikacija namestila priporočeno različico Snapchata. Še je ne odpiraj; nadaljuj z nastavitvijo Purrfect. Ko se nastavitev konča, omogoči Purrfect v LSPosed in znova zaženi telefon. Nato začni uporabljati Snapchat. Močno priporočamo ločitev Snapchata od Trgovine Play z modulom Zygisk Detach, da preprečiš samodejne posodobitve.",
             "notice_issues_hint": "Če naletiš na težave pri namestitvi, se bo rešitev pojavila tukaj. Prosim, preberi jo previdno.",
             "notice_note_prefix": "Opomba: ",
-            "notice_note_body": "Novi računi se hitro zaklenejo! Priporočamo uporabo starejšega računa s PurrfectSnap.",
+            "notice_note_body": "Novi računi se hitro zaklenejo! Priporočamo uporabo starejšega računa s Purrfect.",
             "step_title": "Izberi svojo napravo",
             "step_subtitle": "Če ne veš, izberi Nerootano napravo in nadaljuj.",
             "root_option_title": "Rootana naprava",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Generiranje preslikav...",
-            "generate_failure_no_snapchat": "PurrfectSnap ni mogel zaznati Snapchata, prosim poskusi znova namestiti Snapchat.",
+            "generate_failure_no_snapchat": "Purrfect ni mogel zaznati Snapchata, prosim poskusi znova namestiti Snapchat.",
             "generate_failure": "Prišlo je do napake pri generiranju preslikav, prosim poskusi znova.",
             "confirm_understand_timeout": "Razumem ({seconds}s)",
             "confirm_understand": "Razumem",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Če še vedno ne uspe, večkrat tapni gumb za prijavo. To ponavadi pokrije naslednji del.",
             "notice_step_3": "3. Če še vedno ne uspe, počisti podatke Snapchata, onemogoči morebiten VPN in se znova prijavi.",
             "notice_rooted_title": "Za uporabnike z rootom:",
-            "notice_rooted_body": "Ponovno odpri Snapchat in se prijavi. Če še vedno ne uspe, onemogoči PurrfectSnap v LSPosed, se prijavi, nato znova omogoči PurrfectSnap.",
+            "notice_rooted_body": "Ponovno odpri Snapchat in se prijavi. Če še vedno ne uspe, onemogoči Purrfect v LSPosed, se prijavi, nato znova omogoči Purrfect.",
             "warnings_info": "{count} opozoril(-a) med generiranjem preslikav:\n\n{warnings}",
             "progress_hint": "To traja le trenutek. Pusti aplikacijo odprto, medtem ko se dogaja čarovnija!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Popravek: Prenesi Snapchat iz Trgovine Play in ga odstrani brez ohranjanja podatkov. Znova zaženi samodejni popravljalnik. Če še vedno ne deluje, zaženi:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Težava: Aplikacija ni nameščena, ker se zdi paket neveljaven.",
-            "issues_invalid_fix": "Popravek: Prenesi in namesti JingMatrix LSPatch, nato popravi različico Snapchata (katerokoli) iz tega razpona, npr. med 13.65.1.0 in 13.71.0.51, v načinu Integrated. Izberi Embed Modules in vdelaj PurrfectSnap APK. Nato izberi Preskoči samodejno namestitev med nastavitvijo PurrfectSnap.",
+            "issues_invalid_fix": "Popravek: Prenesi in namesti JingMatrix LSPatch, nato popravi različico Snapchata (katerokoli) iz tega razpona, npr. med 13.65.1.0 in 13.71.0.51, v načinu Integrated. Izberi Embed Modules in vdelaj Purrfect APK. Nato izberi Preskoči samodejno namestitev med nastavitvijo Purrfect.",
             "status_downloading": "Prenašanje Snapchata {percent}%",
             "status_patching": "Popravljanje...",
             "status_initializing": "Inicializacija...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Trenutna izbira",
             "browse_languages": "Prebrskaj jezike",
-            "change_anytime_hint": "To lahko kadarkoli spremeniš v nastavitvah PurrfectSnap.",
+            "change_anytime_hint": "To lahko kadarkoli spremeniš v nastavitvah Purrfect.",
             "available_languages": "Razpoložljivi jeziki"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Izbirnik map ni na voljo",
             "no_picker_message": "Nekatera okolja kloniranih/dvojnih aplikacij blokirajo sistemski izbirnik map. Lahko nadaljuješ z uporabo sistemsko privzete lokacije shranjevanja ali odpreš aplikacijo zunaj načina kloniranja za izbiro mape po meri.",
             "use_default_button": "Uporabi privzeto",
-            "permission_hint": "PurrfectSnap potrebuje dovoljenja za shranjevanje za prenos in shranjevanje medijev iz Snapchata."
+            "permission_hint": "Purrfect potrebuje dovoljenja za shranjevanje za prenos in shranjevanje medijev iz Snapchata."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 od ΞTΞRNAL",
-                "update_title": "Posodobitev PurrfectSnap",
+                "update_title": "Posodobitev Purrfect",
                 "update_content": "Različica {version} je na voljo!",
                 "update_button": "Prenesi",
                 "hero_tagline": "Modul Xposed namenjen izboljšanju tvoje Snapchat izkušnje",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Prenos zaključen",
                 "update_install_failed_toast": "Namestitev posodobitve ni uspela. Preveri dnevnike za več podrobnosti.",
                 "update_download_failed_toast": "Prenos ni uspel: {error}",
-                "debug_build_summary_title": "Uporabljaš debug različico PurrfectSnap",
+                "debug_build_summary_title": "Uporabljaš debug različico Purrfect",
                 "debug_build_summary_content": "Različica {versionName} ({versionCode})",
                 "debug_build_summary_date": "Datum gradnje: {date} ({days} dni nazaj)",
                 "quick_actions_title": "Hitra dejanja",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Obvestila niso na voljo"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Modul Xposed namenjen izboljšanju tvoje Snapchat izkušnje!",
                 "about_lead_developers_title": "Glavni razvijalci",
                 "about_story_title": "Naša zgodba",
-                "about_story": "PurrfectSnap je bil ustanovljen 2. oktobra 2025 kot odcep (fork) SnapEnhance s strani ΞTΞRNAL z vizijo ponuditi uporabnikom kakovostno Snapchat izkušnjo, ki si jo zaslužijo. Ta aplikacija naj bi bila le manjša posodobitev v repozitoriju SnapEnhance, vendar je kmalu postala ločena aplikacija, v katero so sodelavci nenehno dodajali funkcije. Nato se je ekipi pridružil razvijalec <RSR/>, in aplikacija je kmalu postala velik uspeh. Prejeli smo veliko ljubezni in podpore ter dosegli 1K+ prenosov v samo dveh dneh! Zahvaljujemo se vsem uporabnikom in sodelavcem; brez vaše podpore ne bi dosegli tega mesta. Prav tako bi se radi močno zahvalili rhunku, glavnemu razvijalcu SnapEnhance, saj brez njega ta aplikacija sploh ne bi obstajala. Neizmerno smo mu hvaležni. Nazadnje bi se radi zahvalili vsem našim administratorjem, predvsem: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, ki so bili z nami od samega začetka. Prav tako hvala vsem preizkuševalcem, predvsem Leu & Toxicu, ki sta nenehno testirala in poročala o napakah. Neizmerno smo hvaležni za vaš prispevek.",
-                "about_thanks_title": "Z ljubeznijo, ekipa PurrfectSnap",
+                "about_story": "Purrfect je bil ustanovljen 2. oktobra 2025 kot odcep (fork) SnapEnhance s strani ΞTΞRNAL z vizijo ponuditi uporabnikom kakovostno Snapchat izkušnjo, ki si jo zaslužijo. Ta aplikacija naj bi bila le manjša posodobitev v repozitoriju SnapEnhance, vendar je kmalu postala ločena aplikacija, v katero so sodelavci nenehno dodajali funkcije. Nato se je ekipi pridružil razvijalec <RSR/>, in aplikacija je kmalu postala velik uspeh. Prejeli smo veliko ljubezni in podpore ter dosegli 1K+ prenosov v samo dveh dneh! Zahvaljujemo se vsem uporabnikom in sodelavcem; brez vaše podpore ne bi dosegli tega mesta. Prav tako bi se radi močno zahvalili rhunku, glavnemu razvijalcu SnapEnhance, saj brez njega ta aplikacija sploh ne bi obstajala. Neizmerno smo mu hvaležni. Nazadnje bi se radi zahvalili vsem našim administratorjem, predvsem: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, ki so bili z nami od samega začetka. Prav tako hvala vsem preizkuševalcem, predvsem Leu & Toxicu, ki sta nenehno testirala in poročala o napakah. Neizmerno smo hvaležni za vaš prispevek.",
+                "about_thanks_title": "Z ljubeznijo, ekipa Purrfect",
                 "about_magic_toast": "Tapni 5-krat na tem zaslonu, da vidiš nekaj čarovnije 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Posodobitve",
                 "update_notification_channel_description": "Prejmi obvestilo, ko so na voljo nove izdaje",
                 "update_notification_title": "Nova posodobitev na voljo",
-                "update_notification_text": "Tapni za odprtje PurrfectSnap in prenos najnovejše različice.",
+                "update_notification_text": "Tapni za odprtje Purrfect in prenos najnovejše različice.",
                 "app_theme_title": "Tema aplikacije",
                 "theme_icon_description": "Odpri izbirnik teme",
                 "theme_mode_system": "Sistemska",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Prilagodi spodnjo vrstico",
                 "customize_bottom_bar_subtitle": "Izberi zavihke, ki se prikažejo na domačem zaslonu",
                 "available_tabs_title": "Razpoložljivi zavihki",
-                "reset_setup_title": "Ponastavi PurrfectSnap",
+                "reset_setup_title": "Ponastavi Purrfect",
                 "reset_setup_action": "Ponastavi in ponovno zaženi namestitev",
                 "reset_setup_dialog_title": "Si prepričan?",
-                "reset_setup_dialog_text": "To bo ponastavilo PurrfectSnap in ponovno zagnalo namestitev.",
+                "reset_setup_dialog_text": "To bo ponastavilo Purrfect in ponovno zagnalo namestitev.",
                 "reset_button": "Ponastavi",
                 "done_button": "Končano",
                 "clear_friend_feed": "Počisti vir prijateljev",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Opozorilo",
-                "content": "PurrfectSnap vključuje orodje za skriptanje, ki omogoča izvajanje uporabniško določene kode na tvoji napravi. Bodi izjemno previden in nameščaj le module iz znanih, zanesljivih virov. Nepooblaščeni ali nepreverjeni moduli lahko predstavljajo varnostno tveganje za tvoj sistem."
+                "content": "Purrfect vključuje orodje za skriptanje, ki omogoča izvajanje uporabniško določene kode na tvoji napravi. Bodi izjemno previden in nameščaj le module iz znanih, zanesljivih virov. Nepooblaščeni ali nepreverjeni moduli lahko predstavljajo varnostno tveganje za tvoj sistem."
             },
             "reset_config": {
                 "title": "Ponastavi konfiguracijo",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Spremeni jezik",
-            "description": "Spremeni jezik PurrfectSnap"
+            "description": "Spremeni jezik Purrfect"
         },
         "file_imports": {
             "name": "Uvoz datotek",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Dnevniki Composer",
-                                        "description": "Preusmeri konzolne dnevnike Composerja v PurrfectSnap"
+                                        "description": "Preusmeri konzolne dnevnike Composerja v Purrfect"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Skriptanje",
-                "description": "Zaženi skripte po meri za razširitev PurrfectSnap",
+                "description": "Zaženi skripte po meri za razširitev Purrfect",
                 "properties": {
                     "developer_mode": {
                         "name": "Razvijalski način",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Ponovno naloži samo Snapchat",
-                "all": "Ponovno naloži Snapchat + PurrfectSnap",
+                "all": "Ponovno naloži Snapchat + Purrfect",
                 "null": "Privzeto"
             },
             "walk_radius": {
@@ -3579,9 +3579,9 @@
     "toast_init_script_runtime_failed": "Inicializacija izvajalnega okolja skript ni uspela!",
     "toast_database_corrupted": "Podatkovna baza {path} je poškodovana! Ponovni zagon ...",
     "toast_feature_init_failed": "Inicializacija funkcije {feature} ni uspela! Preveri logcat za več podrobnosti.",
-    "toast_updating_purrfectsnap": "Posodabljanje PurrfectSnap. Prosim počakaj...",
-    "toast_update_purrfectsnap_failed": "Posodobitev PurrfectSnap ni uspela. Prosim preveri logcat za več podrobnosti.",
-    "toast_purrfectsnap_updated": "PurrfectSnap posodobljen!",
+    "toast_updating_purrfect": "Posodabljanje Purrfect. Prosim počakaj...",
+    "toast_update_purrfect_failed": "Posodobitev Purrfect ni uspela. Prosim preveri logcat za več podrobnosti.",
+    "toast_purrfect_updated": "Purrfect posodobljen!",
     "toast_export_memories_failed": "Izvoz spominov ni uspel",
     "toast_exported_to_path": "Izvoženo v {path}",
     "toast_open_memories_db_failed": "Odpiranje baze spominov ni uspelo",

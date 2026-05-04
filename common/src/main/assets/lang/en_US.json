@@ -7,10 +7,10 @@
             "important_confirm_timeout": "I understand ({seconds}s)",
             "important_confirm": "I understand",
             "important_title": "Important!",
-            "important_message": "If you have used SnapEnhance or any other mod besides PurrfectSnap, we recommend uninstalling everything and staying on stock Snapchat for one week. Then switch to PurrfectSnap after next Friday.",
-            "language_subtitle": "Tune PurrfectSnap to speak your voice before anything else.",
+            "important_message": "If you have used SnapEnhance or any other mod besides Purrfect, we recommend uninstalling everything and staying on stock Snapchat for one week. Then switch to Purrfect after next Friday.",
+            "language_subtitle": "Tune Purrfect to speak your voice before anything else.",
             "install_mode_title": "Choose your device",
-            "install_mode_subtitle": "Pick the path that matches how you'll install PurrfectSnap.",
+            "install_mode_subtitle": "Pick the path that matches how you'll install Purrfect.",
             "permissions_subtitle": "Grant the essentials so overlays, downloads, and alerts stay reliable.",
             "patch_title": "Auto Patcher",
             "patch_subtitle": "Streamlined download, patch, and install with a single flow.",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Generating Mappings...",
-            "generate_failure_no_snapchat": "PurrfectSnap was unable to detect Snapchat, please try reinstalling Snapchat.",
+            "generate_failure_no_snapchat": "Purrfect was unable to detect Snapchat, please try reinstalling Snapchat.",
             "generate_failure": "An error occurred while trying to generate mappings, please try again.",
             "confirm_understand_timeout": "I understand ({seconds}s)",
             "confirm_understand": "I understand",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. If it still fails, tap the login button repeatedly. This usually covers the next chunk.",
             "notice_step_3": "3. If it still fails, clear Snapchat's data, disable any VPN, and log in again.",
             "notice_rooted_title": "For rooted users:",
-            "notice_rooted_body": "Reopen Snapchat and log in. If it still fails, disable PurrfectSnap in LSPosed, log in, then re-enable PurrfectSnap.",
+            "notice_rooted_body": "Reopen Snapchat and log in. If it still fails, disable Purrfect in LSPosed, log in, then re-enable Purrfect.",
             "warnings_info": "{count} warning(s) occurred while generating mappings:\n\n{warnings}",
             "progress_hint": "This only takes a moment. Keep the app open while magic happens!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Fix: Download Snapchat from the Play Store and uninstall it without keeping data. Run Auto Patcher again. If it still does not work, run:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Issue: App not installed because the package appears to be invalid.",
-            "issues_invalid_fix": "Fix: Download and install JingMatrix LSPatch, then patch a Snapchat version (any one) from this range, i.e. between 13.65.1.0 and 13.71.0.51, in Integrated mode. Select Embed Modules and embed the PurrfectSnap APK. Then choose Skip auto setup during PurrfectSnap setup to skip Auto Patcher.",
+            "issues_invalid_fix": "Fix: Download and install JingMatrix LSPatch, then patch a Snapchat version (any one) from this range, i.e. between 13.65.1.0 and 13.71.0.51, in Integrated mode. Select Embed Modules and embed the Purrfect APK. Then choose Skip auto setup during Purrfect setup to skip Auto Patcher.",
             "status_downloading": "Downloading Snapchat {percent}%",
             "status_patching": "Patching...",
             "status_initializing": "Initializing...",
@@ -120,7 +120,7 @@
         "pick_language": {
             "current_selection": "Current selection",
             "browse_languages": "Browse languages",
-            "change_anytime_hint": "You can change this anytime from PurrfectSnap settings.",
+            "change_anytime_hint": "You can change this anytime from Purrfect settings.",
             "available_languages": "Available Languages"
         },
         "root_install": {
@@ -253,7 +253,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 by \u039eT\u039eRNAL",
-                "update_title": "PurrfectSnap Update",
+                "update_title": "Purrfect Update",
                 "update_content": "Version {version} is available!",
                 "update_button": "Download",
                 "hero_tagline": "An Xposed Module meant to enhance your Snapchat experience",
@@ -276,7 +276,7 @@
                 "update_download_completed_toast": "Download completed",
                 "update_install_failed_toast": "Failed to install update. Check logs for more details.",
                 "update_download_failed_toast": "Download failed: {error}",
-                "debug_build_summary_title": "You are running a debug build of PurrfectSnap",
+                "debug_build_summary_title": "You are running a debug build of Purrfect",
                 "debug_build_summary_content": "Version {versionName} ({versionCode})",
                 "debug_build_summary_date": "Build date: {date} ({days} days ago)",
                 "quick_actions_title": "Quick Actions",
@@ -300,12 +300,12 @@
                 "announcements_dialog_empty": "Announcements not available"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "An Xposed Module meant to enhance your Snapchat experience!",
                 "about_lead_developers_title": "Lead Developers",
                 "about_story_title": "Our Story",
-                "about_story": "PurrfectSnap was founded on 2nd of October, 2025, as a fork of SnapEnhance by \u039eT\u039eRNAL with a vision to provide users the quality Snapchat experience they deserve. This app was just meant to be a minor update in the SnapEnhance repository, but it soon became a separate app wherein the contributors kept adding features. Then the developer <RSR/> joined the team, and this app soon became a huge success.\n\nWe would also like to convey our huge thanks to rhunk, the lead developer of SnapEnhance, as without him, this app wouldn't even exist. We are immensely grateful to him.\n\nWe received much love and support and gained 1K+ downloads in just two days! We thank all users and contributors; without your support, we wouldn't have reached this place.\n\nLastly, we would like to thank all our admins, notably: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, who were right there with us from the very beginning. We would also like to thank all testers, notably Leo & Toxic, who tested and reported bugs continuously. We are immensely grateful for your contribution.",
-                "about_thanks_title": "With love, PurrfectSnap Team",
+                "about_story": "Purrfect was founded on 2nd of October, 2025, as a fork of SnapEnhance by \u039eT\u039eRNAL with a vision to provide users the quality Snapchat experience they deserve. This app was just meant to be a minor update in the SnapEnhance repository, but it soon became a separate app wherein the contributors kept adding features. Then the developer <RSR/> joined the team, and this app soon became a huge success.\n\nWe would also like to convey our huge thanks to rhunk, the lead developer of SnapEnhance, as without him, this app wouldn't even exist. We are immensely grateful to him.\n\nWe received much love and support and gained 1K+ downloads in just two days! We thank all users and contributors; without your support, we wouldn't have reached this place.\n\nLastly, we would like to thank all our admins, notably: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, who were right there with us from the very beginning. We would also like to thank all testers, notably Leo & Toxic, who tested and reported bugs continuously. We are immensely grateful for your contribution.",
+                "about_thanks_title": "With love, Purrfect Team",
                 "about_magic_toast": "Tap 5 times in this screen to see some magic \ud83d\ude09!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -382,7 +382,7 @@
                 "update_notification_channel_name": "Updates",
                 "update_notification_channel_description": "Get notified when new releases are available",
                 "update_notification_title": "New update available",
-                "update_notification_text": "Tap to open PurrfectSnap and download the latest build.",
+                "update_notification_text": "Tap to open Purrfect and download the latest build.",
                 "app_theme_title": "App Theme",
                 "theme_icon_description": "Open theme chooser",
                 "theme_mode_system": "System",
@@ -399,10 +399,10 @@
                 "customize_bottom_bar_title": "Customize Bottom Bar",
                 "customize_bottom_bar_subtitle": "Pick which tabs show on your home screen",
                 "available_tabs_title": "Available Tabs",
-                "reset_setup_title": "Reset PurrfectSnap",
+                "reset_setup_title": "Reset Purrfect",
                 "reset_setup_action": "Reset and restart setup",
                 "reset_setup_dialog_title": "Are you sure?",
-                "reset_setup_dialog_text": "This will reset PurrfectSnap and restart setup.",
+                "reset_setup_dialog_text": "This will reset Purrfect and restart setup.",
                 "reset_button": "Reset",
                 "done_button": "Done",
                 "clear_friend_feed": "Clear Friend Feed",
@@ -648,7 +648,7 @@
             },
             "scripting_warning": {
                 "title": "Warning",
-                "content": "PurrfectSnap includes a scripting tool, allowing the execution of user-defined code on your device. Use extreme caution and only install modules from known, reliable sources. Unauthorized or unverified modules may pose security risks to your system."
+                "content": "Purrfect includes a scripting tool, allowing the execution of user-defined code on your device. Use extreme caution and only install modules from known, reliable sources. Unauthorized or unverified modules may pose security risks to your system."
             },
             "reset_config": {
                 "title": "Reset config",
@@ -1042,7 +1042,11 @@
         },
         "change_language": {
             "name": "Change Language",
-            "description": "Change the language of PurrfectSnap"
+            "description": "Change the language of Purrfect"
+        },
+        "repatch_reddit": {
+            "name": "Repatch Reddit",
+            "description": "Patch and update Reddit without uninstalling the current app first"
         },
         "file_imports": {
             "name": "File Imports",
@@ -1558,7 +1562,7 @@
                         "description": "Choose between the new and legacy settings menu layouts"
                     },
                     "chat_hold_kill_actions": {
-                        "name": "PurrfectSnap Chat Hold Kill",
+                        "name": "Purrfect Chat Hold Kill",
                         "description": "Hold the chat/settings header button to kill selected app(s). Leave all options off to disable."
                     },
                     "spoof_snap_score": {
@@ -2294,7 +2298,7 @@
                         "properties": {
                             "performance_profile": {
                                 "name": "Performance Profile",
-                                "description": "Select how aggressively PurrfectSnap pushes app-wide performance tuning"
+                                "description": "Select how aggressively Purrfect pushes app-wide performance tuning"
                             }
                         }
                     },
@@ -2525,7 +2529,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Composer Logs",
-                                        "description": "Redirects console logs of Composer to PurrfectSnap"
+                                        "description": "Redirects console logs of Composer to Purrfect"
                                     }
                                 }
                             },
@@ -3111,7 +3115,7 @@
                             },
                             "hide_conversation_toolbox_ui": {
                                 "name": "Hide Conversation Toolbox UI",
-                                "description": "Hides the PurrfectSnap conversation toolbox button that appears in Snapchat when End-To-End Encryption is enabled"
+                                "description": "Hides the Purrfect conversation toolbox button that appears in Snapchat when End-To-End Encryption is enabled"
                             }
                         }
                     },
@@ -3139,7 +3143,7 @@
             },
             "scripting": {
                 "name": "Scripting",
-                "description": "Run custom scripts to extend PurrfectSnap",
+                "description": "Run custom scripts to extend Purrfect",
                 "properties": {
                     "developer_mode": {
                         "name": "Developer Mode",
@@ -3204,7 +3208,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Reload Snapchat only",
-                "all": "Reload Snapchat + PurrfectSnap",
+                "all": "Reload Snapchat + Purrfect",
                 "null": "Default"
             },
             "walk_radius": {
@@ -3264,7 +3268,7 @@
             },
             "chat_hold_kill_actions": {
                 "kill_snapchat": "Kill Snapchat",
-                "kill_purrfectsnap": "Kill PurrfectSnap"
+                "kill_purrfect": "Kill Purrfect"
             },
             "path_format": {
                 "create_author_folder": "Create folder for each author",
@@ -4774,9 +4778,9 @@
     "toast_init_script_runtime_failed": "Failed to initialize script runtime!",
     "toast_database_corrupted": "Database {path} is corrupted! Restarting ...",
     "toast_feature_init_failed": "Failed to init feature {feature}! Check logcat for more details.",
-    "toast_updating_purrfectsnap": "Updating PurrfectSnap. Please wait...",
-    "toast_update_purrfectsnap_failed": "Failed to update PurrfectSnap. Please check logcat for more details.",
-    "toast_purrfectsnap_updated": "PurrfectSnap updated!",
+    "toast_updating_purrfect": "Updating Purrfect. Please wait...",
+    "toast_update_purrfect_failed": "Failed to update Purrfect. Please check logcat for more details.",
+    "toast_purrfect_updated": "Purrfect updated!",
     "toast_export_memories_failed": "Failed to export memories",
     "toast_exported_to_path": "Exported to {path}",
     "toast_open_memories_db_failed": "Failed to open memories database",

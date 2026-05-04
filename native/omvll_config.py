@@ -43,7 +43,7 @@ def _parse_settings() -> Dict[str, List[str] | Optional[int]]:
     return settings
 
 
-class PurrfectSnapConfig(omvll.ObfuscationConfig):
+class PurrfectConfig(omvll.ObfuscationConfig):
     def __init__(self, settings: Dict[str, List[str] | Optional[int]]):
         super().__init__()
         self._targets = set(settings.get("functions") or [])
@@ -80,4 +80,4 @@ class PurrfectSnapConfig(omvll.ObfuscationConfig):
 @lru_cache(maxsize=1)
 def omvll_get_config() -> omvll.ObfuscationConfig:
     """Return an instance of the obfuscation configuration used by O-MVLL."""
-    return PurrfectSnapConfig(_parse_settings())
+    return PurrfectConfig(_parse_settings())

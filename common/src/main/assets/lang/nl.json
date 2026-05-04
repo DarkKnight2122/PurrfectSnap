@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Ik begrijp het ({seconds}s)",
             "important_confirm": "Ik begrijp het",
             "important_title": "Belangrijk!",
-            "important_message": "Als je SnapEnhance of een andere mod naast PurrfectSnap hebt gebruikt, raden we aan alles te verwijderen en een week op de standaard Snapchat te blijven. Stap daarna, na aanstaande vrijdag, over op PurrfectSnap.",
-            "language_subtitle": "Stel PurrfectSnap in op jouw taal voordat je iets anders doet.",
+            "important_message": "Als je SnapEnhance of een andere mod naast Purrfect hebt gebruikt, raden we aan alles te verwijderen en een week op de standaard Snapchat te blijven. Stap daarna, na aanstaande vrijdag, over op Purrfect.",
+            "language_subtitle": "Stel Purrfect in op jouw taal voordat je iets anders doet.",
             "install_mode_title": "Kies je apparaat",
-            "install_mode_subtitle": "Kies het pad dat past bij hoe je PurrfectSnap gaat installeren.",
+            "install_mode_subtitle": "Kies het pad dat past bij hoe je Purrfect gaat installeren.",
             "permissions_subtitle": "Verleen de essentiële rechten zodat overlays, downloads en meldingen betrouwbaar blijven.",
             "patch_title": "Auto Patcher",
             "patch_subtitle": "Gestroomlijnd downloaden, patchen en installeren in één keer.",
@@ -37,12 +37,12 @@
             "notice_title": "Let op!",
             "notice_intro": "Selecteer het type apparaat dat je hebt: geroot of niet-geroot. Als je het niet zeker weet, kies dan Niet-geroot en ga verder.",
             "notice_non_root_title": "Niet-geroote apparaten",
-            "notice_non_root_body": "Selecteer Niet-geroot en de app regelt alles. Tik op 'Gepatched Snapchat installeren' wanneer dit verschijnt. Open Snapchat na installatie nog niet. Ga verder met de PurrfectSnap-installatie; zodra deze klaar is, kun je Snapchat openen en genieten.",
+            "notice_non_root_body": "Selecteer Niet-geroot en de app regelt alles. Tik op 'Gepatched Snapchat installeren' wanneer dit verschijnt. Open Snapchat na installatie nog niet. Ga verder met de Purrfect-installatie; zodra deze klaar is, kun je Snapchat openen en genieten.",
             "notice_root_title": "Geroote apparaten",
-            "notice_root_body": "Zorg ervoor dat je eerst LSPosed hebt geflasht. We raden JingMatrix LSPosed of LSPosed Irena aan. Nadat je Root hebt geselecteerd, installeert de app de aanbevolen Snapchat-versie. Open deze nog niet; ga verder met de PurrfectSnap-installatie. Wanneer de installatie klaar is, schakel je PurrfectSnap in LSPosed in en herstart je je telefoon. Begin daarna met het gebruik van Snapchat. We raden ten zeerste aan Snapchat los te koppelen van de Play Store met de Zygisk Detach-module om automatische updates te voorkomen.",
+            "notice_root_body": "Zorg ervoor dat je eerst LSPosed hebt geflasht. We raden JingMatrix LSPosed of LSPosed Irena aan. Nadat je Root hebt geselecteerd, installeert de app de aanbevolen Snapchat-versie. Open deze nog niet; ga verder met de Purrfect-installatie. Wanneer de installatie klaar is, schakel je Purrfect in LSPosed in en herstart je je telefoon. Begin daarna met het gebruik van Snapchat. We raden ten zeerste aan Snapchat los te koppelen van de Play Store met de Zygisk Detach-module om automatische updates te voorkomen.",
             "notice_issues_hint": "Als je installatieproblemen tegenkomt, verschijnt de oplossing hier. Lees het zorgvuldig.",
             "notice_note_prefix": "Opmerking: ",
-            "notice_note_body": "Nieuwe accounts worden snel vergrendeld! Het wordt aanbevolen om een ouder account te gebruiken met PurrfectSnap.",
+            "notice_note_body": "Nieuwe accounts worden snel vergrendeld! Het wordt aanbevolen om een ouder account te gebruiken met Purrfect.",
             "step_title": "Kies je apparaat",
             "step_subtitle": "Als je het niet weet, selecteer dan Niet-geroot apparaat en ga verder.",
             "root_option_title": "Geroot apparaat",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Mappings genereren...",
-            "generate_failure_no_snapchat": "PurrfectSnap kon Snapchat niet detecteren, probeer Snapchat opnieuw te installeren.",
+            "generate_failure_no_snapchat": "Purrfect kon Snapchat niet detecteren, probeer Snapchat opnieuw te installeren.",
             "generate_failure": "Er is een fout opgetreden bij het genereren van mappings, probeer het opnieuw.",
             "confirm_understand_timeout": "Ik begrijp het ({seconds}s)",
             "confirm_understand": "Ik begrijp het",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Als het nog steeds mislukt, tik dan herhaaldelijk op de inlogknop. Dit werkt meestal voor de volgende stap.",
             "notice_step_3": "3. Als het nog steeds mislukt, wis dan de gegevens van Snapchat, schakel eventuele VPN's uit en log opnieuw in.",
             "notice_rooted_title": "Voor geroote gebruikers:",
-            "notice_rooted_body": "Heropen Snapchat en log in. Als het nog steeds mislukt, schakel PurrfectSnap uit in LSPosed, log in en schakel PurrfectSnap vervolgens weer in.",
+            "notice_rooted_body": "Heropen Snapchat en log in. Als het nog steeds mislukt, schakel Purrfect uit in LSPosed, log in en schakel Purrfect vervolgens weer in.",
             "warnings_info": "{count} waarschuwing(en) opgetreden tijdens het genereren van mappings:\n\n{warnings}",
             "progress_hint": "Dit duurt maar even. Houd de app open terwijl de magie gebeurt!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Oplossing: Download Snapchat uit de Play Store en verwijder het zonder gegevens te behouden. Voer Auto Patcher opnieuw uit. Als het nog steeds niet werkt, voer uit:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Probleem: App niet geïnstalleerd omdat het pakket ongeldig lijkt.",
-            "issues_invalid_fix": "Oplossing: Download en installeer JingMatrix LSPatch, patch vervolgens een Snapchat-versie (willekeurig) uit dit bereik, d.w.z. tussen 13.65.1.0 en 13.71.0.51, in Integrated-modus. Selecteer Embed Modules en sluit de PurrfectSnap APK in. Kies vervolgens 'Automatische installatie overslaan' tijdens de PurrfectSnap-setup om Auto Patcher over te slaan.",
+            "issues_invalid_fix": "Oplossing: Download en installeer JingMatrix LSPatch, patch vervolgens een Snapchat-versie (willekeurig) uit dit bereik, d.w.z. tussen 13.65.1.0 en 13.71.0.51, in Integrated-modus. Selecteer Embed Modules en sluit de Purrfect APK in. Kies vervolgens 'Automatische installatie overslaan' tijdens de Purrfect-setup om Auto Patcher over te slaan.",
             "status_downloading": "Snapchat downloaden {percent}%",
             "status_patching": "Patchen...",
             "status_initializing": "Initialiseren...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Huidige selectie",
             "browse_languages": "Talen doorbladeren",
-            "change_anytime_hint": "Je kunt dit op elk moment wijzigen in de PurrfectSnap-instellingen.",
+            "change_anytime_hint": "Je kunt dit op elk moment wijzigen in de Purrfect-instellingen.",
             "available_languages": "Beschikbare talen"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Mapkiezer niet beschikbaar",
             "no_picker_message": "Sommige gekloonde/dual-app omgevingen blokkeren de systeemmapkiezer. Je kunt doorgaan met de standaard opslaglocatie van het systeem, of de app openen buiten de kloonmodus om een aangepaste map te selecteren.",
             "use_default_button": "Gebruik standaard",
-            "permission_hint": "PurrfectSnap heeft opslagrechten nodig om media van Snapchat te downloaden en op te slaan."
+            "permission_hint": "Purrfect heeft opslagrechten nodig om media van Snapchat te downloaden en op te slaan."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 door ΞTΞRNAL",
-                "update_title": "PurrfectSnap Update",
+                "update_title": "Purrfect Update",
                 "update_content": "Versie {version} is beschikbaar!",
                 "update_button": "Downloaden",
                 "hero_tagline": "Een Xposed-module bedoeld om je Snapchat-ervaring te verbeteren",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Download voltooid",
                 "update_install_failed_toast": "Update installeren mislukt. Controleer logs voor meer details.",
                 "update_download_failed_toast": "Download mislukt: {error}",
-                "debug_build_summary_title": "Je draait een debug-build van PurrfectSnap",
+                "debug_build_summary_title": "Je draait een debug-build van Purrfect",
                 "debug_build_summary_content": "Versie {versionName} ({versionCode})",
                 "debug_build_summary_date": "Build-datum: {date} ({days} dagen geleden)",
                 "quick_actions_title": "Snelle acties",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Aankondigingen niet beschikbaar"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Een Xposed-module bedoeld om je Snapchat-ervaring te verbeteren!",
                 "about_lead_developers_title": "Hoofdontwikkelaars",
                 "about_story_title": "Ons Verhaal",
-                "about_story": "PurrfectSnap is opgericht op 2 oktober 2025 als een fork van SnapEnhance door ΞTΞRNAL met een visie om gebruikers de kwalitatieve Snapchat-ervaring te bieden die ze verdienen. Deze app was slechts bedoeld als een kleine update in de SnapEnhance-repository, maar werd al snel een aparte app waarin de bijdragers functies bleven toevoegen. Toen sloot ontwikkelaar <RSR/> zich aan bij het team, en deze app werd al snel een enorm succes. We kregen veel liefde en steun en behaalden 1K+ downloads in slechts twee dagen! We danken alle gebruikers en bijdragers; zonder jullie steun hadden we deze plek niet bereikt. We willen ook onze grote dank betuigen aan rhunk, de hoofdontwikkelaar van SnapEnhance, want zonder hem zou deze app niet eens bestaan. We zijn hem enorm dankbaar. Ten slotte willen we al onze admins bedanken, met name: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, die er vanaf het allereerste begin bij waren. We willen ook alle testers bedanken, met name Leo & Toxic, die continu testten en bugs rapporteerden. We zijn enorm dankbaar voor jullie bijdrage.",
-                "about_thanks_title": "Met liefde, PurrfectSnap Team",
+                "about_story": "Purrfect is opgericht op 2 oktober 2025 als een fork van SnapEnhance door ΞTΞRNAL met een visie om gebruikers de kwalitatieve Snapchat-ervaring te bieden die ze verdienen. Deze app was slechts bedoeld als een kleine update in de SnapEnhance-repository, maar werd al snel een aparte app waarin de bijdragers functies bleven toevoegen. Toen sloot ontwikkelaar <RSR/> zich aan bij het team, en deze app werd al snel een enorm succes. We kregen veel liefde en steun en behaalden 1K+ downloads in slechts twee dagen! We danken alle gebruikers en bijdragers; zonder jullie steun hadden we deze plek niet bereikt. We willen ook onze grote dank betuigen aan rhunk, de hoofdontwikkelaar van SnapEnhance, want zonder hem zou deze app niet eens bestaan. We zijn hem enorm dankbaar. Ten slotte willen we al onze admins bedanken, met name: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, die er vanaf het allereerste begin bij waren. We willen ook alle testers bedanken, met name Leo & Toxic, die continu testten en bugs rapporteerden. We zijn enorm dankbaar voor jullie bijdrage.",
+                "about_thanks_title": "Met liefde, Purrfect Team",
                 "about_magic_toast": "Tik 5 keer op dit scherm om wat magie te zien 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Updates",
                 "update_notification_channel_description": "Ontvang een melding wanneer nieuwe releases beschikbaar zijn",
                 "update_notification_title": "Nieuwe update beschikbaar",
-                "update_notification_text": "Tik om PurrfectSnap te openen en de nieuwste build te downloaden.",
+                "update_notification_text": "Tik om Purrfect te openen en de nieuwste build te downloaden.",
                 "app_theme_title": "App-thema",
                 "theme_icon_description": "Themakiezer openen",
                 "theme_mode_system": "Systeem",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Onderste balk aanpassen",
                 "customize_bottom_bar_subtitle": "Kies welke tabbladen op je startscherm worden weergegeven",
                 "available_tabs_title": "Beschikbare tabbladen",
-                "reset_setup_title": "PurrfectSnap resetten",
+                "reset_setup_title": "Purrfect resetten",
                 "reset_setup_action": "Resetten en setup herstarten",
                 "reset_setup_dialog_title": "Weet je het zeker?",
-                "reset_setup_dialog_text": "Dit zal PurrfectSnap resetten en de setup herstarten.",
+                "reset_setup_dialog_text": "Dit zal Purrfect resetten en de setup herstarten.",
                 "reset_button": "Resetten",
                 "done_button": "Gereed",
                 "clear_friend_feed": "Vriendenfeed wissen",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Waarschuwing",
-                "content": "PurrfectSnap bevat een scriptingtool waarmee gebruikersgedefinieerde code op je apparaat kan worden uitgevoerd. Wees uiterst voorzichtig en installeer alleen modules van bekende, betrouwbare bronnen. Ongeautoriseerde of niet-geverifieerde modules kunnen veiligheidsrisico's voor je systeem vormen."
+                "content": "Purrfect bevat een scriptingtool waarmee gebruikersgedefinieerde code op je apparaat kan worden uitgevoerd. Wees uiterst voorzichtig en installeer alleen modules van bekende, betrouwbare bronnen. Ongeautoriseerde of niet-geverifieerde modules kunnen veiligheidsrisico's voor je systeem vormen."
             },
             "reset_config": {
                 "title": "Configuratie resetten",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Taal wijzigen",
-            "description": "Wijzig de taal van PurrfectSnap"
+            "description": "Wijzig de taal van Purrfect"
         },
         "file_imports": {
             "name": "Bestandsimport",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Composer Logs",
-                                        "description": "Stuurt console-logs van Composer door naar PurrfectSnap"
+                                        "description": "Stuurt console-logs van Composer door naar Purrfect"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Scripting",
-                "description": "Voer aangepaste scripts uit om PurrfectSnap uit te breiden",
+                "description": "Voer aangepaste scripts uit om Purrfect uit te breiden",
                 "properties": {
                     "developer_mode": {
                         "name": "Ontwikkelaarsmodus",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Alleen Snapchat herladen",
-                "all": "Snapchat + PurrfectSnap herladen",
+                "all": "Snapchat + Purrfect herladen",
                 "null": "Standaard"
             },
             "walk_radius": {
@@ -3579,9 +3579,9 @@
     "toast_init_script_runtime_failed": "Kon script-runtime niet initialiseren!",
     "toast_database_corrupted": "Database {path} is beschadigd! Herstarten...",
     "toast_feature_init_failed": "Kon functie {feature} niet initialiseren! Controleer logcat voor meer details.",
-    "toast_updating_purrfectsnap": "PurrfectSnap updaten. Even geduld...",
-    "toast_update_purrfectsnap_failed": "Kon PurrfectSnap niet updaten. Controleer logcat voor meer details.",
-    "toast_purrfectsnap_updated": "PurrfectSnap geüpdatet!",
+    "toast_updating_purrfect": "Purrfect updaten. Even geduld...",
+    "toast_update_purrfect_failed": "Kon Purrfect niet updaten. Controleer logcat voor meer details.",
+    "toast_purrfect_updated": "Purrfect geüpdatet!",
     "toast_export_memories_failed": "Kon herinneringen niet exporteren",
     "toast_exported_to_path": "Geëxporteerd naar {path}",
     "toast_open_memories_db_failed": "Kon herinneringendatabase niet openen",

@@ -103,7 +103,7 @@ pub fn jni_verify_key(key: &str) -> jboolean {
 fn get_library_path() -> Option<String> {
     let maps = std::fs::read_to_string("/proc/self/maps").ok()?;
     for line in maps.lines() {
-        if line.ends_with("libpurrfectsnap.so") {
+        if line.ends_with("libpurrfect.so") {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() > 5 {
                 return Some(parts[5].to_string());

@@ -1,20 +1,20 @@
 <div align="center">
 
 <div align="center">
-  <img src="https://github.com/particle-box/PurrfectSnap/blob/dev/banner.jpg" alt="PurrfectSnap" width="100%"/>
+  <img src="https://github.com/particle-box/Purrfect/blob/dev/banner.jpg" alt="Purrfect" width="100%"/>
 </div>
 
 
 
-# PurrfectSnap
+# Purrfect
 
 ### An Xposed module meant to redefine your Snapchat experience! Works on both non-rooted and rooted devices!
 
 <br>
 
-[![Release](https://img.shields.io/github/v/release/particle-box/PurrfectSnap?include_prereleases&style=for-the-badge&color=cba6f7&labelColor=1e1e2e)](https://github.com/particle-box/PurrfectSnap/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/particle-box/PurrfectSnap/total?style=for-the-badge&color=f5bde6&labelColor=1e1e2e)](https://github.com/particle-box/PurrfectSnap/releases)
-[![License](https://img.shields.io/badge/License-GPL_3.0-f5a97f?style=for-the-badge&labelColor=1e1e2e)](https://github.com/particle-box/PurrfectSnap/blob/dev/LICENSE)
+[![Release](https://img.shields.io/github/v/release/particle-box/Purrfect?include_prereleases&style=for-the-badge&color=cba6f7&labelColor=1e1e2e)](https://github.com/particle-box/Purrfect/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/particle-box/Purrfect/total?style=for-the-badge&color=f5bde6&labelColor=1e1e2e)](https://github.com/particle-box/Purrfect/releases)
+[![License](https://img.shields.io/badge/License-GPL_3.0-f5a97f?style=for-the-badge&labelColor=1e1e2e)](https://github.com/particle-box/Purrfect/blob/dev/LICENSE)
 
 [Installation](#installation) • [Features](#features) • [Build](#build-from-source) • [Community](#community)
 
@@ -26,7 +26,7 @@
 
 ## Overview
 
-PurrfectSnap is built on the foundation of SnapEnhance, pushing boundaries with innovative features and a refined user experience. This isn't just another fork; it's a complete reimagining of what's possible.
+Purrfect is built on the foundation of SnapEnhance, pushing boundaries with innovative features and a refined user experience. This isn't just another fork; it's a complete reimagining of what's possible.
 
 We're committed to active development, bringing you powerful tools that actually matter. Every feature is designed with real users in mind, not just for the sake of adding to a feature list.
 
@@ -42,7 +42,7 @@ No aggressive donation requests. No minimal changes disguised as “major update
 
 ## Features
 
-PurrfectSnap offers deep control across media, privacy, automation, and UI:designed for both casual users and power users.
+Purrfect offers deep control across media, privacy, automation, and UI:designed for both casual users and power users.
 
 <table>
 <tr>
@@ -223,7 +223,7 @@ Extensibility through custom scripts.
 ## Installation
 
 The guide is no longer needed!  
-Just download and install PurrfectSnap from [here](https://github.com/particle-box/PurrfectSnap/releases). The app automatically detects your device type and applies the appropriate setup.
+Just download and install Purrfect from [here](https://github.com/particle-box/Purrfect/releases). The app automatically detects your device type and applies the appropriate setup.
 
 <br>
 
@@ -235,7 +235,7 @@ Just download and install PurrfectSnap from [here](https://github.com/particle-b
 
 Questions? Ideas? Found a bug? Our community is active and responsive.
 
-**[Telegram Channel](https://t.me/purrfectsnap_official)** : Announcements, discussions, and support
+**[Telegram Channel](https://t.me/purrfect_official)** : Announcements, discussions, and support
 **For the discussions group link, refer to the description of the channel!**
 
 <br>
@@ -259,9 +259,9 @@ Create a signing keystore (`.jks`) and keep it secure:
 
 ```bash
 keytool -genkeypair -v \
-  -keystore purrfectsnap-release.keystore \
+  -keystore purrfect-release.keystore \
   -storetype JKS \
-  -alias purrfectsnap \
+  -alias purrfect \
   -keyalg RSA \
   -keysize 2048 \
   -validity 10000
@@ -271,7 +271,7 @@ Optional local placement for Gradle signing:
 
 ```bash
 mkdir -p ~/.android
-cp purrfectsnap-release.keystore ~/.android/purrfectsnap-release.keystore
+cp purrfect-release.keystore ~/.android/purrfect-release.keystore
 ```
 
 ### 3) Convert Keystore to Base64
@@ -281,13 +281,13 @@ For GitHub Actions secret `PS_BASE_64`:
 Linux/macOS:
 
 ```bash
-base64 -w 0 purrfectsnap-release.keystore > keystore.base64
+base64 -w 0 purrfect-release.keystore > keystore.base64
 ```
 
 PowerShell (Windows):
 
 ```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("purrfectsnap-release.keystore")) | Set-Content -NoNewline keystore.base64
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("purrfect-release.keystore")) | Set-Content -NoNewline keystore.base64
 ```
 
 ### 4) Add Required GitHub Secrets (Your Fork)
@@ -298,14 +298,14 @@ Go to:
 Create these exact secrets (from `.github/workflows/release.yml`):
 
 - `PS_BASE_64` = contents of `keystore.base64`
-- `PS_RELEASE_KEY_ALIAS` = `purrfectsnap` (or your chosen alias)
+- `PS_RELEASE_KEY_ALIAS` = `purrfect` (or your chosen alias)
 - `PS_RELEASE_KEY_PASSWORD` = key password from `keytool`
 - `PS_RELEASE_STORE_PASSWORD` = keystore password from `keytool`
 
 ### 5) Run Release Workflow
 
 1. Open `Actions` in your fork.
-2. Run `PurrfectSnap Release CI` (`workflow_dispatch`).
+2. Run `Purrfect Release CI` (`workflow_dispatch`).
 3. Workflow builds and signs:
    - `armv8` release APK
    - `armv7` release APK
@@ -320,7 +320,7 @@ Create these exact secrets (from `.github/workflows/release.yml`):
 
 ## Credits
 
-PurrfectSnap is built with exceptional open source tools. We do not collect any user information. However, please be aware that third-party libraries may collect data as described in their respective privacy policies.
+Purrfect is built with exceptional open source tools. We do not collect any user information. However, please be aware that third-party libraries may collect data as described in their respective privacy policies.
 
 **Core Dependencies**
 - [SnapEnhance](https://github.com/rhunk/SnapEnhance) — The foundation

@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Saya mengerti ({seconds}d)",
             "important_confirm": "Saya mengerti",
             "important_title": "Penting!",
-            "important_message": "Jika Anda telah menggunakan SnapEnhance atau mod lain selain PurrfectSnap, kami sarankan untuk menghapus semuanya dan tetap menggunakan Snapchat bawaan selama satu minggu. Kemudian beralihlah ke PurrfectSnap setelah hari Jumat depan.",
-            "language_subtitle": "Atur PurrfectSnap agar berbicara dalam bahasa Anda sebelum hal lainnya.",
+            "important_message": "Jika Anda telah menggunakan SnapEnhance atau mod lain selain Purrfect, kami sarankan untuk menghapus semuanya dan tetap menggunakan Snapchat bawaan selama satu minggu. Kemudian beralihlah ke Purrfect setelah hari Jumat depan.",
+            "language_subtitle": "Atur Purrfect agar berbicara dalam bahasa Anda sebelum hal lainnya.",
             "install_mode_title": "Pilih perangkat Anda",
-            "install_mode_subtitle": "Pilih jalur yang sesuai dengan cara Anda menginstal PurrfectSnap.",
+            "install_mode_subtitle": "Pilih jalur yang sesuai dengan cara Anda menginstal Purrfect.",
             "permissions_subtitle": "Berikan izin dasar agar overlay, unduhan, dan peringatan tetap andal.",
             "patch_title": "Auto Patcher",
             "patch_subtitle": "Unduh, patch, dan instal dengan lancar dalam satu alur.",
@@ -37,12 +37,12 @@
             "notice_title": "Harap dicatat!",
             "notice_intro": "Pilih jenis perangkat yang Anda miliki: di-root (rooted) atau tidak di-root (non-rooted). Jika Anda tidak yakin, pilih Non-root dan lanjutkan.",
             "notice_non_root_title": "Perangkat non-root",
-            "notice_non_root_body": "Pilih Non-root dan aplikasi akan menangani semuanya. Ketuk Instal Snapchat yang Dipatch saat muncul. Setelah terinstal, jangan buka Snapchat dulu. Lanjutkan pengaturan PurrfectSnap; setelah selesai, Anda dapat membuka Snapchat dan menikmatinya.",
+            "notice_non_root_body": "Pilih Non-root dan aplikasi akan menangani semuanya. Ketuk Instal Snapchat yang Dipatch saat muncul. Setelah terinstal, jangan buka Snapchat dulu. Lanjutkan pengaturan Purrfect; setelah selesai, Anda dapat membuka Snapchat dan menikmatinya.",
             "notice_root_title": "Perangkat yang di-root",
-            "notice_root_body": "Pastikan Anda telah mem-flash LSPosed terlebih dahulu. Kami merekomendasikan JingMatrix LSPosed atau LSPosed Irena. Setelah Anda memilih Root, aplikasi akan menginstal versi Snapchat yang direkomendasikan. Jangan dibuka dulu; lanjutkan pengaturan PurrfectSnap. Saat pengaturan selesai, aktifkan PurrfectSnap di LSPosed dan reboot ponsel Anda. Kemudian mulai gunakan Snapchat. Kami sangat menyarankan untuk melepaskan (detach) Snapchat dari Play Store dengan modul Zygisk Detach untuk mencegah pembaruan otomatis.",
+            "notice_root_body": "Pastikan Anda telah mem-flash LSPosed terlebih dahulu. Kami merekomendasikan JingMatrix LSPosed atau LSPosed Irena. Setelah Anda memilih Root, aplikasi akan menginstal versi Snapchat yang direkomendasikan. Jangan dibuka dulu; lanjutkan pengaturan Purrfect. Saat pengaturan selesai, aktifkan Purrfect di LSPosed dan reboot ponsel Anda. Kemudian mulai gunakan Snapchat. Kami sangat menyarankan untuk melepaskan (detach) Snapchat dari Play Store dengan modul Zygisk Detach untuk mencegah pembaruan otomatis.",
             "notice_issues_hint": "Jika Anda mengalami masalah instalasi, solusinya akan muncul di sini. Harap baca dengan saksama.",
             "notice_note_prefix": "Catatan: ",
-            "notice_note_body": "Akun Baru mudah terkunci! Disarankan untuk menggunakan akun lama dengan PurrfectSnap.",
+            "notice_note_body": "Akun Baru mudah terkunci! Disarankan untuk menggunakan akun lama dengan Purrfect.",
             "step_title": "Pilih perangkat Anda",
             "step_subtitle": "Jika Anda tidak tahu, pilih perangkat Non-root dan lanjutkan.",
             "root_option_title": "Perangkat yang di-root",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Membuat Pemetaan...",
-            "generate_failure_no_snapchat": "PurrfectSnap tidak dapat mendeteksi Snapchat, coba instal ulang Snapchat.",
+            "generate_failure_no_snapchat": "Purrfect tidak dapat mendeteksi Snapchat, coba instal ulang Snapchat.",
             "generate_failure": "Terjadi kesalahan saat mencoba membuat pemetaan, silakan coba lagi.",
             "confirm_understand_timeout": "Saya mengerti ({seconds}d)",
             "confirm_understand": "Saya mengerti",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Jika masih gagal, ketuk tombol masuk berulang kali.",
             "notice_step_3": "3. Jika masih gagal, hapus data Snapchat, nonaktifkan VPN apa pun, dan masuk lagi.",
             "notice_rooted_title": "Untuk pengguna root:",
-            "notice_rooted_body": "Buka kembali Snapchat dan masuk. Jika masih gagal, nonaktifkan PurrfectSnap di LSPosed, masuk, lalu aktifkan kembali PurrfectSnap.",
+            "notice_rooted_body": "Buka kembali Snapchat dan masuk. Jika masih gagal, nonaktifkan Purrfect di LSPosed, masuk, lalu aktifkan kembali Purrfect.",
             "warnings_info": "{count} peringatan terjadi saat membuat pemetaan:\n\n{warnings}",
             "progress_hint": "Ini hanya butuh sesaat. Biarkan aplikasi tetap terbuka sementara keajaiban terjadi!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Perbaikan: Unduh Snapchat dari Play Store dan hapus instalasi tanpa menyimpan data. Jalankan Auto Patcher lagi. Jika masih tidak berhasil, jalankan:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Masalah: Aplikasi tidak terinstal karena paket tampaknya tidak valid.",
-            "issues_invalid_fix": "Perbaikan: Unduh dan instal JingMatrix LSPatch, lalu patch versi Snapchat (salah satu) dari rentang ini, yaitu antara 13.65.1.0 dan 13.71.0.51, dalam mode Terintegrasi. Pilih Sematkan Modul dan sematkan APK PurrfectSnap. Kemudian pilih Lewati pengaturan otomatis selama pengaturan PurrfectSnap untuk melewati Auto Patcher.",
+            "issues_invalid_fix": "Perbaikan: Unduh dan instal JingMatrix LSPatch, lalu patch versi Snapchat (salah satu) dari rentang ini, yaitu antara 13.65.1.0 dan 13.71.0.51, dalam mode Terintegrasi. Pilih Sematkan Modul dan sematkan APK Purrfect. Kemudian pilih Lewati pengaturan otomatis selama pengaturan Purrfect untuk melewati Auto Patcher.",
             "status_downloading": "Mengunduh Snapchat {percent}%",
             "status_patching": "Menambal (Patching)...",
             "status_initializing": "Menginisialisasi...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Pilihan saat ini",
             "browse_languages": "Jelajahi bahasa",
-            "change_anytime_hint": "Anda dapat mengubah ini kapan saja dari pengaturan PurrfectSnap.",
+            "change_anytime_hint": "Anda dapat mengubah ini kapan saja dari pengaturan Purrfect.",
             "available_languages": "Bahasa yang Tersedia"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Pemilih folder tidak tersedia",
             "no_picker_message": "Beberapa lingkungan aplikasi kloning/ganda memblokir pemilih folder sistem. Anda dapat terus menggunakan lokasi penyimpanan default sistem, atau buka aplikasi di luar mode kloning untuk memilih folder khusus.",
             "use_default_button": "Gunakan default",
-            "permission_hint": "PurrfectSnap memerlukan izin Penyimpanan untuk mengunduh dan Menyimpan Media dari Snapchat."
+            "permission_hint": "Purrfect memerlukan izin Penyimpanan untuk mengunduh dan Menyimpan Media dari Snapchat."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 oleh ΞTΞRNAL",
-                "update_title": "Pembaruan PurrfectSnap",
+                "update_title": "Pembaruan Purrfect",
                 "update_content": "Versi {version} tersedia!",
                 "update_button": "Unduh",
                 "hero_tagline": "Modul Xposed yang dimaksudkan untuk meningkatkan pengalaman Snapchat Anda",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Unduhan selesai",
                 "update_install_failed_toast": "Gagal menginstal pembaruan. Periksa log untuk detail lebih lanjut.",
                 "update_download_failed_toast": "Unduhan gagal: {error}",
-                "debug_build_summary_title": "Anda menjalankan versi debug PurrfectSnap",
+                "debug_build_summary_title": "Anda menjalankan versi debug Purrfect",
                 "debug_build_summary_content": "Versi {versionName} ({versionCode})",
                 "debug_build_summary_date": "Tanggal build: {date} ({days} hari yang lalu)",
                 "quick_actions_title": "Tindakan Cepat",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Pengumuman tidak tersedia"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Modul Xposed yang dimaksudkan untuk meningkatkan pengalaman Snapchat Anda!",
                 "about_lead_developers_title": "Pengembang Utama",
                 "about_story_title": "Cerita Kami",
-                "about_story": "PurrfectSnap didirikan pada tanggal 2 Oktober 2025, sebagai percabangan (fork) dari SnapEnhance oleh ΞTΞRNAL dengan visi untuk memberikan pengalaman Snapchat berkualitas yang layak didapatkan pengguna. Aplikasi ini awalnya hanya dimaksudkan sebagai pembaruan kecil di repositori SnapEnhance, tetapi segera menjadi aplikasi terpisah di mana para kontributor terus menambahkan fitur. Kemudian pengembang <RSR/> bergabung dengan tim, dan aplikasi ini segera menjadi sukses besar. Kami menerima banyak cinta dan dukungan serta memperoleh 1K+ unduhan hanya dalam dua hari! Kami berterima kasih kepada semua pengguna dan kontributor; tanpa dukungan Anda, kami tidak akan mencapai tempat ini. Kami juga ingin menyampaikan terima kasih yang sebesar-besarnya kepada rhunk, pengembang utama SnapEnhance, karena tanpanya, aplikasi ini bahkan tidak akan ada. Kami sangat berterima kasih padanya. Terakhir, kami ingin berterima kasih kepada semua admin kami, terutama: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, yang selalu bersama kami sejak awal. Kami juga ingin berterima kasih kepada semua penguji, terutama Leo & Toxic, yang terus menguji dan melaporkan bug. Kami sangat berterima kasih atas kontribusi Anda.",
-                "about_thanks_title": "Dengan cinta, Tim PurrfectSnap",
+                "about_story": "Purrfect didirikan pada tanggal 2 Oktober 2025, sebagai percabangan (fork) dari SnapEnhance oleh ΞTΞRNAL dengan visi untuk memberikan pengalaman Snapchat berkualitas yang layak didapatkan pengguna. Aplikasi ini awalnya hanya dimaksudkan sebagai pembaruan kecil di repositori SnapEnhance, tetapi segera menjadi aplikasi terpisah di mana para kontributor terus menambahkan fitur. Kemudian pengembang <RSR/> bergabung dengan tim, dan aplikasi ini segera menjadi sukses besar. Kami menerima banyak cinta dan dukungan serta memperoleh 1K+ unduhan hanya dalam dua hari! Kami berterima kasih kepada semua pengguna dan kontributor; tanpa dukungan Anda, kami tidak akan mencapai tempat ini. Kami juga ingin menyampaikan terima kasih yang sebesar-besarnya kepada rhunk, pengembang utama SnapEnhance, karena tanpanya, aplikasi ini bahkan tidak akan ada. Kami sangat berterima kasih padanya. Terakhir, kami ingin berterima kasih kepada semua admin kami, terutama: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, yang selalu bersama kami sejak awal. Kami juga ingin berterima kasih kepada semua penguji, terutama Leo & Toxic, yang terus menguji dan melaporkan bug. Kami sangat berterima kasih atas kontribusi Anda.",
+                "about_thanks_title": "Dengan cinta, Tim Purrfect",
                 "about_magic_toast": "Ketuk 5 kali di layar ini untuk melihat keajaiban 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Pembaruan",
                 "update_notification_channel_description": "Dapatkan notifikasi saat rilis baru tersedia",
                 "update_notification_title": "Pembaruan baru tersedia",
-                "update_notification_text": "Ketuk untuk membuka PurrfectSnap dan mengunduh build terbaru.",
+                "update_notification_text": "Ketuk untuk membuka Purrfect dan mengunduh build terbaru.",
                 "app_theme_title": "Tema Aplikasi",
                 "theme_icon_description": "Buka pemilih tema",
                 "theme_mode_system": "Sistem",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Kustomisasi Bar Bawah",
                 "customize_bottom_bar_subtitle": "Pilih tab mana yang ditampilkan di layar beranda Anda",
                 "available_tabs_title": "Tab Tersedia",
-                "reset_setup_title": "Reset PurrfectSnap",
+                "reset_setup_title": "Reset Purrfect",
                 "reset_setup_action": "Reset dan mulai ulang pengaturan",
                 "reset_setup_dialog_title": "Apakah Anda yakin?",
-                "reset_setup_dialog_text": "Ini akan mereset PurrfectSnap dan memulai ulang pengaturan.",
+                "reset_setup_dialog_text": "Ini akan mereset Purrfect dan memulai ulang pengaturan.",
                 "reset_button": "Reset",
                 "done_button": "Selesai",
                 "clear_friend_feed": "Bersihkan Feed Teman",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Peringatan",
-                "content": "PurrfectSnap menyertakan alat scripting, yang memungkinkan eksekusi kode yang ditentukan pengguna di perangkat Anda. Gunakan dengan sangat hati-hati dan hanya instal modul dari sumber yang dikenal dan dapat dipercaya. Modul yang tidak sah atau tidak diverifikasi dapat menimbulkan risiko keamanan bagi sistem Anda."
+                "content": "Purrfect menyertakan alat scripting, yang memungkinkan eksekusi kode yang ditentukan pengguna di perangkat Anda. Gunakan dengan sangat hati-hati dan hanya instal modul dari sumber yang dikenal dan dapat dipercaya. Modul yang tidak sah atau tidak diverifikasi dapat menimbulkan risiko keamanan bagi sistem Anda."
             },
             "reset_config": {
                 "title": "Reset konfigurasi",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Ubah Bahasa",
-            "description": "Ubah bahasa PurrfectSnap"
+            "description": "Ubah bahasa Purrfect"
         },
         "file_imports": {
             "name": "Impor File",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Log Komposer",
-                                        "description": "Mengarahkan log konsol Composer ke PurrfectSnap"
+                                        "description": "Mengarahkan log konsol Composer ke Purrfect"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Scripting",
-                "description": "Jalankan skrip kustom untuk memperluas PurrfectSnap",
+                "description": "Jalankan skrip kustom untuk memperluas Purrfect",
                 "properties": {
                     "developer_mode": {
                         "name": "Mode Pengembang",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Muat ulang Snapchat saja",
-                "all": "Muat ulang Snapchat + PurrfectSnap",
+                "all": "Muat ulang Snapchat + Purrfect",
                 "null": "Default"
             },
             "walk_radius": {
@@ -3580,9 +3580,9 @@
     "toast_init_script_runtime_failed": "Gagal menginisialisasi runtime skrip!",
     "toast_database_corrupted": "Basis data {path} rusak! Memulai ulang...",
     "toast_feature_init_failed": "Gagal menginisialisasi fitur {feature}! Periksa logcat untuk detail lebih lanjut.",
-    "toast_updating_purrfectsnap": "Memperbarui PurrfectSnap. Harap tunggu...",
-    "toast_update_purrfectsnap_failed": "Gagal memperbarui PurrfectSnap. Silakan periksa logcat untuk detail lebih lanjut.",
-    "toast_purrfectsnap_updated": "PurrfectSnap diperbarui!",
+    "toast_updating_purrfect": "Memperbarui Purrfect. Harap tunggu...",
+    "toast_update_purrfect_failed": "Gagal memperbarui Purrfect. Silakan periksa logcat untuk detail lebih lanjut.",
+    "toast_purrfect_updated": "Purrfect diperbarui!",
     "toast_export_memories_failed": "Gagal mengekspor memories",
     "toast_exported_to_path": "Diekspor ke {path}",
     "toast_open_memories_db_failed": "Gagal membuka basis data memories",

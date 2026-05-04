@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Es saprotu ({seconds}s)",
             "important_confirm": "Es saprotu",
             "important_title": "Svarīgi!",
-            "important_message": "Ja esat izmantojis SnapEnhance vai jebkuru citu modifikāciju, izņemot PurrfectSnap, mēs iesakām atinstalēt visu un palikt pie parastā Snapchat vienu nedēļu. Pēc nākamās piektdienas pārejiet uz PurrfectSnap.",
-            "language_subtitle": "Pielāgojiet PurrfectSnap savai valodai, pirms darāt ko citu.",
+            "important_message": "Ja esat izmantojis SnapEnhance vai jebkuru citu modifikāciju, izņemot Purrfect, mēs iesakām atinstalēt visu un palikt pie parastā Snapchat vienu nedēļu. Pēc nākamās piektdienas pārejiet uz Purrfect.",
+            "language_subtitle": "Pielāgojiet Purrfect savai valodai, pirms darāt ko citu.",
             "install_mode_title": "Izvēlieties savu ierīci",
-            "install_mode_subtitle": "Izvēlieties ceļu, kas atbilst tam, kā instalēsiet PurrfectSnap.",
+            "install_mode_subtitle": "Izvēlieties ceļu, kas atbilst tam, kā instalēsiet Purrfect.",
             "permissions_subtitle": "Piešķiriet nepieciešamās atļaujas, lai pārklājumi, lejupielādes un brīdinājumi darbotos uzticami.",
             "patch_title": "Automātiskā ielāpošana",
             "patch_subtitle": "Vienkāršota lejupielāde, ielāpošana un instalēšana vienā plūsmā.",
@@ -37,12 +37,12 @@
             "notice_title": "Lūdzu, ņemiet vērā!",
             "notice_intro": "Izvēlieties ierīces veidu: root-ota vai bez root. Ja neesat pārliecināts, izvēlieties Bez root un turpiniet.",
             "notice_non_root_title": "Ierīces bez root",
-            "notice_non_root_body": "Izvēlieties Bez root, un lietotne parūpēsies par visu. Pieskarieties Instalēt ielāpoto Snapchat, kad tas parādās. Pēc instalēšanas vēl neatveriet Snapchat. Turpiniet PurrfectSnap iestatīšanu; kad tā beigsies, varat atvērt Snapchat un baudīt.",
+            "notice_non_root_body": "Izvēlieties Bez root, un lietotne parūpēsies par visu. Pieskarieties Instalēt ielāpoto Snapchat, kad tas parādās. Pēc instalēšanas vēl neatveriet Snapchat. Turpiniet Purrfect iestatīšanu; kad tā beigsies, varat atvērt Snapchat un baudīt.",
             "notice_root_title": "Root-otas ierīces",
-            "notice_root_body": "Pārliecinieties, vai vispirms esat uzinstalējis (flashed) LSPosed. Mēs iesakām JingMatrix LSPosed vai LSPosed Irena. Pēc tam, kad izvēlēsieties Root, lietotne instalēs ieteicamo Snapchat versiju. Vēl neatveriet to; turpiniet PurrfectSnap iestatīšanu. Kad iestatīšana pabeigta, iespējojiet PurrfectSnap iekš LSPosed un pārstartējiet tālruni. Tad sāciet lietot Snapchat. Mēs ļoti iesakām atsaistīt Snapchat no Play veikala, izmantojot Zygisk Detach moduli, lai novērstu automātisku atjaunināšanu.",
+            "notice_root_body": "Pārliecinieties, vai vispirms esat uzinstalējis (flashed) LSPosed. Mēs iesakām JingMatrix LSPosed vai LSPosed Irena. Pēc tam, kad izvēlēsieties Root, lietotne instalēs ieteicamo Snapchat versiju. Vēl neatveriet to; turpiniet Purrfect iestatīšanu. Kad iestatīšana pabeigta, iespējojiet Purrfect iekš LSPosed un pārstartējiet tālruni. Tad sāciet lietot Snapchat. Mēs ļoti iesakām atsaistīt Snapchat no Play veikala, izmantojot Zygisk Detach moduli, lai novērstu automātisku atjaunināšanu.",
             "notice_issues_hint": "Ja rodas instalēšanas problēmas, risinājums parādīsies šeit. Lūdzu, izlasiet to uzmanīgi.",
             "notice_note_prefix": "Piezīme: ",
-            "notice_note_body": "Jauni konti viegli tiek bloķēti! Ar PurrfectSnap ieteicams izmantot vecāku kontu.",
+            "notice_note_body": "Jauni konti viegli tiek bloķēti! Ar Purrfect ieteicams izmantot vecāku kontu.",
             "step_title": "Izvēlieties savu ierīci",
             "step_subtitle": "Ja nezināt, izvēlieties ierīci bez root un turpiniet.",
             "root_option_title": "Root-ota ierīce",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Ģenerē kartējumus...",
-            "generate_failure_no_snapchat": "PurrfectSnap nevarēja atrast Snapchat, lūdzu, mēģiniet pārinstalēt Snapchat.",
+            "generate_failure_no_snapchat": "Purrfect nevarēja atrast Snapchat, lūdzu, mēģiniet pārinstalēt Snapchat.",
             "generate_failure": "Radās kļūda, ģenerējot kartējumus, lūdzu, mēģiniet vēlreiz.",
             "confirm_understand_timeout": "Es saprotu ({seconds}s)",
             "confirm_understand": "Es saprotu",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Ja tas joprojām neizdodas, vairākkārt pieskarieties pieteikšanās pogai. Parasti tas palīdz.",
             "notice_step_3": "3. Ja tas joprojām neizdodas, notīriet Snapchat datus, atspējojiet jebkuru VPN un piesakieties vēlreiz.",
             "notice_rooted_title": "Root lietotājiem:",
-            "notice_rooted_body": "Atveriet Snapchat vēlreiz un piesakieties. Ja tas joprojām neizdodas, atspējojiet PurrfectSnap iekš LSPosed, piesakieties, tad iespējojiet PurrfectSnap atkal.",
+            "notice_rooted_body": "Atveriet Snapchat vēlreiz un piesakieties. Ja tas joprojām neizdodas, atspējojiet Purrfect iekš LSPosed, piesakieties, tad iespējojiet Purrfect atkal.",
             "warnings_info": "Ģenerējot kartējumus, radās {count} brīdinājums(-i):\n\n{warnings}",
             "progress_hint": "Tas aizņem tikai mirkli. Atstājiet lietotni atvērtu, kamēr notiek maģija!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Risinājums: Lejupielādējiet Snapchat no Play veikala un atinstalējiet to, nesaglabājot datus. Palaidiet automātisko ielāpotāju vēlreiz. Ja tas joprojām nedarbojas, palaidiet: ",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Problēma: Lietotne nav instalēta, jo pakotne šķiet nederīga.",
-            "issues_invalid_fix": "Risinājums: Lejupielādējiet un instalējiet JingMatrix LSPatch, tad ielāpojiet Snapchat versiju (jebkuru) no šī diapazona, t.i., starp 13.65.1.0 un 13.71.0.51, Integrated režīmā. Izvēlieties Embed Modules un ieguliet PurrfectSnap APK. Tad PurrfectSnap iestatīšanas laikā izvēlieties Izlaist automātisko iestatīšanu.",
+            "issues_invalid_fix": "Risinājums: Lejupielādējiet un instalējiet JingMatrix LSPatch, tad ielāpojiet Snapchat versiju (jebkuru) no šī diapazona, t.i., starp 13.65.1.0 un 13.71.0.51, Integrated režīmā. Izvēlieties Embed Modules un ieguliet Purrfect APK. Tad Purrfect iestatīšanas laikā izvēlieties Izlaist automātisko iestatīšanu.",
             "status_downloading": "Lejupielādē Snapchat {percent}%",
             "status_patching": "Ielāpo...",
             "status_initializing": "Inicializē...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Pašreizējā izvēle",
             "browse_languages": "Pārlūkot valodas",
-            "change_anytime_hint": "Jūs varat to mainīt jebkurā laikā no PurrfectSnap iestatījumiem.",
+            "change_anytime_hint": "Jūs varat to mainīt jebkurā laikā no Purrfect iestatījumiem.",
             "available_languages": "Pieejamās valodas"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Mapju izvēle nav pieejama",
             "no_picker_message": "Dažas klonētas/duālo lietotņu vides bloķē sistēmas mapju izvēli. Varat turpināt izmantot sistēmas noklusējuma saglabāšanas vietu vai atvērt lietotni ārpus klonēšanas režīma, lai izvēlētos pielāgotu mapi.",
             "use_default_button": "Izmantot noklusējumu",
-            "permission_hint": "PurrfectSnap nepieciešama krātuves atļauja, lai lejupielādētu un saglabātu multividi no Snapchat."
+            "permission_hint": "Purrfect nepieciešama krātuves atļauja, lai lejupielādētu un saglabātu multividi no Snapchat."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 izstrādāja ΞTΞRNAL",
-                "update_title": "PurrfectSnap atjauninājums",
+                "update_title": "Purrfect atjauninājums",
                 "update_content": "Versija {version} ir pieejama!",
                 "update_button": "Lejupielādēt",
                 "hero_tagline": "Xposed modulis, kas paredzēts, lai uzlabotu jūsu Snapchat pieredzi",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Lejupielāde pabeigta",
                 "update_install_failed_toast": "Neizdevās instalēt atjauninājumu. Pārbaudiet žurnālus sīkākai informācijai.",
                 "update_download_failed_toast": "Lejupielāde neizdevās: {error}",
-                "debug_build_summary_title": "Jūs izmantojat PurrfectSnap atkļūdošanas (debug) būvējumu",
+                "debug_build_summary_title": "Jūs izmantojat Purrfect atkļūdošanas (debug) būvējumu",
                 "debug_build_summary_content": "Versija {versionName} ({versionCode})",
                 "debug_build_summary_date": "Būvējuma datums: {date} (pirms {days} dienām)",
                 "quick_actions_title": "Ātrās darbības",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Paziņojumi nav pieejami"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Xposed modulis, kas paredzēts, lai uzlabotu jūsu Snapchat pieredzi!",
                 "about_lead_developers_title": "Galvenie izstrādātāji",
                 "about_story_title": "Mūsu stāsts",
-                "about_story": "PurrfectSnap tika dibināts 2025. gada 2. oktobrī kā ΞTΞRNAL veidots SnapEnhance atzars (fork) ar vīziju sniegt lietotājiem kvalitatīvu Snapchat pieredzi, ko viņi ir pelnījuši. Šai lietotnei bija jābūt tikai nelielam atjauninājumam SnapEnhance repozitorijā, taču drīz tā kļuva par atsevišķu lietotni, kurā līdzautori turpināja pievienot funkcijas. Tad komandai pievienojās izstrādātājs <RSR/>, un šī lietotne drīz vien guva milzīgus panākumus. Mēs saņēmām daudz mīlestības un atbalsta, un tikai divu dienu laikā ieguvām 1000+ lejupielādes! Mēs pateicamies visiem lietotājiem un atbalstītājiem; bez jūsu atbalsta mēs nebūtu sasnieguši šo vietu. Mēs vēlamies arī izteikt lielu paldies rhunk, SnapEnhance galvenajam izstrādātājam, jo bez viņa šī lietotne pat nepastāvētu. Mēs esam viņam bezgala pateicīgi. Visbeidzot, mēs vēlamies pateikties visiem mūsu administratoriem, īpaši: CLASSIC GENIUS, Harry, Sujal, Zain un schrodingerspet, kuri bija kopā ar mums no pašiem pirmsākumiem. Mēs vēlamies pateikties arī visiem testeriem, īpaši Leo un Toxic, kuri nepārtraukti testēja un ziņoja par kļūdām. Mēs esam bezgala pateicīgi par jūsu ieguldījumu.",
-                "about_thanks_title": "Ar mīlestību, PurrfectSnap komanda",
+                "about_story": "Purrfect tika dibināts 2025. gada 2. oktobrī kā ΞTΞRNAL veidots SnapEnhance atzars (fork) ar vīziju sniegt lietotājiem kvalitatīvu Snapchat pieredzi, ko viņi ir pelnījuši. Šai lietotnei bija jābūt tikai nelielam atjauninājumam SnapEnhance repozitorijā, taču drīz tā kļuva par atsevišķu lietotni, kurā līdzautori turpināja pievienot funkcijas. Tad komandai pievienojās izstrādātājs <RSR/>, un šī lietotne drīz vien guva milzīgus panākumus. Mēs saņēmām daudz mīlestības un atbalsta, un tikai divu dienu laikā ieguvām 1000+ lejupielādes! Mēs pateicamies visiem lietotājiem un atbalstītājiem; bez jūsu atbalsta mēs nebūtu sasnieguši šo vietu. Mēs vēlamies arī izteikt lielu paldies rhunk, SnapEnhance galvenajam izstrādātājam, jo bez viņa šī lietotne pat nepastāvētu. Mēs esam viņam bezgala pateicīgi. Visbeidzot, mēs vēlamies pateikties visiem mūsu administratoriem, īpaši: CLASSIC GENIUS, Harry, Sujal, Zain un schrodingerspet, kuri bija kopā ar mums no pašiem pirmsākumiem. Mēs vēlamies pateikties arī visiem testeriem, īpaši Leo un Toxic, kuri nepārtraukti testēja un ziņoja par kļūdām. Mēs esam bezgala pateicīgi par jūsu ieguldījumu.",
+                "about_thanks_title": "Ar mīlestību, Purrfect komanda",
                 "about_magic_toast": "Pieskarieties 5 reizes šajā ekrānā, lai redzētu maģiju 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Atjauninājumi",
                 "update_notification_channel_description": "Saņemiet paziņojumus, kad pieejamas jaunas versijas",
                 "update_notification_title": "Pieejams jauns atjauninājums",
-                "update_notification_text": "Pieskarieties, lai atvērtu PurrfectSnap un lejupielādētu jaunāko būvējumu.",
+                "update_notification_text": "Pieskarieties, lai atvērtu Purrfect un lejupielādētu jaunāko būvējumu.",
                 "app_theme_title": "Lietotnes tēma",
                 "theme_icon_description": "Atvērt tēmu izvēli",
                 "theme_mode_system": "Sistēmas",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Pielāgot apakšējo joslu",
                 "customize_bottom_bar_subtitle": "Izvēlieties, kuras cilnes rādīt sākuma ekrānā",
                 "available_tabs_title": "Pieejamās cilnes",
-                "reset_setup_title": "Atiestatīt PurrfectSnap",
+                "reset_setup_title": "Atiestatīt Purrfect",
                 "reset_setup_action": "Atiestatīt un restartēt iestatīšanu",
                 "reset_setup_dialog_title": "Vai esat pārliecināts?",
-                "reset_setup_dialog_text": "Tas atiestatīs PurrfectSnap un restartēs iestatīšanu.",
+                "reset_setup_dialog_text": "Tas atiestatīs Purrfect un restartēs iestatīšanu.",
                 "reset_button": "Atiestatīt",
                 "done_button": "Gatavs",
                 "clear_friend_feed": "Notīrīt draugu plūsmu",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Brīdinājums",
-                "content": "PurrfectSnap ietver skriptēšanas rīku, kas ļauj izpildīt lietotāja definētu kodu jūsu ierīcē. Esiet ārkārtīgi piesardzīgi un instalējiet moduļus tikai no zināmiem, uzticamiem avotiem. Neatļauti vai nepārbaudīti moduļi var radīt drošības riskus jūsu sistēmai."
+                "content": "Purrfect ietver skriptēšanas rīku, kas ļauj izpildīt lietotāja definētu kodu jūsu ierīcē. Esiet ārkārtīgi piesardzīgi un instalējiet moduļus tikai no zināmiem, uzticamiem avotiem. Neatļauti vai nepārbaudīti moduļi var radīt drošības riskus jūsu sistēmai."
             },
             "reset_config": {
                 "title": "Atiestatīt konfigurāciju",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Mainīt valodu",
-            "description": "Mainīt PurrfectSnap valodu"
+            "description": "Mainīt Purrfect valodu"
         },
         "file_imports": {
             "name": "Failu importēšana",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Komponista žurnāli",
-                                        "description": "Pārsūta Komponista konsoles žurnālus uz PurrfectSnap"
+                                        "description": "Pārsūta Komponista konsoles žurnālus uz Purrfect"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Skriptēšana",
-                "description": "Palaist pielāgotus skriptus, lai paplašinātu PurrfectSnap",
+                "description": "Palaist pielāgotus skriptus, lai paplašinātu Purrfect",
                 "properties": {
                     "developer_mode": {
                         "name": "Izstrādātāja režīms",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Pārlādēt tikai Snapchat",
-                "all": "Pārlādēt Snapchat + PurrfectSnap",
+                "all": "Pārlādēt Snapchat + Purrfect",
                 "null": "Noklusējums"
             },
             "walk_radius": {
@@ -3578,9 +3578,9 @@
     "toast_init_script_runtime_failed": "Neizdevās inicializēt skripta izpildlaiku!",
     "toast_database_corrupted": "Datubāze {path} ir bojāta! Restartē...",
     "toast_feature_init_failed": "Neizdevās inicializēt funkciju {feature}! Pārbaudiet logcat sīkākai informācijai.",
-    "toast_updating_purrfectsnap": "Atjaunina PurrfectSnap. Lūdzu, uzgaidiet...",
-    "toast_update_purrfectsnap_failed": "Neizdevās atjaunināt PurrfectSnap. Lūdzu, pārbaudiet logcat sīkākai informācijai.",
-    "toast_purrfectsnap_updated": "PurrfectSnap atjaunināts!",
+    "toast_updating_purrfect": "Atjaunina Purrfect. Lūdzu, uzgaidiet...",
+    "toast_update_purrfect_failed": "Neizdevās atjaunināt Purrfect. Lūdzu, pārbaudiet logcat sīkākai informācijai.",
+    "toast_purrfect_updated": "Purrfect atjaunināts!",
     "toast_export_memories_failed": "Neizdevās eksportēt atmiņas",
     "toast_exported_to_path": "Eksportēts uz {path}",
     "toast_open_memories_db_failed": "Neizdevās atvērt atmiņu datubāzi",

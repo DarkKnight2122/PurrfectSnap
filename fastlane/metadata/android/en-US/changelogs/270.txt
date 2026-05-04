@@ -5,7 +5,7 @@
 - Fix: Prevent Story Rewatch(tq to Brandon)
 - Fix: Location search(tq to Brandon)
 - Fix: story download & decryption(tq to Hazelnut)
-- New: Add confirmation dialogs for Reset PurrfectSnap option
+- New: Add confirmation dialogs for Reset Purrfect option
 - New: Google Maps Integration(tq to Brandon)
 - Fix: support more translation keys
 - Fix: several inconsistencies

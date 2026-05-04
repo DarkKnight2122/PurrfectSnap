@@ -93,7 +93,7 @@ fun File.toUnixLikePath(): String = absolutePath.replace("\\", "/")
 
 // In this environment, WSL doesn't mount all Windows drives (e.g. /mnt/d may be missing).
 // When using WSL's bash.exe, stage sources into a C:-backed temp directory and build from there.
-val wslStagingDir = File(System.getProperty("java.io.tmpdir"), "purrfectsnap-wsl-native").apply { mkdirs() }
+val wslStagingDir = File(System.getProperty("java.io.tmpdir"), "purrfect-wsl-native").apply { mkdirs() }
 
 val explicitBash = System.getenv("BASH_PATH")?.takeIf { it.isNotBlank() }?.let { File(it) }
 val bashCandidates = mutableListOf<File>()
@@ -269,8 +269,8 @@ val syncTasks = cargoTargets.mapIndexed { index, target ->
     tasks.register("syncNative${target.taskSuffix}") {
         dependsOn(cargoTask)
         val outputLibName = nativeLibFileName
-        val wslCandidate = File(wslStagingDir, "native/rust/target/${target.triple}/release/libpurrfectsnap.so")
-        val localCandidate = layout.projectDirectory.file("rust/target/${target.triple}/release/libpurrfectsnap.so").asFile
+        val wslCandidate = File(wslStagingDir, "native/rust/target/${target.triple}/release/libpurrfect.so")
+        val localCandidate = layout.projectDirectory.file("rust/target/${target.triple}/release/libpurrfect.so").asFile
         val outputDir = layout.buildDirectory.dir("rustJniLibs/android/${target.abi}")
         inputs.property("outputLibName", outputLibName)
         inputs.files(wslCandidate, localCandidate)
@@ -295,7 +295,7 @@ val syncTasks = cargoTargets.mapIndexed { index, target ->
             project.copy {
                 from(sourceFile)
                 into(abiDir)
-                rename { "libpurrfectsnap.so" }
+                rename { "libpurrfect.so" }
             }
 
             val file = File(abiDir, outputLibName)
@@ -328,7 +328,7 @@ val generateChecksumsFile = tasks.register("generateChecksumsFile") {
         checksumsFile.parentFile.mkdirs()
         checksumsFile.writeText(
             """
-            package me.eternal.purrfectsnap.nativelib
+            package me.eternal.purrfect.nativelib
 
             object Checksums {
                 val checksums = mapOf(

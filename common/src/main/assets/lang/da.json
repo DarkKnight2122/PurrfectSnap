@@ -7,10 +7,10 @@
             "important_confirm_timeout": "Jeg forstår ({seconds}s)",
             "important_confirm": "Jeg forstår",
             "important_title": "Vigtigt!",
-            "important_message": "Hvis du har brugt SnapEnhance eller en anden mod udover PurrfectSnap, anbefaler vi at afinstallere alt og blive på standard Snapchat i en uge. Skift derefter til PurrfectSnap efter næste fredag.",
-            "language_subtitle": "Indstil PurrfectSnap til at tale dit sprog før alt andet.",
+            "important_message": "Hvis du har brugt SnapEnhance eller en anden mod udover Purrfect, anbefaler vi at afinstallere alt og blive på standard Snapchat i en uge. Skift derefter til Purrfect efter næste fredag.",
+            "language_subtitle": "Indstil Purrfect til at tale dit sprog før alt andet.",
             "install_mode_title": "Vælg din enhed",
-            "install_mode_subtitle": "Vælg den sti, der passer til, hvordan du vil installere PurrfectSnap.",
+            "install_mode_subtitle": "Vælg den sti, der passer til, hvordan du vil installere Purrfect.",
             "permissions_subtitle": "Giv de vigtigste tilladelser, så overlays, downloads og advarsler forbliver pålidelige.",
             "patch_title": "Auto-patcher",
             "patch_subtitle": "Strømlinet download, patch og installation i ét flow.",
@@ -37,12 +37,12 @@
             "notice_title": "Bemærk venligst!",
             "notice_intro": "Vælg den type enhed, du har: rootet eller ikke-rootet. Hvis du er i tvivl, så vælg Ikke-root og fortsæt.",
             "notice_non_root_title": "Ikke-rootede enheder",
-            "notice_non_root_body": "Vælg Ikke-root, så klarer appen alt. Tryk på Installer Patchet Snapchat, når det vises. Efter installationen må du ikke åbne Snapchat endnu. Fortsæt PurrfectSnap-opsætningen; når den er færdig, kan du åbne Snapchat og nyde det.",
+            "notice_non_root_body": "Vælg Ikke-root, så klarer appen alt. Tryk på Installer Patchet Snapchat, når det vises. Efter installationen må du ikke åbne Snapchat endnu. Fortsæt Purrfect-opsætningen; når den er færdig, kan du åbne Snapchat og nyde det.",
             "notice_root_title": "Rootede enheder",
-            "notice_root_body": "Sørg for, at du har flashet LSPosed først. Vi anbefaler JingMatrix LSPosed eller LSPosed Irena. Når du har valgt Root, installerer appen den anbefalede Snapchat-version. Åbn den ikke endnu; fortsæt PurrfectSnap-opsætningen. Når opsætningen er færdig, skal du aktivere PurrfectSnap i LSPosed og genstarte din telefon. Begynd derefter at bruge Snapchat. Vi anbefaler stærkt at løsrive Snapchat fra Play Butik med Zygisk Detach-modulet for at forhindre automatiske opdateringer.",
+            "notice_root_body": "Sørg for, at du har flashet LSPosed først. Vi anbefaler JingMatrix LSPosed eller LSPosed Irena. Når du har valgt Root, installerer appen den anbefalede Snapchat-version. Åbn den ikke endnu; fortsæt Purrfect-opsætningen. Når opsætningen er færdig, skal du aktivere Purrfect i LSPosed og genstarte din telefon. Begynd derefter at bruge Snapchat. Vi anbefaler stærkt at løsrive Snapchat fra Play Butik med Zygisk Detach-modulet for at forhindre automatiske opdateringer.",
             "notice_issues_hint": "Hvis du støder på installationsproblemer, vises løsningen her. Læs den venligst omhyggeligt.",
             "notice_note_prefix": "Bemærk: ",
-            "notice_note_body": "Nye konti bliver let låst! Det anbefales at bruge en ældre konto med PurrfectSnap.",
+            "notice_note_body": "Nye konti bliver let låst! Det anbefales at bruge en ældre konto med Purrfect.",
             "step_title": "Vælg din enhed",
             "step_subtitle": "Hvis du ikke ved det, skal du vælge Ikke-rootet enhed og fortsætte.",
             "root_option_title": "Rootet enhed",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "Genererer mappings...",
-            "generate_failure_no_snapchat": "PurrfectSnap kunne ikke registrere Snapchat, prøv venligst at geninstallere Snapchat.",
+            "generate_failure_no_snapchat": "Purrfect kunne ikke registrere Snapchat, prøv venligst at geninstallere Snapchat.",
             "generate_failure": "Der opstod en fejl under generering af mappings, prøv igen.",
             "confirm_understand_timeout": "Jeg forstår ({seconds}s)",
             "confirm_understand": "Jeg forstår",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. Hvis det stadig mislykkes, så tryk gentagne gange på login-knappen. Dette dækker normalt den næste del.",
             "notice_step_3": "3. Hvis det stadig mislykkes, så ryd Snapchats data, deaktiver enhver VPN, og log ind igen.",
             "notice_rooted_title": "For rootede brugere:",
-            "notice_rooted_body": "Genåbn Snapchat og log ind. Hvis det stadig mislykkes, skal du deaktivere PurrfectSnap i LSPosed, logge ind og derefter genaktivere PurrfectSnap.",
+            "notice_rooted_body": "Genåbn Snapchat og log ind. Hvis det stadig mislykkes, skal du deaktivere Purrfect i LSPosed, logge ind og derefter genaktivere Purrfect.",
             "warnings_info": "{count} advarsel(er) opstod under generering af mappings:\n\n{warnings}",
             "progress_hint": "Dette tager kun et øjeblik. Hold appen åben, mens magien sker!"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "Løsning: Download Snapchat fra Play Butik og afinstaller det uden at beholde data. Kør Auto-patcher igen. Hvis det stadig ikke virker, kør:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "Problem: App ikke installeret, fordi pakken ser ud til at være ugyldig.",
-            "issues_invalid_fix": "Løsning: Download og installer JingMatrix LSPatch, og patch derefter en Snapchat-version (en hvilken som helst) fra dette interval, dvs. mellem 13.65.1.0 og 13.71.0.51, i Integreret tilstand. Vælg Indlejr moduler og indlejr PurrfectSnap APK'en. Vælg derefter Spring auto-opsætning over under PurrfectSnap-opsætning for at springe Auto-patcher over.",
+            "issues_invalid_fix": "Løsning: Download og installer JingMatrix LSPatch, og patch derefter en Snapchat-version (en hvilken som helst) fra dette interval, dvs. mellem 13.65.1.0 og 13.71.0.51, i Integreret tilstand. Vælg Indlejr moduler og indlejr Purrfect APK'en. Vælg derefter Spring auto-opsætning over under Purrfect-opsætning for at springe Auto-patcher over.",
             "status_downloading": "Downloader Snapchat {percent}%",
             "status_patching": "Patcher...",
             "status_initializing": "Initialiserer...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "Nuværende valg",
             "browse_languages": "Gennemse sprog",
-            "change_anytime_hint": "Du kan ændre dette når som helst fra PurrfectSnap-indstillinger.",
+            "change_anytime_hint": "Du kan ændre dette når som helst fra Purrfect-indstillinger.",
             "available_languages": "Tilgængelige sprog"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "Mappevælger ikke tilgængelig",
             "no_picker_message": "Nogle klonede/dual-app-miljøer blokerer systemets mappevælger. Du kan fortsætte med at bruge systemets standard gemmeplacering, eller åbne appen uden for klontilstand for at vælge en brugerdefineret mappe.",
             "use_default_button": "Brug standard",
-            "permission_hint": "PurrfectSnap kræver lagertilladelser for at downloade og gemme medier fra Snapchat."
+            "permission_hint": "Purrfect kræver lagertilladelser for at downloade og gemme medier fra Snapchat."
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 af ΞTΞRNAL",
-                "update_title": "PurrfectSnap-opdatering",
+                "update_title": "Purrfect-opdatering",
                 "update_content": "Version {version} er tilgængelig!",
                 "update_button": "Download",
                 "hero_tagline": "Et Xposed-modul beregnet til at forbedre din Snapchat-oplevelse",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "Download fuldført",
                 "update_install_failed_toast": "Kunne ikke installere opdatering. Tjek logs for flere detaljer.",
                 "update_download_failed_toast": "Download mislykkedes: {error}",
-                "debug_build_summary_title": "Du kører et debug-build af PurrfectSnap",
+                "debug_build_summary_title": "Du kører et debug-build af Purrfect",
                 "debug_build_summary_content": "Version {versionName} ({versionCode})",
                 "debug_build_summary_date": "Build-dato: {date} ({days} dage siden)",
                 "quick_actions_title": "Hurtige handlinger",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "Meddelelser ikke tilgængelige"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Et Xposed-modul beregnet til at forbedre din Snapchat-oplevelse!",
                 "about_lead_developers_title": "Ledende udviklere",
                 "about_story_title": "Vores historie",
-                "about_story": "PurrfectSnap blev grundlagt den 2. oktober 2025 som en fork af SnapEnhance af ΞTΞRNAL med en vision om at give brugerne den kvalitetsoplevelse af Snapchat, de fortjener. Denne app var blot ment som en mindre opdatering i SnapEnhance-repositoryet, men den blev hurtigt til en separat app, hvor bidragyderne blev ved med at tilføje funktioner. Så sluttede udvikleren <RSR/> sig til teamet, og denne app blev hurtigt en kæmpe succes. Vi modtog meget kærlighed og støtte og opnåede 1K+ downloads på bare to dage! Vi takker alle brugere og bidragydere; uden jeres støtte ville vi ikke have nået hertil. Vi vil også gerne udtrykke vores store tak til rhunk, den ledende udvikler af SnapEnhance, da denne app uden ham ikke engang ville eksistere. Vi er ham utroligt taknemmelige. Til sidst vil vi gerne takke alle vores administratorer, især: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, som var med os helt fra begyndelsen. Vi vil også gerne takke alle testere, især Leo & Toxic, der kontinuerligt testede og rapporterede fejl. Vi er utroligt taknemmelige for jeres bidrag.",
-                "about_thanks_title": "Med kærlighed, PurrfectSnap Team",
+                "about_story": "Purrfect blev grundlagt den 2. oktober 2025 som en fork af SnapEnhance af ΞTΞRNAL med en vision om at give brugerne den kvalitetsoplevelse af Snapchat, de fortjener. Denne app var blot ment som en mindre opdatering i SnapEnhance-repositoryet, men den blev hurtigt til en separat app, hvor bidragyderne blev ved med at tilføje funktioner. Så sluttede udvikleren <RSR/> sig til teamet, og denne app blev hurtigt en kæmpe succes. Vi modtog meget kærlighed og støtte og opnåede 1K+ downloads på bare to dage! Vi takker alle brugere og bidragydere; uden jeres støtte ville vi ikke have nået hertil. Vi vil også gerne udtrykke vores store tak til rhunk, den ledende udvikler af SnapEnhance, da denne app uden ham ikke engang ville eksistere. Vi er ham utroligt taknemmelige. Til sidst vil vi gerne takke alle vores administratorer, især: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, som var med os helt fra begyndelsen. Vi vil også gerne takke alle testere, især Leo & Toxic, der kontinuerligt testede og rapporterede fejl. Vi er utroligt taknemmelige for jeres bidrag.",
+                "about_thanks_title": "Med kærlighed, Purrfect Team",
                 "about_magic_toast": "Tryk 5 gange på denne skærm for at se noget magi 😉!",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "Opdateringer",
                 "update_notification_channel_description": "Få besked, når nye udgivelser er tilgængelige",
                 "update_notification_title": "Ny opdatering tilgængelig",
-                "update_notification_text": "Tryk for at åbne PurrfectSnap og downloade det nyeste build.",
+                "update_notification_text": "Tryk for at åbne Purrfect og downloade det nyeste build.",
                 "app_theme_title": "App-tema",
                 "theme_icon_description": "Åbn temavælger",
                 "theme_mode_system": "System",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "Tilpas bundlinje",
                 "customize_bottom_bar_subtitle": "Vælg hvilke faner der vises på din startskærm",
                 "available_tabs_title": "Tilgængelige faner",
-                "reset_setup_title": "Nulstil PurrfectSnap",
+                "reset_setup_title": "Nulstil Purrfect",
                 "reset_setup_action": "Nulstil og genstart opsætning",
                 "reset_setup_dialog_title": "Er du sikker?",
-                "reset_setup_dialog_text": "Dette vil nulstille PurrfectSnap og genstarte opsætningen.",
+                "reset_setup_dialog_text": "Dette vil nulstille Purrfect og genstarte opsætningen.",
                 "reset_button": "Nulstil",
                 "done_button": "Færdig",
                 "clear_friend_feed": "Ryd Vennefeed",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "Advarsel",
-                "content": "PurrfectSnap inkluderer et scripting-værktøj, der tillader udførelse af brugerdefineret kode på din enhed. Vær ekstremt forsigtig, og installer kun moduler fra kendte, pålidelige kilder. Uautoriserede eller ubekræftede moduler kan udgøre en sikkerhedsrisiko for dit system."
+                "content": "Purrfect inkluderer et scripting-værktøj, der tillader udførelse af brugerdefineret kode på din enhed. Vær ekstremt forsigtig, og installer kun moduler fra kendte, pålidelige kilder. Uautoriserede eller ubekræftede moduler kan udgøre en sikkerhedsrisiko for dit system."
             },
             "reset_config": {
                 "title": "Nulstil konfiguration",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "Skift sprog",
-            "description": "Skift sproget for PurrfectSnap"
+            "description": "Skift sproget for Purrfect"
         },
         "file_imports": {
             "name": "Filimporter",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Composer-logs",
-                                        "description": "Omdirigerer konsollogs fra Composer til PurrfectSnap"
+                                        "description": "Omdirigerer konsollogs fra Composer til Purrfect"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "Scripting",
-                "description": "Kør brugerdefinerede scripts for at udvide PurrfectSnap",
+                "description": "Kør brugerdefinerede scripts for at udvide Purrfect",
                 "properties": {
                     "developer_mode": {
                         "name": "Udviklertilstand",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Genindlæs kun Snapchat",
-                "all": "Genindlæs Snapchat + PurrfectSnap",
+                "all": "Genindlæs Snapchat + Purrfect",
                 "null": "Standard"
             },
             "walk_radius": {
@@ -3580,9 +3580,9 @@
     "toast_init_script_runtime_failed": "Kunne ikke initialisere script-runtime!",
     "toast_database_corrupted": "Database {path} er beskadiget! Genstarter ...",
     "toast_feature_init_failed": "Kunne ikke initialisere funktion {feature}! Tjek logcat for flere detaljer.",
-    "toast_updating_purrfectsnap": "Opdaterer PurrfectSnap. Vent venligst...",
-    "toast_update_purrfectsnap_failed": "Kunne ikke opdatere PurrfectSnap. Tjek venligst logcat for flere detaljer.",
-    "toast_purrfectsnap_updated": "PurrfectSnap opdateret!",
+    "toast_updating_purrfect": "Opdaterer Purrfect. Vent venligst...",
+    "toast_update_purrfect_failed": "Kunne ikke opdatere Purrfect. Tjek venligst logcat for flere detaljer.",
+    "toast_purrfect_updated": "Purrfect opdateret!",
     "toast_export_memories_failed": "Kunne ikke eksportere minder",
     "toast_exported_to_path": "Eksporteret til {path}",
     "toast_open_memories_db_failed": "Kunne ikke åbne minder-database",

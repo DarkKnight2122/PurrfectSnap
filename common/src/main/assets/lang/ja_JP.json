@@ -7,10 +7,10 @@
             "important_confirm_timeout": "理解しました ({seconds}秒)",
             "important_confirm": "理解しました",
             "important_title": "重要！",
-            "important_message": "SnapEnhanceやPurrfectSnap以外のModを使用していた場合は、すべてアンインストールし、1週間は通常のSnapchatを使用することをお勧めします。その後、次の金曜日以降にPurrfectSnapに切り替えてください。",
-            "language_subtitle": "何よりも先に、PurrfectSnapをあなたの言語に設定しましょう。",
+            "important_message": "SnapEnhanceやPurrfect以外のModを使用していた場合は、すべてアンインストールし、1週間は通常のSnapchatを使用することをお勧めします。その後、次の金曜日以降にPurrfectに切り替えてください。",
+            "language_subtitle": "何よりも先に、Purrfectをあなたの言語に設定しましょう。",
             "install_mode_title": "デバイスを選択",
-            "install_mode_subtitle": "PurrfectSnapのインストール方法に合ったパスを選択してください。",
+            "install_mode_subtitle": "Purrfectのインストール方法に合ったパスを選択してください。",
             "permissions_subtitle": "オーバーレイ、ダウンロード、アラートが確実に機能するために必要な権限を許可してください。",
             "patch_title": "自動パッチャー",
             "patch_subtitle": "ダウンロード、パッチ適用、インストールを1つのフローで効率化します。",
@@ -37,12 +37,12 @@
             "notice_title": "ご注意！",
             "notice_intro": "お使いのデバイスの種類（Root化済みまたは非Root）を選択してください。不明な場合は「非Root」を選択して続けてください。",
             "notice_non_root_title": "非Rootデバイス",
-            "notice_non_root_body": "「非Root」を選択すると、アプリがすべてを処理します。「パッチ済みSnapchatをインストール」が表示されたらタップしてください。インストール後はまだSnapchatを開かないでください。PurrfectSnapのセットアップを続け、完了したらSnapchatを開いてお楽しみいただけます。",
+            "notice_non_root_body": "「非Root」を選択すると、アプリがすべてを処理します。「パッチ済みSnapchatをインストール」が表示されたらタップしてください。インストール後はまだSnapchatを開かないでください。Purrfectのセットアップを続け、完了したらSnapchatを開いてお楽しみいただけます。",
             "notice_root_title": "Root化済みデバイス",
-            "notice_root_body": "まずLSPosedをフラッシュしていることを確認してください。JingMatrix LSPosedまたはLSPosed Irenaを推奨します。「Root」を選択すると、推奨バージョンのSnapchatがインストールされます。まだ開かずにPurrfectSnapのセットアップを続けてください。セットアップ完了後、LSPosedでPurrfectSnapを有効にし、再起動してください。その後Snapchatの使用を開始してください。自動更新を防ぐため、Zygisk DetachモジュールでSnapchatをPlayストアから切り離すことを強くお勧めします。",
+            "notice_root_body": "まずLSPosedをフラッシュしていることを確認してください。JingMatrix LSPosedまたはLSPosed Irenaを推奨します。「Root」を選択すると、推奨バージョンのSnapchatがインストールされます。まだ開かずにPurrfectのセットアップを続けてください。セットアップ完了後、LSPosedでPurrfectを有効にし、再起動してください。その後Snapchatの使用を開始してください。自動更新を防ぐため、Zygisk DetachモジュールでSnapchatをPlayストアから切り離すことを強くお勧めします。",
             "notice_issues_hint": "インストール中に問題が発生した場合、解決策がここに表示されます。よくお読みください。",
             "notice_note_prefix": "注: ",
-            "notice_note_body": "新しいアカウントはロックされやすいです！PurrfectSnapでは古いアカウントの使用を推奨します。",
+            "notice_note_body": "新しいアカウントはロックされやすいです！Purrfectでは古いアカウントの使用を推奨します。",
             "step_title": "デバイスを選択",
             "step_subtitle": "わからない場合は、非Rootデバイスを選択して進んでください。",
             "root_option_title": "Root化済みデバイス",
@@ -53,7 +53,7 @@
         },
         "mappings": {
             "dialog": "マッピングを生成中...",
-            "generate_failure_no_snapchat": "PurrfectSnapはSnapchatを検出できませんでした。Snapchatを再インストールしてみてください。",
+            "generate_failure_no_snapchat": "PurrfectはSnapchatを検出できませんでした。Snapchatを再インストールしてみてください。",
             "generate_failure": "マッピングの生成中にエラーが発生しました。もう一度お試しください。",
             "confirm_understand_timeout": "理解しました ({seconds}秒)",
             "confirm_understand": "理解しました",
@@ -63,7 +63,7 @@
             "notice_step_2": "2. それでも失敗する場合は、ログインボタンを繰り返しタップしてください。通常はこれで解決します。",
             "notice_step_3": "3. それでもダメな場合は、Snapchatのデータを消去し、VPNを無効にして再度ログインしてください。",
             "notice_rooted_title": "Rootユーザーの場合：",
-            "notice_rooted_body": "Snapchatを開き直してログインしてください。それでも失敗する場合は、LSPosedでPurrfectSnapを無効にしてログインし、その後PurrfectSnapを再度有効にしてください。",
+            "notice_rooted_body": "Snapchatを開き直してログインしてください。それでも失敗する場合は、LSPosedでPurrfectを無効にしてログインし、その後Purrfectを再度有効にしてください。",
             "warnings_info": "マッピング生成中に {count} 件の警告が発生しました:\n\n{warnings}",
             "progress_hint": "これには少し時間がかかります。魔法がかかる間、アプリを開いたままにしてください！"
         },
@@ -91,7 +91,7 @@
             "issues_conflict_fix": "修正: PlayストアからSnapchatをダウンロードし、データ保持なしでアンインストールしてください。その後、自動パッチャーを再度実行してください。それでも動作しない場合は、次を実行してください:",
             "issues_adb_command": "adb uninstall com.snapchat.android",
             "issues_invalid_issue": "問題: パッケージが無効なため、アプリがインストールされません。",
-            "issues_invalid_fix": "修正: JingMatrix LSPatchをダウンロードしてインストールし、この範囲（13.65.1.0 から 13.71.0.51 の間）のSnapchatバージョンを統合モード（Integrated mode）でパッチしてください。「Embed Modules（モジュールを埋め込む）」を選択し、PurrfectSnap APKを埋め込みます。その後、PurrfectSnapセットアップ中に「自動セットアップをスキップ」を選択して自動パッチャーをスキップしてください。",
+            "issues_invalid_fix": "修正: JingMatrix LSPatchをダウンロードしてインストールし、この範囲（13.65.1.0 から 13.71.0.51 の間）のSnapchatバージョンを統合モード（Integrated mode）でパッチしてください。「Embed Modules（モジュールを埋め込む）」を選択し、Purrfect APKを埋め込みます。その後、Purrfectセットアップ中に「自動セットアップをスキップ」を選択して自動パッチャーをスキップしてください。",
             "status_downloading": "Snapchatをダウンロード中 {percent}%",
             "status_patching": "パッチ適用中...",
             "status_initializing": "初期化中...",
@@ -119,7 +119,7 @@
         "pick_language": {
             "current_selection": "現在の選択",
             "browse_languages": "言語を探す",
-            "change_anytime_hint": "これはPurrfectSnapの設定からいつでも変更できます。",
+            "change_anytime_hint": "これはPurrfectの設定からいつでも変更できます。",
             "available_languages": "利用可能な言語"
         },
         "root_install": {
@@ -155,7 +155,7 @@
             "no_picker_title": "フォルダピッカーが利用できません",
             "no_picker_message": "一部のクローン/デュアルアプリ環境では、システムフォルダピッカーがブロックされます。システムデフォルトの保存場所を使用し続けるか、クローンモード外でアプリを開いてカスタムフォルダを選択してください。",
             "use_default_button": "デフォルトを使用",
-            "permission_hint": "PurrfectSnapがSnapchatからメディアをダウンロード・保存するにはストレージ権限が必要です。"
+            "permission_hint": "PurrfectがSnapchatからメディアをダウンロード・保存するにはストレージ権限が必要です。"
         }
     },
     "scopes": {
@@ -198,7 +198,7 @@
         "sections": {
             "home": {
                 "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
-                "update_title": "PurrfectSnap アップデート",
+                "update_title": "Purrfect アップデート",
                 "update_content": "バージョン {version} が利用可能です！",
                 "update_button": "ダウンロード",
                 "hero_tagline": "Snapchat体験を向上させるためのXposedモジュール",
@@ -219,7 +219,7 @@
                 "update_download_completed_toast": "ダウンロード完了",
                 "update_install_failed_toast": "アップデートのインストールに失敗しました。詳細はログを確認してください。",
                 "update_download_failed_toast": "ダウンロード失敗: {error}",
-                "debug_build_summary_title": "PurrfectSnapのデバッグビルドを実行中です",
+                "debug_build_summary_title": "Purrfectのデバッグビルドを実行中です",
                 "debug_build_summary_content": "バージョン {versionName} ({versionCode})",
                 "debug_build_summary_date": "ビルド日: {date} ({days}日前)",
                 "quick_actions_title": "クイックアクション",
@@ -243,12 +243,12 @@
                 "announcements_dialog_empty": "お知らせはありません"
             },
             "home_about": {
-                "about_title": "PurrfectSnap",
+                "about_title": "Purrfect",
                 "about_tagline": "Snapchat体験を向上させるためのXposedモジュール！",
                 "about_lead_developers_title": "リード開発者",
                 "about_story_title": "私たちのストーリー",
-                "about_story": "PurrfectSnapは、2025年10月2日にΞTΞRNALによってSnapEnhanceのフォークとして設立され、ユーザーにふさわしい高品質なSnapchat体験を提供することをビジョンとしています。このアプリは当初、SnapEnhanceリポジトリのマイナーアップデートとして意図されていましたが、コントリビューターが機能を追加し続けるうちに独立したアプリとなりました。その後、開発者 <RSR/> がチームに加わり、このアプリはすぐに大成功を収めました。多くの愛とサポートを受け、わずか2日で1,000回以上のダウンロードを達成しました！すべてのユーザーとコントリビューターに感謝します。皆さんのサポートがなければ、ここまで到達することはできませんでした。また、SnapEnhanceのリード開発者であるrhunk氏にも深く感謝いたします。彼がいなければ、このアプリは存在すらしなかったでしょう。私たちは彼に計り知れない感謝をしています。最後に、初期から私たちと共にあった管理者たち、特にCLASSIC GENIUS、Harry、Sujal、Zain、schrodingerspetに感謝します。また、継続的にテストを行いバグを報告してくれたテスター、特にLeoとToxicにも感謝します。皆さんの貢献に深く感謝しています。",
-                "about_thanks_title": "愛を込めて、PurrfectSnapチームより",
+                "about_story": "Purrfectは、2025年10月2日にΞTΞRNALによってSnapEnhanceのフォークとして設立され、ユーザーにふさわしい高品質なSnapchat体験を提供することをビジョンとしています。このアプリは当初、SnapEnhanceリポジトリのマイナーアップデートとして意図されていましたが、コントリビューターが機能を追加し続けるうちに独立したアプリとなりました。その後、開発者 <RSR/> がチームに加わり、このアプリはすぐに大成功を収めました。多くの愛とサポートを受け、わずか2日で1,000回以上のダウンロードを達成しました！すべてのユーザーとコントリビューターに感謝します。皆さんのサポートがなければ、ここまで到達することはできませんでした。また、SnapEnhanceのリード開発者であるrhunk氏にも深く感謝いたします。彼がいなければ、このアプリは存在すらしなかったでしょう。私たちは彼に計り知れない感謝をしています。最後に、初期から私たちと共にあった管理者たち、特にCLASSIC GENIUS、Harry、Sujal、Zain、schrodingerspetに感謝します。また、継続的にテストを行いバグを報告してくれたテスター、特にLeoとToxicにも感謝します。皆さんの貢献に深く感謝しています。",
+                "about_thanks_title": "愛を込めて、Purrfectチームより",
                 "about_magic_toast": "この画面を5回タップすると魔法が見られます 😉！",
                 "github_button": "GitHub",
                 "telegram_button": "Telegram"
@@ -288,7 +288,7 @@
                 "update_notification_channel_name": "アップデート",
                 "update_notification_channel_description": "新しいリリースが利用可能になったときに通知を受け取る",
                 "update_notification_title": "新しいアップデートが利用可能です",
-                "update_notification_text": "タップしてPurrfectSnapを開き、最新ビルドをダウンロードしてください。",
+                "update_notification_text": "タップしてPurrfectを開き、最新ビルドをダウンロードしてください。",
                 "app_theme_title": "アプリのテーマ",
                 "theme_icon_description": "テーマ選択を開く",
                 "theme_mode_system": "システム",
@@ -305,10 +305,10 @@
                 "customize_bottom_bar_title": "ボトムバーのカスタマイズ",
                 "customize_bottom_bar_subtitle": "ホーム画面に表示するタブを選択",
                 "available_tabs_title": "利用可能なタブ",
-                "reset_setup_title": "PurrfectSnapをリセット",
+                "reset_setup_title": "Purrfectをリセット",
                 "reset_setup_action": "リセットしてセットアップを再開",
                 "reset_setup_dialog_title": "よろしいですか？",
-                "reset_setup_dialog_text": "これによりPurrfectSnapがリセットされ、セットアップが再開されます。",
+                "reset_setup_dialog_text": "これによりPurrfectがリセットされ、セットアップが再開されます。",
                 "reset_button": "リセット",
                 "done_button": "完了",
                 "clear_friend_feed": "フレンドフィードをクリア",
@@ -517,7 +517,7 @@
             },
             "scripting_warning": {
                 "title": "警告",
-                "content": "PurrfectSnapにはスクリプトツールが含まれており、デバイス上でユーザー定義コードを実行できます。細心の注意を払い、既知の信頼できるソースからのモジュールのみをインストールしてください。未承認または未確認のモジュールは、システムにセキュリティ上のリスクをもたらす可能性があります。"
+                "content": "Purrfectにはスクリプトツールが含まれており、デバイス上でユーザー定義コードを実行できます。細心の注意を払い、既知の信頼できるソースからのモジュールのみをインストールしてください。未承認または未確認のモジュールは、システムにセキュリティ上のリスクをもたらす可能性があります。"
             },
             "reset_config": {
                 "title": "設定のリセット",
@@ -879,7 +879,7 @@
         },
         "change_language": {
             "name": "言語を変更",
-            "description": "PurrfectSnapの言語を変更します"
+            "description": "Purrfectの言語を変更します"
         },
         "file_imports": {
             "name": "ファイルインポート",
@@ -1967,7 +1967,7 @@
                                     },
                                     "composer_logs": {
                                         "name": "Composerログ",
-                                        "description": "ComposerのコンソールログをPurrfectSnapにリダイレクトします"
+                                        "description": "ComposerのコンソールログをPurrfectにリダイレクトします"
                                     }
                                 }
                             },
@@ -2149,7 +2149,7 @@
             },
             "scripting": {
                 "name": "スクリプティング",
-                "description": "カスタムスクリプトを実行してPurrfectSnapを拡張します",
+                "description": "カスタムスクリプトを実行してPurrfectを拡張します",
                 "properties": {
                     "developer_mode": {
                         "name": "開発者モード",
@@ -2214,7 +2214,7 @@
             },
             "auto_reload": {
                 "snapchat_only": "Snapchatのみリロード",
-                "all": "Snapchat + PurrfectSnapをリロード",
+                "all": "Snapchat + Purrfectをリロード",
                 "null": "デフォルト"
             },
             "walk_radius": {
@@ -3579,9 +3579,9 @@
     "toast_init_script_runtime_failed": "スクリプトランタイムの初期化に失敗しました！",
     "toast_database_corrupted": "データベース {path} が破損しています！再起動中...",
     "toast_feature_init_failed": "機能 {feature} の初期化に失敗しました！詳細はlogcatを確認してください。",
-    "toast_updating_purrfectsnap": "PurrfectSnapを更新中。お待ちください...",
-    "toast_update_purrfectsnap_failed": "PurrfectSnapの更新に失敗しました。詳細はlogcatを確認してください。",
-    "toast_purrfectsnap_updated": "PurrfectSnapが更新されました！",
+    "toast_updating_purrfect": "Purrfectを更新中。お待ちください...",
+    "toast_update_purrfect_failed": "Purrfectの更新に失敗しました。詳細はlogcatを確認してください。",
+    "toast_purrfect_updated": "Purrfectが更新されました！",
     "toast_export_memories_failed": "メモリーズのエクスポートに失敗しました",
     "toast_exported_to_path": "{path} にエクスポートしました",
     "toast_open_memories_db_failed": "メモリーズデータベースを開けませんでした",
