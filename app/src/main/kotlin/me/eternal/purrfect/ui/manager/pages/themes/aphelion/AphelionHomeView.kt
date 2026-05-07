@@ -256,7 +256,23 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     ) {
         val heroShape = RoundedCornerShape(36.dp)
         val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
-        val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
+        val activeTarget = context.activeTargetApp
+        val isRedditMode = activeTarget == TargetApp.REDDIT
+        val targetAccent = when (activeTarget) {
+            TargetApp.SNAPCHAT -> Color(0xFFFFE100)
+            TargetApp.REDDIT -> Color(0xFFFF4500)
+            TargetApp.WHATSAPP -> Color(0xFF25D366)
+        }
+        val targetSuffix = when (activeTarget) {
+            TargetApp.SNAPCHAT -> "Snap"
+            TargetApp.REDDIT -> "Reddit"
+            TargetApp.WHATSAPP -> "WA"
+        }
+        val targetName = when (activeTarget) {
+            TargetApp.SNAPCHAT -> "Snapchat"
+            TargetApp.REDDIT -> "Reddit"
+            TargetApp.WHATSAPP -> "WhatsApp"
+        }
         Box(
             modifier = Modifier
                 .padding(horizontal = HomeRootSection.cardMargin, vertical = 6.dp)
@@ -276,8 +292,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                     Text(
                         text = buildAnnotatedString {
                             append("Purrfect")
-                            withStyle(SpanStyle(color = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100))) {
-                                append(if (isRedditMode) "Reddit" else "Snap")
+                            withStyle(SpanStyle(color = targetAccent)) {
+                                append(targetSuffix)
                             }
                         },
                         color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, fontFamily = avenirNext,
@@ -295,7 +311,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         }
                     )
                     Text(
-                        text = if (isRedditMode) (translation["hero_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["hero_tagline"] ?: "",
+                        text = (translation["hero_tagline"] ?: "").replace("Snapchat", targetName),
                         color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - ((scrollOffset() - 350f) / 120f)).coerceIn(0f, 1f)
@@ -386,7 +402,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        if (!isRedditMode) {
+                        if (!context.isLimitedTargetMode) {
                             Surface(
                                 shape = RoundedCornerShape(50),
                                 color = Color.White.copy(alpha = 0.12f),
@@ -411,7 +427,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                             }
                         }
                         Text(
-                            text = if (isRedditMode) "Switch to Snapchat in Settings" else "Switch to Reddit in Settings",
+                            text = "Switch target app in Settings",
                             color = Color.White.copy(alpha = 0.78f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
@@ -483,11 +499,16 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     val haptic = LocalHapticFeedback.current
     val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
     val prefs = remember { context.sharedPreferences }
-    val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
-    val activeCards = if (isRedditMode) redditCards else cards
+    val activeTarget = context.activeTargetApp
+    val isRedditMode = activeTarget == TargetApp.REDDIT
+    val activeCards = when (activeTarget) {
+        TargetApp.REDDIT -> redditCards
+        TargetApp.WHATSAPP -> whatsAppCards
+        TargetApp.SNAPCHAT -> cards
+    }
     val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
     val selectedTiles = rememberAsyncMutableStateList(defaultValue = allQuickTileNames) {
-        if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
+        if (context.isLimitedTargetMode) return@rememberAsyncMutableStateList allQuickTileNames
         val storedTiles = context.database.getQuickTiles().filter { it.isNotBlank() }
         val hasInitialized = prefs.getBoolean(HomeRootSection.QUICK_TILES_INITIALIZED_PREF, false)
         when {
@@ -518,7 +539,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     val isPurrAuraActive by rememberPreferenceBool("debug_test_mode", true)
     val scrollState = rememberScrollState()
     var showQuickActionsMenu by rememberSaveable { mutableStateOf(false) }
-    val quickActionsEnabled = isRedditMode || !context.isLimitedTargetMode
+    val quickActionsEnabled = true
     var showChangelogDialog by rememberSaveable { mutableStateOf(false) }
     var changelogText by rememberSaveable { mutableStateOf<String?>(null) }
     var changelogLoading by remember { mutableStateOf(false) }
@@ -935,7 +956,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 val removed = selectedTiles.filter { it !in newList }
                 removed.forEach { clearTileSpan(it); clearTileOffset(it) }
                 selectedTiles.clear(); selectedTiles.addAll(newList)
-                if (!isRedditMode) {
+                if (!context.isLimitedTargetMode) {
                     context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
                 }
                 showQuickActionsMenu = false

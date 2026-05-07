@@ -272,11 +272,17 @@
                 "target_app_title": "Target App",
                 "target_app_snapchat_summary": "Current: Snapchat",
                 "target_app_reddit_summary": "Current: Reddit",
+                "target_app_whatsapp_summary": "Current: WhatsApp",
+                "switch_target_button": "Switch",
+                "switch_target_dialog_title": "Switch Target App",
                 "switch_to_reddit_button": "Switch to Reddit",
                 "install_reddit_button": "Reddit Available: Install!",
                 "reddit_settings_title": "Reddit Mode",
+                "whatsapp_settings_title": "WhatsApp Mode",
                 "switch_to_snapchat_button": "Switch to Snapchat",
                 "install_snapchat_button": "Snapchat Available: Install!",
+                "switch_to_whatsapp_button": "Switch to WhatsApp",
+                "install_whatsapp_button": "Install WhatsApp",
                 "success_toast": "Done!",
                 "message_logger_summary": "{messageCount} messages\n{storyCount} stories",
                 "export_button": "Export",
@@ -964,6 +970,152 @@
             "randomize_device_profile_override": "Controlled by Randomized Device Profile"
         },
         "properties": {
+            "whatsapp": {
+                "name": "WhatsApp",
+                "description": "WhatsApp UI hooks",
+                "properties": {
+                    "channels": {
+                        "name": "Channels",
+                        "description": "Control WhatsApp channel surfaces",
+                        "properties": {
+                            "hide_channel_recommendations": {
+                                "name": "Hide Channel Recommendations",
+                                "description": "Hide recommended channel blocks in WhatsApp Updates"
+                            }
+                        }
+                    },
+                    "privacy": {
+                        "name": "Privacy",
+                        "description": "Control outgoing WhatsApp privacy signals",
+                        "properties": {
+                            "hide_typing_indicators": {
+                                "name": "Hide Typing Indicators",
+                                "description": "Stop WhatsApp from sending typing chatstate stanzas"
+                            },
+                            "hide_recording_audio": {
+                                "name": "Hide Recording Audio",
+                                "description": "Stop WhatsApp from sending audio recording chatstate stanzas"
+                            },
+                            "hide_view_once_seen": {
+                                "name": "Hide View Once Seen",
+                                "description": "Avoid sending view-once seen markers"
+                            },
+                            "hide_delivered": {
+                                "name": "Hide Delivered",
+                                "description": "Avoid sending delivered receipt markers"
+                            },
+                            "hide_audio_seen": {
+                                "name": "Hide Audio Seen",
+                                "description": "Avoid sending played receipts for audio messages"
+                            },
+                            "hide_blue_ticks_groups": {
+                                "name": "Hide Blue Ticks in Groups",
+                                "description": "Avoid sending read receipts in group conversations"
+                            },
+                            "hide_blue_ticks": {
+                                "name": "Hide Blue Ticks",
+                                "description": "Avoid sending read receipts in one-to-one conversations"
+                            }
+                        }
+                    },
+                    "messages": {
+                        "name": "Messages",
+                        "description": "Control message preservation behaviour",
+                        "properties": {
+                            "unlimited_view_once": {
+                                "name": "Unlimited View Once",
+                                "description": "Keep view-once messages available after opening"
+                            },
+                            "show_deleted_messages": {
+                                "name": "Show Deleted Messages",
+                                "description": "Keep incoming messages visible after sender revokes them"
+                            }
+                        }
+                    },
+                    "detection_hooks": {
+                        "name": "Detection Hooks",
+                        "description": "Toggle WhatsApp detection fixes one group at a time",
+                        "properties": {
+                            "custom_rom_build_identity_shield": {
+                                "name": "Custom ROM Build Identity",
+                                "description": "Keep the Build fields that trigger the custom ROM alert looking stock"
+                            },
+                            "custom_rom_system_property_shield": {
+                                "name": "Custom ROM System Properties",
+                                "description": "Hide custom ROM system properties such as LineageOS and mod version markers"
+                            },
+                            "log_only_detector_result_logger": {
+                                "name": "Log Detector Results",
+                                "description": "Record WhatsApp detector method results without changing them"
+                            },
+                            "log_only_registration_signal_logger": {
+                                "name": "Log Registration Signals",
+                                "description": "Record registration request signal keys without changing them"
+                            },
+                            "log_only_registration_response_logger": {
+                                "name": "Log Registration Responses",
+                                "description": "Record registration response and reason signals without changing them"
+                            },
+                            "startup_integrity_exception_fix": {
+                                "name": "Startup Integrity Exception Fix",
+                                "description": "Catch the startup integrity exception path that caused WhatsApp to crash"
+                            },
+                            "whatsapp_boolean_detector_shield": {
+                                "name": "Boolean Detector Shield",
+                                "description": "Force known WhatsApp boolean environment detector methods to report false"
+                            },
+                            "signature_digest_spoof": {
+                                "name": "Signature Digest Spoof",
+                                "description": "Return WhatsApp official certificate digests when WhatsApp hashes package signatures"
+                            },
+                            "package_manager_spoof": {
+                                "name": "Package Manager Spoof",
+                                "description": "Spoof installer, install source, Play Store package, and WhatsApp signature PackageManager checks"
+                            },
+                            "registration_json_signal_shield": {
+                                "name": "Registration JSON Signal Shield",
+                                "description": "Force official-app registration JSON and map fields before they are sent"
+                            },
+                            "runtime_class_discovery_signal_shield": {
+                                "name": "Runtime Discovery Shield",
+                                "description": "Discover newer WhatsApp integrity helper classes by runtime shape and hook them"
+                            },
+                            "app_integrity_signal_shield": {
+                                "name": "App Integrity Signal Shield",
+                                "description": "Hook known WhatsApp app integrity and install-source helper classes"
+                            },
+                            "registration_request_signal_shield": {
+                                "name": "Registration Request Shield",
+                                "description": "Hook known registration request builders and force official-app fields"
+                            },
+                            "wamsys_bootstrap_shield": {
+                                "name": "WaMsys Bootstrap Shield",
+                                "description": "Observe WaMsys bootstrap and force success after a native integrity decline"
+                            },
+                            "file_probe_shield": {
+                                "name": "File Probe Shield",
+                                "description": "Block file checks for root, Xposed, LSPosed, LSPatch, and related paths"
+                            },
+                            "process_probe_shield": {
+                                "name": "Process Probe Shield",
+                                "description": "Block command execution checks for root, Xposed, LSPosed, LSPatch, and related tools"
+                            },
+                            "runtime_signal_retry_discovery": {
+                                "name": "Runtime Retry Discovery",
+                                "description": "Repeatedly retry integrity helper discovery during WhatsApp startup"
+                            },
+                            "deferred_class_probe_shield": {
+                                "name": "Deferred Class Probe Shield",
+                                "description": "Install delayed Class.forName and ClassLoader shields for hook framework class probes"
+                            }
+                        }
+                    },
+                    "hide_channel_recommendations": {
+                        "name": "Hide Channel Recommendations",
+                        "description": "Hide recommended channel blocks in WhatsApp Updates"
+                    }
+                }
+            },
             "downloader": {
                 "name": "Downloader",
                 "description": "Download Snapchat Media",

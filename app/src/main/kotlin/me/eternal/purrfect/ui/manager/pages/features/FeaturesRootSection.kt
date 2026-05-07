@@ -127,6 +127,7 @@ class FeaturesRootSection : Routes.Route() {
 
     internal fun featureRootContainer(): ConfigContainer {
         return when {
+            context.isWhatsAppMode -> context.config.root.whatsapp
             context.isRedditMode -> context.config.root.reddit
             else -> context.config.root
         }
@@ -168,7 +169,11 @@ class FeaturesRootSection : Routes.Route() {
 
     internal fun isVisibleForCurrentTarget(container: ConfigContainer, propertyKey: PropertyKey<*>): Boolean {
         if (propertyKey.params.flags.contains(ConfigFlag.HIDDEN)) return false
-        if (!context.isLimitedTargetMode && container === context.config.root && propertyKey.name == "reddit") return false
+        if (
+            !context.isLimitedTargetMode &&
+            container === context.config.root &&
+            propertyKey.name in setOf("reddit", "whatsapp")
+        ) return false
         return true
     }
 
@@ -1866,6 +1871,7 @@ class FeaturesRootSection : Routes.Route() {
             context.coroutineScope.launch(Dispatchers.IO) {
                 context.config.writeConfig()
                 context.mirrorRedditFeaturePrefs()
+                context.mirrorWhatsAppFeaturePrefs()
                 context.log.verbose("saved config!")
             }
         }

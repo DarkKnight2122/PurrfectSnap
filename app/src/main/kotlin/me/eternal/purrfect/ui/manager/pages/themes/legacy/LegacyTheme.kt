@@ -223,7 +223,22 @@ object LegacyTheme : ThemeContract {
         ) {
             val heroShape = RoundedCornerShape(36.dp)
             val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
-            val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
+            val activeTarget = context.activeTargetApp
+            val targetAccent = when (activeTarget) {
+                TargetApp.SNAPCHAT -> Color(0xFFFFE100)
+                TargetApp.REDDIT -> Color(0xFFFF4500)
+                TargetApp.WHATSAPP -> Color(0xFF25D366)
+            }
+            val targetSuffix = when (activeTarget) {
+                TargetApp.SNAPCHAT -> "Snap"
+                TargetApp.REDDIT -> "Reddit"
+                TargetApp.WHATSAPP -> "WA"
+            }
+            val targetName = when (activeTarget) {
+                TargetApp.SNAPCHAT -> "Snapchat"
+                TargetApp.REDDIT -> "Reddit"
+                TargetApp.WHATSAPP -> "WhatsApp"
+            }
             Box(
                 modifier = Modifier
                     .padding(horizontal = cardMargin, vertical = 6.dp)
@@ -240,8 +255,8 @@ object LegacyTheme : ThemeContract {
                         Text(
                             buildAnnotatedString {
                                 append("Purrfect")
-                                withStyle(SpanStyle(color = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100))) {
-                                    append(if (isRedditMode) "Reddit" else "Snap")
+                                withStyle(SpanStyle(color = targetAccent)) {
+                                    append(targetSuffix)
                                 }
                             },
                             color = Color.White,
@@ -250,7 +265,7 @@ object LegacyTheme : ThemeContract {
                             fontFamily = avenirNext
                         )
                         Text("By ΞTΞRNAL", color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext)
-                        Text(text = if (isRedditMode) (translation["hero_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["hero_tagline"] ?: "", color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
+                        Text(text = (translation["hero_tagline"] ?: "").replace("Snapchat", targetName), color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
                     }
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -326,7 +341,7 @@ object LegacyTheme : ThemeContract {
                         tonalElevation = 0.dp, shadowElevation = 0.dp
                     ) {
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (!isRedditMode) {
+                            if (!context.isLimitedTargetMode) {
                                 Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)), tonalElevation = 0.dp, shadowElevation = 0.dp) {
                                     Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                                         Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(if (isPurrAuraActive) PurrfectPalette.glowPrimary else Color(0xFF8C8CA3)))
@@ -338,7 +353,7 @@ object LegacyTheme : ThemeContract {
                                 }
                             }
                             Text(
-                                text = if (isRedditMode) "Switch to Snapchat in Settings" else "Switch to Reddit in Settings",
+                                text = "Switch target app in Settings",
                                 color = Color.White.copy(alpha = 0.78f),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
@@ -383,11 +398,16 @@ object LegacyTheme : ThemeContract {
 
         val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
         val prefs = remember { context.sharedPreferences }
-        val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
-        val activeCards = if (isRedditMode) redditCards else cards
+        val activeTarget = context.activeTargetApp
+        val isRedditMode = activeTarget == TargetApp.REDDIT
+        val activeCards = when (activeTarget) {
+            TargetApp.REDDIT -> redditCards
+            TargetApp.WHATSAPP -> whatsAppCards
+            TargetApp.SNAPCHAT -> cards
+        }
         val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
         val selectedTiles = rememberAsyncMutableStateList(defaultValue = allQuickTileNames) {
-            if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
+            if (context.isLimitedTargetMode) return@rememberAsyncMutableStateList allQuickTileNames
             val storedTiles = context.database.getQuickTiles().filter { it.isNotBlank() }
             val hasInitializedQuickTiles = prefs.getBoolean(QUICK_TILES_INITIALIZED_PREF, false)
             when {
@@ -535,7 +555,7 @@ object LegacyTheme : ThemeContract {
         }
 
         var showQuickActionsMenu by remember { mutableStateOf(false) }
-        val quickActionsEnabled = isRedditMode || !context.isLimitedTargetMode
+        val quickActionsEnabled = true
         val hapticFeedback = LocalHapticFeedback.current
         val scrollState = rememberScrollState()
         val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -740,7 +760,7 @@ object LegacyTheme : ThemeContract {
                     val removed = selectedTiles.filter { it !in newList }
                     removed.forEach { clearTileSpan(it); clearTileOffset(it) }
                     selectedTiles.clear(); selectedTiles.addAll(newList)
-                    if (!isRedditMode) {
+                    if (!context.isLimitedTargetMode) {
                         context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
                     }
                     showQuickActionsMenu = false
@@ -790,7 +810,8 @@ object LegacyTheme : ThemeContract {
                                 .remove("setup_skip_patch")
                                 .remove("setup_install_mode")
                                 .remove("setup_selected_apps")
-                                .apply()
+                                .remove(SetupPreferences.PROGRESS_SELECTED_TARGET_APPS_PREF)
+                                .commit()
                             SetupPreferences.clearSetupChoices(context.sharedPreferences)
                             context.config.reset()
                             context.config.writeConfig()
@@ -838,6 +859,15 @@ object LegacyTheme : ThemeContract {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         GlassCard {
+                            var showSwitcher by remember { mutableStateOf(false) }
+                            if (showSwitcher) {
+                                TargetSwitcherDialog(onDismiss = { showSwitcher = false })
+                            }
+                            val currentLabel = when (context.activeTargetApp) {
+                                TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
+                                TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
+                                TargetApp.WHATSAPP -> translation["target_app_whatsapp_summary"] ?: "Current: WhatsApp"
+                            }
                             RowTitle(title = translation["target_app_title"] ?: "Target App")
                             ShiftedRow {
                                 Column(
@@ -845,7 +875,7 @@ object LegacyTheme : ThemeContract {
                                     verticalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
                                     Text(
-                                        text = translation["target_app_reddit_summary"] ?: "Current: Reddit",
+                                        text = currentLabel,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color.White.copy(alpha = 0.82f)
@@ -855,7 +885,7 @@ object LegacyTheme : ThemeContract {
                                             if (context.config.root.global.uiSettings.hapticFeedback.get()) {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                             }
-                                            handleTargetSwitch(TargetApp.SNAPCHAT)
+                                            showSwitcher = true
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -867,7 +897,7 @@ object LegacyTheme : ThemeContract {
                                     ) {
                                         Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))
                                         Spacer(Modifier.width(10.dp))
-                                        Text(targetSwitchLabel(TargetApp.SNAPCHAT), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                        Text(translation["switch_target_button"] ?: "Switch", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -981,7 +1011,8 @@ object LegacyTheme : ThemeContract {
                             .remove("setup_skip_patch")
                             .remove("setup_install_mode")
                             .remove("setup_selected_apps")
-                            .apply()
+                            .remove(SetupPreferences.PROGRESS_SELECTED_TARGET_APPS_PREF)
+                            .commit()
                         SetupPreferences.clearSetupChoices(context.sharedPreferences)
 
                         context.config.reset()
@@ -1031,6 +1062,15 @@ object LegacyTheme : ThemeContract {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         GlassCard {
+                            var showSwitcher by remember { mutableStateOf(false) }
+                            if (showSwitcher) {
+                                TargetSwitcherDialog(onDismiss = { showSwitcher = false })
+                            }
+                            val currentLabel = when (context.activeTargetApp) {
+                                TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
+                                TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
+                                TargetApp.WHATSAPP -> translation["target_app_whatsapp_summary"] ?: "Current: WhatsApp"
+                            }
                             RowTitle(title = translation["target_app_title"] ?: "Target App")
                             ShiftedRow {
                                 Column(
@@ -1038,7 +1078,7 @@ object LegacyTheme : ThemeContract {
                                     verticalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
                                     Text(
-                                        text = translation["target_app_snapchat_summary"] ?: "Current: Snapchat",
+                                        text = currentLabel,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color.White.copy(alpha = 0.82f)
@@ -1048,7 +1088,7 @@ object LegacyTheme : ThemeContract {
                                             if (context.config.root.global.uiSettings.hapticFeedback.get()) {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                             }
-                                            handleTargetSwitch(TargetApp.REDDIT)
+                                            showSwitcher = true
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -1061,7 +1101,7 @@ object LegacyTheme : ThemeContract {
                                         Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))
                                         Spacer(Modifier.width(10.dp))
                                         Text(
-                                            targetSwitchLabel(TargetApp.REDDIT),
+                                            translation["switch_target_button"] ?: "Switch",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -1950,15 +1990,24 @@ object LegacyTheme : ThemeContract {
         val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
         val scrollState = rememberScrollState()
         val aboutStory = remember { translation["about_story"] ?: "" }
-        val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
-        val targetAccent = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100)
-        val targetSuffix = if (isRedditMode) "Reddit" else "Snap"
-        val aboutTagline = remember(isRedditMode) {
-            if (isRedditMode) {
-                (translation["about_tagline"] ?: "").replace("Snapchat", "Reddit")
-            } else {
-                translation["about_tagline"] ?: ""
-            }
+        val activeTarget = context.activeTargetApp
+        val targetAccent = when (activeTarget) {
+            TargetApp.SNAPCHAT -> Color(0xFFFFE100)
+            TargetApp.REDDIT -> Color(0xFFFF4500)
+            TargetApp.WHATSAPP -> Color(0xFF25D366)
+        }
+        val targetSuffix = when (activeTarget) {
+            TargetApp.SNAPCHAT -> "Snap"
+            TargetApp.REDDIT -> "Reddit"
+            TargetApp.WHATSAPP -> "WA"
+        }
+        val targetName = when (activeTarget) {
+            TargetApp.SNAPCHAT -> "Snapchat"
+            TargetApp.REDDIT -> "Reddit"
+            TargetApp.WHATSAPP -> "WhatsApp"
+        }
+        val aboutTagline = remember(activeTarget) {
+            (translation["about_tagline"] ?: "").replace("Snapchat", targetName)
         }
         val pagePadding = 16.dp
         val bottomPadding = routes.bottomPadding + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp

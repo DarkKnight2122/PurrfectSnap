@@ -109,5 +109,7 @@ interface BridgeInterface {
 
     String getRedditFeaturesJson();
 
+    String getWhatsAppFeaturesJson();
+
     CallDownloadSession startCallDownload(long startTimestamp, String author);
 }

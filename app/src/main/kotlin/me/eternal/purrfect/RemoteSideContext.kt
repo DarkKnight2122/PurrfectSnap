@@ -90,9 +90,24 @@ class RemoteSideContext(
     val sharedPreferences: SharedPreferences get() = androidContext.getSharedPreferences("prefs", 0)
     private var targetAppOverride: TargetApp? = null
     val activeTargetApp: TargetApp
-        get() = targetAppOverride ?: TargetApp.fromKey(sharedPreferences.getString(TargetApp.PREF_KEY, TargetApp.SNAPCHAT.key))
+        get() {
+            targetAppOverride?.let { return it }
+            val savedTarget = TargetApp.fromKeyOrNull(sharedPreferences.getString(TargetApp.PREF_KEY, null))
+            val setupTargets = SetupPreferences.completedTargetApps(sharedPreferences) +
+                SetupPreferences.selectedTargetApps(sharedPreferences)
+            val inferredInstalledTarget = inferInstalledTargetApp()
+            if (savedTarget != null && (savedTarget in setupTargets || inferredInstalledTarget == null || savedTarget == inferredInstalledTarget)) {
+                return savedTarget
+            }
+            if (setupTargets.isNotEmpty()) {
+                return SetupPreferences.preferredTargetApp(sharedPreferences)
+            }
+            return inferredInstalledTarget ?: savedTarget ?: TargetApp.SNAPCHAT
+        }
     val isRedditMode: Boolean
         get() = activeTargetApp == TargetApp.REDDIT
+    val isWhatsAppMode: Boolean
+        get() = activeTargetApp == TargetApp.WHATSAPP
     val isLimitedTargetMode: Boolean
         get() = activeTargetApp != TargetApp.SNAPCHAT
     val fileHandleManager = RemoteFileHandleManager(this)
@@ -148,6 +163,7 @@ class RemoteSideContext(
                 config.load()
                 config.root.reddit.migrateLegacyFlags()
                 mirrorRedditFeaturePrefs()
+                mirrorWhatsAppFeaturePrefs()
                 ensureAutoUpdateCheckOnUpgrade()
                 launch {
                     mappings.apply {
@@ -308,14 +324,19 @@ class RemoteSideContext(
     }
 
     fun forceStopTargetPackage(packageName: String, appLabel: String) {
-        if (packageName != Constants.REDDIT_PACKAGE_NAME) {
-            shortToast("Force stop is only available for Reddit")
+        val action = when (packageName) {
+            Constants.REDDIT_PACKAGE_NAME -> Constants.REDDIT_FORCE_STOP_ACTION
+            Constants.WHATSAPP_PACKAGE_NAME -> Constants.WHATSAPP_FORCE_STOP_ACTION
+            else -> null
+        }
+        if (action == null) {
+            shortToast("Force stop is not available for $appLabel")
             return
         }
         runCatching {
             androidContext.sendBroadcast(
-                Intent(Constants.REDDIT_FORCE_STOP_ACTION)
-                    .setPackage(Constants.REDDIT_PACKAGE_NAME)
+                Intent(action)
+                    .setPackage(packageName)
             )
         }.onSuccess {
             shortToast("Close signal sent to $appLabel")
@@ -326,7 +347,27 @@ class RemoteSideContext(
     }
 
     fun setActiveTargetApp(targetApp: TargetApp) {
-        sharedPreferences.edit().putString(TargetApp.PREF_KEY, targetApp.key).apply()
+        sharedPreferences.edit().putString(TargetApp.PREF_KEY, targetApp.key).commit()
+    }
+
+    fun packageNameForTargetApp(targetApp: TargetApp): String {
+        return when (targetApp) {
+            TargetApp.SNAPCHAT -> Constants.SNAPCHAT_PACKAGE_NAME
+            TargetApp.REDDIT -> Constants.REDDIT_PACKAGE_NAME
+            TargetApp.WHATSAPP -> Constants.WHATSAPP_PACKAGE_NAME
+        }
+    }
+
+    private fun inferInstalledTargetApp(): TargetApp? {
+        val installedTargets = TargetApp.entries.filter { targetApp ->
+            runCatching {
+                androidContext.packageManager.getPackageInfo(
+                    packageNameForTargetApp(targetApp),
+                    0
+                )
+            }.isSuccess
+        }
+        return installedTargets.singleOrNull()
     }
 
     fun setTargetAppOverride(targetApp: TargetApp?) {
@@ -403,6 +444,57 @@ class RemoteSideContext(
         }
     }
 
+    fun mirrorWhatsAppFeaturePrefs() {
+        runCatching {
+            val whatsAppFeatures = getWhatsAppFeaturesMap()
+            val whatsAppJson = Gson().toJson(whatsAppFeatures)
+            File(androidContext.filesDir, WHATSAPP_FEATURE_CONFIG_FILE).apply {
+                parentFile?.mkdirs()
+                writeText(whatsAppJson, Charsets.UTF_8)
+            }
+            whatsAppFeatureExternalFiles().forEach { file ->
+                runCatching {
+                    file.parentFile?.mkdirs()
+                    file.writeText(whatsAppJson, Charsets.UTF_8)
+                    file.parentFile?.setReadable(true, false)
+                    file.setReadable(true, false)
+                }.onFailure {
+                    log.warn("Failed to mirror WhatsApp feature config to ${file.absolutePath}: ${it.message}")
+                }
+            }
+
+            androidContext.getSharedPreferences(WHATSAPP_FEATURE_PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .apply {
+                    whatsAppFeatures.forEach { (key, value) -> putBoolean(key, value) }
+                }
+                .commit()
+
+            val prefsFile = File(androidContext.applicationInfo.dataDir, "shared_prefs/$WHATSAPP_FEATURE_PREFS.xml")
+            File(androidContext.applicationInfo.dataDir).setExecutable(true, false)
+            File(androidContext.applicationInfo.dataDir).setReadable(true, false)
+            prefsFile.parentFile?.setExecutable(true, false)
+            prefsFile.parentFile?.setReadable(true, false)
+            prefsFile.setReadable(true, false)
+            broadcastWhatsAppFeaturePrefs(whatsAppJson)
+            log.verbose("Mirrored WhatsApp feature config JSON")
+        }.onFailure {
+            log.error("Failed to mirror WhatsApp feature prefs", it)
+        }
+    }
+
+    private fun broadcastWhatsAppFeaturePrefs(json: String) {
+        runCatching {
+            androidContext.sendBroadcast(
+                Intent(Constants.WHATSAPP_CONFIG_UPDATE_ACTION)
+                    .setPackage(Constants.WHATSAPP_PACKAGE_NAME)
+                    .putExtra(Constants.WHATSAPP_CONFIG_JSON_EXTRA, json)
+            )
+        }.onFailure {
+            log.warn("Failed to broadcast WhatsApp feature config: ${it.message}")
+        }
+    }
+
     fun getRedditFeaturesJson(): String {
         return Gson().toJson(
             mapOf(
@@ -433,24 +525,56 @@ class RemoteSideContext(
         )
     }
 
+    fun getWhatsAppFeaturesJson(): String {
+        return Gson().toJson(getWhatsAppFeaturesMap())
+    }
+
+    private fun getWhatsAppFeaturesMap(): Map<String, Boolean> {
+        val whatsApp = config.root.whatsapp
+        return mapOf(
+            "hide_channel_recommendations" to whatsApp.hideChannelRecommendationsEnabled(),
+            "hide_typing_indicators" to whatsApp.hideTypingIndicatorsEnabled(),
+            "hide_recording_audio" to whatsApp.hideRecordingAudioEnabled(),
+            "hide_view_once_seen" to whatsApp.hideViewOnceSeenEnabled(),
+            "hide_delivered" to whatsApp.hideDeliveredEnabled(),
+            "hide_audio_seen" to whatsApp.hideAudioSeenEnabled(),
+            "unlimited_view_once" to whatsApp.unlimitedViewOnceEnabled(),
+            "hide_blue_ticks_groups" to whatsApp.hideBlueTicksGroupsEnabled(),
+            "hide_blue_ticks" to whatsApp.hideBlueTicksEnabled(),
+            "show_deleted_messages" to whatsApp.showDeletedMessagesEnabled()
+        )
+    }
+
     fun resetActiveTargetConfig() {
-        if (isRedditMode) {
-            val defaults = RootConfig().apply { lateInit(androidContext) }
-            config.root.reddit.fromJson(defaults.reddit.toJson())
-        } else {
-            val redditConfig = config.root.reddit.toJson()
-            config.reset()
-            config.root.reddit.fromJson(redditConfig)
+        val defaults = RootConfig().apply { lateInit(androidContext) }
+        when (activeTargetApp) {
+            TargetApp.REDDIT -> config.root.reddit.fromJson(defaults.reddit.toJson())
+            TargetApp.WHATSAPP -> config.root.whatsapp.fromJson(defaults.whatsapp.toJson())
+            TargetApp.SNAPCHAT -> {
+                val redditConfig = config.root.reddit.toJson()
+                val whatsAppConfig = config.root.whatsapp.toJson()
+                config.reset()
+                config.root.reddit.fromJson(redditConfig)
+                config.root.whatsapp.fromJson(whatsAppConfig)
+            }
         }
         config.root.reddit.migrateLegacyFlags()
         config.writeConfig()
         mirrorRedditFeaturePrefs()
+        mirrorWhatsAppFeaturePrefs()
     }
 
     private fun redditFeatureExternalFiles(): List<File> {
         return listOf(
             File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE"),
             File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE")
+        ).distinctBy { it.absolutePath }
+    }
+
+    private fun whatsAppFeatureExternalFiles(): List<File> {
+        return listOf(
+            File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$WHATSAPP_FEATURE_CONFIG_FILE"),
+            File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$WHATSAPP_FEATURE_CONFIG_FILE")
         ).distinctBy { it.absolutePath }
     }
 
@@ -557,5 +681,7 @@ class RemoteSideContext(
     companion object {
         const val REDDIT_FEATURE_PREFS = "reddit_features"
         const val REDDIT_FEATURE_CONFIG_FILE = "reddit_features.json"
+        const val WHATSAPP_FEATURE_PREFS = "whatsapp_features"
+        const val WHATSAPP_FEATURE_CONFIG_FILE = "whatsapp_features.json"
     }
 }

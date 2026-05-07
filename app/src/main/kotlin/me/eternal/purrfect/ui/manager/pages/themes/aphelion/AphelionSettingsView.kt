@@ -136,7 +136,8 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                         .remove("setup_skip_patch")
                         .remove("setup_install_mode")
                         .remove("setup_selected_apps")
-                        .apply()
+                        .remove(SetupPreferences.PROGRESS_SELECTED_TARGET_APPS_PREF)
+                        .commit()
                     SetupPreferences.clearSetupChoices(context.sharedPreferences)
                     context.config.reset()
                     context.config.writeConfig()
@@ -166,7 +167,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                 ) {
                     GlassCard {
                         RowTitle(title = translation["target_app_title"] ?: "Target App")
-                        TargetAppSwitchRow(TargetApp.REDDIT)
+                        TargetAppSwitchRow()
                     }
 
                     // THEME SWITCHER
@@ -1103,7 +1104,8 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                         .remove("setup_skip_patch")
                         .remove("setup_install_mode")
                         .remove("setup_selected_apps")
-                        .apply()
+                        .remove(SetupPreferences.PROGRESS_SELECTED_TARGET_APPS_PREF)
+                        .commit()
                     SetupPreferences.clearSetupChoices(context.sharedPreferences)
                     context.config.reset()
                     context.config.writeConfig()
@@ -1128,7 +1130,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
             Spacer(Modifier.height(controlsHeight))
             GlassCard {
                 RowTitle(title = translation["target_app_title"] ?: "Target App")
-                TargetAppSwitchRow(TargetApp.SNAPCHAT)
+               TargetAppSwitchRow()
             }
             GlassCard {
                 RowTitle(title = translation["actions_title"] ?: "Actions")
@@ -1227,15 +1229,18 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
 }
 
 @Composable
-private fun HomeSettings.TargetAppSwitchRow(targetApp: TargetApp) {
+private fun HomeSettings.TargetAppSwitchRow() {
     val hapticFeedback = LocalHapticFeedback.current
+    var showSwitcher by remember { mutableStateOf(false) }
     val currentLabel = when (context.activeTargetApp) {
         TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
         TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
+        TargetApp.WHATSAPP -> translation["target_app_whatsapp_summary"] ?: "Current: WhatsApp"
     }
-    val buttonLabel = when (targetApp) {
-        TargetApp.SNAPCHAT -> targetSwitchLabel(TargetApp.SNAPCHAT)
-        TargetApp.REDDIT -> targetSwitchLabel(TargetApp.REDDIT)
+    val buttonLabel = translation["switch_target_button"] ?: "Switch"
+
+    if (showSwitcher) {
+        TargetSwitcherDialog(onDismiss = { showSwitcher = false })
     }
 
     ShiftedRow {
@@ -1252,7 +1257,7 @@ private fun HomeSettings.TargetAppSwitchRow(targetApp: TargetApp) {
             Button(
                 onClick = {
                     AphelionHaptics.themeRevealTick(context, hapticFeedback)
-                    handleTargetSwitch(targetApp)
+                    showSwitcher = true
                 },
                 modifier = Modifier
                     .fillMaxWidth()

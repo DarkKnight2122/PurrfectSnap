@@ -281,6 +281,16 @@ class HomeRootSection : Routes.Route() {
             }
         )
     }
+    internal val whatsAppCards by lazy {
+        mutableMapOf<Pair<String, ImageVector>, Routes.() -> Unit>(
+            ("Force Stop WhatsApp" to Icons.Default.StopCircle) to {
+                context.forceStopTargetPackage(Constants.WHATSAPP_PACKAGE_NAME, "WhatsApp")
+            },
+            ("Open WhatsApp" to Icons.Default.OpenInNew) to {
+                context.openTargetPackage(Constants.WHATSAPP_PACKAGE_NAME, "WhatsApp")
+            }
+        )
+    }
 
     @Composable
     internal fun rememberPreferenceBool(key: String, default: Boolean = false): State<Boolean> {

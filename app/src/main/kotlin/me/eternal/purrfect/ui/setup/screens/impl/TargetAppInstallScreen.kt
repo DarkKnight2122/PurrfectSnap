@@ -213,12 +213,15 @@ open class TargetAppInstallScreen(
             if (target.targetApp.key in completed) return
 
             SetupPreferences.addCompletedTarget(context.sharedPreferences, target.targetApp)
+            if (installTargets.size == 1) {
+                context.setActiveTargetApp(target.targetApp)
+            }
 
             if (target.targetApp == TargetApp.REDDIT) {
                 downloadedReleaseTag?.takeIf { it.isNotBlank() }?.let { releaseTag ->
                     context.sharedPreferences.edit()
                         .putString(Updater.REDDIT_INSTALLED_RELEASE_TAG_PREF, releaseTag)
-                        .apply()
+                        .commit()
                     Updater.clearRedditUpdateCache()
                 }
             }
@@ -416,7 +419,6 @@ open class TargetAppInstallScreen(
                         )
                     )
                     downloadFinished = true
-
                     if (flow == SetupInstallFlow.ROOT) {
                         pushStatus(
                             translation.format(

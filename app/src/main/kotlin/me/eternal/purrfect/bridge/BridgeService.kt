@@ -348,6 +348,11 @@ class BridgeService : Service() {
             return remoteSideContext.getRedditFeaturesJson()
         }
 
+        override fun getWhatsAppFeaturesJson(): String {
+            remoteSideContext.mirrorWhatsAppFeaturePrefs()
+            return remoteSideContext.getWhatsAppFeaturesJson()
+        }
+
         override fun startCallDownload(
             startTimestamp: Long,
             author: String

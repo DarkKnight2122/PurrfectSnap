@@ -24,6 +24,12 @@ internal fun TargetApp.toSetupInstallTarget(): SetupInstallTarget {
             displayName = "Reddit",
             packageName = Constants.REDDIT_PACKAGE_NAME
         )
+
+        TargetApp.WHATSAPP -> SetupInstallTarget(
+            targetApp = this,
+            displayName = "WhatsApp",
+            packageName = Constants.WHATSAPP_PACKAGE_NAME
+        )
     }
 }
 

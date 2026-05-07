@@ -12,6 +12,7 @@
     <queries>
         <package android:name="com.snapchat.android" />
         <package android:name="com.reddit.frontpage" />
+        <package android:name="com.whatsapp" />
     </queries>
     <application
         android:usesCleartextTraffic="true"
@@ -33,7 +34,7 @@
             android:value="93" />
         <meta-data
             android:name="xposedscope"
-            android:value="com.snapchat.android,com.reddit.frontpage" />
+            android:value="com.snapchat.android,com.reddit.frontpage,com.whatsapp" />
         <service
             android:name=".bridge.BridgeService"
             android:exported="true"
@@ -81,6 +82,20 @@
                 <action android:name="me.eternal.purrfect.REDDIT_LOG" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".whatsapp.WhatsAppConfigBroadcastReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.action.WHATSAPP_CONFIG_REQUEST" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".bridge.WhatsAppLogReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.WHATSAPP_LOG" />
+            </intent-filter>
+        </receiver>
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="me.eternal.purrfect.fileprovider"
@@ -93,6 +108,10 @@
         <provider
             android:name=".reddit.RedditConfigProvider"
             android:authorities="me.eternal.purrfect.reddit.config"
+            android:exported="true" />
+        <provider
+            android:name=".whatsapp.WhatsAppConfigProvider"
+            android:authorities="me.eternal.purrfect.whatsapp.config"
             android:exported="true" />
     </application>
 </manifest>

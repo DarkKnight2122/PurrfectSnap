@@ -119,7 +119,7 @@ import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.util.scaleOnPress
 import kotlinx.coroutines.delay
 
-private const val SETUP_SELECTED_APPS_PREF = "setup_selected_apps"
+private const val SETUP_SELECTED_APPS_PREF = SetupPreferences.PROGRESS_SELECTED_TARGET_APPS_PREF
 
 private data class SetupStepMeta(
     val route: String,
@@ -159,9 +159,10 @@ class SetupActivity : ComponentActivity() {
         val wasInProgress = setupPrefs.getBoolean("setup_in_progress", false)
         val isFirstRunFlow = hasRequirement(Requirements.FIRST_RUN) || wasInProgress
         val persistedRoute = setupPrefs.getString("setup_current_route", null)
-        val persistedSkipPatch = setupPrefs.getBoolean("setup_skip_patch", false)
-        val persistedInstallMode = setupPrefs.getString("setup_install_mode", null)
+        val persistedSkipPatch = setupPrefs.getBoolean(SetupPreferences.PROGRESS_SKIP_PATCH_PREF, false)
+        val persistedInstallMode = setupPrefs.getString(SetupPreferences.PROGRESS_INSTALL_MODE_PREF, null)
         val persistedSelectedApps = setupPrefs.getString(SETUP_SELECTED_APPS_PREF, null)
+            ?: setupPrefs.getString(SetupPreferences.LEGACY_PROGRESS_SELECTED_TARGET_APPS_PREF, null)
         val storedInstallMode = SetupPreferences.lastInstallModeName(setupPrefs)
             ?.let { runCatching { InstallMode.valueOf(it) }.getOrNull() }
         val storedSkipAutoSetup = SetupPreferences.wasAutoSetupSkipped(setupPrefs)
@@ -192,20 +193,21 @@ class SetupActivity : ComponentActivity() {
             setupPrefs.edit()
                 .putBoolean("setup_in_progress", inProgress)
                 .putString("setup_current_route", route)
-                .putBoolean("setup_skip_patch", skipPatch)
-                .putString("setup_install_mode", installMode?.name)
+                .putBoolean(SetupPreferences.PROGRESS_SKIP_PATCH_PREF, skipPatch)
+                .putString(SetupPreferences.PROGRESS_INSTALL_MODE_PREF, installMode?.name)
                 .putString(SETUP_SELECTED_APPS_PREF, selectedApps.toSetupTargetPrefsValue())
-                .apply()
+                .commit()
         }
 
         fun clearProgress() {
             setupPrefs.edit()
                 .remove("setup_in_progress")
                 .remove("setup_current_route")
-                .remove("setup_skip_patch")
-                .remove("setup_install_mode")
+                .remove(SetupPreferences.PROGRESS_SKIP_PATCH_PREF)
+                .remove(SetupPreferences.PROGRESS_INSTALL_MODE_PREF)
                 .remove(SETUP_SELECTED_APPS_PREF)
-                .apply()
+                .remove(SetupPreferences.LEGACY_PROGRESS_SELECTED_TARGET_APPS_PREF)
+                .commit()
         }
 
         val requiredScreens = mutableListOf<SetupScreen>().apply {

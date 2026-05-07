@@ -11,6 +11,8 @@ import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.core.reddit.RedditRuntime
 import me.eternal.purrfect.core.util.hook.HookStage
 import me.eternal.purrfect.core.util.hook.hook
+import me.eternal.purrfect.core.whatsapp.WhatsAppDetectionHooks
+import me.eternal.purrfect.core.whatsapp.WhatsAppRuntime
 import java.util.concurrent.atomic.AtomicBoolean
 
 class XposedLoader : IXposedHookLoadPackage {
@@ -31,6 +33,11 @@ class XposedLoader : IXposedHookLoadPackage {
         XposedBridge.log(
             "Loading Purrfect v${BuildConfig.VERSION_NAME}#${BuildConfig.GIT_HASH} into ${param.packageName} (package: ${BuildConfig.APPLICATION_ID})"
         )
+
+        if (param.packageName == Constants.WHATSAPP_PACKAGE_NAME) {
+            WhatsAppDetectionHooks.installEarly(param.classLoader)
+        }
+
         val initialized = AtomicBoolean(false)
 
         fun initFromContext(source: String, context: Context) {
@@ -40,7 +47,10 @@ class XposedLoader : IXposedHookLoadPackage {
             }
             runCatching {
                 XposedBridge.log("Purrfect $source for ${param.packageName}")
-                RedditRuntime().init(context, param.classLoader)
+                when (param.packageName) {
+                    Constants.REDDIT_PACKAGE_NAME -> RedditRuntime().init(context, param.classLoader)
+                    Constants.WHATSAPP_PACKAGE_NAME -> WhatsAppRuntime().init(context, param.classLoader)
+                }
             }.onFailure { throwable ->
                 initialized.set(false)
                 XposedBridge.log("Purrfect failed during $source for ${param.packageName}: ${throwable.stackTraceToString()}")
@@ -85,6 +95,25 @@ class XposedLoader : IXposedHookLoadPackage {
                 )
             }.onFailure { throwable ->
                 XposedBridge.log("Purrfect could not install Reddit application fallback hook: ${throwable.stackTraceToString()}")
+            }
+        }
+
+        if (param.packageName == Constants.WHATSAPP_PACKAGE_NAME) {
+            runCatching {
+                val whatsAppShellClass = param.classLoader.loadClass("com.whatsapp.AppShell")
+                XposedBridge.log("Purrfect found WhatsApp application class: ${whatsAppShellClass.name}")
+                XposedBridge.hookAllMethods(
+                    whatsAppShellClass,
+                    "onCreate",
+                    object : XC_MethodHook() {
+                        override fun beforeHookedMethod(hookParam: MethodHookParam<*>) {
+                            val application = hookParam.thisObject as? Application ?: return
+                            initFromContext("AppShell.onCreate", application)
+                        }
+                    }
+                )
+            }.onFailure { throwable ->
+                XposedBridge.log("Purrfect could not install WhatsApp application fallback hook: ${throwable.stackTraceToString()}")
             }
         }
 
