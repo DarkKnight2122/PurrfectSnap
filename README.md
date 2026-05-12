@@ -235,7 +235,7 @@ Just download and install Purrfect from [here](https://github.com/particle-box/P
 
 Questions? Ideas? Found a bug? Our community is active and responsive.
 
-**[Telegram Channel](https://t.me/purrfect_official)** : Announcements, discussions, and support
+**[Telegram Channel](https://t.me/purrfect_tg)** : Announcements, discussions, and support
 **For the discussions group link, refer to the description of the channel!**
 
 <br>
