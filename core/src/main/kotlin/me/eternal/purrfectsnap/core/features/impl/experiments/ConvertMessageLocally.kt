@@ -55,7 +55,6 @@ import android.view.ViewConfiguration
 import me.eternal.purrfectsnap.core.ui.getValdiContext
 import me.eternal.purrfectsnap.core.util.hook.HookStage
 import me.eternal.purrfectsnap.core.util.hook.hook
-import me.eternal.purrfectsnap.mapper.impl.ChatEventDispatcherMapper
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Job
 import android.content.Intent
@@ -217,8 +216,6 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
                 val messageId = resolveTargetFromViewTree(view)
                 
                 if (messageId != null && isMessageConverted(messageId)) {
-                    context.log.verbose("[ConvertMsg] Intercepted single tap via dispatchTouchEvent: $messageId", "ConvertMessageTap")
-                    
                     // Dispatch CANCEL to gracefully exit Valdi's touch state without triggering native click
                     val cancelEvent = MotionEvent.obtain(motionEvent).apply { action = MotionEvent.ACTION_CANCEL }
                     param.invokeOriginal(arrayOf(cancelEvent))
