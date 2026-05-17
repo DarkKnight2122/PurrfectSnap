@@ -30,18 +30,18 @@
 - Features:
 - Implemented "PurrfectSnap AI" (tq ΞTΞRNAL)
 - Implemented app intro showcase (tq ΞTΞRNAL)
-- Implemented "Spoof follower count" (tq RSR)
+- Implemented "Spoof follower count" (tq <RSR/>)
 - Implemented Social Tab sorting by Streak Length (tq Javalsta)
 - Implemented "Chat Hold Kill" (tq SUJΛL)
 - Implemented "Snapchat plus purchase date spoof" (tq SUJΛL)
 - Implemented Message log export for individual chat (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
-- Implemented Memory message icon indicator(tq RSR)
+- Implemented Memory message icon indicator(tq <RSR/>)
 - Implemented two new message indicator toggles, for self snaps and group.
 - Implemented new toggles for chat and snap stealth mode in friend feed menu.
 - Implemented new notification card for Continous send feature. 
 
 - Fixes:
-- Improved message icon indicator reliability and redesigned all chat status indicators. (tq RSR)
+- Improved message icon indicator reliability and redesigned all chat status indicators. (tq <RSR/>)
 - Media resend flow bug fixes. (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
 - Message Logger backup import bug fixes and implemented logging to report success or failure. (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
 - Media download support through message logger. (tq 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝)
@@ -77,33 +77,33 @@
 - Fix: Block Ads
 - Fix: Snapchat automatically restarting if kept idle
 - Fix: Feed Flickering issue for some devices
-- Fix: Implemented Dual-Thread Sync Architecture with a 1,000 depth that proactively scans the database for missed history, thus resolving the "failed to open..." and "Tap to load" snaps before marking them, clearing historical gaps automatically(tq to Kaladin)
-- New: Implemented Screen Guard where Auto Open Engine now detects screen state and stops all notification work while the device is locked, thus reducing excessive battery drain and heat spike during background processing(tq to Kaladin)
-- Fix: Disk read/write frequency increased from 1s to 5 minutes, to eliminate constant background disk friction, thus reducing overheating of the device while processing(tq to Kaladin)
-- Fix: Slid chat switching delays from 2.0s down to 40ms, thus achieving near-instant processing of 1000+ snap bursts(tq to Kaladin)
-- Fix: Removed "Auto Open pause while Gaming" toggle(tq to Kaladin)
-- Fix: Reworked "Snap Pre-Fetch" toggle to the global Messaging settings page(tq to Kaladin)
-- Fix: Refactored Auto Open engine notification cards to declutter it and removed redundant stats(tq to Kaladin)
-- Fix: Corrected speed labels in the Auto Open notification to show "Idle" when monitoring and accurate notions (Full Speed/Throttled) when active(tq to Kaladin)
+- Fix: Implemented Dual-Thread Sync Architecture with a 1,000 depth that proactively scans the database for missed history, thus resolving the "failed to open..." and "Tap to load" snaps before marking them, clearing historical gaps automatically(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Implemented Screen Guard where Auto Open Engine now detects screen state and stops all notification work while the device is locked, thus reducing excessive battery drain and heat spike during background processing(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Disk read/write frequency increased from 1s to 5 minutes, to eliminate constant background disk friction, thus reducing overheating of the device while processing(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Slid chat switching delays from 2.0s down to 40ms, thus achieving near-instant processing of 1000+ snap bursts(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Removed "Auto Open pause while Gaming" toggle(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Reworked "Snap Pre-Fetch" toggle to the global Messaging settings page(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Refactored Auto Open engine notification cards to declutter it and removed redundant stats(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Corrected speed labels in the Auto Open notification to show "Idle" when monitoring and accurate notions (Full Speed/Throttled) when active(tq to ᴋᴀʟᴀᴅɪɴ)
 
 ## v1.6.6
-- Fix: Persistent auto open snap disabled notification(tq to Kaladin)
+- Fix: Persistent auto open snap disabled notification(tq to ᴋᴀʟᴀᴅɪɴ)
 - Fix: Crash issues for some devices
 - Fix: upload quality for snaps sent through send override
-- Fix: Refactored the notification card for Auto Open to remove the looping progress bar while the engine is in Monitoring stage(tq to Kaladin)
-- New: Implemented a "Pre Fetch snaps" toggle, when enabled this will pre-fetch the snaps in the auto open queue and load them for the engine to open them efficiently and thus reducing the "Failed to Open..." status(tq to Kaladin)
-- Fix: The Auto Open engine now only fires the status update if the status text, processed count, or queue structural state actually changes. This reduces system wake-ups during idle periods which helps in battery drain management(tq to Kaladin)
-- Fix: Disk Optimization: Previous versions wrote the auto open queue to the disk every 25 snaps, this update modified this to a 3-minute windowed save. This reduces Disk I/O by ~75%, keeping the device from overheating excessively during Auto Open processes(tq to Kaladin)
+- Fix: Refactored the notification card for Auto Open to remove the looping progress bar while the engine is in Monitoring stage(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Implemented a "Pre Fetch snaps" toggle, when enabled this will pre-fetch the snaps in the auto open queue and load them for the engine to open them efficiently and thus reducing the "Failed to Open..." status(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: The Auto Open engine now only fires the status update if the status text, processed count, or queue structural state actually changes. This reduces system wake-ups during idle periods which helps in battery drain management(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Disk Optimization: Previous versions wrote the auto open queue to the disk every 25 snaps, this update modified this to a 3-minute windowed save. This reduces Disk I/O by ~75%, keeping the device from overheating excessively during Auto Open processes(tq to ᴋᴀʟᴀᴅɪɴ)
 
 ## v1.6.5
 - New: Performance mode will now be set to max by default!
 - Fix: Several optimizations to the performance mode feature which will make your snapchat experience more smooth!
 - Fix: Crash issues for some devices after enabling spoof
-- Fix: Notification Icon for the Announcements(tq to Kaladin)
-- Fix: Auto Open Engine not processing, stuck on monitor/retry/failed loop causing overheating of the devices(tq to Kaladin)
-- Fix: Refactor the Notification card for the Auto Open to remove dynamic progress bar to add the native progress bar(tq to Kaladin)
-- Fix: Auto Open Statistics have been refactored to now show the dynamic queue status(tq to Kaladin)
-- New: Auto Open Thermal Protection/Throttle toggle, when turned on the processing will be doubled down to reduce the temps of the device to maintain a study temp of 40 C and below(tq to Kaladin)
+- Fix: Notification Icon for the Announcements(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Auto Open Engine not processing, stuck on monitor/retry/failed loop causing overheating of the devices(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Refactor the Notification card for the Auto Open to remove dynamic progress bar to add the native progress bar(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Auto Open Statistics have been refactored to now show the dynamic queue status(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Auto Open Thermal Protection/Throttle toggle, when turned on the processing will be doubled down to reduce the temps of the device to maintain a study temp of 40 C and below(tq to ᴋᴀʟᴀᴅɪɴ)
 
 ## v1.6.4
 - New: Performance mode feature!(Smooth & Max)
@@ -207,15 +207,15 @@
 - New: Disable "Can't Login?" overlay feature
 - Fix: Social Tab showing Failed to fetch Data for some accounts
 - Fix: Pick a Location Dialog Crash
-- Fix: Auto Open Notification duplication when snapchat is killed or force closed(tq to Kaladin)
-- Fix: Fixed a logic error where AutoOpenSnaps would ignore per-conversation rules(tq to Kaladin)
-- Fix: Auto Open engine stuck in "Monitoring" even when there are snaps in the queue(tq to Kaladin)
-- Fix: Auto Open session toggles not working as expected(tq to Kaladin)
-- Fix: Auto Open engine is now optimmized to work with the lower end devices to reduce the overheating and excessive lag(tq to Kaladin)
-- New: Auto Open Scheduler, a new toggle and a new clock picker to schedule time period for your auto open engine to process(tq to Kaladin)
-- New: Auto Open Notification session statistics toggles, now you can choose which stats to show in the notification(tq to Kaladin)
-- New: Updated Auto Open notification stats which now includes a tiered "Processing Speed" and "Estimated Finish" stats(tq to Kaladin)
-- Fix: Video Downloader is saving the video files from spotlight and stories with extension as ".dat file"(tq to Kaladin)
+- Fix: Auto Open Notification duplication when snapchat is killed or force closed(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Fixed a logic error where AutoOpenSnaps would ignore per-conversation rules(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Auto Open engine stuck in "Monitoring" even when there are snaps in the queue(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Auto Open session toggles not working as expected(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Auto Open engine is now optimmized to work with the lower end devices to reduce the overheating and excessive lag(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Auto Open Scheduler, a new toggle and a new clock picker to schedule time period for your auto open engine to process(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Auto Open Notification session statistics toggles, now you can choose which stats to show in the notification(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Updated Auto Open notification stats which now includes a tiered "Processing Speed" and "Estimated Finish" stats(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Video Downloader is saving the video files from spotlight and stories with extension as ".dat file"(tq to ᴋᴀʟᴀᴅɪɴ)
 
 ## v1.6.1
 - Fix: Custom Frame Rate
@@ -233,16 +233,16 @@
 - New: Unlock Zoom Limit Feature!
 
 ## v1.5.8
-- New: Implemented 30Mbps Video and 320kbps/48kHz Audio bitrates(tq to Kaladin)
-- Fix: Advanced hardware ISP processing modes for superior dynamic range and less noisy video footage(tq to Kaladin)
-- Fix: Optimized 1MB socket buffers for high-speed throughput which should upload the video/snap faster then before(tq to Kaladin)
-- New: Aphelion Task page went full layout overhaul with segmented "Active" and "Scheduled" tab views(tq to Kaladin)
-- FixL Auto-Open Status Card: Restored real-time visibility of processed snaps and queue status(tq to Kaladin)
-- New: Smart trickle which has background processing with resource awareness (Paused/Trickle/Normal states)(tq to Kaladin)
-- New: Four different states for auto open processing so that the device can be usable with auto open in the background(tq to Kaladin)
-- Fix: memory hogging of the auto open queues, now the device should run much faster without any lag or stuttures(tq to Kaladin)
-- Fix: "dot in username issue" with the implementation of unique incrementing ((1).jpg), where previously it was overwriting the previous file(tq to Kaladin)
-- Fix: Lock Indicator for the snaps, which should now accurately be working on all versions(tq to Kaladin)
+- New: Implemented 30Mbps Video and 320kbps/48kHz Audio bitrates(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Advanced hardware ISP processing modes for superior dynamic range and less noisy video footage(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Optimized 1MB socket buffers for high-speed throughput which should upload the video/snap faster then before(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Aphelion Task page went full layout overhaul with segmented "Active" and "Scheduled" tab views(tq to ᴋᴀʟᴀᴅɪɴ)
+- FixL Auto-Open Status Card: Restored real-time visibility of processed snaps and queue status(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Smart trickle which has background processing with resource awareness (Paused/Trickle/Normal states)(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Four different states for auto open processing so that the device can be usable with auto open in the background(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: memory hogging of the auto open queues, now the device should run much faster without any lag or stuttures(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: "dot in username issue" with the implementation of unique incrementing ((1).jpg), where previously it was overwriting the previous file(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Lock Indicator for the snaps, which should now accurately be working on all versions(tq to ᴋᴀʟᴀᴅɪɴ)
 - Fix: Pressing back while keyboard is open in spoofed coordinates would close the dialog
 - Fix: Not able to scroll in the "Can't Login?" dialog
 
@@ -273,7 +273,7 @@
 ## v1.5.1
 - Fix: Splitting issue for video snaps sent through gallery media send override!
 - New: Toggle to turn off/on splitting for video snaps sent through send override
-- Fix: Aphelion task page layout optimization(tq to Kaladin)
+- Fix: Aphelion task page layout optimization(tq to ᴋᴀʟᴀᴅɪɴ)
 
 ## v1.5.0
 - Fix: Skip when marking as seen for newer versions of Snapchat
@@ -285,7 +285,7 @@
 
 ## v1.4.8
 - Fix: Crash Issues for some devices
-- Fix: Crash when using the theme button in android 11 & 12(tq to Kaladin) 
+- Fix: Crash when using the theme button in android 11 & 12(tq to ᴋᴀʟᴀᴅɪɴ) 
 - Fix: Both side call recording for newer versions of snapchat
 - Fix: Missing Accept Key button for E2E Encryption for newer versions of snapchat
 
@@ -294,22 +294,22 @@
 - Fix: No Config import/export button if Aphelion theme is turned off
 
 ## v1.4.5
-- New: Spoof Snap Score Locally(tq to RSR)
-- New: Video Recording Timer(tq to RSR)
-- New: Auto Skip(tq to RSR)
-- Fix: Processing failed to save snaps(tq to RSR)
-- Fix: Story counter & story source for newer versions of snapchat(tq to RSR)
-- Fix: Features page using Aphelion scroll even when Aphelion is not in use(tq to Kaladin)
-- Fix: Aphelion Task page not showing the thumbnails of the completed tasks(tq to Kaladin)
-- Fix: Tasks page not showing the merge button when Aphelion is not in use(tq to Kaladin)
-- Fix: Features and its sub pages scroll state is remembered infintely, causing the pages to load where they were exited even after the app is closed(tq to Kaladin)
-- New: Expanded Friend Mutation Observer to include the new layout when Aphelion is in use(tq to Kaladin)
-- New: Theme Transition Animation(tq to Kaladin)
+- New: Spoof Snap Score Locally(tq to <RSR/>)
+- New: Video Recording Timer(tq to <RSR/>)
+- New: Auto Skip(tq to <RSR/>)
+- Fix: Processing failed to save snaps(tq to <RSR/>)
+- Fix: Story counter & story source for newer versions of snapchat(tq to <RSR/>)
+- Fix: Features page using Aphelion scroll even when Aphelion is not in use(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Aphelion Task page not showing the thumbnails of the completed tasks(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Tasks page not showing the merge button when Aphelion is not in use(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Features and its sub pages scroll state is remembered infintely, causing the pages to load where they were exited even after the app is closed(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Expanded Friend Mutation Observer to include the new layout when Aphelion is in use(tq to ᴋᴀʟᴀᴅɪɴ)
+- New: Theme Transition Animation(tq to ᴋᴀʟᴀᴅɪɴ)
 - Fix: Friend feed menu button overlapping for group chats
 - Fix: Duplicate opera download & mark snaps as seen buttons
 
 ## v1.4.1
-- New: Improved device spoofing, now you can create accounts & bypass login issue where login doesn't work(tq to RSR)
+- New: Improved device spoofing, now you can create accounts & bypass login issue where login doesn't work(tq to <RSR/>)
 - Fix: Story Counter/Story Source position(tq to AhmedRaza)
 - Fix: Better Location Overlay Icon for newer Snapchat versions
 - Fix: Double tap to mark chat as read for newer Snapchat versions
@@ -328,9 +328,9 @@
 - Fix: Show First Created Username
 - Fix: Call recording starting automatically when taking snaps/videos
 - Fix: Snap Downloading issue for some devices
-- New: Story Snap Batch Download(tq to RSR)
-- New: Aphelion Theme!(tq to Kaladin)
-- Fix: Monochrome icon of PurrfectSnap(tq to Kaladin)
+- New: Story Snap Batch Download(tq to <RSR/>)
+- New: Aphelion Theme!(tq to ᴋᴀʟᴀᴅɪɴ)
+- Fix: Monochrome icon of PurrfectSnap(tq to ᴋᴀʟᴀᴅɪɴ)
 
 ## v1.3.9
 - Fix: Improve ads & metrics blocking
@@ -360,23 +360,23 @@
 - New: Switch to kavaref
 - Fix: better location overlay crash
 - Fix: better location icon position for newer snap versions
-- New: Story counter(tq to RSR)
-- New: Story Source(tq to RSR)
+- New: Story counter(tq to <RSR/>)
+- New: Story Source(tq to <RSR/>)
 - Fix: Snaps getting saved even if the option is unchecked(tq to AhmedRaza)
 - Fix: Chat edit history UI(tq to AhmedRaza)
-- Fix: Media quality(tq to RSR)
+- Fix: Media quality(tq to <RSR/>)
 - New: Remove support for Android 9 and 10
 
 ## v1.3.2
 - ⚠️ ALL USERS ARE REQUESTED TO UPDATE TO THIS VERSION AS SOON AS POSSIBLE!⚠️
 - Fix: Crucial fixes
-- Fix: Media File Picker and added mapper(tq to RSR)
+- Fix: Media File Picker and added mapper(tq to <RSR/>)
 
 ## v1.3.0
-- New: Bulk Manage Friend Requests(tq to RSR)
-- Fix: Bulk Action Progress Dialogs(tq to RSR)
-- Fix: Audio note send override(tq to RSR)
-- Fix: Improve PurrAura Active indicator(tq to RSR)
+- New: Bulk Manage Friend Requests(tq to <RSR/>)
+- Fix: Bulk Action Progress Dialogs(tq to <RSR/>)
+- Fix: Audio note send override(tq to <RSR/>)
+- Fix: Improve PurrAura Active indicator(tq to <RSR/>)
 - Fix: Prevent Story Rewatch(tq to Brandon)
 - Fix: Location search(tq to Brandon)
 - Fix: story download & decryption(tq to Hazelnut)
@@ -389,28 +389,28 @@
 - Fix: Custom emoji is now stable!
 - Fix: Poor Call recorder quality
 - New: order feature for chat exports
-- Fix: Gemini Auto Reply(tq to RSR)
-- New: Spotlight Creator Info(tq to RSR)
+- Fix: Gemini Auto Reply(tq to <RSR/>)
+- New: Spotlight Creator Info(tq to <RSR/>)
 
 ## v1.2.6
 - Fix: All translations are now high quality and up to date
 
 ## v1.2.5
-- Fix: Prevent snap replay/missed audio voice call(tq to RSR)
-- New: Call Recording UI(tq to RSR)
+- Fix: Prevent snap replay/missed audio voice call(tq to <RSR/>)
+- New: Call Recording UI(tq to <RSR/>)
 - Fix: weird Search bar behaviour in overlay
 - New: wrong architecture detector
-- Fix: Arabic Translation(tq to RSR)
-- New: Fresh look of PurrAura Indicator(tq to RSR)
+- Fix: Arabic Translation(tq to <RSR/>)
+- New: Fresh look of PurrAura Indicator(tq to <RSR/>)
 - Fix: no such directory auto patcher
-- New: Auto Mapper for Manage Friend List(tq to RSR)
-- Fix: remove audio note duration & transcription(tq to RSR)
+- New: Auto Mapper for Manage Friend List(tq to <RSR/>)
+- Fix: remove audio note duration & transcription(tq to <RSR/>)
 - Fix: Missing translations
 - New: Chat Wallpaper download button UI
 
 ## v1.2.0
-- Fix: Prevent snap replay/missed audio voice call(thanks to RSR)
-- Fix: Various messaging fixes for newer snap versions(thanks to RSR)
+- Fix: Prevent snap replay/missed audio voice call(thanks to <RSR/>)
+- Fix: Various messaging fixes for newer snap versions(thanks to <RSR/>)
 - New: Announcements feature(directly view important announcements right through the app!)
 - Fix: Missing about page
 - Fix: incorrect snap version instructions

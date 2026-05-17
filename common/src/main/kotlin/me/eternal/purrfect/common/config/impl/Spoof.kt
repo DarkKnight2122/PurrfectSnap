@@ -172,6 +172,7 @@ class Spoof : ConfigContainer(hasGlobalState = true) {
         val identifierOptions = container("identifier_options", RandomizedIdentifiersConfig().apply { globalState = true })
         val persistentAppLanguage = unique("persistent_app_language", *supportedSnapchatLanguages.toTypedArray()) {
             requireRestart()
+            addFlags(ConfigFlag.NO_TRANSLATE)
             disabledKey = "system_default"
             customOptionTranslationPath = "features.options.persistent_app_language"
         }

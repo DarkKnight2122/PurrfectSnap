@@ -1,4 +1,4 @@
-package me.eternal.purrfect.ui.util
+﻿package me.eternal.purrfect.ui.util
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.Dp
 
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.ui.text.rememberTextMeasurer
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 
 /**
  * A premium marquee text component that supports continuous looping.
@@ -25,7 +26,7 @@ fun PurrfectMarqueeText(
     text: String,
     style: TextStyle = TextStyle.Default,
     modifier: Modifier = Modifier,
-    color: Color = Color.White,
+    color: Color = LocalPurrfectSkin.current.textPrimary,
     textAlign: TextAlign = TextAlign.Center,
     contentAlignment: Alignment = Alignment.Center,
     delayMillis: Int = 1500,
