@@ -48,7 +48,7 @@ fun FeaturesRootSection.AphelionFeaturesScreen(nav: NavBackStackEntry) {
         }
         else -> {
             Container(
-                configContainer = featureRootContainer(),
+                configContainer = context.config.root,
                 stateKey = "${routeInfo.id}:container:root"
             )
         }

@@ -33,6 +33,7 @@ import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.ui.AppMaterialTheme
 import me.eternal.purrfect.common.ui.ThemeMode
 import me.eternal.purrfect.common.ui.createComposeView
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.manager.Navigation
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
@@ -144,7 +145,7 @@ class RemoteOverlay(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(overlayShape)
-                                        .background(PurrfectPalette.backgroundGradient)
+                                        .background(LocalPurrfectSkin.current.backgroundGradient)
                                 ) {
                                     OverlayContent(route)
                                 }

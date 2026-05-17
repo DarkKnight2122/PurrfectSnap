@@ -24,29 +24,47 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
 import me.eternal.purrfect.R
-import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.util.ktx.openLink
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
 import me.eternal.purrfect.ui.manager.pages.home.HomeAbout
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectPalette
 import me.eternal.purrfect.ui.util.PurrfectMarqueeText
 import me.eternal.purrfect.ui.util.headerHeightTracker
 import me.eternal.purrfect.ui.util.scaleOnPress
+
+private object AboutSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else PurrfectPalette.glowPrimary
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else PurrfectPalette.glowSecondary
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else PurrfectPalette.backgroundGradient
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.panelGradient else PurrfectPalette.panelGradient
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else PurrfectPalette.textPrimary
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else PurrfectPalette.textSecondary
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else PurrfectPalette.cardOverlayColor
+}
 
 @Composable
 fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
@@ -55,16 +73,6 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
     }
     val scrollState = rememberScrollState()
     val aboutStory = remember { translation["about_story"]?.trim() ?: "" }
-    val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
-    val targetAccent = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100)
-    val targetSuffix = if (isRedditMode) "Reddit" else "Snap"
-    val aboutTagline = remember(isRedditMode) {
-        if (isRedditMode) {
-            (translation["about_tagline"] ?: "").replace("Snapchat", "Reddit")
-        } else {
-            translation["about_tagline"] ?: ""
-        }
-    }
     val horizontalPadding = 24.dp
     val bottomPadding = routes.bottomPadding
     val tapSource = remember { MutableInteractionSource() }
@@ -73,16 +81,14 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
     val lastTapTime = remember { mutableLongStateOf(0L) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
-    LaunchedEffect(scrollState) {
-        androidx.compose.runtime.snapshotFlow { scrollState.value }.collect {
-            routes.navigation?.globalScrollOffset = it
-        }
+    LaunchedEffect(scrollState.value) {
+        routes.navigation?.globalScrollOffset = scrollState.value
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PurrfectPalette.backgroundGradient)
+            .background(AboutSkinPalette.backgroundGradient)
     ) {
         var controlsHeight by remember { mutableStateOf(100.dp) }
 
@@ -102,11 +108,11 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(30.dp),
                 color = Color.Transparent,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                border = BorderStroke(1.dp, AboutSkinPalette.textPrimary.copy(alpha = 0.1f)),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp
             ) {
-                Box(modifier = Modifier.fillMaxWidth().background(PurrfectPalette.panelGradient)) {
+                Box(modifier = Modifier.fillMaxWidth().background(AboutSkinPalette.panelGradient)) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 20.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -115,13 +121,13 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                         Text(
                             text = buildAnnotatedString {
                                 append("Purrfect")
-                                withStyle(SpanStyle(color = targetAccent)) {
-                                    append(targetSuffix)
-                                }
+                                pushStyle(SpanStyle(color = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) Color(0xFFFF4500) else Color(0xFFFFE100)))
+                                append(if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) "Reddit" else "Snap")
+                                pop()
                             },
                             fontSize = 32.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurrfectPalette.textPrimary,
+                            color = AboutSkinPalette.textPrimary,
                             fontFamily = avenirNext,
                             modifier = Modifier.clickable(
                                 interactionSource = tapSource,
@@ -142,9 +148,9 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                             )
                         )
                         Text(
-                            text = aboutTagline,
+                            text = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) (translation["about_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["about_tagline"] ?: "",
                             fontSize = 14.sp,
-                            color = PurrfectPalette.textSecondary,
+                            color = AboutSkinPalette.textSecondary,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -153,7 +159,7 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                             text = translation["about_lead_developers_title"] ?: "Lead Developers",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            color = AboutSkinPalette.textPrimary,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
                         Column(
@@ -165,30 +171,29 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                DeveloperCard(name = "Eternal", subtitle = "", imageRes = R.drawable.pfp_external, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                                DeveloperCard(name = "Kaladin", subtitle = "", imageRes = R.drawable.pfp_kaladin, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "ΞTΞRNAL", subtitle = null, imageRes = R.drawable.pfp_external, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "ᴋᴀʟᴀᴅɪɴ", subtitle = null, imageRes = R.drawable.pfp_kaladin, avenirNext = avenirNext, modifier = Modifier.weight(1f))
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                DeveloperCard(name = "schrodingerspet", subtitle = "", imageRes = R.drawable.pfp_schrodingerspet, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                                DeveloperCard(name = "RSR", subtitle = "", imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝", subtitle = null, imageRes = R.drawable.pfp_schrodingerspet, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "<RSR/>", subtitle = null, imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.weight(1f))
                             }
                         }
                     }
                 }
             }
 
-            // LITERAL OUR STORY VERBATIM RESTORATION (Justified & Indented)
             Surface(
                 modifier = Modifier
                     .padding(horizontal = horizontalPadding)
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(26.dp),
-                color = PurrfectPalette.cardOverlayColor,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                color = AboutSkinPalette.cardOverlayColor.copy(alpha = 0.45f),
+                border = BorderStroke(1.dp, AboutSkinPalette.textPrimary.copy(alpha = 0.08f)),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp
             ) {
@@ -199,7 +204,7 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                 ) {
                     PurrfectMarqueeText(
                         text = translation["about_story_title"] ?: "About Us",
-                        color = Color.White,
+                        color = AboutSkinPalette.textPrimary,
                         style = TextStyle(
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -210,13 +215,13 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                     HorizontalDivider(
                         modifier = Modifier.fillMaxWidth(0.7f).padding(vertical = 4.dp),
                         thickness = 1.2.dp,
-                        color = Color.White.copy(alpha = 0.3f)
+                        color = AboutSkinPalette.textPrimary.copy(alpha = 0.3f)
                     )
 
                     Text(
                         text = aboutStory,
                         fontSize = 15.sp,
-                        color = PurrfectPalette.textSecondary,
+                        color = AboutSkinPalette.textSecondary,
                         textAlign = TextAlign.Justify,
                         style = LocalTextStyle.current.copy(
                             lineHeight = 22.sp,
@@ -232,8 +237,8 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                     .padding(horizontal = horizontalPadding)
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                color = PurrfectPalette.cardOverlayColor,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                color = AboutSkinPalette.cardOverlayColor.copy(alpha = 0.55f),
+                border = BorderStroke(1.dp, AboutSkinPalette.textPrimary.copy(alpha = 0.12f)),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp
             ) {
@@ -242,15 +247,15 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = translation["about_thanks_title"] ?: "Special Thanks", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White, textAlign = TextAlign.Center)
+                    Text(text = translation["about_thanks_title"] ?: "Special Thanks", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AboutSkinPalette.textPrimary, textAlign = TextAlign.Center)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://github.com/particle-box/Purrfect", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E)), shape = RoundedCornerShape(14.dp)) {
+                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://github.com/particle-box/Purrfect", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = AboutSkinPalette.textPrimary, contentColor = AboutSkinPalette.cardOverlayColor), shape = RoundedCornerShape(14.dp)) {
                             Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = translation["github_button"] ?: "GitHub", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"] ?: "") }, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White), shape = RoundedCornerShape(14.dp)) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram), contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                        OutlinedButton(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"] ?: "") }, border = BorderStroke(1.dp, AboutSkinPalette.textPrimary.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = AboutSkinPalette.textPrimary), shape = RoundedCornerShape(14.dp)) {   
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram), contentDescription = null, modifier = Modifier.size(18.dp), tint = AboutSkinPalette.textPrimary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = translation["telegram_button"] ?: "Telegram", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }

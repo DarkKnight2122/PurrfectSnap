@@ -48,7 +48,9 @@ import me.eternal.purrfect.storage.*
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfect.ui.util.AlertDialogs
 import me.eternal.purrfect.ui.util.Dialog
 import me.eternal.purrfect.ui.util.purrfectSwitchColors
@@ -56,6 +58,26 @@ import me.eternal.purrfect.ui.util.coil.BitmojiImage
 import me.eternal.purrfect.ui.util.scaleOnPress
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
+
+private object ManageScopeSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else Brush.verticalGradient(listOf(Color(0xFF5C4B99), Color(0xFF322B5E), Color(0xFF1B1836)))
+}
+
 
 class ManageScope: Routes.Route() {
     private val dialogs by lazy { AlertDialogs(context.translation) }
@@ -108,14 +130,14 @@ class ManageScope: Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(ManageScopeSkinPalette.backgroundGradient)
         ) {
             FloatingTopBar(
                 title = titleText ?: translation["manage_scope_title"],
                 onBack = { routes.navController.popBackStack() },
                 actions = {
                     IconButton(onClick = { deleteConfirmDialog = true }) {
-                        Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = Color.White)
+                        Icon(Icons.Rounded.DeleteForever, contentDescription = null, tint = LocalPurrfectSkin.current.textPrimary)
                     }
                 },
                 modifier = Modifier
@@ -180,7 +202,7 @@ class ManageScope: Routes.Route() {
                         text = translation["not_found"],
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = LocalPurrfectSkin.current.textPrimary
                     )
                 }
             }
@@ -202,7 +224,7 @@ class ManageScope: Routes.Route() {
 
         EditNoteTextField(
             modifier = Modifier.padding(8.dp),
-            primaryColor = Color.White,
+            primaryColor = LocalPurrfectSkin.current.textPrimary,
             placeholder = context.translation["manager.sections.manage_scope.notes_placeholder"],
             content = scopeNotes,
             setContent = { scopeNotes = it }
@@ -260,7 +282,7 @@ class ManageScope: Routes.Route() {
                         modifier = Modifier
                             .weight(1f)
                             .padding(start = 5.dp, end = 5.dp),
-                        color = Color.White
+                        color = LocalPurrfectSkin.current.textPrimary
                     )
                     Switch(
                         checked = ruleEnabled,
@@ -284,23 +306,23 @@ class ManageScope: Routes.Route() {
                 .fillMaxWidth()
                 .then(modifier),
             shape = shape,
-            color = Color.White.copy(alpha = 0.04f),
+            color = LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.04f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.3f)
+                        ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.4f),
+                        ManageScopeSkinPalette.glowSecondary.copy(alpha = 0.3f)
                     )
                 )
             )
         ) {
-            CompositionLocalProvider(LocalContentColor provides Color.White) {
+            CompositionLocalProvider(LocalContentColor provides LocalPurrfectSkin.current.textPrimary) {
                 Column(
                     modifier = Modifier
-                        .background(PurrfectPalette.cardOverlay, shape)
+                        .background(ManageScopeSkinPalette.cardOverlay, shape)
                         .padding(12.dp)
                         .fillMaxWidth()
                 ) {
@@ -319,7 +341,7 @@ class ManageScope: Routes.Route() {
             fontWeight = FontWeight.Bold,
             modifier = Modifier
                 .padding(start = 18.dp, top = 10.dp, bottom = 6.dp),
-            color = Color.White
+            color = LocalPurrfectSkin.current.textPrimary
         )
     }
 
@@ -341,8 +363,8 @@ class ManageScope: Routes.Route() {
                     indication = null
                 ) { onClick() },
             shape = RoundedCornerShape(16.dp),
-            color = Color.White.copy(alpha = 0.06f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+            color = LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.06f),
+            border = BorderStroke(1.dp, LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.18f)),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
@@ -362,13 +384,13 @@ class ManageScope: Routes.Route() {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = LocalPurrfectSkin.current.textPrimary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
                 Text(
                     text = label,
-                    color = Color.White,
+                    color = LocalPurrfectSkin.current.textPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -460,8 +482,8 @@ class ManageScope: Routes.Route() {
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
-                                    color = Color.White.copy(alpha = 0.08f),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+                                    color = LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.08f),
+                                    border = BorderStroke(1.dp, LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.16f))
                                 ) {
                                     Box(
                                         modifier = Modifier
@@ -469,8 +491,8 @@ class ManageScope: Routes.Route() {
                                             .background(
                                                 Brush.linearGradient(
                                                     listOf(
-                                                        PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                                                        PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
+                                                        ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.5f),
+                                                        ManageScopeSkinPalette.glowSecondary.copy(alpha = 0.4f)
                                                     )
                                                 ),
                                                 RoundedCornerShape(14.dp)
@@ -480,7 +502,7 @@ class ManageScope: Routes.Route() {
                                         Icon(
                                             imageVector = Icons.Filled.Lock,
                                             contentDescription = null,
-                                            tint = Color.White
+                                            tint = LocalPurrfectSkin.current.textPrimary
                                         )
                                     }
                                 }
@@ -491,12 +513,12 @@ class ManageScope: Routes.Route() {
                                     Text(
                                         text = translation["e2ee_title"],
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color.White,
+                                        color = LocalPurrfectSkin.current.textPrimary,
                                         fontSize = 16.sp
                                     )
                                     Text(
                                         text = translation["e2ee_subtitle"],
-                                        color = PurrfectPalette.textSecondary,
+                                        color = ManageScopeSkinPalette.textSecondary,
                                         fontSize = 12.sp
                                     )
                                 }
@@ -510,8 +532,8 @@ class ManageScope: Routes.Route() {
                                         icon = Icons.Filled.Lock,
                                         accent = Brush.horizontalGradient(
                                             listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.55f)
+                                                ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.6f),
+                                                ManageScopeSkinPalette.glowSecondary.copy(alpha = 0.55f)
                                             )
                                         ),
                                         onClick = {
@@ -556,7 +578,7 @@ class ManageScope: Routes.Route() {
             modifier = Modifier
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(22.dp))
+                .background(LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.04f), RoundedCornerShape(22.dp))
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -569,14 +591,14 @@ class ManageScope: Routes.Route() {
                 maxLines = 1,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = LocalPurrfectSkin.current.textPrimary
             )
             Text(
                 text = friend.mutableUsername,
                 maxLines = 1,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Light,
-                color = PurrfectPalette.textSecondary
+                color = ManageScopeSkinPalette.textSecondary
             )
         }
 
@@ -589,7 +611,7 @@ class ManageScope: Routes.Route() {
                     routes.loggedStories.navigate {
                         put("id", id)
                     }
-                }, colors = ButtonDefaults.buttonColors(containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f), contentColor = Color.White)) {
+                }, colors = ButtonDefaults.buttonColors(containerColor = ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.34f), contentColor = LocalPurrfectSkin.current.textPrimary)) {
                     Text(translation["logged_stories_button"])
                 }
             }
@@ -654,7 +676,7 @@ class ManageScope: Routes.Route() {
             modifier = Modifier
                 .padding(horizontal = 12.dp, vertical = 8.dp)
                 .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.04f), RoundedCornerShape(22.dp))
+                .background(LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.04f), RoundedCornerShape(22.dp))
                 .padding(horizontal = 14.dp, vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -664,7 +686,7 @@ class ManageScope: Routes.Route() {
                 overflow = TextOverflow.Ellipsis,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = LocalPurrfectSkin.current.textPrimary
             )
             Text(
                 text = translation.format(
@@ -673,7 +695,7 @@ class ManageScope: Routes.Route() {
                 maxLines = 1,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Light,
-                color = PurrfectPalette.textSecondary
+                color = ManageScopeSkinPalette.textSecondary
             )
         }
     }

@@ -72,7 +72,6 @@ import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.components.AestheticEmptyState
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import okhttp3.OkHttpClient
 
 class ManageFriendTrackerReposSection: Routes.Route() {
@@ -99,7 +98,7 @@ class ManageFriendTrackerReposSection: Routes.Route() {
 
         ExtendedFloatingActionButton(
             onClick = { showAddDialog = true },
-            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
+            containerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.34f),
             contentColor = Color.White,
             shape = RoundedCornerShape(18.dp),
             elevation = FloatingActionButtonDefaults.elevation(
@@ -131,15 +130,15 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                                TrackerSkinPalette.glowPrimary.copy(alpha = 0.55f),
+                                TrackerSkinPalette.glowSecondary.copy(alpha = 0.45f)
                             )
                         )
                     )
                 ) {
                     Column(
                         modifier = Modifier
-                            .background(PurrfectPalette.cardOverlay, RoundedCornerShape(24.dp))
+                            .background(TrackerSkinPalette.cardOverlay, RoundedCornerShape(24.dp))
                             .padding(horizontal = 18.dp, vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -149,7 +148,7 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f)
+                                color = TrackerSkinPalette.glowPrimary.copy(alpha = 0.18f)
                             ) {
                                 Icon(
                                     Icons.Default.Public,
@@ -169,7 +168,7 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                                     text = translation["manager.dialogs.scripting.repo_hint"]
                                         ?: translation["repo_url_label"]
                                         ?: "",
-                                    color = PurrfectPalette.textSecondary,
+                                    color = TrackerSkinPalette.textSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -181,16 +180,16 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                                 .onGloballyPositioned { focusRequester.requestFocus() },
                             value = url,
                             onValueChange = { url = it },
-                            label = { Text(translation["repo_url_label"], color = PurrfectPalette.textSecondary) },
+                            label = { Text(translation["repo_url_label"], color = TrackerSkinPalette.textSecondary) },
                             singleLine = true,
                             colors = TextFieldDefaults.colors(
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
                                 focusedContainerColor = Color.White.copy(alpha = 0.08f),
                                 unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                                cursorColor = PurrfectPalette.glowSecondary,
-                                focusedLabelColor = PurrfectPalette.textSecondary,
-                                unfocusedLabelColor = PurrfectPalette.textSecondary
+                                cursorColor = TrackerSkinPalette.glowSecondary,
+                                focusedLabelColor = TrackerSkinPalette.textSecondary,
+                                unfocusedLabelColor = TrackerSkinPalette.textSecondary
                             )
                         )
                         LaunchedEffect(Unit) {
@@ -201,7 +200,7 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                             horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
                         ) {
                             TextButton(onClick = { showAddDialog = false }) {
-                                Text(translation["button.cancel"], color = PurrfectPalette.textSecondary)
+                                Text(translation["button.cancel"], color = TrackerSkinPalette.textSecondary)
                             }
                             Button(
                                 enabled = !loading && url.isNotBlank(),
@@ -251,7 +250,7 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.3f),
+                                    containerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.3f),
                                     contentColor = Color.White
                                 )
                             ) {
@@ -269,9 +268,8 @@ class ManageFriendTrackerReposSection: Routes.Route() {
     }
 
     override val content: @Composable (androidx.navigation.NavBackStackEntry) -> Unit = {
-        var repositories by remember { mutableStateOf<List<String>>(emptyList()) }
-        LaunchedEffect(refreshTrigger.value) {
-            repositories = context.database.getRepositories("friend_tracker")
+        val repositories by remember(refreshTrigger.value) {
+            mutableStateOf<List<String>>(runBlocking { context.database.getRepositories("friend_tracker") })
         }
         val density = LocalDensity.current
         val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -280,7 +278,7 @@ class ManageFriendTrackerReposSection: Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(TrackerSkinPalette.backgroundGradient)
         ) {
             FloatingTopBar(
                 title = routeInfo.translatedKey?.value ?: translation["title"],
@@ -325,15 +323,15 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
-                            color = PurrfectPalette.cardOverlayColor,
+                            color = TrackerSkinPalette.cardOverlayColor,
                             tonalElevation = 0.dp,
                             shadowElevation = 10.dp,
                             border = BorderStroke(
                                 1.dp,
                                 Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                        TrackerSkinPalette.glowPrimary.copy(alpha = 0.45f),
+                                        TrackerSkinPalette.glowSecondary.copy(alpha = 0.35f)
                                     )
                                 )
                             )
@@ -347,7 +345,7 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f)
+                                    color = TrackerSkinPalette.glowPrimary.copy(alpha = 0.18f)
                                 ) {
                                     Icon(
                                         Icons.Default.Public,
@@ -369,13 +367,13 @@ class ManageFriendTrackerReposSection: Routes.Route() {
                                     Text(
                                         text = author,
                                         fontSize = 13.sp,
-                                        color = PurrfectPalette.textSecondary
+                                        color = TrackerSkinPalette.textSecondary
                                     )
                                 }
                                 Button(
                                     onClick = { showRemoveDialog = true },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.22f),
+                                        containerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.22f),
                                         contentColor = Color.White
                                     )
                                 ) {

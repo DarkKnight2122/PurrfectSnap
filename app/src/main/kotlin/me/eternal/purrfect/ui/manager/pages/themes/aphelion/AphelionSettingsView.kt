@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -53,15 +54,12 @@ import me.eternal.purrfect.common.util.protobuf.ProtoReader
 import me.eternal.purrfect.core.features.impl.downloader.decoder.DecodedAttachment
 import me.eternal.purrfect.core.features.impl.downloader.decoder.MessageDecoder
 import me.eternal.purrfect.core.wrapper.impl.getMessageText
-import me.eternal.purrfect.storage.findFriend
-import me.eternal.purrfect.storage.getAllScopeNotes
-import me.eternal.purrfect.storage.getFriendInfo
-import me.eternal.purrfect.storage.getGroupInfo
-import me.eternal.purrfect.storage.setAllScopeNotes
+import me.eternal.purrfect.storage.*
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectPalette
 import me.eternal.purrfect.ui.manager.pages.home.HomeSettings
 import me.eternal.purrfect.ui.manager.theme.aphelion.AphelionHaptics
 import me.eternal.purrfect.ui.util.headerHeightTracker
@@ -80,9 +78,28 @@ import java.net.URLEncoder
 import java.text.DateFormat
 import java.util.Date
 
+private object SettingsSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else PurrfectPalette.glowPrimary
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else PurrfectPalette.glowSecondary
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else PurrfectPalette.backgroundGradient
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else PurrfectPalette.cardOverlay
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else PurrfectPalette.textPrimary
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else PurrfectPalette.textSecondary
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else PurrfectPalette.cardOverlayColor
+}
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
+    val skin = LocalPurrfectSkin.current
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val hapticFeedback = LocalHapticFeedback.current
@@ -92,10 +109,10 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
     var showResetSetupDialog by remember { mutableStateOf(false) }
 
     val sharedButtonColors = ButtonDefaults.buttonColors(
-        containerColor = Color.White.copy(alpha = 0.07f),
-        contentColor = Color.White
+        containerColor = SettingsSkinPalette.textPrimary.copy(alpha = 0.07f),
+        contentColor = SettingsSkinPalette.textPrimary
     )
-    val sharedOutlinedColors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+    val sharedOutlinedColors = ButtonDefaults.outlinedButtonColors(contentColor = SettingsSkinPalette.textPrimary)
 
     val computedScrollOffset by remember {
         derivedStateOf {
@@ -104,10 +121,8 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
         }
     }
 
-    LaunchedEffect(listState) {
-        androidx.compose.runtime.snapshotFlow { computedScrollOffset }.collect {
-            routes.navigation?.globalScrollOffset = it
-        }
+    LaunchedEffect(computedScrollOffset) {
+        routes.navigation?.globalScrollOffset = computedScrollOffset
     }
 
     if (context.isLimitedTargetMode) {
@@ -118,7 +133,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PurrfectPalette.backgroundGradient)
+            .background(SettingsSkinPalette.backgroundGradient)
     ) {
         if (showResetSetupDialog) {
             AestheticDialog(
@@ -174,7 +189,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                         RowTitle(title = translation["ui_theme_title"] ?: "UI Theme")
                         ShiftedRow {
                             Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(text = translation["settings_ui_theme"] ?: "Aphelion Theme", fontSize = 14.sp, color = Color.White)
+                                Text(text = translation["settings_ui_theme"] ?: "Aphelion Theme", fontSize = 14.sp, color = SettingsSkinPalette.textPrimary)
                                 val currentThemeId = context.config.root.global.uiSettings.managerTheme.get()
                                 var localThemeId by remember { mutableStateOf(currentThemeId) }
                                 
@@ -182,30 +197,24 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                     checked = localThemeId == "APHELION",
                                     onCheckedChange = { isAphelion ->
                                         val newId = if (isAphelion) "APHELION" else "LEGACY"
-                                        localThemeId = newId // Update UI instantly
+                                        localThemeId = newId 
                                         
                                         AphelionHaptics.themeRevealTick(context, hapticFeedback)
-                                        
-                                        // 1. Capture bitmap BEFORE theme change
                                         val bitmap = runCatching { view.drawToBitmap() }.getOrNull()
                                         
-                                        // 2. Request Reveal
                                         routes.navigation?.themeRevealState?.requestReveal(
                                             newThemeId = newId,
                                             originCenter = switchCenter,
                                             bitmap = bitmap
                                         )
 
-                                        // 3. Apply theme and persist
                                         scope.launch {
                                             kotlinx.coroutines.delay(50)
                                             context.config.root.global.uiSettings.managerTheme.set(newId)
-                                            
-                                            // Write to disk immediately on IO thread and finish
                                             val writeJob = launch(kotlinx.coroutines.Dispatchers.IO) {
                                                 context.config.writeConfig()
                                             }
-                                            writeJob.join() // Ensure it finishes its work before scope potentially closes
+                                            writeJob.join()
                                         }
                                     },
                                     modifier = Modifier
@@ -255,10 +264,20 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                         RowTitle(title = translation["updates_title"])
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             var autoUpdateCheck by remember { mutableStateOf(context.config.root.global.updateSettings.autoUpdateCheck.getNullable() ?: true) }
+                            var selectedChannel by remember { mutableStateOf(context.config.root.global.updateSettings.updateChannel.getNullable() ?: "stable") }
+                            var channelMenuExpanded by remember { mutableStateOf(false) }
                             ShiftedRow {
                                 Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text(text = translation["auto_update_check"], fontSize = 14.sp)
                                     Switch(checked = autoUpdateCheck, onCheckedChange = { if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); autoUpdateCheck = it; context.config.root.global.updateSettings.autoUpdateCheck.set(it); context.config.writeConfig(); scheduleUpdateCheck() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
+                                }
+                            }
+                            AnimatedVisibility(visible = autoUpdateCheck) {
+                                ExposedDropdownMenuBox(expanded = channelMenuExpanded, onExpandedChange = { channelMenuExpanded = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 26.dp)) {
+                                    AestheticDropdownField(value = translation.getOrNull("update_channel_${selectedChannel}") ?: selectedChannel, expanded = channelMenuExpanded, modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable), onClick = { channelMenuExpanded = true })
+                                    ExposedDropdownMenu(expanded = channelMenuExpanded, onDismissRequest = { channelMenuExpanded = false }) {
+                                        listOf("stable", "prerelease").forEach { channel -> DropdownMenuItem(text = { Text(text = translation.getOrNull("update_channel_${channel}") ?: channel) }, onClick = { selectedChannel = channel; channelMenuExpanded = false; context.config.root.global.updateSettings.updateChannel.set(channel); context.config.writeConfig(); scheduleUpdateCheck() }) }
+                                    }
                                 }
                             }
                         }
@@ -504,16 +523,6 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                 )
                             }
 
-                            fun showImportError(throwable: Throwable) {
-                                context.log.error("Failed to import message logger", throwable)
-                                context.shortToast(
-                                    translation.format(
-                                        "import_failed_toast",
-                                        "message" to (throwable.message ?: "Unknown error")
-                                    )
-                                )
-                            }
-
                             fun parseConversationMessage(message: LoggedMessage): ParsedConversationMessage {
                                 val messageObject = runCatching {
                                     JsonParser.parseString(String(message.messageData, Charsets.UTF_8)).asJsonObject
@@ -594,8 +603,8 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
 
                                 return outputFile.bufferedWriter(Charsets.UTF_8).use { writer ->
                                     val isHtmlFormat = format.extension == "html"
-                                        if (isHtmlFormat) {
-                                            writer.appendLine("<!DOCTYPE html>")
+                                    if (isHtmlFormat) {
+                                        writer.appendLine("<!DOCTYPE html>")
                                         writer.appendLine("<html><head><meta charset=\"UTF-8\" />")
                                         writer.appendLine("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />")
                                         writer.appendLine("<title>${htmlEscape(conversationTitle)}</title>")
@@ -609,10 +618,10 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                         writer.appendLine("</head><body>")
                                         writer.appendLine("<h2>${htmlEscape(conversationTitle)}</h2>")
                                         writer.appendLine("<p>${htmlEscape(translation.format("message_logger_conversation_id", "id" to conversationId))}</p>")
-                                        } else {
-                                            writer.appendLine(conversationTitle)
-                                            writer.appendLine("")
-                                        }
+                                    } else {
+                                        writer.appendLine(conversationTitle)
+                                        writer.appendLine("")
+                                    }
 
                                     val exportedMessageCount = context.messageLogger.forEachConversationMessage(
                                         conversationId = conversationId,
@@ -663,14 +672,14 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                                 writer.appendLine("</ul>")
                                             }
                                             writer.appendLine("</div>")
-                                            } else {
-                                                writer.appendLine("[${dateFormatter.format(Date(parsed.timestamp))}] $senderLabel: $content")
-                                                parsed.attachments.forEachIndexed { index, attachment ->
-                                                    val attachmentLabel = "${loggerHistoryTranslation.format("chat_attachment", "index" to (index + 1).toString())} [${attachment.type.name.lowercase()}]"
-                                                    val attachmentValue = attachment.directUrl?.takeIf { it.isNotBlank() }
-                                                        ?: (translation["message_logger_missing_attachment_placeholder"] ?: "Attachment unavailable")
-                                                    writer.appendLine("  - $attachmentLabel: $attachmentValue")
-                                                }
+                                        } else {
+                                            writer.appendLine("[${dateFormatter.format(Date(parsed.timestamp))}] $senderLabel: $content")
+                                            parsed.attachments.forEachIndexed { index, attachment ->
+                                                val attachmentLabel = "${loggerHistoryTranslation.format("chat_attachment", "index" to (index + 1).toString())} [${attachment.type.name.lowercase()}]"
+                                                val attachmentValue = attachment.directUrl?.takeIf { it.isNotBlank() }
+                                                    ?: (translation["message_logger_missing_attachment_placeholder"] ?: "Attachment unavailable")
+                                                writer.appendLine("  - $attachmentLabel: $attachmentValue")
+                                            }
                                             writer.appendLine("")
                                         }
                                     }
@@ -765,45 +774,17 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
 
                             Column(modifier = Modifier.fillMaxWidth().padding(5.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 val summary = translation.format("message_logger_summary", "messageCount" to storedMessagesCount.toString(), "storyCount" to storedStoriesCount.toString()).replace("\n", " | ")
-                                Text(summary, maxLines = 2, color = Color.White, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                                Text(summary, maxLines = 2, color = SettingsSkinPalette.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                                 FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(10.dp) ) {
-                                    Button(onClick = { showExportOptionsDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))) { Text(text = translation["export_button"]) }
-                                    Button(onClick = { runCatching { activityLauncherHelper.openFile("application/octet-stream") { uri -> val tempFile = File(context.androidContext.cacheDir, "view_logger.db"); context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { it.copyTo(tempFile.outputStream()) }; routes.viewLoggerHistory.navigate { put("uri", URLEncoder.encode(tempFile.toUri().toString(), "UTF-8")) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))) { Text(text = translation["view_button"]) }
-                                    Button(onClick = { runCatching { context.messageLogger.purgeAll(); storedMessagesCount = 0; storedStoriesCount = 0 }.onSuccess { context.shortToast(translation["success_toast"]) } }, colors = sharedButtonColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))) { Text(text = translation["clear_button"]) }
-                                    Button(onClick = { showImportDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))) { Text(text = translation["import_button"]) }
+                                    Button(onClick = { showExportOptionsDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["export_button"]) }
+                                    Button(onClick = { runCatching { activityLauncherHelper.openFile("application/octet-stream") { uri -> val tempFile = File(context.androidContext.cacheDir, "view_logger.db"); context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { it.copyTo(tempFile.outputStream()) }; routes.viewLoggerHistory.navigate { put("uri", URLEncoder.encode(tempFile.toUri().toString(), "UTF-8")) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["view_button"]) }
+                                    Button(onClick = { runCatching { context.messageLogger.purgeAll(); storedMessagesCount = 0; storedStoriesCount = 0 }.onSuccess { context.shortToast(translation["success_toast"]) } }, colors = sharedButtonColors, border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["clear_button"]) }
+                                    Button(onClick = { showImportDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["import_button"]) }
                                 }
                             }
-                            OutlinedButton(modifier = Modifier.fillMaxWidth().padding(5.dp), onClick = { routes.loggerHistory.navigate() }, colors = sharedOutlinedColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))) { Text(translation["view_logger_history_button"]) }
+                            OutlinedButton(modifier = Modifier.fillMaxWidth().padding(5.dp), onClick = { routes.loggerHistory.navigate() }, colors = sharedOutlinedColors, border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.2f))) { Text(translation["view_logger_history_button"]) }
                             if (showImportDialog) {
-                                AestheticDialog(
-                                    onDismissRequest = { showImportDialog = false },
-                                    title = translation["message_logger_import_title"],
-                                    text = translation["message_logger_import_text"],
-                                    icon = Icons.Filled.Info,
-                                    confirmButtonText = context.translation["button.import"],
-                                    dismissButtonText = context.translation["button.cancel"],
-                                    onConfirm = {
-                                        showImportDialog = false
-                                        runCatching {
-                                            activityLauncherHelper.openFile("application/octet-stream") { uri ->
-                                                scope.launch {
-                                                    runCatching {
-                                                        val importResult = withContext(Dispatchers.IO) {
-                                                            context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { input ->
-                                                                context.messageLogger.importDatabase(input)
-                                                            } ?: throw IllegalStateException("Failed to open selected backup file")
-                                                        }
-                                                        storedMessagesCount = importResult.messageCount
-                                                        storedStoriesCount = importResult.storyCount
-                                                        context.shortToast(translation["success_toast"])
-                                                    }.onFailure { showImportError(it) }
-                                                }
-                                            }
-                                        }.onFailure { showImportError(it) }
-                                    },
-                                    onDismiss = { showImportDialog = false },
-                                    showCloseButton = false
-                                )
+                                AestheticDialog(onDismissRequest = { showImportDialog = false }, title = translation["message_logger_import_title"], text = translation["message_logger_import_text"], icon = Icons.Filled.Info, confirmButtonText = context.translation["button.import"], dismissButtonText = context.translation["button.cancel"], onConfirm = { showImportDialog = false; runCatching { activityLauncherHelper.openFile("application/octet-stream") { uri -> context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { context.messageLogger.databaseFile.outputStream().use { out -> it.copyTo(out) } }; storedMessagesCount = context.messageLogger.getStoredMessageCount(); storedStoriesCount = context.messageLogger.getStoredStoriesCount(); context.shortToast(translation["success_toast"]) } } }, onDismiss = { showImportDialog = false }, showCloseButton = false)
                             }
                             if (showExportOptionsDialog) {
                                 AestheticDialog(
@@ -823,7 +804,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = sharedButtonColors,
-                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                                            border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))
                                         ) {
                                             Text(translation["message_logger_export_individual_chat"] ?: "Export Individual Chat")
                                         }
@@ -834,7 +815,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = sharedButtonColors,
-                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                                            border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))
                                         ) {
                                             Text(translation["message_logger_export_full_database"] ?: "Export Full Database")
                                         }
@@ -883,17 +864,17 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                             colors = TextFieldDefaults.colors(
                                                 focusedIndicatorColor = Color.Transparent,
                                                 unfocusedIndicatorColor = Color.Transparent,
-                                                focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                                                unfocusedContainerColor = Color.White.copy(alpha = 0.06f),
-                                                focusedTextColor = Color.White,
-                                                unfocusedTextColor = Color.White
+                                                focusedContainerColor = SettingsSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                                unfocusedContainerColor = SettingsSkinPalette.textPrimary.copy(alpha = 0.06f),
+                                                focusedTextColor = SettingsSkinPalette.textPrimary,
+                                                unfocusedTextColor = SettingsSkinPalette.textPrimary
                                             )
                                         )
 
                                         if (filteredExportTargets.isEmpty()) {
                                             Text(
                                                 text = translation["message_logger_no_chats_found"] ?: "No chats found",
-                                                color = PurrfectPalette.textSecondary,
+                                                color = SettingsSkinPalette.textSecondary,
                                                 textAlign = TextAlign.Center,
                                                 modifier = Modifier.fillMaxWidth()
                                             )
@@ -911,13 +892,13 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                                         OutlinedButton(
                                                             onClick = { selectedConversationForExport = searchTarget.target },
                                                             modifier = Modifier.fillMaxWidth(),
-                                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = SettingsSkinPalette.textPrimary),
                                                             border = BorderStroke(
                                                                 1.dp,
                                                                 if (isSelected) {
-                                                                PurrfectPalette.glowPrimary.copy(alpha = 0.55f)
+                                                                SettingsSkinPalette.glowPrimary.copy(alpha = 0.55f)
                                                             } else {
-                                                                Color.White.copy(alpha = 0.18f)
+                                                                SettingsSkinPalette.textPrimary.copy(alpha = 0.18f)
                                                             }
                                                         )
                                                         ) {
@@ -941,15 +922,15 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                                                 if (secondaryLabel != null) {
                                                                     Text(
                                                                         text = secondaryLabel,
-                                                                        color = PurrfectPalette.textSecondary,
+                                                                        color = SettingsSkinPalette.textSecondary,
                                                                         fontSize = 12.sp,
                                                                         maxLines = 1,
                                                                         overflow = TextOverflow.Ellipsis
                                                                     )
                                                                 }
                                                             Text(
-                                                                text = translation.format("message_logger_message_count", "count" to target.messageCount.toString()),
-                                                                color = PurrfectPalette.textSecondary,
+                                                                text = translation.format("message_logger_message_count", "count" to target.messageCount.toString()),        
+                                                                color = SettingsSkinPalette.textSecondary,
                                                                 fontSize = 12.sp
                                                             )
                                                         }
@@ -984,7 +965,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                                 },
                                                 modifier = Modifier.fillMaxWidth(),
                                                 colors = sharedButtonColors,
-                                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                                                border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))
                                             ) {
                                                 Text(formatLabel)
                                             }
@@ -999,11 +980,11 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                     GlassCard {
                         RowTitle(title = translation["friend_notes_title"])
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(text = translation["friend_notes_description"], modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp), color = Color.White, textAlign = TextAlign.Center)
+                            Text(text = translation["friend_notes_description"], modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp), color = SettingsSkinPalette.textPrimary, textAlign = TextAlign.Center)
                             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Button(onClick = { runCatching { val notes = context.database.getAllScopeNotes(); if (notes.isEmpty()) return@runCatching; val json = context.gson.toJson(notes); activityLauncherHelper.saveFile("notes.json", "application/json") { uri -> context.androidContext.contentResolver.openOutputStream(uri.toUri())?.use { it.write(json.toByteArray()) }; context.shortToast(translation["friend_notes_backup_success"]) } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))) { Text(text = translation["backup_button"]) }
-                                    Button(onClick = { runCatching { activityLauncherHelper.openFile("application/json") { uri -> context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { val json = it.reader().readText(); val notes = context.gson.fromJson<Map<String, String>>(json, object : com.google.gson.reflect.TypeToken<Map<String, String>>() {}.type); context.database.setAllScopeNotes(notes); context.shortToast(translation["friend_notes_restore_success"]) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))) { Text(text = translation["restore_button"]) }
+                                    Button(onClick = { runCatching { val notes = context.database.getAllScopeNotes(); if (notes.isEmpty()) return@runCatching; val json = context.gson.toJson(notes); activityLauncherHelper.saveFile("notes.json", "application/json") { uri -> context.androidContext.contentResolver.openOutputStream(uri.toUri())?.use { it.write(json.toByteArray()) }; context.shortToast(translation["friend_notes_backup_success"]) } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["backup_button"]) }
+                                    Button(onClick = { runCatching { activityLauncherHelper.openFile("application/json") { uri -> context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { val json = it.reader().readText(); val notes = context.gson.fromJson<Map<String, String>>(json, object : com.google.gson.reflect.TypeToken<Map<String, String>>() {}.type); context.database.setAllScopeNotes(notes); context.shortToast(translation["friend_notes_restore_success"]) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["restore_button"]) }
                                 }
                             }
                         }
@@ -1024,7 +1005,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                                         }
                                     }
                                 }
-                                Button(onClick = { runCatching { scope.launch { selectedFileType.resolve(context.androidContext).delete() } }.onSuccess { context.shortToast(translation["success_toast"]) } }, colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)), shape = RoundedCornerShape(14.dp)) {
+                                Button(onClick = { runCatching { scope.launch { selectedFileType.resolve(context.androidContext).delete() } }.onSuccess { context.shortToast(translation["success_toast"]) } }, colors = ButtonDefaults.buttonColors(containerColor = SettingsSkinPalette.textPrimary.copy(alpha = 0.1f), contentColor = SettingsSkinPalette.textPrimary), border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.18f)), shape = RoundedCornerShape(14.dp)) {
                                     Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp)); Text(translation["clear_button"])
                                 }
@@ -1059,7 +1040,7 @@ fun HomeSettings.AphelionSettingsScreen(nav: NavBackStackEntry) {
                     Icon(
                         imageVector = Icons.Filled.Tune,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.85f)
+                        tint = SettingsSkinPalette.textPrimary.copy(alpha = 0.85f)
                     )
                 }
             }
@@ -1085,7 +1066,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PurrfectPalette.backgroundGradient)
+            .background(SettingsSkinPalette.backgroundGradient)
     ) {
         if (showResetSetupDialog) {
             AestheticDialog(
@@ -1145,7 +1126,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = translation["settings_ui_theme"] ?: "Aphelion Theme", fontSize = 14.sp, color = Color.White)
+                        Text(text = translation["settings_ui_theme"] ?: "Aphelion Theme", fontSize = 14.sp, color = SettingsSkinPalette.textPrimary)
                         val currentThemeId = context.config.root.global.uiSettings.managerTheme.get()
                         var localThemeId by remember { mutableStateOf(currentThemeId) }
                         Switch(
@@ -1190,7 +1171,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                         Row(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(text = translation["haptic_feedback_label"] ?: "Haptic Feedback", fontSize = 14.sp)
                             var hapticEnabled by remember { mutableStateOf(context.config.root.global.uiSettings.hapticFeedback.getNullable() ?: true) }
-                            Switch(checked = hapticEnabled, onCheckedChange = { if (it) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); hapticEnabled = it; context.config.root.global.uiSettings.hapticFeedback.set(it); context.config.writeConfig() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())
+                            Switch(checked = hapticEnabled, onCheckedChange = { if (it) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress); hapticEnabled = it; context.config.root.global.uiSettings.hapticFeedback.set(it); context.config.writeConfig() }, modifier = Modifier.padding(end = 26.dp), colors = purrfectSwitchColors())   
                         }
                     }
                 }
@@ -1208,7 +1189,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
             GlassCard {
                 RowTitle(title = translation["reset_setup_title"] ?: "Reset Setup")
                 ShiftedRow(modifier = Modifier.fillMaxWidth().heightIn(min = 55.dp).clickable { showResetSetupDialog = true }, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = translation["reset_setup_action"] ?: "Reset and restart Purrfect", fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)
+                    Text(text = translation["reset_setup_action"] ?: "Reset and restart Purrfect", fontSize = 16.sp, fontWeight = FontWeight.Medium, lineHeight = 20.sp)     
                     Icon(imageVector = Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.padding(end = 14.dp))
                 }
             }
@@ -1247,7 +1228,7 @@ private fun HomeSettings.TargetAppSwitchRow(targetApp: TargetApp) {
                 text = currentLabel,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White.copy(alpha = 0.82f)
+                color = SettingsSkinPalette.textPrimary.copy(alpha = 0.82f)
             )
             Button(
                 onClick = {
@@ -1259,10 +1240,10 @@ private fun HomeSettings.TargetAppSwitchRow(targetApp: TargetApp) {
                     .heightIn(min = 54.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White.copy(alpha = 0.1f),
-                    contentColor = Color.White
+                    containerColor = SettingsSkinPalette.textPrimary.copy(alpha = 0.1f),
+                    contentColor = SettingsSkinPalette.textPrimary
                 ),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                border = BorderStroke(1.dp, SettingsSkinPalette.textPrimary.copy(alpha = 0.18f)),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
             ) {
                 Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(22.dp))

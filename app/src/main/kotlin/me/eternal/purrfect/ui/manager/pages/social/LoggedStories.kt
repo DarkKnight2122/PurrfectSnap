@@ -9,11 +9,14 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
@@ -23,6 +26,7 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import coil.annotation.ExperimentalCoilApi
 import coil.compose.rememberAsyncImagePainter
 import me.eternal.purrfect.bridge.DownloadCallback
@@ -35,7 +39,6 @@ import me.eternal.purrfect.storage.getFriendInfo
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.util.Dialog
 import me.eternal.purrfect.ui.util.coil.ImageRequestHelper
-import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
@@ -45,11 +48,12 @@ import kotlin.math.absoluteValue
 class LoggedStories : Routes.Route() {
     override val title: @Composable () -> Unit = {
         val navBackStackEntry by routes.navController.currentBackStackEntryAsState()
-        val userId = navBackStackEntry?.arguments?.getString("id")
-        val displayName by rememberAsyncMutableState(defaultValue = null) {
-            userId?.let { context.database.getFriendInfo(it)?.displayName }
+        val text = remember(navBackStackEntry) {
+            navBackStackEntry?.arguments?.getString("id")?.let {
+                context.database.getFriendInfo(it)?.displayName
+            }
         }
-        displayName?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        text?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 
     @OptIn(ExperimentalCoilApi::class, ExperimentalLayoutApi::class)
@@ -57,9 +61,7 @@ class LoggedStories : Routes.Route() {
         val userId = navBackStackEntry.arguments?.getString("id") ?: return@content
 
         val stories = remember { mutableStateListOf<StoryData>() }
-        val friendInfo by rememberAsyncMutableState(defaultValue = null) { 
-            context.database.getFriendInfo(userId) 
-        }
+        val friendInfo = remember { context.database.getFriendInfo(userId) }
         var lastStoryTimestamp by remember { mutableLongStateOf(Long.MAX_VALUE) }
 
         var selectedStory by remember { mutableStateOf<StoryData?>(null) }
@@ -212,7 +214,7 @@ class LoggedStories : Routes.Route() {
         }
 
         if (stories.isEmpty()) {
-            Text(text = translation["no_stories"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            Text(text = translation["no_stories"], Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = LocalPurrfectSkin.current.textPrimary)
         }
 
         LazyVerticalGrid(
@@ -234,7 +236,7 @@ class LoggedStories : Routes.Route() {
                     verticalArrangement = Arrangement.Center,
                 ) {
                     if (hasFailed) {
-                        Text(text = translation["story_failed_to_load"], Modifier.padding(8.dp), fontSize = 10.sp)
+                        Text(text = translation["story_failed_to_load"], Modifier.padding(8.dp), fontSize = 10.sp, color = LocalPurrfectSkin.current.textPrimary)
                     } else {
                         Image(
                             painter = rememberAsyncImagePainter(

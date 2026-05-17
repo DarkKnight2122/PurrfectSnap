@@ -1,6 +1,6 @@
 # Friend Tracker Rule Repositories
 
-Friend Tracker Rule Repositories are a way to share your custom friend tracker rules with others. You can create a repository with your rules and share the URL with others to import them into Purrfect.
+Friend Tracker Rule Repositories are a way to share your custom friend tracker rules with others. You can create a repository with your rules and share the URL with others to import them into PurrfectSnap.
 
 ## Repository Structure
 
@@ -34,4 +34,4 @@ Here is an example of an `index.json` file:
 
 ### Rule File
 
-The rule file itself is a standard Purrfect friend tracker rule JSON file. You can export an existing rule from Purrfect to get a template. The file must be a valid JSON file.
+The rule file itself is a standard PurrfectSnap friend tracker rule JSON file. You can export an existing rule from PurrfectSnap to get a template. The file must be a valid JSON file.

@@ -1,4 +1,4 @@
-package me.eternal.purrfect.ui.manager.pages.themes.aphelion
+package me.eternal.purrfect.ui.manager.pages.scripting.themes
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -6,17 +6,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavBackStackEntry
-import androidx.documentfile.provider.DocumentFile
 import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import me.eternal.purrfect.ui.manager.pages.scripting.ScriptingRootSection
 import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
-import me.eternal.purrfect.common.ui.theme.PurrfectPalette
 import me.eternal.purrfect.common.util.ktx.openLink
-import kotlinx.coroutines.launch
 
 @Composable
-fun ScriptingRootSection.AphelionScriptingScreen(nav: NavBackStackEntry) {
-    val skin = LocalPurrfectSkin.current
+fun ScriptingRootSection.AphelionScriptingContent(nav: NavBackStackEntry) {
     val scriptingFolder by rememberAsyncMutableState(
         defaultValue = null,
         updateDispatcher = reloadDispatcher
@@ -24,7 +20,6 @@ fun ScriptingRootSection.AphelionScriptingScreen(nav: NavBackStackEntry) {
     val tabTitles = listOf(translation["installed_scripts_tab"], translation["catalog_tab"])
     var showImportDialog by remember { mutableStateOf(false) }
     var showToast by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(scriptingFolder) {
         if (scriptingFolder == null && selectedTab != 0) {
@@ -45,7 +40,7 @@ fun ScriptingRootSection.AphelionScriptingScreen(nav: NavBackStackEntry) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(skin.backgroundGradient)
+            .background(LocalPurrfectSkin.current.backgroundGradient)
     ) {
         ScriptingHeader(
             titles = tabTitles,
@@ -82,6 +77,7 @@ fun ScriptingRootSection.AphelionScriptingScreen(nav: NavBackStackEntry) {
             folderSelected = scriptingFolder != null
         )
         Spacer(Modifier.height(12.dp))
+        
         when (selectedTab) {
             0 -> InstalledTabContent(
                 scriptingFolder = scriptingFolder

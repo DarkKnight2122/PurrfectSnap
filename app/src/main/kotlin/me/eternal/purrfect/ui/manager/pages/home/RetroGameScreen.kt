@@ -46,11 +46,33 @@ import androidx.navigation.NavBackStackEntry
 import kotlinx.coroutines.delay
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.random.Random
+
+internal object RetroGameSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else Brush.verticalGradient(listOf(Color(0xFF5C4B99), Color(0xFF322B5E), Color(0xFF1B1836)))
+}
+
 
 class RetroGameScreen : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.sections.retro_flight") }
@@ -196,7 +218,7 @@ class RetroGameScreen : Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(RetroGameSkinPalette.backgroundGradient)
         ) {
             Column(
                 modifier = Modifier
@@ -218,7 +240,7 @@ class RetroGameScreen : Routes.Route() {
                             .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
                         shape = shape,
                         color = Color.White.copy(alpha = 0.07f),
-                        border = BorderStroke(1.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary.copy(alpha = 0.55f), PurrfectPalette.glowSecondary.copy(alpha = 0.35f)))),
+                        border = BorderStroke(1.dp, Brush.linearGradient(listOf(RetroGameSkinPalette.glowPrimary.copy(alpha = 0.55f), RetroGameSkinPalette.glowSecondary.copy(alpha = 0.35f)))),
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp
                     ) {

@@ -1,4 +1,4 @@
-package me.eternal.purrfect.ui.manager.pages.themes.aphelion
+package me.eternal.purrfect.ui.manager.pages.social.themes
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -39,36 +39,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfect.R
 import me.eternal.purrfect.common.data.SocialScope
 import me.eternal.purrfect.ui.manager.pages.social.SocialRootSection
-import me.eternal.purrfect.ui.manager.pages.social.sortSocialFriends
 import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
-import me.eternal.purrfect.common.ui.theme.PurrfectPalette
-
-private object SocialSkinPalette {
-    @Composable
-    private fun isAphelion(): Boolean {
-        val context = androidx.compose.ui.platform.LocalContext.current
-        return remember(context) { 
-            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
-        }
-    }
-
-    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else PurrfectPalette.glowPrimary
-    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else PurrfectPalette.glowSecondary
-    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else PurrfectPalette.backgroundGradient
-    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else PurrfectPalette.cardOverlay
-    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else PurrfectPalette.textPrimary
-    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else PurrfectPalette.textSecondary
-    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else PurrfectPalette.cardOverlayColor
-}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
+fun SocialRootSection.AphelionSocialContent(nav: NavBackStackEntry) {
     SocialDataController()
 
     val titles = remember {
@@ -101,7 +80,7 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SocialSkinPalette.backgroundGradient)
+            .background(LocalPurrfectSkin.current.backgroundGradient)
     ) {
         SocialHeader(
             titles = titles,
@@ -122,8 +101,8 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
             val searchShape = RoundedCornerShape(18.dp)
             val searchBorder = Brush.linearGradient(
                 listOf(
-                    SocialSkinPalette.glowPrimary.copy(alpha = 0.45f),
-                    SocialSkinPalette.glowSecondary.copy(alpha = 0.35f)
+                    LocalPurrfectSkin.current.glowPrimary.copy(alpha = 0.45f),
+                    LocalPurrfectSkin.current.glowSecondary.copy(alpha = 0.35f)
                 )
             )
             Surface(
@@ -131,7 +110,7 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
                     .fillMaxWidth()
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 shape = searchShape,
-                color = SocialSkinPalette.textPrimary.copy(alpha = 0.05f),
+                color = LocalPurrfectSkin.current.textPrimary.copy(alpha = 0.05f),
                 border = BorderStroke(1.dp, searchBorder),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp
@@ -139,7 +118,7 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(SocialSkinPalette.cardOverlay, searchShape)
+                        .background(LocalPurrfectSkin.current.cardOverlay, searchShape)
                         .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -147,23 +126,23 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
                     Icon(
                         imageVector = Icons.Filled.Search,
                         contentDescription = searchHint,
-                        tint = SocialSkinPalette.textSecondary
+                        tint = LocalPurrfectSkin.current.textSecondary
                     )
                     BasicTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = SocialSkinPalette.textPrimary,
+                            color = LocalPurrfectSkin.current.textPrimary,
                             fontSize = 15.sp
                         ),
-                        cursorBrush = SolidColor(SocialSkinPalette.glowSecondary),
+                        cursorBrush = SolidColor(LocalPurrfectSkin.current.glowSecondary),
                         modifier = Modifier.weight(1f)
                     ) { innerTextField ->
                         if (searchQuery.isEmpty()) {
                             Text(
                                 text = searchHint,
-                                color = SocialSkinPalette.textSecondary,
+                                color = LocalPurrfectSkin.current.textSecondary,
                                 fontSize = 14.sp
                             )
                         }
@@ -174,7 +153,7 @@ fun SocialRootSection.AphelionSocialScreen(nav: NavBackStackEntry) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = translation["clear_search_button_description"] ?: "Clear",
-                                tint = SocialSkinPalette.textPrimary
+                                tint = LocalPurrfectSkin.current.textPrimary
                             )
                         }
                     }

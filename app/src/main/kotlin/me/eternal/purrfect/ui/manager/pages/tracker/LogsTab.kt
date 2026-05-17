@@ -1,3 +1,4 @@
+﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 package me.eternal.purrfect.ui.manager.pages.tracker
 
 import android.net.Uri
@@ -39,7 +40,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.RemoteSideContext
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.common.bridge.wrapper.TrackerLog
 import me.eternal.purrfect.common.data.MessagingFriendInfo
 import me.eternal.purrfect.common.data.TrackerEventType
@@ -86,7 +86,7 @@ fun LogsTab(
         filter = {
         when (filterType) {
             FriendTrackerManagerRoot.FilterType.USERNAME -> it.username.contains(filter, ignoreCase = true)
-            FriendTrackerManagerRoot.FilterType.CONVERSATION -> it.conversationTitle?.contains(filter, ignoreCase = true) == true || (it.username == filter && !it.isGroup)
+            FriendTrackerManagerRoot.FilterType.CONVERSATION -> it.conversationTitle?.contains(filter, ignoreCase = true) == true || (it.username == filter && !it.isGroup)    
             FriendTrackerManagerRoot.FilterType.EVENT -> it.eventType.contains(filter, ignoreCase = true)
         }
     })
@@ -280,15 +280,15 @@ fun LogsTab(
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                             .padding(vertical = 8.dp),
                         shape = RoundedCornerShape(12.dp),
-                        color = Color.White.copy(alpha = 0.06f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                        color = TrackerSkinPalette.textPrimary.copy(alpha = 0.06f),
+                        border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f))
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(translation.format("export_as_button", "type" to exportType.uppercase()), color = Color.White)
+                            Text(translation.format("export_as_button", "type" to exportType.uppercase()), color = TrackerSkinPalette.textPrimary)
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         }
                     }
@@ -298,7 +298,7 @@ fun LogsTab(
                                 exportType = type
                                 expanded = false
                             }, text = {
-                                Text(type.uppercase(), color = Color.White)
+                                Text(type.uppercase(), color = TrackerSkinPalette.textPrimary)
                             })
                         }
                     }
@@ -355,8 +355,8 @@ fun LogsTab(
                     Surface(
                         modifier = Modifier.padding(horizontal = 6.dp),
                         shape = RoundedCornerShape(18.dp),
-                        color = PurrfectPalette.cardOverlayColor,
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                        color = TrackerSkinPalette.cardOverlayColor,
+                        border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f))
                     ) {
                         DatePicker(
                             state = sinceDatePickerState,
@@ -364,41 +364,41 @@ fun LogsTab(
                                 .fillMaxWidth()
                                 .widthIn(max = 360.dp)
                                 .padding(6.dp)
-                                .background(PurrfectPalette.cardOverlayColor, RoundedCornerShape(14.dp)),
+                                .background(TrackerSkinPalette.cardOverlayColor, RoundedCornerShape(14.dp)),
                             title = null,
                             headline = null,
                             showModeToggle = false,
                             colors = DatePickerDefaults.colors(
-                                containerColor = PurrfectPalette.cardOverlayColor,
-                                titleContentColor = Color.White,
-                                headlineContentColor = Color.White,
-                                weekdayContentColor = Color.White.copy(alpha = 0.9f),
-                                subheadContentColor = PurrfectPalette.textSecondary,
-                                selectedDayContainerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
+                                containerColor = TrackerSkinPalette.cardOverlayColor,
+                                titleContentColor = TrackerSkinPalette.textPrimary,
+                                headlineContentColor = TrackerSkinPalette.textPrimary,
+                                weekdayContentColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.9f),
+                                subheadContentColor = TrackerSkinPalette.textSecondary,
+                                selectedDayContainerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.4f),
                                 selectedDayContentColor = Color.Black,
-                                todayContentColor = Color.White,
-                                todayDateBorderColor = PurrfectPalette.glowSecondary,
-                                dayContentColor = Color.White.copy(alpha = 0.85f),
-                                disabledDayContentColor = Color.White.copy(alpha = 0.35f),
-                                yearContentColor = Color.White,
-                                currentYearContentColor = PurrfectPalette.glowSecondary,
-                                selectedYearContainerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
+                                todayContentColor = TrackerSkinPalette.textPrimary,
+                                todayDateBorderColor = TrackerSkinPalette.glowSecondary,
+                                dayContentColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.85f),
+                                disabledDayContentColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.35f),
+                                yearContentColor = TrackerSkinPalette.textPrimary,
+                                currentYearContentColor = TrackerSkinPalette.glowSecondary,
+                                selectedYearContainerColor = TrackerSkinPalette.glowPrimary.copy(alpha = 0.4f),
                                 selectedYearContentColor = Color.Black,
-                                dividerColor = Color.White.copy(alpha = 0.14f),
-                                navigationContentColor = Color.White,
+                                dividerColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.14f),
+                                navigationContentColor = TrackerSkinPalette.textPrimary,
                                 dateTextFieldColors = TextFieldDefaults.colors(
-                                    focusedTextColor = Color.White,
-                                    unfocusedTextColor = Color.White,
-                                    disabledTextColor = Color.White.copy(alpha = 0.6f),
-                                    focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                                    unfocusedContainerColor = Color.White.copy(alpha = 0.06f),
-                                    disabledContainerColor = Color.White.copy(alpha = 0.04f),
+                                    focusedTextColor = TrackerSkinPalette.textPrimary,
+                                    unfocusedTextColor = TrackerSkinPalette.textPrimary,
+                                    disabledTextColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.6f),
+                                    focusedContainerColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                    unfocusedContainerColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.06f),
+                                    disabledContainerColor = TrackerSkinPalette.textPrimary.copy(alpha = 0.04f),
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
                                     disabledIndicatorColor = Color.Transparent,
-                                    cursorColor = PurrfectPalette.glowSecondary,
-                                    focusedLabelColor = PurrfectPalette.textSecondary,
-                                    unfocusedLabelColor = PurrfectPalette.textSecondary
+                                    cursorColor = TrackerSkinPalette.glowSecondary,
+                                    focusedLabelColor = TrackerSkinPalette.textSecondary,
+                                    unfocusedLabelColor = TrackerSkinPalette.textSecondary
                                 )
                             )
                         )
@@ -421,8 +421,8 @@ fun LogsTab(
             Box(
                 modifier = Modifier
                     .padding(8.dp)
-                    .background(PurrfectPalette.cardOverlay, RoundedCornerShape(16.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                    .background(TrackerSkinPalette.cardOverlay, RoundedCornerShape(16.dp))
+                    .border(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Column(
@@ -434,14 +434,14 @@ fun LogsTab(
                         translation["filters_title"],
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp,
-                        color = Color.White
+                        color = TrackerSkinPalette.textPrimary
                     )
 
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(rowHSpacing),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(translation["search_by_label"], color = Color.White)
+                        Text(translation["search_by_label"], color = TrackerSkinPalette.textPrimary)
                         ExposedDropdownMenuBox(
                             expanded = dropDownExpanded,
                             onExpandedChange = { dropDownExpanded = it },
@@ -451,9 +451,9 @@ fun LogsTab(
                                 onClick = { dropDownExpanded = true },
                                 modifier = Modifier
                                     .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
+                                    .border(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.06f),
+                                color = TrackerSkinPalette.textPrimary.copy(alpha = 0.06f),
                                 tonalElevation = 0.dp
                             ) {
                                 Row(
@@ -462,7 +462,7 @@ fun LogsTab(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(filterType.name, color = Color.White)
+                                    Text(filterType.name, color = TrackerSkinPalette.textPrimary)
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropDownExpanded)
                                 }
                             }
@@ -481,7 +481,7 @@ fun LogsTab(
                                             dropDownExpanded = false
                                             coroutineScope.launch { resetAndLoadLogs() }
                                         },
-                                        text = { Text(type.name, color = Color.White) }
+                                        text = { Text(type.name, color = TrackerSkinPalette.textPrimary) }
                                     )
                                 }
                             }
@@ -492,7 +492,7 @@ fun LogsTab(
                         horizontalArrangement = Arrangement.spacedBy(rowHSpacing),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(translation["reverse_order_checkbox"], color = Color.White)
+                        Text(translation["reverse_order_checkbox"], color = TrackerSkinPalette.textPrimary)
                         Switch(
                             checked = reverseSortOrder,
                             onCheckedChange = {
@@ -505,7 +505,7 @@ fun LogsTab(
                         horizontalArrangement = Arrangement.spacedBy(rowHSpacing),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(translation[if (reverseSortOrder) "since_label" else "until_label"], color = Color.White)
+                        Text(translation[if (reverseSortOrder) "since_label" else "until_label"], color = TrackerSkinPalette.textPrimary)
                         val dateLabel = remember(showDatePicker) {
                             sinceDatePickerState.selectedDateMillis?.let {
                                 DateFormat.getDateInstance().format(it)
@@ -515,7 +515,7 @@ fun LogsTab(
                             onClick = { showDatePicker = true },
                             shape = RoundedCornerShape(14.dp),
                             color = Color.Transparent,
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                            border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.14f)),
                             tonalElevation = 0.dp,
                             shadowElevation = 6.dp
                         ) {
@@ -524,8 +524,8 @@ fun LogsTab(
                                     .background(
                                         Brush.linearGradient(
                                             listOf(
-                                                PurrfectPalette.glowPrimary.copy(alpha = 0.3f),
-                                                PurrfectPalette.glowSecondary.copy(alpha = 0.26f)
+                                                TrackerSkinPalette.glowPrimary.copy(alpha = 0.3f),
+                                                TrackerSkinPalette.glowSecondary.copy(alpha = 0.26f)
                                             )
                                         ),
                                         RoundedCornerShape(14.dp)
@@ -534,8 +534,8 @@ fun LogsTab(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Color.White.copy(alpha = 0.9f))
-                                Text(dateLabel, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, tint = TrackerSkinPalette.textPrimary.copy(alpha = 0.9f))
+                                Text(dateLabel, color = TrackerSkinPalette.textPrimary, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -569,11 +569,11 @@ fun LogsTab(
                     color = Color.Transparent,
                     shadowElevation = 0.dp,
                     tonalElevation = 0.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                    border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f))
                 ) {
                     Row(
                         modifier = Modifier
-                            .background(PurrfectPalette.cardOverlay, inputShape)
+                            .background(TrackerSkinPalette.cardOverlay, inputShape)
                     ) {
                         IconButton(
                             onClick = { showFilterSelection.value = !showFilterSelection.value },
@@ -581,7 +581,7 @@ fun LogsTab(
                                 .padding(start = 6.dp)
                                 .size(46.dp)
                         ) {
-                            Icon(Icons.Default.FilterList, contentDescription = translation["filter_button_description"], tint = Color.White)
+                            Icon(Icons.Default.FilterList, contentDescription = translation["filter_button_description"], tint = TrackerSkinPalette.textPrimary)
                         }
                         FilterSelection(showFilterSelection)
                         if (showFilterSelection.value) {
@@ -604,26 +604,26 @@ fun LogsTab(
                                     }
                                 }
                             },
-                            placeholder = { Text(translation["search_placeholder"], color = PurrfectPalette.textSecondary) },
+                            placeholder = { Text(translation["search_placeholder"], color = TrackerSkinPalette.textSecondary) },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
-                                cursorColor = Color.White
+                                cursorColor = TrackerSkinPalette.textPrimary
                             ),
                             singleLine = true,
                             modifier = Modifier
                                 .weight(1f)
                                 .padding(end = 8.dp),
-                            textStyle = LocalTextStyle.current.copy(color = Color.White),
+                            textStyle = LocalTextStyle.current.copy(color = TrackerSkinPalette.textPrimary),
                             trailingIcon = {
                                 if (filter.isNotEmpty()) {
                                     IconButton(onClick = {
                                         filter = ""
                                         coroutineScope.launch { resetAndLoadLogs() }
                                     }) {
-                                        Icon(Icons.Default.Clear, contentDescription = translation["clear_button_description"], tint = Color.White)
+                                        Icon(Icons.Default.Clear, contentDescription = translation["clear_button_description"], tint = TrackerSkinPalette.textPrimary)
                                     }
                                 }
                             }
@@ -661,7 +661,7 @@ fun LogsTab(
                                 coroutineScope.launch { resetAndLoadLogs() }
                                 showAutoComplete = false
                             },
-                            text = { Text(entry, color = Color.White) }
+                            text = { Text(entry, color = TrackerSkinPalette.textPrimary) }
                         )
                     }
                 }
@@ -686,10 +686,10 @@ fun LogsTab(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.08f),
+                                color = TrackerSkinPalette.textPrimary.copy(alpha = 0.08f),
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp,
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                                border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.12f))
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -697,20 +697,20 @@ fun LogsTab(
                                         .background(
                                             Brush.linearGradient(
                                                 listOf(
-                                                    PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                                    PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                                                    TrackerSkinPalette.glowPrimary.copy(alpha = 0.32f),
+                                                    TrackerSkinPalette.glowSecondary.copy(alpha = 0.28f)
                                                 )
                                             ),
                                             CircleShape
                                         ),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Filled.History, contentDescription = translation["no_logs_found"], tint = Color.White)
+                                    Icon(Icons.Filled.History, contentDescription = translation["no_logs_found"], tint = TrackerSkinPalette.textPrimary)
                                 }
                             }
                             Text(
                                 translation["no_logs_found"],
-                                color = Color.White,
+                                color = TrackerSkinPalette.textPrimary,
                                 fontWeight = FontWeight.ExtraBold
                             )
                         }
@@ -733,11 +733,11 @@ fun LogsTab(
                     color = Color.Transparent,
                     tonalElevation = 0.dp,
                     shadowElevation = 10.dp,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+                    border = BorderStroke(1.dp, TrackerSkinPalette.textPrimary.copy(alpha = 0.08f))
                 ) {
                     Row(
                         modifier = Modifier
-                            .background(PurrfectPalette.cardOverlay, cardShape)
+                            .background(TrackerSkinPalette.cardOverlay, cardShape)
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -769,8 +769,8 @@ fun LogsTab(
 
                             Text(databaseFriend?.displayName?.let {
                                 "$it (${log.username})"
-                            } ?: log.username, lineHeight = 20.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 15.sp, color = Color.White)
-                            Text(eventText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = PurrfectPalette.textSecondary)
+                            } ?: log.username, lineHeight = 20.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 15.sp, color = TrackerSkinPalette.textPrimary)
+                            Text(eventText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = TrackerSkinPalette.textSecondary)
                             if (log.eventType == TrackerEventType.I_CAN_SEE_YOU.key) {
                                 Text(
                                     buildICanSeeYouDetails(log.data),
@@ -779,7 +779,7 @@ fun LogsTab(
                                     lineHeight = 15.sp,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
-                                    color = Color.White
+                                    color = TrackerSkinPalette.textPrimary
                                 )
                             }
                             Text(
@@ -787,7 +787,7 @@ fun LogsTab(
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
                                 lineHeight = 15.sp,
-                                color = Color.White.copy(alpha = 0.82f)
+                                color = TrackerSkinPalette.textPrimary.copy(alpha = 0.82f)
                             )
                         }
 
@@ -797,7 +797,7 @@ fun LogsTab(
                                 logs.remove(log)
                             }
                         ) {
-                            Icon(Icons.Default.DeleteOutline, contentDescription = translation["delete_button_description"], tint = Color.White)
+                            Icon(Icons.Default.DeleteOutline, contentDescription = translation["delete_button_description"], tint = TrackerSkinPalette.textPrimary)
                         }
                     }
                 }

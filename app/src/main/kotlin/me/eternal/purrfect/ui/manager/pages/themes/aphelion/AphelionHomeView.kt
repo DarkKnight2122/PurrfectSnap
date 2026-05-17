@@ -6,12 +6,14 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,6 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -37,17 +40,16 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -58,7 +60,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.R
 import me.eternal.purrfect.common.BuildConfig
-import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import me.eternal.purrfect.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfect.common.util.ktx.openLink
@@ -68,19 +69,129 @@ import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.data.UpdateDownloader
 import me.eternal.purrfect.ui.manager.data.Updater
 import me.eternal.purrfect.ui.manager.data.Updater.Channel
-import me.eternal.purrfect.ui.manager.ManagerAssistantEntry
-import me.eternal.purrfect.ui.manager.ManagerAssistantTriggerStyle
 import me.eternal.purrfect.ui.manager.pages.home.HomeRootSection
 import me.eternal.purrfect.ui.manager.pages.home.QuickActionsDialog
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.util.Motion
 import me.eternal.purrfect.ui.util.PurrfectMarqueeText
 import me.eternal.purrfect.ui.util.headerHeightTracker
 import me.eternal.purrfect.ui.util.scaleOnPress
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
+fun HomeRootSection.AphelionHomeView(
+    nav: NavBackStackEntry,
+    routes: me.eternal.purrfect.ui.manager.Routes
+) {
+    val skin = LocalPurrfectSkin.current
+    val haptic = LocalHapticFeedback.current
+    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    var controlsHeight by remember { mutableStateOf(100.dp) }
+
+    // State logic restoration
+    val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
+    val latestUpdate by rememberAsyncMutableState<me.eternal.purrfect.ui.manager.data.Updater.LatestRelease?>(defaultValue = null) {
+        Updater.getLatestRelease(Channel.STABLE)
+    }
+    val downloadState by UpdateDownloader.downloadState.collectAsState()
+    val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
+    val isPurrAuraActive by rememberPreferenceBool("debug_test_mode", true)
+    
+    // Quick Actions Logic
+    val isRedditMode = remember { context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT }
+    val activeCards = if (isRedditMode) redditCards else cards
+    val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
+
+    val selectedTiles = rememberAsyncMutableStateList<String>(defaultValue = if (isRedditMode) allQuickTileNames else emptyList()) {
+        if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
+        context.database.getQuickTiles()
+    }
+    
+    val channelLabel = "STABLE"
+
+    var showQuickActionsMenu by rememberSaveable { mutableStateOf(false) }
+    var showAnnouncementsDialog by rememberSaveable { mutableStateOf(false) }
+    var announcementsText by rememberSaveable { mutableStateOf<String?>(null) }
+    var showFullChangelogDialog by rememberSaveable { mutableStateOf(false) }
+    var fullChangelogText by rememberSaveable { mutableStateOf<String?>(null) }
+    
+    val onShowAnnouncements = {
+        coroutineScope.launch {
+            announcementsText = fetchTextWithFallback(announcementsUrls)
+            showAnnouncementsDialog = true
+        }
+    }
+    
+    val onShowFullChangelog = {
+        coroutineScope.launch {
+            fullChangelogText = fetchTextWithFallback(changelogStableUrls)
+            showFullChangelogDialog = true
+        }
+    }
+    
+    val onShowQuickActionsMenu = { if (!isRedditMode) showQuickActionsMenu = true }
+
+    fun onUpdateAction() {
+        if (downloadState == UpdateDownloader.DownloadState.IDLE || downloadState == UpdateDownloader.DownloadState.FAILED) {
+            latestUpdate?.let { update ->
+                val deviceAbi = android.os.Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64"
+                val downloadUrl = if (deviceAbi.contains("64")) {
+                    update.assetDownloads["arm64"] ?: update.releaseUrl
+                } else {
+                    update.assetDownloads["armv7"] ?: update.assetDownloads["arm64"] ?: update.releaseUrl
+                }
+                
+                UpdateDownloader.downloadAndInstall(
+                    remoteContext = context,
+                    downloadUrl = downloadUrl,
+                    fileName = "Purrfect${if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) "Reddit" else "Snap"}-${update.versionName}.apk",
+                    scope = coroutineScope
+                )
+            }
+        }
+    }
+
+    if (showAnnouncementsDialog) {
+        AestheticDialog(
+            onDismissRequest = { showAnnouncementsDialog = false },
+            title = translation["announcements_dialog_title"] ?: "Announcements",
+            text = announcementsText ?: translation["announcements_dialog_loading"] ?: "Loading...",
+            icon = Icons.Default.Campaign,
+            confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
+            onConfirm = { showAnnouncementsDialog = false },
+            showCloseButton = false
+        )
+    }
+
+    if (showFullChangelogDialog) {
+        AestheticDialog(
+            onDismissRequest = { showFullChangelogDialog = false },
+            title = translation["changelog_dialog_title"] ?: "Changelog",
+            text = fullChangelogText ?: translation["changelog_dialog_loading"] ?: "Loading...",
+            icon = Icons.Default.History,
+            confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
+            onConfirm = { showFullChangelogDialog = false },
+            showCloseButton = false
+        )
+    }
+
+    if (showQuickActionsMenu) {
+        QuickActionsDialog(
+            quickActions = cards,
+            selectedQuickActions = selectedTiles,
+            onDismiss = { showQuickActionsMenu = false },
+            onSave = { updatedTiles ->
+                selectedTiles.clear()
+                selectedTiles.addAll(updatedTiles)
+                context.database.setQuickTiles(updatedTiles)
+                showQuickActionsMenu = false
+            },
+            translation = translation
+        )
+    }
 
     @Composable
     fun LivingPurrAura(isActive: Boolean, haptic: HapticFeedback) {
@@ -106,11 +217,11 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
             label = "g3"
         )
         val coreColor by animateColorAsState(
-            targetValue = if (isActive) PurrfectPalette.glowPrimary else Color(0xFF8C8CA3),
+            targetValue = if (isActive) skin.glowPrimary else (if (skin.isDark) Color(0xFF8C8CA3) else Color(0xFFC0C0C0)),
             animationSpec = tween(800), label = "coreColor"
         )
         val secondaryColor by animateColorAsState(
-            targetValue = if (isActive) PurrfectPalette.glowSecondary else Color(0xFF6B6B7A),
+            targetValue = if (isActive) skin.glowSecondary else (if (skin.isDark) Color(0xFF6B6B7A) else Color(0xFFAAAAAA)),
             animationSpec = tween(800), label = "secondaryColor"
         )
         Canvas(modifier = Modifier.size(44.dp)) {
@@ -140,7 +251,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 radius = baseRadius * pulseScale, center = center
             )
             drawCircle(
-                color = Color.White.copy(alpha = 0.5f),
+                color = (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.5f),
                 radius = (baseRadius * pulseScale) * 0.25f,
                 center = Offset(center.x - (baseRadius * pulseScale) * 0.3f, center.y - (baseRadius * pulseScale) * 0.3f)
             )
@@ -153,218 +264,332 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         label: String? = null,
         contentDescription: String? = label,
         shrinkFactor: Float = 1f,
-        modifier: Modifier = Modifier,
-        expandedWidth: Dp? = null,
-        collapsedWidth: Dp = 36.dp,
         haptic: HapticFeedback,
         onClick: () -> Unit,
     ) {
-        val targetWidth = expandedWidth?.let { lerp(collapsedWidth, it, shrinkFactor) }
+        val chipShape = RoundedCornerShape(40)
+        val backgroundColor = if (skin.id == "AETHER") skin.cardOverlayColor else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.06f)
         Surface(
-            modifier = modifier.height(36.dp).then(if (targetWidth != null) Modifier.width(targetWidth) else Modifier),
-            shape = RoundedCornerShape(40),
-            color = Color.White.copy(alpha = 0.06f),
+            modifier = Modifier.height(36.dp).widthIn(min = 36.dp),
+            shape = chipShape,
+            color = backgroundColor,
             border = BorderStroke(
                 1.dp,
-                Brush.linearGradient(
+                if (skin.id == "AETHER") SolidColor(skin.glowPrimary) else Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                        skin.glowPrimary.copy(alpha = 0.55f),
+                        skin.glowSecondary.copy(alpha = 0.35f)
                     )
                 )
             )
         ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(40))
+                    .wrapContentWidth()
+                    .clip(chipShape)
                     .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClick() }
-                    .padding(vertical = 6.dp, horizontal = lerp(7.dp, 10.dp, shrinkFactor)),
+                    .padding(vertical = 6.dp, horizontal = lerp(10.dp, 12.dp, shrinkFactor)),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = icon,
-                    contentDescription = contentDescription,
-                    tint = Color.White,
+                    imageVector = icon, contentDescription = contentDescription, tint = skin.textPrimary,
                     modifier = Modifier.size(20.dp).graphicsLayer {
-                        val s = 0.82f + (0.18f * shrinkFactor); scaleX = s; scaleY = s
+                        val s = 0.82f + (0.18f * shrinkFactor)
+                        scaleX = s; scaleY = s
                     }
                 )
                 if (label != null) {
-                    val labelAlpha = ((shrinkFactor - 0.45f) / 0.55f).coerceIn(0f, 1f)
-                    if (labelAlpha > 0.02f) {
-                        Spacer(modifier = Modifier.width((8 * shrinkFactor).dp))
-                        Text(
-                            text = label,
-                            color = Color.White.copy(alpha = labelAlpha),
-                            fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .graphicsLayer { alpha = labelAlpha; translationX = (-4 * (1f - shrinkFactor)).dp.toPx() }
-                                .weight(1f, fill = false)
-                        )
-                    }
+                    val labelAlpha = (shrinkFactor - 0.1f).coerceIn(0f, 1f)
+                    Spacer(modifier = Modifier.width((8 * shrinkFactor).dp))
+                    Text(
+                        text = label,
+                        color = skin.textPrimary.copy(alpha = labelAlpha),
+                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        maxLines = 1, overflow = TextOverflow.Clip,
+                        modifier = Modifier
+                            .graphicsLayer { alpha = labelAlpha }
+                    )
                 }
             }
         }
     }
 
     @Composable
-    fun RowScope.AphelionHomeActionChips(
-        scrollState: androidx.compose.foundation.ScrollState,
-        haptic: HapticFeedback
-    ) {
-        val shrinkFactor by remember(scrollState.value) {
-            derivedStateOf { (1f - (scrollState.value.toFloat() / Motion.HEADER_MORPH_THRESHOLD)).coerceIn(0f, 1f) }
-        }
-        ManagerAssistantEntry(
+    fun RowScope.AphelionHomeActionChips(scrollState: ScrollState, haptic: HapticFeedback) {
+        val focusFactor = (scrollState.value.toFloat() / Motion.HEADER_MORPH_THRESHOLD).coerceIn(0f, 1f)
+        val shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f)
+        me.eternal.purrfect.ui.manager.ManagerAssistantEntry(
             context = context,
             routes = routes,
-            style = ManagerAssistantTriggerStyle.APHELION,
+            style = me.eternal.purrfect.ui.manager.ManagerAssistantTriggerStyle.APHELION,
             shrinkFactor = shrinkFactor,
             modifier = Modifier.width(lerp(36.dp, 66.dp, shrinkFactor))
         )
         AphelionTopBarActionChip(
-            icon = Icons.Filled.BugReport,
-            label = context.translation["manager.routes.home_logs"],
-            expandedWidth = 88.dp,
+            icon = Icons.Filled.BugReport, label = context.translation["manager.routes.home_logs"],
             shrinkFactor = shrinkFactor, haptic = haptic
         ) { routes.homeLogs.navigate() }
         AphelionTopBarActionChip(
-            icon = Icons.Filled.Settings,
-            label = context.translation["manager.routes.home_settings"],
-            expandedWidth = 96.dp,
+            icon = Icons.Filled.Settings, label = context.translation["manager.routes.home_settings"],
             shrinkFactor = shrinkFactor, haptic = haptic
         ) { routes.settings.navigate() }
     }
 
-    @OptIn(ExperimentalLayoutApi::class)
+    @Composable
+    fun HeroBadge(text: String, onClick: () -> Unit = {}) {
+        val backgroundColor = if (skin.id == "AETHER") skin.cardOverlayColor else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.15f)
+        Text(
+            text = text,
+            color = skin.textPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .clickable { onClick() }
+                .background(backgroundColor)
+                .then(if (skin.id == "AETHER") Modifier.border(1.dp, skin.textPrimary.copy(alpha = 0.15f), RoundedCornerShape(50)) else Modifier)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        )
+    }
+
+    @Composable
+    fun ExternalLinkIcon(
+        imageVector: ImageVector,
+        onClick: () -> Unit,
+        tint: Color,
+        containerColor: Color,
+        haptic: HapticFeedback
+    ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(50))
+                .background(containerColor)
+                .scaleOnPress(interactionSource)
+                .clickable(interactionSource = interactionSource, indication = null) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onClick()
+                }
+        ) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.align(Alignment.Center).size(24.dp)
+            )
+        }
+    }
+
     @Composable
     fun AphelionHeroSection(
         versionName: String,
-        latestUpdate: Updater.LatestRelease?,
+        latestUpdate: me.eternal.purrfect.ui.manager.data.Updater.LatestRelease?,
         downloadState: UpdateDownloader.DownloadState,
         downloadProgress: Float,
         onUpdateAction: () -> Unit,
+        channelLabel: String,
         isPurrAuraActive: Boolean,
         onAboutClick: () -> Unit,
-        onGithubClick: () -> Unit,
         avenirNext: FontFamily,
         scrollOffset: () -> Int,
         haptic: HapticFeedback
     ) {
-        val heroShape = RoundedCornerShape(36.dp)
+        val heroShape = if (skin.id == "AETHER") me.eternal.purrfect.common.ui.util.G2RoundedRectangle(36.dp) else RoundedCornerShape(36.dp)
         val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
-        val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
+        
         Box(
             modifier = Modifier
                 .padding(horizontal = HomeRootSection.cardMargin, vertical = 6.dp)
                 .clip(heroShape)
-                .background(Brush.linearGradient(heroGradientColors))
-                .border(1.dp, Color.White.copy(alpha = 0.1f), heroShape)
+                .background(skin.panelGradient)
+                .border(if (skin.id == "AETHER") 2.dp else 1.dp, if (skin.id == "AETHER") skin.glowPrimary else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.1f), heroShape)
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = buildAnnotatedString {
                             append("Purrfect")
-                            withStyle(SpanStyle(color = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100))) {
-                                append(if (isRedditMode) "Reddit" else "Snap")
+                            withStyle(SpanStyle(color = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) Color(0xFFFF4500) else Color(0xFFFFE100))) {
+                                append(if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) "Reddit" else "Snap")
                             }
                         },
-                        color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold, fontFamily = avenirNext,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = (1f - ((scrollOffset() - 250f) / 120f)).coerceIn(0f, 1f)
-                            translationY = (-scrollOffset() * 0.06f)
-                        }
+                        color = skin.textPrimary,
+                        fontSize = 34.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = avenirNext
                     )
                     Text(
-                        text = "By \u039eT\u039eRNAL",
-                        color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = (1f - ((scrollOffset() - 300f) / 120f)).coerceIn(0f, 1f)
-                            translationY = (-scrollOffset() * 0.04f)
-                        }
+                        text = "By ΞTΞRNAL",
+                        color = skin.textPrimary.copy(alpha = 0.75f),
+                        fontSize = 14.sp,
+                        fontFamily = avenirNext
                     )
                     Text(
-                        text = if (isRedditMode) (translation["hero_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["hero_tagline"] ?: "",
-                        color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = (1f - ((scrollOffset() - 350f) / 120f)).coerceIn(0f, 1f)
-                            translationY = (-scrollOffset() * 0.02f)
-                        }
+                        text = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) (translation["hero_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["hero_tagline"] ?: "",
+                        color = skin.textPrimary.copy(alpha = 0.9f),
+                        fontSize = 15.sp,
+                        lineHeight = 20.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Switch to ${if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) "Snapchat" else "Reddit"} in settings",
+                        color = skin.textPrimary.copy(alpha = 0.5f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
+
                 FlowRow(
-                    modifier = Modifier.fillMaxWidth().graphicsLayer {
-                        alpha = (1f - ((scrollOffset() - 400f) / 120f)).coerceIn(0f, 1f)
-                    },
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    HeroBadge(translation.format("hero_version_label", "version" to versionName))
+                    var versionTapCount by remember { mutableIntStateOf(0) }
+                    var lastVersionTapTime by remember { mutableLongStateOf(0L) }
+
+                    HeroBadge(
+                        text = translation.format("hero_version_label", "version" to versionName, "channel" to channelLabel),
+                        onClick = {
+                            val now = System.currentTimeMillis()
+                            if (now - lastVersionTapTime > 500) {
+                                versionTapCount = 1
+                            } else {
+                                versionTapCount++
+                            }
+                            lastVersionTapTime = now
+                            if (versionTapCount >= 5) {
+                                versionTapCount = 0
+                                val discovery = me.eternal.purrfect.ui.manager.chimaera.ChimaeraDiscovery
+                                discovery.load(context.sharedPreferences) // Ensure fresh state
+                                if (discovery.unlocked) {
+                                    routes.navigation?.pendingTransmission = discovery.welcomeBackMessage
+                                } else {
+                                    discovery.triggerStage1(context.sharedPreferences)
+                                    routes.navigation?.pendingTransmission = discovery.transmissionMessage
+                                }
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                        }
+                    )
                     gitHashShort.takeIf { it.isNotBlank() && it.lowercase() != "unknown" }?.let {
                         HeroBadge(translation.format("hero_build_label", "build" to it))
                     }
                 }
 
                 if (latestUpdate != null) {
-                    val isRedditUpdate = latestUpdate.target == Updater.UpdateTarget.REDDIT
-                    val updateTitle = if (isRedditUpdate) {
-                        translation.getOrNull("reddit_update_title") ?: "Update Reddit"
-                    } else {
-                        translation["update_title"] ?: ""
-                    }
-                    val updateContent = if (isRedditUpdate) {
-                        translation.getOrNull("reddit_update_content")?.let {
-                            translation.format("reddit_update_content", "version" to latestUpdate.versionName)
-                        } ?: translation.format("update_content", "version" to latestUpdate.versionName)
-                    } else {
-                        translation.format("update_content", "version" to latestUpdate.versionName)
-                    }
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.08f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+                        color = skin.cardOverlayColor,
+                        border = BorderStroke(if (skin.id == "AETHER") 2.dp else 1.dp, if (skin.id == "AETHER") skin.glowPrimary.copy(alpha = 0.4f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.14f)),
+                        tonalElevation = 0.dp,
+                        shadowElevation = 0.dp
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(updateTitle, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                Text(updateContent, color = Color.White.copy(alpha = 0.82f), fontSize = 12.sp)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = translation["update_title"] ?: "Update Available",
+                                    color = skin.textPrimary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = translation.format(
+                                        "update_content",
+                                        "version" to latestUpdate!!.versionName
+                                    ),
+                                    color = skin.textPrimary.copy(alpha = 0.82f),
+                                    fontSize = 12.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
-                            AnimatedContent(targetState = downloadState, label = "UpdateDownloadHero") { state ->
-                                when (state) {
-                                    UpdateDownloader.DownloadState.IDLE,
-                                    UpdateDownloader.DownloadState.FAILED -> {
+                            androidx.compose.animation.AnimatedContent(
+                                targetState = downloadState,
+                                label = "UpdateDownloadHero"
+                            ) { currentDownloadState ->
+                                when (currentDownloadState) {
+                                    me.eternal.purrfect.ui.manager.data.UpdateDownloader.DownloadState.IDLE,
+                                    me.eternal.purrfect.ui.manager.data.UpdateDownloader.DownloadState.FAILED -> {
                                         Button(
-                                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onUpdateAction() },
+                                            onClick = { onUpdateAction() },
                                             shape = RoundedCornerShape(50),
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E))
-                                        ) { Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                                    }
-                                    UpdateDownloader.DownloadState.DOWNLOADING -> {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                            CircularProgressIndicator(progress = { downloadProgress }, modifier = Modifier.size(28.dp), color = Color.White)
-                                            Text("${(downloadProgress * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.SemiBold)
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = skin.textPrimary,
+                                                contentColor = skin.cardOverlayColor 
+                                            ),
+                                            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
+                                            contentPadding = PaddingValues(12.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Download,
+                                                contentDescription = translation["download_icon_description"],
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                         }
                                     }
-                                    UpdateDownloader.DownloadState.COMPLETED -> {
-                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFFA3F0C2))
-                                            Text(translation["update_ready_label"] ?: "", color = Color.White, fontWeight = FontWeight.SemiBold)
+
+                                    me.eternal.purrfect.ui.manager.data.UpdateDownloader.DownloadState.DOWNLOADING -> {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.padding(end = 6.dp)
+                                        ) {
+                                            if (skin.id == "AETHER") {
+                                                me.eternal.purrfect.ui.manager.theme.WavyCircularProgressIndicator(
+                                                    modifier = Modifier.size(28.dp),
+                                                    color = skin.textPrimary,
+                                                    strokeWidth = 4.dp
+                                                )
+                                            } else {
+                                                CircularProgressIndicator(
+                                                    progress = { downloadProgress },
+                                                    modifier = Modifier.size(28.dp),
+                                                    strokeWidth = 3.dp,
+                                                    color = skin.textPrimary
+                                                )
+                                            }
+                                            Text(
+                                                text = "${(downloadProgress * 100).toInt()}%",
+                                                color = skin.textPrimary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                    }
+
+                                    me.eternal.purrfect.ui.manager.data.UpdateDownloader.DownloadState.COMPLETED -> {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = translation["completed_icon_description"],
+                                                tint = Color(0xFFA3F0C2)
+                                            )
+                                            Text(
+                                                text = translation["update_ready_label"] ?: "Ready to Install",
+                                                color = skin.textPrimary,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
                                         }
                                     }
                                 }
@@ -375,56 +600,36 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
 
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
+                    color = skin.cardOverlayColor.copy(alpha = 0.45f),
                     shape = RoundedCornerShape(24.dp),
-                    color = Color.White.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-                    tonalElevation = 0.dp, shadowElevation = 0.dp
+                    border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.textPrimary.copy(alpha = 0.15f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.10f))
                 ) {
                     val unifiedButtonWidth = 180.dp
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        if (!isRedditMode) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = Color.White.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
-                                modifier = Modifier.width(unifiedButtonWidth).height(46.dp),
-                                tonalElevation = 0.dp, shadowElevation = 0.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                                        LivingPurrAura(isActive = isPurrAuraActive, haptic = haptic)
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
-                                        color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp
-                                    )
-                                }
-                            }
-                        }
-                        Text(
-                            text = if (isRedditMode) "Switch to Snapchat in Settings" else "Switch to Reddit in Settings",
-                            color = Color.White.copy(alpha = 0.78f),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedButton(
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onAboutClick() },
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-                            colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White.copy(alpha = 0.06f), contentColor = Color.White),
+                    Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = skin.cardOverlayColor.copy(alpha = 0.6f),
+                            border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.glowPrimary.copy(alpha = 0.35f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.10f)),
                             modifier = Modifier.width(unifiedButtonWidth).height(46.dp)
                         ) {
-                            Icon(Icons.Filled.Info, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                                    LivingPurrAura(isActive = isPurrAuraActive, haptic = haptic)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
+                                    color = skin.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                )
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onAboutClick() },
+                            border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.glowSecondary.copy(alpha = 0.45f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.35f)),
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = skin.cardOverlayColor.copy(alpha = 0.2f), contentColor = skin.textPrimary),
+                            modifier = Modifier.width(unifiedButtonWidth).height(46.dp)
+                        ) {
+                            Icon(Icons.Filled.Info, contentDescription = null, tint = skin.textPrimary, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = translation.getOrNull("about_meet_team_button") ?: "About Us", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
@@ -434,8 +639,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(26.dp),
-                    color = Color.White.copy(alpha = 0.06f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
+                    color = skin.cardOverlayColor.copy(alpha = 0.45f),
+                    border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.textPrimary.copy(alpha = 0.15f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.10f))
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
@@ -445,33 +650,33 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         val androidContext = context.androidContext
                         Button(
                             modifier = Modifier.weight(1f).height(44.dp),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://purrfectsnap.vercel.app", context.translation["toast_open_link_failed"]) },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E)),
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://purrfectsnap.me", context.translation["toast_open_link_failed"]) },
+                            colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary, contentColor = skin.cardOverlayColor),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                 Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                PurrfectMarqueeText(text = "Site", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = Color(0xFF1B152E))
+                                PurrfectMarqueeText(text = "Site", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = skin.cardOverlayColor)
                             }
                         }
                         OutlinedButton(
                             modifier = Modifier.weight(1f).height(44.dp),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onGithubClick() },
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://github.com/particle-box/Purrfect", context.translation["toast_open_link_failed"]) },
+                            border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.glowPrimary.copy(alpha = 0.45f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.35f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                                 Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                PurrfectMarqueeText(text = translation["github_button"] ?: "", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = Color.White)
+                                PurrfectMarqueeText(text = translation["github_button"] ?: "", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = skin.textPrimary)
                             }
                         }
                         ExternalLinkIcon(
                             imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"]) },
-                            tint = Color.White, containerColor = Color.White.copy(alpha = 0.14f),
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
+                            tint = skin.textPrimary, containerColor = skin.cardOverlayColor.copy(alpha = 0.6f),
                             haptic = haptic
                         )
                     }
@@ -480,149 +685,13 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         }
     }
 
-    val haptic = LocalHapticFeedback.current
-    val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
-    val prefs = remember { context.sharedPreferences }
-    val isRedditMode = context.activeTargetApp == TargetApp.REDDIT
-    val activeCards = if (isRedditMode) redditCards else cards
-    val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
-    val selectedTiles = rememberAsyncMutableStateList(defaultValue = allQuickTileNames) {
-        if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
-        val storedTiles = context.database.getQuickTiles().filter { it.isNotBlank() }
-        val hasInitialized = prefs.getBoolean(HomeRootSection.QUICK_TILES_INITIALIZED_PREF, false)
-        when {
-            storedTiles.isNotEmpty() -> {
-                if (!hasInitialized) prefs.edit().putBoolean(HomeRootSection.QUICK_TILES_INITIALIZED_PREF, true).apply()
-                storedTiles
-            }
-            hasInitialized -> storedTiles
-            else -> {
-                context.coroutineScope.launch(Dispatchers.IO) {
-                    context.database.setQuickTiles(allQuickTileNames)
-                    prefs.edit().putBoolean(HomeRootSection.QUICK_TILES_INITIALIZED_PREF, true).apply()
-                }
-                allQuickTileNames
-            }
-        }
-    }
-
-    val latestUpdate by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(isRedditMode)) {
-        if (isRedditMode) {
-            Updater.getLatestRedditUpdate(context.sharedPreferences.getString(Updater.REDDIT_INSTALLED_RELEASE_TAG_PREF, null))
-        } else {
-            Updater.getLatestRelease(Channel.STABLE)
-        }
-    }
-    val downloadState by UpdateDownloader.downloadState.collectAsState()
-    val downloadProgress by UpdateDownloader.downloadProgress.collectAsState()
-    val isPurrAuraActive by rememberPreferenceBool("debug_test_mode", true)
-    val scrollState = rememberScrollState()
-    var showQuickActionsMenu by rememberSaveable { mutableStateOf(false) }
-    val quickActionsEnabled = isRedditMode || !context.isLimitedTargetMode
-    var showChangelogDialog by rememberSaveable { mutableStateOf(false) }
-    var changelogText by rememberSaveable { mutableStateOf<String?>(null) }
-    var changelogLoading by remember { mutableStateOf(false) }
-    var changelogError by remember { mutableStateOf<String?>(null) }
-    var changelogVersion by remember { mutableStateOf<String?>(null) }
-    var showFullChangelogDialog by rememberSaveable { mutableStateOf(false) }
-    var fullChangelogText by rememberSaveable { mutableStateOf<String?>(null) }
-    var fullChangelogLoading by remember { mutableStateOf(false) }
-    var fullChangelogError by remember { mutableStateOf<String?>(null) }
-    var showAnnouncementsDialog by rememberSaveable { mutableStateOf(false) }
-    var announcementsText by rememberSaveable { mutableStateOf<String?>(null) }
-    var announcementsLoading by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-    var controlsHeight by remember { mutableStateOf(100.dp) }
-
-    LaunchedEffect(scrollState) {
-        androidx.compose.runtime.snapshotFlow { scrollState.value }.collect {
-            routes.navigation?.globalScrollOffset = it
-        }
-    }
-
-    val handleUpdateAction: () -> Unit = {
-        latestUpdate?.let { latest ->
-            if (latest.target == Updater.UpdateTarget.REDDIT) {
-                launchRedditUpdateSetup()
-                return@let
-            }
-            val abiName = android.os.Build.SUPPORTED_ABIS.firstNotNullOfOrNull {
-                when (it) { "arm64-v8a" -> "arm64"; "armeabi-v7a" -> "armv7"; else -> null }
-            }
-            if (latest.workflowId != null) {
-                if (abiName != null) {
-                    val artifactName = "purrfect-${if (abiName == "arm64") "armv8" else "armv7"}-debug"
-                    UpdateDownloader.downloadAndInstall(context, "https://nightly.link/${latest.repositoryFullName}/actions/runs/${latest.workflowId}/$artifactName.zip", "$artifactName.zip", coroutineScope)
-                }
-            } else {
-                abiName?.let { arch -> latest.assetDownloads[arch] }?.let { url ->
-                    UpdateDownloader.downloadAndInstall(context, url, url.substringAfterLast('/'), coroutineScope)
-                }
-            }
-        }
-    }
-
-    fun loadChangelog() {
-        val targetVersion = latestUpdate?.versionName ?: BuildConfig.VERSION_NAME
-        if (changelogVersion == targetVersion && changelogText != null) return
-        changelogLoading = true
-        changelogError = null
-        coroutineScope.launch(Dispatchers.IO) {
-            runCatching {
-                val body = fetchTextWithFallback(changelogStableUrls)
-                extractChangelogForVersion(body, targetVersion).ifBlank { body.trim() }
-            }.onSuccess { text ->
-                withContext(Dispatchers.Main) { 
-                    changelogText = text
-                    changelogVersion = targetVersion
-                    changelogLoading = false 
-                }
-            }.onFailure { e ->
-                withContext(Dispatchers.Main) { 
-                    changelogError = e.message ?: "Failed to fetch"
-                    changelogLoading = false 
-                }
-            }
-        }
-    }
-
-    fun loadAnnouncements() {
-        if (announcementsText != null) return
-        announcementsLoading = true
-        coroutineScope.launch(Dispatchers.IO) {
-            runCatching {
-                fetchTextWithFallback(announcementsUrls)
-            }
-                .onSuccess { withContext(Dispatchers.Main) { announcementsText = it; announcementsLoading = false } }
-                .onFailure { withContext(Dispatchers.Main) { announcementsLoading = false } }
-        }
-    }
-
-    fun loadFullChangelog() {
-        if (fullChangelogText != null) return
-        fullChangelogLoading = true
-        fullChangelogError = null
-        coroutineScope.launch(Dispatchers.IO) {
-            runCatching {
-                fetchTextWithFallback(changelogStableUrls).trim()
-            }.onSuccess { text ->
-                withContext(Dispatchers.Main) {
-                    fullChangelogText = text
-                    fullChangelogLoading = false
-                }
-            }.onFailure { e ->
-                withContext(Dispatchers.Main) {
-                    fullChangelogError = e.message ?: "Failed to fetch"
-                    fullChangelogLoading = false
-                }
-            }
-        }
-    }
+    LaunchedEffect(scrollState.value) { routes.navigation?.globalScrollOffset = scrollState.value }
 
     val borderPath = remember { Path() }
     val uPath = remember { Path() }
+    val quickActionsGradientColors = listOf(skin.glowPrimary.copy(alpha = 0.15f), skin.glowSecondary.copy(alpha = 0.05f))
 
-    Box(modifier = Modifier.fillMaxSize().background(HomeRootSection.pageBackgroundGradient)) {
+    Box(modifier = Modifier.fillMaxSize().background(skin.backgroundGradient)) {
 
         val focusFactor by remember(scrollState.value) {
             derivedStateOf { (scrollState.value.toFloat() / Motion.HEADER_MORPH_THRESHOLD).coerceIn(0f, 1f) }
@@ -638,7 +707,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
         val bottomCorners = lerp(26.dp, 28.dp, focusFactor)
 
         Box(modifier = Modifier.fillMaxWidth().zIndex(10f)) {
-            val refractiveColor = remember { Color(0xFF241F52) }
+            val refractiveColor = skin.refractiveColor
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -662,8 +731,8 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         val strokeWidth = 1.dp.toPx()
                         val brush = Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = focusFactor * 0.6f),
-                                PurrfectPalette.glowSecondary.copy(alpha = focusFactor * 0.4f)
+                                skin.glowPrimary.copy(alpha = focusFactor * 0.6f),
+                                skin.glowSecondary.copy(alpha = focusFactor * 0.4f)
                             )
                         )
                         val tr = topCorners.toPx()
@@ -696,7 +765,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         }
                     },
                 shape = RoundedCornerShape(topStart = topCorners, topEnd = topCorners, bottomStart = bottomCorners, bottomEnd = bottomCorners),
-                color = Color(0xFF1B152E).copy(alpha = focusFactor * 0.95f)
+                color = skin.cardOverlayColor.copy(alpha = focusFactor * 0.95f)
             ) {
                 Box(
                     modifier = Modifier
@@ -705,27 +774,37 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         .padding(horizontal = 16.dp)
                         .height(headerHeight)
                 ) {
+                    Text(
+                        text = "Purrfect",
+                        color = skin.textPrimary.copy(alpha = stickyBrandingAlpha),
+                        fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = avenirNext,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                    val announcementShift by remember(focusFactor) { derivedStateOf { (-6 * focusFactor).dp } }
                     Row(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .wrapContentWidth(),
+                        modifier = Modifier.align(Alignment.CenterStart).graphicsLayer { translationX = announcementShift.toPx() },
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         AphelionTopBarActionChip(
                             icon = Icons.Filled.Notifications, label = null,
-                            expandedWidth = 52.dp,
                             shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f),
                             contentDescription = translation["announcements_button_description"],
                             haptic = haptic
-                        ) { showAnnouncementsDialog = true; loadAnnouncements() }
+                        ) { onShowAnnouncements() }
                         AphelionTopBarActionChip(
                             icon = Icons.Filled.Description, label = null,
-                            expandedWidth = 52.dp,
                             shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f),
                             contentDescription = translation.getOrNull("changelog_button_description") ?: "Open full changelog",
                             haptic = haptic
-                        ) { showFullChangelogDialog = true; loadFullChangelog() }
+                        ) { onShowFullChangelog() }
+                    }
+                    val settingsShift by remember(focusFactor) { derivedStateOf { (6 * focusFactor).dp } }
+                    Row(
+                        modifier = Modifier.align(Alignment.CenterEnd).graphicsLayer { translationX = settingsShift.toPx() },
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         AphelionHomeActionChips(scrollState = scrollState, haptic = haptic)
                     }
                 }
@@ -740,19 +819,10 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                 latestUpdate = latestUpdate,
                 downloadState = downloadState,
                 downloadProgress = downloadProgress,
-                onUpdateAction = {
-                    latestUpdate?.let {
-                        if (it.target == Updater.UpdateTarget.REDDIT) {
-                            handleUpdateAction()
-                        } else {
-                            showChangelogDialog = true
-                            loadChangelog()
-                        }
-                    }
-                },
+                onUpdateAction = { onUpdateAction() },
+                channelLabel = channelLabel,
                 isPurrAuraActive = isPurrAuraActive,
                 onAboutClick = { routes.about.navigate() },
-                onGithubClick = { openPurrfectRepository(coroutineScope) },
                 avenirNext = avenirNext,
                 scrollOffset = { scrollState.value },
                 haptic = haptic
@@ -760,49 +830,45 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
 
             Spacer(Modifier.height(12.dp))
 
-            if (quickActionsEnabled) {
-            AnimatedContent(targetState = selectedTiles.isNotEmpty(), label = "QuickActions") { hasQuickActions ->
+            AnimatedContent<Boolean>(targetState = selectedTiles.isNotEmpty(), label = "QuickActions") { hasQuickActions ->
                 Surface(
                     modifier = Modifier.padding(horizontal = HomeRootSection.cardMargin, vertical = 10.dp),
                     shape = RoundedCornerShape(34.dp),
                     color = Color.Transparent,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+                    border = BorderStroke(1.dp, (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.05f))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth().background(Brush.linearGradient(quickActionsGradientColors)).padding(horizontal = 24.dp, vertical = 28.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         if (!hasQuickActions) {
-                            Text(translation["quick_actions_title"] ?: "", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White.copy(alpha = 0.85f))
+                            Text(translation["quick_actions_title"] ?: "Quick Actions", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = skin.textPrimary.copy(alpha = 0.85f))
                             Spacer(Modifier.height(24.dp))
-                            Icon(Icons.Outlined.Widgets, contentDescription = null, modifier = Modifier.size(72.dp), tint = Color.White)
-                            Spacer(Modifier.height(16.dp))
-                            Text(translation["quick_actions_empty_title"] ?: "", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Icon(Icons.Outlined.Widgets, contentDescription = null, modifier = Modifier.size(72.dp), tint = skin.textPrimary)
                             Spacer(Modifier.height(20.dp))
                             Button(
-                                onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); showQuickActionsMenu = true },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color(0xFF1B152E))
+                                onClick = { onShowQuickActionsMenu() },
+                                colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary, contentColor = skin.cardOverlayColor)
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text(translation["quick_actions_add_tile_button"] ?: "")
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(translation["quick_actions_add_tile_button"] ?: "Add Tile")
                             }
                         } else {
                             Column(modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(translation["quick_actions_title"] ?: "", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                Text(translation.format("quick_actions_count_label", "count" to selectedTiles.size.toString()), fontSize = 13.sp, color = Color.White.copy(alpha = 0.75f))
+                                Text(translation["quick_actions_title"] ?: "Quick Actions", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = skin.textPrimary)
+                                Text(translation.format("quick_actions_count_label", "count" to selectedTiles.size.toString()), fontSize = 13.sp, color = skin.textPrimary.copy(alpha = 0.75f))
                                 Spacer(Modifier.height(12.dp))
                                 OutlinedButton(
-                                    onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); showQuickActionsMenu = true },
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                                    onClick = { onShowQuickActionsMenu() },
+                                    border = BorderStroke(1.dp, (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.3f)),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
                                 ) {
-                                    Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_manage), contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_manage), contentDescription = null, modifier = Modifier.size(18.dp))      
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text(translation["quick_actions_manage_button"] ?: "")
+                                    Text(translation["quick_actions_manage_button"] ?: "Manage")
                                 }
                             }
-
                             var gridIsVisible by remember { mutableStateOf(false) }
                             var animationPhase by remember { mutableIntStateOf(1) }
                             LaunchedEffect(gridIsVisible) {
@@ -826,35 +892,36 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                                     verticalArrangement = Arrangement.spacedBy(12.dp),
                                     maxItemsInEachRow = columns
                                 ) {
-                                    selectedTiles.forEach { name ->
-                                    val cardEntry = activeCards.entries.find { it.key.first == name } ?: return@forEach
-                                        val interactionSource = remember { MutableInteractionSource() }
-                                        val animatedIconSize by animateDpAsState(
-                                            targetValue = if (animationPhase >= 2) 28.dp else 44.dp,
-                                            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
-                                            label = "iconShrink"
-                                        )
-                                        Surface(
-                                            modifier = Modifier.width(100.dp).aspectRatio(1.05f).scaleOnPress(interactionSource)
-                                                .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); cardEntry.value(routes) },
-                                            shape = RoundedCornerShape(18.dp),
-                                            color = Color.White.copy(alpha = 0.06f),
-                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
-                                        ) {
-                                            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(PurrfectPalette.glowPrimary.copy(alpha = 0.3f), PurrfectPalette.glowSecondary.copy(alpha = 0.22f)))).clipToBounds()) {
-                                                Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                                    Icon(cardEntry.key.second, contentDescription = null, tint = Color.White, modifier = Modifier.size(animatedIconSize))
-                                                    Spacer(Modifier.height(8.dp))
-                                                    PurrfectMarqueeText(
-                                                        text = cardEntry.key.first,
-                                                        style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
-                                                        color = Color.White,
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    )
-            }
-            }
-        }
-    }
+                                    for (tileName in selectedTiles) {
+                                    val cardEntry = activeCards.entries.find { it.key.first == tileName }
+                                        if (cardEntry != null) {
+                                            val interactionSource = remember { MutableInteractionSource() }
+                                            val animatedIconSize by animateDpAsState(
+                                                targetValue = if (animationPhase >= 2) 28.dp else 44.dp,
+                                                animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessLow),
+                                                label = "iconShrink"
+                                            )
+                                            Surface(
+                                                modifier = Modifier.width(100.dp).aspectRatio(1.05f).scaleOnPress(interactionSource)
+                                                    .clickable { haptic.performHapticFeedback(HapticFeedbackType.LongPress); cardEntry.value(routes) },
+                                                shape = RoundedCornerShape(18.dp),
+                                                color = (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.06f),
+                                                border = BorderStroke(1.dp, (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.16f))
+                                            ) {
+                                                Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(skin.glowPrimary.copy(alpha = 0.3f), skin.glowSecondary.copy(alpha = 0.22f)))).clipToBounds()) {
+                                                    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                                                        Icon(cardEntry.key.second, contentDescription = null, tint = skin.textPrimary, modifier = Modifier.size(animatedIconSize))
+                                                        Spacer(Modifier.height(8.dp))
+                                                        PurrfectMarqueeText(
+                                                            text = cardEntry.key.first,
+                                                            style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
+                                                            color = skin.textPrimary,
+                                                            modifier = Modifier.fillMaxWidth()
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -865,82 +932,5 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
 
             Spacer(modifier = Modifier.height(8.dp))
         }
-    }
-
-    if (showAnnouncementsDialog) {
-        AestheticDialog(
-            onDismissRequest = { showAnnouncementsDialog = false },
-            title = translation["announcements_dialog_title"] ?: "Announcements",
-            text = "", icon = Icons.Filled.Notifications,
-            confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
-            onConfirm = { showAnnouncementsDialog = false },
-            showCloseButton = false,
-            customContent = {
-                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (announcementsLoading) CircularProgressIndicator(color = Color.White)
-                    else Text(announcementsText ?: translation["announcements_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
-                }
-            }
-        )
-    }
-
-    if (showChangelogDialog) {
-        AestheticDialog(
-            onDismissRequest = { showChangelogDialog = false },
-            title = translation["changelog_dialog_title"] ?: "Changelog",
-            text = "", icon = Icons.Filled.Info,
-            confirmButtonText = translation["changelog_dialog_update_button"] ?: "Update",
-            onConfirm = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); showChangelogDialog = false; handleUpdateAction() },
-            dismissButtonText = translation["changelog_dialog_cancel_button"] ?: "Cancel",
-            onDismiss = { showChangelogDialog = false },
-            showCloseButton = false,
-            customContent = {
-                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (changelogLoading) CircularProgressIndicator(color = Color.White)
-                    else if (changelogError != null) Text(changelogError!!, color = Color.Red, fontSize = 14.sp)
-                    else Text(changelogText ?: translation["changelog_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
-                }
-            }
-        )
-    }
-
-    if (showFullChangelogDialog) {
-        AestheticDialog(
-            onDismissRequest = { showFullChangelogDialog = false },
-            title = translation["changelog_dialog_title"] ?: "Changelog",
-            text = "",
-            icon = Icons.Filled.Description,
-            confirmButtonText = translation["announcements_dialog_close_button"] ?: "Close",
-            onConfirm = { showFullChangelogDialog = false },
-            showCloseButton = false,
-            customContent = {
-                Column(
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 340.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    if (fullChangelogLoading) CircularProgressIndicator(color = Color.White)
-                    else if (fullChangelogError != null) Text(fullChangelogError!!, color = Color.Red, fontSize = 14.sp)
-                    else Text(fullChangelogText ?: translation["changelog_dialog_empty"] ?: "", color = PurrfectPalette.textPrimary, fontSize = 14.sp)
-                }
-            }
-        )
-    }
-
-    if (quickActionsEnabled && showQuickActionsMenu) {
-        QuickActionsDialog(
-            quickActions = activeCards,
-            selectedQuickActions = selectedTiles,
-            onDismiss = { showQuickActionsMenu = false },
-            onSave = { newList ->
-                val removed = selectedTiles.filter { it !in newList }
-                removed.forEach { clearTileSpan(it); clearTileOffset(it) }
-                selectedTiles.clear(); selectedTiles.addAll(newList)
-                if (!isRedditMode) {
-                    context.coroutineScope.launch { context.database.setQuickTiles(selectedTiles) }
-                }
-                showQuickActionsMenu = false
-            },
-            translation = translation
-        )
     }
 }
