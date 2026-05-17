@@ -40,7 +40,7 @@ class UpdateCheckWorker(
     }
 
     private fun showUpdateNotification(versionName: String) {
-        val channelId = "purrfect_updates"
+        val channelId = "purrfectsnap_updates"
         val name = inputData.getString("channel_name") ?: "Purrfect Updates"
         val descriptionText = inputData.getString("channel_description") ?: "Notifications for Purrfect updates"
         val title = inputData.getString("notification_title") ?: "Purrfect Update Available"

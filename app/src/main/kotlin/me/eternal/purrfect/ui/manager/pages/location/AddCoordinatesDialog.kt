@@ -23,9 +23,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import me.eternal.purrfect.bridge.location.LocationCoordinates
 import me.eternal.purrfect.common.bridge.wrapper.LocaleWrapper
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.ui.util.AlertDialogs
-
 
 @Composable
 fun AddCoordinatesDialog(
@@ -41,22 +39,24 @@ fun AddCoordinatesDialog(
             }
         )
     }
-    var savedLatitude by remember { mutableStateOf(locationCoordinates.latitude.toFloat().toString()) }
-    var savedLongitude by remember { mutableStateOf(locationCoordinates.longitude.toFloat().toString()) }
+    var savedLatitude by remember { mutableStateOf(locationCoordinates.latitude.toString()) }
+    var savedLongitude by remember { mutableStateOf(locationCoordinates.longitude.toString()) }
+
+    val fieldColors = TextFieldDefaults.colors(
+        focusedContainerColor = LocationSkinPalette.textPrimary.copy(alpha = 0.08f),
+        unfocusedContainerColor = LocationSkinPalette.textPrimary.copy(alpha = 0.05f),
+        focusedIndicatorColor = Color.Transparent,
+        unfocusedIndicatorColor = Color.Transparent,
+        focusedLabelColor = LocationSkinPalette.textSecondary,
+        unfocusedLabelColor = LocationSkinPalette.textSecondary,
+        cursorColor = LocationSkinPalette.glowSecondary,
+        focusedTextColor = LocationSkinPalette.textPrimary,
+        unfocusedTextColor = LocationSkinPalette.textPrimary
+    )
 
     alertDialogs.DefaultDialogCard {
         val focusRequester = remember { FocusRequester() }
-        val fieldColors = TextFieldDefaults.colors(
-            focusedContainerColor = Color.White.copy(alpha = 0.08f),
-            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            focusedLabelColor = PurrfectPalette.textSecondary,
-            unfocusedLabelColor = PurrfectPalette.textSecondary,
-            cursorColor = PurrfectPalette.glowSecondary,
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White
-        )
+        
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = Color.Transparent,
@@ -68,7 +68,7 @@ fun AddCoordinatesDialog(
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.cardOverlayColor.copy(alpha = 0.98f),
+                                LocationSkinPalette.cardOverlayColor.copy(alpha = 0.98f),
                                 Color(0xFF1A143A).copy(alpha = 0.94f)
                             )
                         ),
@@ -81,7 +81,7 @@ fun AddCoordinatesDialog(
                     text = translation["save_coordinates_dialog_title"],
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = LocationSkinPalette.textPrimary
                 )
                 OutlinedTextField(
                     modifier = Modifier
@@ -135,10 +135,10 @@ fun AddCoordinatesDialog(
                         },
                         enabled = savedName.text.isNotBlank() && savedLatitude.isNotBlank() && savedLongitude.isNotBlank(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.3f),
-                            contentColor = Color.White,
-                            disabledContainerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.16f),
-                            disabledContentColor = Color.White.copy(alpha = 0.6f)
+                            containerColor = LocationSkinPalette.glowPrimary.copy(alpha = 0.3f),
+                            contentColor = LocationSkinPalette.textPrimary,
+                            disabledContainerColor = LocationSkinPalette.textPrimary.copy(alpha = 0.12f),
+                            disabledContentColor = LocationSkinPalette.textPrimary.copy(alpha = 0.6f)
                         )
                     ) {
                         Text(translation["save_dialog_button"])

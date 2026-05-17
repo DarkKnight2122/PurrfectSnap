@@ -42,10 +42,11 @@ import me.eternal.purrfect.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfect.storage.clearRuleIds
 import me.eternal.purrfect.storage.getRuleIds
 import me.eternal.purrfect.storage.setRule
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.ui.manager.theme.aetherGlass
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.ui.manager.pages.social.AddFriendDialog
 import me.eternal.purrfect.ui.manager.pages.social.AddFriendDialog.Actions
 
@@ -71,25 +72,27 @@ class ManageRuleFeature : Routes.Route()  {
         onStateChanged: (Boolean) -> Unit,
         selectedBlock: @Composable () -> Unit = {},
     ) {
+        val skin = LocalPurrfectSkin.current
         val shape = RoundedCornerShape(22.dp)
         val border = if (checked) {
-            Brush.linearGradient(listOf(PurrfectPalette.glowPrimary.copy(alpha = 0.8f), PurrfectPalette.glowSecondary.copy(alpha = 0.7f)))
+            Brush.linearGradient(listOf(skin.glowPrimary.copy(alpha = 0.8f), skin.glowSecondary.copy(alpha = 0.7f)))
         } else {
-            Brush.linearGradient(listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.12f)))
+            Brush.linearGradient(listOf(skin.textPrimary.copy(alpha = 0.12f), skin.textPrimary.copy(alpha = 0.12f)))
         }
         Surface(
             shape = shape,
-            color = Color.White.copy(alpha = 0.04f),
+            color = Color.Transparent,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(1.dp, border),
             modifier = Modifier
                 .fillMaxWidth()
+                .aetherGlass(skin, 22.dp)
                 .clickable { onStateChanged(!checked) }
         ) {
             Column(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, shape)
+                    .background(skin.cardOverlayColor.copy(alpha = 0.35f), shape)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -102,12 +105,12 @@ class ManageRuleFeature : Routes.Route()  {
                         selected = checked,
                         onClick = null,
                         colors = RadioButtonDefaults.colors(
-                            selectedColor = PurrfectPalette.glowSecondary,
-                            unselectedColor = Color.White.copy(alpha = 0.7f)
+                            selectedColor = skin.glowSecondary,
+                            unselectedColor = skin.textPrimary.copy(alpha = 0.7f)
                         )
                     )
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text(text, color = skin.textPrimary, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
                 }
                 if (checked) {
@@ -124,6 +127,7 @@ class ManageRuleFeature : Routes.Route()  {
     }
 
     override val content: @Composable (NavBackStackEntry) -> Unit = content@{ navBackStackEntry ->
+        val skin = LocalPurrfectSkin.current
         val currentRuleType = navBackStackEntry.arguments?.getString("rule_type")?.let {
             MessagingRuleType.getByName(it)
         } ?: return@content
@@ -222,7 +226,7 @@ class ManageRuleFeature : Routes.Route()  {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(skin.backgroundGradient)
         ) {
             val density = LocalDensity.current
             var topBarHeight by remember { mutableStateOf(96.dp) }
@@ -248,22 +252,23 @@ class ManageRuleFeature : Routes.Route()  {
                     val headerShape = RoundedCornerShape(22.dp)
                     Surface(
                         shape = headerShape,
-                        color = Color.White.copy(alpha = 0.04f),
+                        color = Color.Transparent,
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp,
                         border = BorderStroke(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                    skin.glowPrimary.copy(alpha = 0.45f),
+                                    skin.glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
-                        )
+                        ),
+                        modifier = Modifier.aetherGlass(skin, 22.dp)
                     ) {
                         Column(
                             modifier = Modifier
-                                .background(PurrfectPalette.cardOverlay, headerShape)
+                                .background(skin.cardOverlayColor.copy(alpha = 0.35f), headerShape)
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
@@ -272,7 +277,7 @@ class ManageRuleFeature : Routes.Route()  {
                                 fontWeight = FontWeight.Normal,
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp,
-                                color = PurrfectPalette.textSecondary
+                                color = skin.textPrimary.copy(alpha = 0.75f)
                             )
                         }
                     }
@@ -284,7 +289,7 @@ class ManageRuleFeature : Routes.Route()  {
                         text = translation["disable_state_option"] ?: "Disabled",
                         onStateChanged = { setRuleState(null) }
                     ) {
-                        Text(text = translation["disable_state_subtext"] ?: "", fontWeight = FontWeight.Normal, fontSize = 12.sp, color = PurrfectPalette.textSecondary)
+                        Text(text = translation["disable_state_subtext"] ?: "", fontWeight = FontWeight.Normal, fontSize = 12.sp, color = skin.textPrimary.copy(alpha = 0.75f))
                     }
                 }
 
@@ -304,13 +309,13 @@ class ManageRuleFeature : Routes.Route()  {
                             text = translation.format("whitelist_state_subtext", "count" to currentRuleIds.size.toString()),
                             fontWeight = FontWeight.Normal,
                             fontSize = 12.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textPrimary.copy(alpha = 0.75f)
                         )
                         Button(
                             onClick = { showAddFriendDialog() },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
-                                contentColor = Color.White
+                                containerColor = skin.glowPrimary.copy(alpha = 0.34f),
+                                contentColor = skin.textPrimary
                             )
                         ) {
                             Text(text = translation["whitelist_state_button"] ?: "Manage")
@@ -328,13 +333,13 @@ class ManageRuleFeature : Routes.Route()  {
                             text = translation.format("blacklist_state_subtext", "count" to currentRuleIds.size.toString()),
                             fontWeight = FontWeight.Normal,
                             fontSize = 12.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textPrimary.copy(alpha = 0.75f)
                         )
                         Button(
                             onClick = { showAddFriendDialog() },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
-                                contentColor = Color.White
+                                containerColor = skin.glowPrimary.copy(alpha = 0.34f),
+                                contentColor = skin.textPrimary
                             )
                         ) {
                             Text(text = translation["blacklist_state_button"] ?: "Manage")
@@ -345,39 +350,40 @@ class ManageRuleFeature : Routes.Route()  {
                 item {
                     Surface(
                         shape = RoundedCornerShape(22.dp),
-                        color = Color.White.copy(alpha = 0.04f),
+                        color = Color.Transparent,
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp,
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.1f)),
+                        modifier = Modifier.aetherGlass(skin, 22.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(PurrfectPalette.cardOverlay, RoundedCornerShape(22.dp))
+                                .background(skin.cardOverlayColor.copy(alpha = 0.35f), RoundedCornerShape(22.dp))
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                                color = skin.textPrimary.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
                                 modifier = Modifier.size(46.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .clip(CircleShape)
-                                        .background(PurrfectPalette.glowSecondary.copy(alpha = 0.22f)),
+                                        .background(skin.glowSecondary.copy(alpha = 0.22f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = Color.White)
+                                    Icon(Icons.Default.DeleteSweep, contentDescription = null, tint = skin.textPrimary)
                                 }
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = translation["clear_list_button"] ?: "Clear List",
-                                    color = Color.White,
+                                    color = skin.textPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -385,7 +391,7 @@ class ManageRuleFeature : Routes.Route()  {
                                 if (!manageLabel.isNullOrBlank()) {
                                     Text(
                                         text = manageLabel,
-                                        color = PurrfectPalette.textSecondary,
+                                        color = skin.textPrimary.copy(alpha = 0.75f),
                                         fontSize = 12.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -395,8 +401,8 @@ class ManageRuleFeature : Routes.Route()  {
                             Button(
                                 onClick = { confirmationDialog = true },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White.copy(alpha = 0.08f),
-                                    contentColor = Color.White
+                                    containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                    contentColor = skin.textPrimary
                                 )
                             ) {
                                 Text(text = translation["dialog_clear_confirm_button"] ?: "Clear")

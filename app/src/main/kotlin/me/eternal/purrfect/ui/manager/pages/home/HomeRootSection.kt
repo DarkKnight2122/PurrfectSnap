@@ -131,6 +131,8 @@ import me.eternal.purrfect.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfect.common.util.ktx.openLink
 import me.eternal.purrfect.storage.getQuickTiles
 import me.eternal.purrfect.storage.setQuickTiles
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.ui.manager.theme.aetherGlass
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.ManagerTheme
 import me.eternal.purrfect.ui.manager.ManagerAssistantEntry
@@ -180,9 +182,9 @@ class HomeRootSection : Routes.Route() {
     internal val changelogPrereleaseUrl = changelogPrereleaseUrls.first()
     internal val announcementsUrl = announcementsUrls.first()
     internal val purrfectRepositoryUrl = "https://github.com/particle-box/Purrfect"
-    internal val purrfectFallbackRepositoryUrl = "https://github.com/curious-freak/Purrfect"
+    internal val purrfect fallbackRepositoryUrl = "https://github.com/curious-freak/Purrfect"
 
-    internal fun fetchTextWithFallback(urls: List<String>): String {
+    internal suspend fun fetchTextWithFallback(urls: List<String>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         var lastError: Throwable? = null
         urls.forEach { url ->
             runCatching {
@@ -190,7 +192,7 @@ class HomeRootSection : Routes.Route() {
                     if (!response.isSuccessful) throw IllegalStateException("Failed to fetch $url (${response.code})")
                     response.body?.string() ?: throw IllegalStateException("Empty body from $url")
                 }
-            }.onSuccess { return it }
+            }.onSuccess { return@withContext it }
                 .onFailure { lastError = it }
         }
         throw lastError ?: IllegalStateException("No fallback URLs configured")
@@ -304,18 +306,19 @@ class HomeRootSection : Routes.Route() {
         size: Dp = 44.dp,
         imageVector: ImageVector,
         onClick: (() -> Unit)? = null,
-        tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-        containerColor: Color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+        tint: Color? = null,
+        containerColor: Color? = null,
         haptic: HapticFeedback? = null,
     ) {
+        val skin = LocalPurrfectSkin.current
         val interactionSource = remember { MutableInteractionSource() }
         val clickModifier = if (onClick != null) {
             Modifier.clickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current
-            ) { 
+            ) {
                 haptic?.performHapticFeedback(HapticFeedbackType.LongPress)
-                onClick() 
+                onClick()
             }
         } else {
             Modifier
@@ -324,14 +327,14 @@ class HomeRootSection : Routes.Route() {
             modifier = modifier
                 .size(size)
                 .clip(RoundedCornerShape(50))
-                .background(containerColor)
+                .background(containerColor ?: skin.glowPrimary.copy(alpha = 0.08f))
                 .scaleOnPress(interactionSource)
                 .then(clickModifier)
         ) {
             Icon(
                 imageVector = imageVector,
                 contentDescription = null,
-                tint = tint,
+                tint = tint ?: skin.textPrimary,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(size * 0.55f)
@@ -341,14 +344,15 @@ class HomeRootSection : Routes.Route() {
 
     @Composable
     internal fun HeroBadge(text: String) {
+        val skin = LocalPurrfectSkin.current
         Text(
             text = text,
-            color = Color.White,
+            color = skin.textPrimary,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.15f))
+                .background(skin.textPrimary.copy(alpha = 0.15f))
                 .padding(horizontal = 14.dp, vertical = 6.dp)
         )
     }
@@ -361,11 +365,12 @@ class HomeRootSection : Routes.Route() {
         modifier: Modifier = Modifier,
         onClick: () -> Unit,
     ) {
+        val skin = LocalPurrfectSkin.current
         Surface(
             modifier = modifier.height(36.dp),
             shape = RoundedCornerShape(40),
-            color = Color.White.copy(alpha = 0.06f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+            color = skin.textPrimary.copy(alpha = 0.06f),
+            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
         ) {
             Row(
                 modifier = Modifier
@@ -376,12 +381,12 @@ class HomeRootSection : Routes.Route() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(20.dp))
+                Icon(icon, contentDescription = contentDescription, tint = skin.textPrimary, modifier = Modifier.size(20.dp))
                 label?.let {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = it,
-                        color = Color.White,
+                        color = skin.textPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -394,14 +399,16 @@ class HomeRootSection : Routes.Route() {
 
     @Composable
     private fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
+        val skin = LocalPurrfectSkin.current
         OutlinedCard(
             modifier = Modifier
                 .padding(start = cardMargin, end = cardMargin)
                 .fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                containerColor = skin.cardOverlayColor,
+                contentColor = skin.textPrimary
+            ),
+            border = BorderStroke(1.dp, skin.glassBorder)
         ) {
             Column(
                 modifier = Modifier
@@ -414,16 +421,20 @@ class HomeRootSection : Routes.Route() {
 
     @Composable
     private fun RowScope.HomeActionChips() {
+        val isRedditMode = remember { context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT }
+
         ManagerAssistantEntry(
             context = context,
             routes = routes,
             style = ManagerAssistantTriggerStyle.DEFAULT
         )
-        TopBarActionChip(
-            icon = Icons.Filled.BugReport,
-            label = context.translation["manager.routes.home_logs"],
-            modifier = Modifier
-        ) { routes.homeLogs.navigate() }
+        if (!isRedditMode) {
+            TopBarActionChip(
+                icon = Icons.Filled.BugReport,
+                label = context.translation["manager.routes.home_logs"],
+                modifier = Modifier
+            ) { routes.homeLogs.navigate() }
+        }
         TopBarActionChip(
             icon = Icons.Filled.Info,
             label = translation["manager.routes.home_about"],
@@ -434,6 +445,7 @@ class HomeRootSection : Routes.Route() {
 
     @Composable
     private fun AuroraBackground() {
+        val skin = LocalPurrfectSkin.current
         val infiniteTransition = rememberInfiniteTransition(label = "aurora")
         val driftX by infiniteTransition.animateFloat(
             initialValue = -120f,
@@ -463,12 +475,12 @@ class HomeRootSection : Routes.Route() {
             label = "shimmer"
         )
 
-        val primaryGlow = MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
-        val tertiaryGlow = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.22f)
+        val primaryGlow = skin.glowPrimary.copy(alpha = 0.28f)
+        val tertiaryGlow = skin.glowSecondary.copy(alpha = 0.22f)
         val trailGradient = listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.16f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f)
+            skin.glowPrimary.copy(alpha = 0.18f),
+            skin.glowSecondary.copy(alpha = 0.16f),
+            skin.glowPrimary.copy(alpha = 0.14f)
         )
 
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -523,18 +535,15 @@ class HomeRootSection : Routes.Route() {
         onManageClick: () -> Unit,
         avenirNext: FontFamily
     ) {
+        val skin = LocalPurrfectSkin.current
         val heroShape = RoundedCornerShape(36.dp)
         val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
         Box(
             modifier = Modifier
                 .padding(horizontal = cardMargin, vertical = 6.dp)
                 .clip(heroShape)
-                .background(
-                    Brush.linearGradient(
-                        heroGradientColors
-                    )
-                )
-                .border(1.dp, Color.White.copy(alpha = 0.1f), heroShape)
+                .background(skin.cardOverlayColor.copy(alpha = 0.45f))
+                .border(1.dp, skin.glassBorder.copy(alpha = 0.4f), heroShape)
         ) {
             Column(
                 modifier = Modifier
@@ -549,20 +558,20 @@ class HomeRootSection : Routes.Route() {
                 ) {
                     Text(
                         text = "PurrfectSnap",
-                        color = Color.White,
+                        color = skin.textPrimary,
                         fontSize = 34.sp,
                         fontWeight = FontWeight.ExtraBold,
                         fontFamily = avenirNext
                     )
                     Text(
                         text = "By ΞTΞRNAL",
-                        color = Color.White.copy(alpha = 0.75f),
+                        color = skin.textPrimary.copy(alpha = 0.75f),
                         fontSize = 14.sp,
                         fontFamily = avenirNext
                     )
                     Text(
                         text = translation["hero_tagline"],
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = skin.textPrimary.copy(alpha = 0.9f),
                         fontSize = 15.sp,
                         lineHeight = 20.sp,
                         textAlign = TextAlign.Center
@@ -581,10 +590,10 @@ class HomeRootSection : Routes.Route() {
 
                 if (latestUpdate != null) {
                     Surface(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().aetherGlass(skin, 20.dp),
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White.copy(alpha = 0.08f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                        color = Color.Transparent,
+                        border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.3f)),
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp
                     ) {
@@ -601,7 +610,7 @@ class HomeRootSection : Routes.Route() {
                             ) {
                                 Text(
                                     text = translation["update_title"],
-                                    color = Color.White,
+                                    color = skin.textPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 14.sp,
                                     maxLines = 1,
@@ -612,7 +621,7 @@ class HomeRootSection : Routes.Route() {
                                         "update_content",
                                         "version" to (latestUpdate.versionName)
                                     ),
-                                    color = Color.White.copy(alpha = 0.82f),
+                                    color = skin.textPrimary.copy(alpha = 0.82f),
                                     fontSize = 12.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -626,16 +635,15 @@ class HomeRootSection : Routes.Route() {
                                     UpdateDownloader.DownloadState.IDLE,
                                     UpdateDownloader.DownloadState.FAILED -> {
                                         Button(
-                                            onClick = onUpdateAction,
-                                            shape = RoundedCornerShape(50),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color.White,
-                                                contentColor = Color(0xFF1B152E)
-                                            ),
-                                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                                            contentPadding = PaddingValues(12.dp)
-                                        ) {
-                                            Icon(
+                                        onClick = onUpdateAction,
+                                        shape = RoundedCornerShape(50),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = skin.textPrimary,
+                                            contentColor = skin.cardOverlayColor
+                                        ),
+                                        border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.12f)),
+                                        contentPadding = PaddingValues(12.dp)
+                                        ) {                                            Icon(
                                                 imageVector = Icons.Default.Download,
                                                 contentDescription = translation["download_icon_description"],
                                                 modifier = Modifier.size(18.dp)
@@ -653,11 +661,11 @@ class HomeRootSection : Routes.Route() {
                                                 progress = { downloadProgress },
                                                 modifier = Modifier.size(28.dp),
                                                 strokeWidth = 3.dp,
-                                                color = Color.White
+                                                color = skin.textPrimary
                                             )
                                             Text(
                                                 text = "${(downloadProgress * 100).toInt()}%",
-                                                color = Color.White,
+                                                color = skin.textPrimary,
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         }
@@ -671,11 +679,11 @@ class HomeRootSection : Routes.Route() {
                                             Icon(
                                                 imageVector = Icons.Default.Check,
                                                 contentDescription = translation["completed_icon_description"],
-                                                tint = Color(0xFFA3F0C2)
+                                                tint = skin.glowPrimary
                                             )
                                             Text(
                                                 text = translation["update_ready_label"],
-                                                color = Color.White,
+                                                color = skin.textPrimary,
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         }
@@ -687,9 +695,9 @@ class HomeRootSection : Routes.Route() {
                 }
 
                 Surface(
-                    color = Color.White.copy(alpha = 0.08f),
+                    color = skin.cardOverlayColor.copy(alpha = 0.3f),
                     shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                    border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.25f)),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp
                 ) {
@@ -702,8 +710,8 @@ class HomeRootSection : Routes.Route() {
                     ) {
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = Color.White.copy(alpha = 0.06f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                            color = skin.glowPrimary.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.2f)),
                             tonalElevation = 0.dp,
                             shadowElevation = 0.dp
                         ) {
@@ -716,11 +724,11 @@ class HomeRootSection : Routes.Route() {
                                     modifier = Modifier
                                         .size(14.dp)
                                         .clip(RoundedCornerShape(50))
-                                        .background(if (isPurrAuraActive) PurrfectPalette.glowPrimary else Color(0xFF8C8CA3))
+                                        .background(if (isPurrAuraActive) skin.glowPrimary else Color(0xFF8C8CA3))
                                 )
                                 Text(
                                     text = if (isPurrAuraActive) translation["purr_aura_active_label"] else translation["purr_aura_inactive_label"],
-                                    color = Color.White,
+                                    color = skin.textPrimary,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp
                                 )
@@ -729,11 +737,11 @@ class HomeRootSection : Routes.Route() {
 
                         OutlinedButton(
                             onClick = onManageClick,
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.4f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary),
                             modifier = Alignment.CenterHorizontally.let { Modifier.align(it) }
                         ) {
-                            Icon(Icons.Filled.Settings, contentDescription = null, tint = Color.White)
+                            Icon(Icons.Filled.Settings, contentDescription = null, tint = skin.textPrimary)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(translation["open_settings_button"])
                         }
@@ -743,8 +751,8 @@ class HomeRootSection : Routes.Route() {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(26.dp),
-                    color = Color.White.copy(alpha = 0.06f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                    color = skin.cardOverlayColor.copy(alpha = 0.25f),
+                    border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.2f)),
                     tonalElevation = 0.dp,
                     shadowElevation = 0.dp
                 ) {
@@ -759,8 +767,8 @@ class HomeRootSection : Routes.Route() {
                             modifier = Modifier.weight(1f),
                             onClick = onWebsiteClick,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFF1B152E)
+                                containerColor = skin.textPrimary,
+                                contentColor = skin.cardOverlayColor
                             )
                         ) {
                             Icon(Icons.Filled.Language, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -770,13 +778,13 @@ class HomeRootSection : Routes.Route() {
                         OutlinedButton(
                             modifier = Modifier.weight(1f),
                             onClick = onGithubClick,
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                            border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.45f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
                         ) {
                             Icon(
                                 imageVector = ImageVector.vectorResource(id = R.drawable.ic_github),
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = skin.textPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -785,8 +793,8 @@ class HomeRootSection : Routes.Route() {
                         ExternalLinkIcon(
                             imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
                             onClick = onTelegramClick,
-                            tint = Color.White,
-                            containerColor = Color.White.copy(alpha = 0.14f)
+                            tint = skin.textPrimary,
+                            containerColor = skin.cardOverlayColor.copy(alpha = 0.35f)
                         )
                     }
                 }
@@ -872,8 +880,3 @@ class HomeRootSection : Routes.Route() {
     return collected.joinToString("\n").trim()
 }
 }
-
-
-
-
-

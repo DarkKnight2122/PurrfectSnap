@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.zIndex
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.ui.util.PurrfectMarqueeText
 import me.eternal.purrfect.ui.util.Motion
@@ -41,11 +42,12 @@ data class FloatingTopBarColors(
 
 @Composable
 fun rememberDefaultFloatingTopBarColors(): FloatingTopBarColors {
-    return remember {
+    val skin = LocalPurrfectSkin.current
+    return remember(skin) {
         FloatingTopBarColors(
-            container = Color.White.copy(alpha = 0.12f), 
-            borderStart = PurrfectPalette.glowPrimary.copy(alpha = 0.6f),
-            borderEnd = PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
+            container = skin.textPrimary.copy(alpha = 0.12f), 
+            borderStart = skin.glowPrimary.copy(alpha = 0.6f),
+            borderEnd = skin.glowSecondary.copy(alpha = 0.4f)
         )
     }
 }
@@ -68,9 +70,10 @@ fun FloatingTopBar(
     bottomContent: @Composable ColumnScope.(Float) -> Unit = {},
     colors: FloatingTopBarColors = rememberDefaultFloatingTopBarColors()
 ) {
+    val skin = LocalPurrfectSkin.current
     val haptic = LocalHapticFeedback.current
     val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    
+
     val focusFactor by remember(scrollOffset, enableMorph) {
         derivedStateOf { 
             if (!enableMorph) 0f 
@@ -117,7 +120,7 @@ fun FloatingTopBar(
 
     val borderPath = remember { Path() }
     val uPath = remember { Path() }
-    val refractiveColor = remember { Color(0xFF241F52) }
+    val refractiveColor = skin.refractiveColor
 
     Box(modifier = modifier.fillMaxWidth().zIndex(10f)) {
         Box(
@@ -154,8 +157,8 @@ fun FloatingTopBar(
                     .background(
                         Brush.verticalGradient(
                             listOf(
-                                Color(0xFF1B152E).copy(alpha = 0.85f + (0.1f * focusFactor)),
-                                refractiveColor.copy(alpha = 0.85f + (0.1f * focusFactor))
+                                skin.cardOverlayColor.copy(alpha = (if (enableMorph) 0.85f + (0.1f * focusFactor) else 0.95f)),
+                                refractiveColor.copy(alpha = (if (enableMorph) 0.85f + (0.1f * focusFactor) else 0.95f))
                             )
                         )
                     )
@@ -164,15 +167,15 @@ fun FloatingTopBar(
                         val brush = Brush.linearGradient(listOf(colors.borderStart, colors.borderEnd))
                         val tr = morphingParams.topCorners.toPx()
                         val br = morphingParams.bottomCorners.toPx()
-                        
+
                         if (focusFactor > 0.9f) {
                             uPath.reset()
                             uPath.apply {
                                 moveTo(0f, 0f)
                                 lineTo(0f, size.height - br)
-                                arcTo(androidx.compose.ui.geometry.Rect(0f, size.height - 2*br, 2*br, size.height), 180f, -90f, false)
+                                arcTo(androidx.compose.ui.geometry.Rect(0f, size.height - 2 * br, 2 * br, size.height), 180f, -90f, false)
                                 lineTo(size.width - br, size.height)
-                                arcTo(androidx.compose.ui.geometry.Rect(size.width - 2*br, size.height - 2*br, size.width, size.height), 90f, -90f, false)
+                                arcTo(androidx.compose.ui.geometry.Rect(size.width - 2 * br, size.height - 2 * br, size.width, size.height), 90f, -90f, false)
                                 lineTo(size.width, 0f)
                             }
                             drawPath(uPath, brush, style = Stroke(strokeWidth))
@@ -181,13 +184,13 @@ fun FloatingTopBar(
                             borderPath.apply {
                                 moveTo(tr, 0f)
                                 lineTo(size.width - tr, 0f)
-                                arcTo(androidx.compose.ui.geometry.Rect(size.width - 2*tr, 0f, size.width, 2*tr), 270f, 90f, false)
+                                arcTo(androidx.compose.ui.geometry.Rect(size.width - 2 * tr, 0f, size.width, 2 * tr), 270f, 90f, false)
                                 lineTo(size.width, size.height - br)
-                                arcTo(androidx.compose.ui.geometry.Rect(size.width - 2*br, size.height - 2*br, size.width, size.height), 0f, 90f, false)
+                                arcTo(androidx.compose.ui.geometry.Rect(size.width - 2 * br, size.height - 2 * br, size.width, size.height), 0f, 90f, false)
                                 lineTo(br, size.height)
-                                arcTo(androidx.compose.ui.geometry.Rect(0f, size.height - 2*br, 2*br, size.height), 90f, 90f, false)
+                                arcTo(androidx.compose.ui.geometry.Rect(0f, size.height - 2 * br, 2 * br, size.height), 90f, 90f, false)
                                 lineTo(0f, tr)
-                                arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, 2*tr, 2*tr), 180f, 90f, false)
+                                arcTo(androidx.compose.ui.geometry.Rect(0f, 0f, 2 * tr, 2 * tr), 180f, 90f, false)
                             }
                             drawPath(borderPath, brush, style = Stroke(strokeWidth))
                         }
@@ -220,7 +223,7 @@ fun FloatingTopBar(
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = null,
-                                    tint = Color.White
+                                    tint = skin.textPrimary
                                 )
                             }
                         }
@@ -234,7 +237,7 @@ fun FloatingTopBar(
                         ) {
                             Text(
                                 text = title,
-                                color = Color.White,
+                                color = skin.textPrimary,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 19.sp,
                                 maxLines = 1,
@@ -245,7 +248,7 @@ fun FloatingTopBar(
                             if (!subtitle.isNullOrBlank() && morphingParams.subtitleAlpha > 0.01f) {
                                 PurrfectMarqueeText(
                                     text = subtitle,
-                                    color = PurrfectPalette.textSecondary.copy(alpha = morphingParams.subtitleAlpha),
+                                    color = skin.textSecondary.copy(alpha = morphingParams.subtitleAlpha),
                                     style = TextStyle(fontSize = 13.sp),
                                     textAlign = if (titleAlignment == Alignment.CenterHorizontally) TextAlign.Center else TextAlign.Start,
                                     contentAlignment = if (titleAlignment == Alignment.CenterHorizontally) Alignment.Center else Alignment.CenterStart,
@@ -261,15 +264,7 @@ fun FloatingTopBar(
                         }
 
                         Row(
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .graphicsLayer { 
-                                    scaleX = morphingParams.iconScale
-                                    scaleY = morphingParams.iconScale
-                                    if (onBack != null) {
-                                        translationX = morphingParams.horizontalShift.toPx()
-                                    }
-                            },
+                            modifier = Modifier.wrapContentWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {

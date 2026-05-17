@@ -65,6 +65,7 @@ import me.eternal.purrfect.LogReader
 import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.logger.LogChannel
 import me.eternal.purrfect.common.logger.LogLevel
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.ManagerTheme
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
@@ -123,23 +124,24 @@ class HomeLogs : Routes.Route() {
 
     override val floatingActionButton: @Composable () -> Unit = {
         val coroutineScope = rememberCoroutineScope()
+        val skin = LocalPurrfectSkin.current
         Column(
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             val firstVisibleItem by remember { derivedStateOf { logListState.firstVisibleItemIndex } }
             val layoutInfo by remember { derivedStateOf { logListState.layoutInfo } }
             val floatingButtonColors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = PurrfectPalette.cardOverlayColor,
-                contentColor = Color.White,
-                disabledContainerColor = Color.White.copy(alpha = 0.08f),
-                disabledContentColor = Color.White.copy(alpha = 0.35f)
+                containerColor = skin.cardOverlayColor,
+                contentColor = skin.textPrimary,
+                disabledContainerColor = skin.textPrimary.copy(alpha = 0.08f),
+                disabledContentColor = skin.textPrimary.copy(alpha = 0.35f)
             )
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = Color.White.copy(alpha = 0.08f),
+                color = skin.textPrimary.copy(alpha = 0.08f),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
             ) {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -181,21 +183,22 @@ class HomeLogs : Routes.Route() {
         onClear: () -> Unit
     ) {
         var showMenu by remember { mutableStateOf(false) }
+        val skin = LocalPurrfectSkin.current
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp)
                 .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()),
             shape = RoundedCornerShape(26.dp),
-            color = Color.White.copy(alpha = 0.07f),
+            color = skin.textPrimary.copy(alpha = 0.07f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                        skin.glowPrimary.copy(alpha = 0.55f),
+                        skin.glowSecondary.copy(alpha = 0.35f)
                     )
                 )
             )
@@ -215,12 +218,12 @@ class HomeLogs : Routes.Route() {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = translation["common.back"],
-                            tint = Color.White
+                            tint = skin.textPrimary
                         )
                     }
                     Text(
                         text = translation["manager.routes.home_logs"] ?: "Logs",
-                        color = Color.White,
+                        color = skin.textPrimary,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 18.sp
                     )
@@ -233,21 +236,21 @@ class HomeLogs : Routes.Route() {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             strokeWidth = 2.dp,
-                            color = Color.White
+                            color = skin.textPrimary
                         )
                     }
                     IconButton(onClick = onFilter) {
                         Icon(
                             imageVector = Icons.Filled.FilterList,
                             contentDescription = "Filter Logs",
-                            tint = PurrfectPalette.glowSecondary
+                            tint = skin.glowSecondary
                         )
                     }
                     IconButton(onClick = onRefresh, enabled = !isRefreshing) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
                             contentDescription = translation["refresh_button_description"],
-                            tint = Color.White
+                            tint = skin.textPrimary
                         )
                     }
                     Box {
@@ -255,14 +258,14 @@ class HomeLogs : Routes.Route() {
                             Icon(
                                 imageVector = Icons.Filled.MoreVert,
                                 contentDescription = null,
-                                tint = Color.White
+                                tint = skin.textPrimary
                             )
                         }
                         DropdownMenu(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false },
                             offset = DpOffset(0.dp, 8.dp),
-                            containerColor = Color(0xFF161821),
+                            containerColor = skin.cardOverlayColor,
                             shape = RoundedCornerShape(14.dp),
                             tonalElevation = 8.dp,
                             shadowElevation = 12.dp
@@ -272,10 +275,10 @@ class HomeLogs : Routes.Route() {
                                     Icon(
                                         imageVector = Icons.Filled.Download,
                                         contentDescription = null,
-                                        tint = PurrfectPalette.glowPrimary
+                                        tint = skin.glowPrimary
                                     )
                                 },
-                                text = { Text(text = translation["export_logs_button"] ?: "Export Logs", color = Color.White) },
+                                text = { Text(text = translation["export_logs_button"] ?: "Export Logs", color = skin.textPrimary) },
                                 onClick = {
                                     onExport()
                                     showMenu = false
@@ -289,7 +292,7 @@ class HomeLogs : Routes.Route() {
                                         tint = Color(0xFFFF9CAB)
                                     )
                                 },
-                                text = { Text(text = translation["clear_logs_button"] ?: "Clear Logs", color = Color.White) },
+                                text = { Text(text = translation["clear_logs_button"] ?: "Clear Logs", color = skin.textPrimary) },
                                 onClick = {
                                     onClear()
                                     showMenu = false
@@ -304,6 +307,7 @@ class HomeLogs : Routes.Route() {
 
     @Composable
     internal fun EmptyLogsState() {
+        val skin = LocalPurrfectSkin.current
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -313,29 +317,29 @@ class HomeLogs : Routes.Route() {
         ) {
             Surface(
                 shape = RoundedCornerShape(50),
-                color = Color.White.copy(alpha = 0.1f),
+                color = skin.textPrimary.copy(alpha = 0.1f),
                 tonalElevation = 0.dp,
                 shadowElevation = 0.dp,
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.18f))
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = skin.textPrimary,
                     modifier = Modifier.padding(14.dp)
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = translation["no_logs_hint"],
-                color = PurrfectPalette.textPrimary,
+                color = skin.textPrimary,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = translation["refresh_hint"],
-                color = PurrfectPalette.textSecondary,
+                color = skin.textPrimary.copy(alpha = 0.6f),
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 6.dp)
@@ -345,6 +349,7 @@ class HomeLogs : Routes.Route() {
 
     @Composable
     internal fun LogEntryCard(line: LogLine, composeContext: android.content.Context) {
+        val skin = LocalPurrfectSkin.current
         val normalizedMessage = remember(line.message) {
             val cleaned = line.message.replace("\r", "")
             val fragments = cleaned.lines()
@@ -367,7 +372,7 @@ class HomeLogs : Routes.Route() {
                     )
                 },
             shape = RoundedCornerShape(18.dp),
-            color = Color.White.copy(alpha = 0.05f),
+            color = skin.cardOverlayColor.copy(alpha = 0.4f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(1.dp, levelColor.copy(alpha = 0.4f))
@@ -431,21 +436,21 @@ class HomeLogs : Routes.Route() {
                             Text(
                                 text = LogChannel.fromChannel(line.tag)?.shortName ?: line.tag,
                                 fontWeight = FontWeight.SemiBold,
-                                color = PurrfectPalette.textPrimary,
+                                color = skin.textPrimary,
                                 fontSize = 13.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = line.dateTime,
-                                color = PurrfectPalette.textSecondary,
+                                color = skin.textPrimary.copy(alpha = 0.6f),
                                 fontSize = 11.sp
                             )
                         }
                     }
                     Text(
                         text = normalizedMessage,
-                        color = Color.White,
+                        color = skin.textPrimary,
                         lineHeight = 16.sp,
                         fontSize = 12.sp,
                         modifier = Modifier.fillMaxWidth()

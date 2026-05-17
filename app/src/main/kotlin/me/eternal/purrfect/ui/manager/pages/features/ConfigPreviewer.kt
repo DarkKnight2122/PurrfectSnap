@@ -17,8 +17,24 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.PurrfectPalette
+import androidx.compose.ui.platform.LocalContext
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import org.json.JSONObject
+
+private object ConfigPreviewerSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else PurrfectPalette.glowPrimary
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else PurrfectPalette.textPrimary
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else PurrfectPalette.textSecondary
+}
 
 @Composable
 fun ConfigPreviewer(
@@ -109,7 +125,7 @@ private fun ConfigSectionCard(section: ConfigSection) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+            .background(ConfigPreviewerSkinPalette.textPrimary.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
             .padding(12.dp)
     ) {
         Row(
@@ -119,7 +135,7 @@ private fun ConfigSectionCard(section: ConfigSection) {
             Icon(
                 imageVector = section.icon,
                 contentDescription = null,
-                tint = PurrfectPalette.glowPrimary,
+                tint = ConfigPreviewerSkinPalette.glowPrimary,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(Modifier.width(8.dp))
@@ -127,7 +143,7 @@ private fun ConfigSectionCard(section: ConfigSection) {
                 text = section.title,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = PurrfectPalette.glowPrimary
+                color = ConfigPreviewerSkinPalette.glowPrimary
             )
         }
 
@@ -136,8 +152,8 @@ private fun ConfigSectionCard(section: ConfigSection) {
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(item.label, fontSize = 11.sp, color = PurrfectPalette.textSecondary.copy(alpha = 0.85f))
-                Text(item.value, fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                Text(item.label, fontSize = 11.sp, color = ConfigPreviewerSkinPalette.textSecondary.copy(alpha = 0.85f))
+                Text(item.value, fontSize = 12.sp, color = ConfigPreviewerSkinPalette.textPrimary, fontWeight = FontWeight.Medium)
             }
         }
     }

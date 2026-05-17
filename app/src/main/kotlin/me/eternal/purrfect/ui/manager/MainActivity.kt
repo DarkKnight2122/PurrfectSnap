@@ -45,6 +45,12 @@ import me.eternal.purrfect.common.ui.ThemeMode
 import me.eternal.purrfect.common.ui.ThemePreferences
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.ui.manager.chimaera.ChimaeraDiscovery
+import me.eternal.purrfect.ui.manager.chimaera.ChimaeraTransmissionToast
+import me.eternal.purrfect.ui.manager.chimaera.ChimaeraCinematic
+import me.eternal.purrfect.ui.manager.chimaera.ChimaeraGame
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.AphelionSkinProvider
 import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.manager.theme.aphelion.CircularRevealOverlay
 import me.eternal.purrfect.ui.util.ThankYouDialog
@@ -96,6 +102,7 @@ class MainActivity : ComponentActivity() {
         registerReceiver(restartReceiver, IntentFilter(RESTART_ACTION), RECEIVER_EXPORTED)
         managerContext = SharedContextHolder.remote(this).apply {
             activity = this@MainActivity
+            syncSkinSettings()
             checkForRequirements()
         }
         handleAnnouncementIntent(intent)
@@ -106,9 +113,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val context = LocalContext.current
-            // ThemeMode is tracked directly
             val themeMode by ThemePreferences.getThemeModeFlow(context).collectAsState(initial = ThemeMode.SYSTEM)
-            // USE THE CORRECT CONTROLLER (not accompanist):
             navController = rememberNavController()
             val navigation = remember {
                 Navigation(managerContext, navController, routes.also {
@@ -123,148 +128,194 @@ class MainActivity : ComponentActivity() {
                     if (def in allowed) def else "home"
                 }
             }
+
             AppMaterialTheme(themeMode = themeMode) {
-                val shouldShowAbiWarning = remember {
-                    val deviceIsArm64 = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it.startsWith("arm64") }
-                    val libDir = context.applicationInfo.nativeLibraryDir.orEmpty()
-                    val appIsArm64 = libDir.contains("arm64")
-                    deviceIsArm64 && !appIsArm64
-                }
-                if (shouldShowAbiWarning) {
-                    AestheticDialog(
-                        onDismissRequest = {},
-                        title = managerContext.translation["setup.activity.wrong_apk_title"],
-                        text = "",
-                        icon = Icons.Filled.Warning,
-                        confirmButtonText = managerContext.translation["setup.activity.close_button"],
-                        onConfirm = { (context as? Activity)?.finishAffinity() },
-                        showCloseButton = false,
-                        opaque = true,
-                        customContent = {
-                            Text(
-                                text = managerContext.translation["setup.activity.wrong_apk_message"],
-                                color = PurrfectPalette.textSecondary,
-                                lineHeight = 18.sp
+                AphelionSkinProvider(managerContext.androidContext) {
+                    val skin = LocalPurrfectSkin.current
+                    val isAphelion = managerContext.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+
+                    CompositionLocalProvider(LocalContentColor provides skin.textPrimary) {
+                        val shouldShowAbiWarning = remember {
+                            val deviceIsArm64 = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it.startsWith("arm64") }
+                            val libDir = context.applicationInfo.nativeLibraryDir.orEmpty()
+                            val appIsArm64 = libDir.contains("arm64")
+                            deviceIsArm64 && !appIsArm64
+                        }
+                        if (shouldShowAbiWarning) {
+                            AestheticDialog(
+                                onDismissRequest = {},
+                                title = managerContext.translation["setup.activity.wrong_apk_title"],
+                                text = "",
+                                icon = Icons.Filled.Warning,
+                                confirmButtonText = managerContext.translation["setup.activity.close_button"],
+                                onConfirm = { (context as? Activity)?.finishAffinity() },
+                                showCloseButton = false,
+                                opaque = true,
+                                customContent = {
+                                    Text(
+                                        text = managerContext.translation["setup.activity.wrong_apk_message"],
+                                        color = skin.textPrimary.copy(alpha = 0.7f),
+                                        lineHeight = 18.sp
+                                    )
+                                }
                             )
                         }
-                    )
-                }
-                val background = MaterialTheme.colorScheme.background
-                val isLight = background.luminance() > 0.5f
-                val view = LocalView.current
-                @Suppress("DEPRECATION")
-                SideEffect {
-                    val window = (view.context as Activity).window
-                    // Modern coloring:
-                    WindowCompat.setDecorFitsSystemWindows(window, false)
-                    window.statusBarColor = Color.Transparent.toArgb()
-                    window.navigationBarColor = Color.Transparent.toArgb()
-                    val insetsController = WindowInsetsControllerCompat(window, window.decorView)
-                    insetsController.isAppearanceLightStatusBars = isLight
-                    insetsController.isAppearanceLightNavigationBars = isLight
-                }
-                // Floating bottom bar height and vertical spacing so floating action buttons and scrolling content remain readable:
-                val bottomPadding = 80.dp + 16.dp +
-                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                routes.bottomPadding = bottomPadding
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-                val fullscreenRoutes = remember {
-                    listOf(
-                        Routes.CONFIG_IMPORT_CONFIRMATION_ROUTE,
-                        Routes.CONFIG_EXPORT_SUMMARY_ROUTE,
-                        Routes.FRIEND_TRACKER_CONFIG_EXPORT_ROUTE,
-                        Routes.FRIEND_TRACKER_CONFIG_IMPORT_ROUTE
-                    )
-                }
-                val isFullscreen = currentRoute in fullscreenRoutes
-                ThankYouDialog()
-                CompositionLocalProvider(LocalContentColor provides PurrfectPalette.iconTint) {
-                    Scaffold(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(PurrfectPalette.backgroundGradient),
-                        containerColor = Color.Transparent,
-                        topBar = {
-                            if (!isFullscreen) {
-                                navigation.TopBar()
-                            }
-                        },
-                        floatingActionButton = {
-                            if (!isFullscreen) {
-                                Box(Modifier.padding(bottom = bottomPadding)) {
-                                    navigation.Fab()
-                                }
-                            }
-                        },
-                        // Disable automatic padding so content can draw behind the bottom bar
-                        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-                    ) { innerPadding ->
-                        Box(Modifier.fillMaxSize()) {
-                            val contentPadding = if (!isFullscreen) {
-                                PaddingValues(
-                                    top = innerPadding.calculateTopPadding(),
-                                    start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
-                                    end = innerPadding.calculateEndPadding(LayoutDirection.Ltr),
-                                    bottom = innerPadding.calculateBottomPadding()
-                                )
-                            } else {
-                                PaddingValues(0.dp)
-                            }
-                            val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                            navigation.NavContent(contentPadding, startDestination)
-
-                            // Theme Reveal Overlay (Android 13+ only for stability)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                navigation.themeRevealState.pendingReveal?.let { revealRequest ->
-                                    CircularRevealOverlay(
-                                        context = managerContext,
-                                        request = revealRequest,
-                                        onComplete = { navigation.themeRevealState.clearReveal() }
-                                    )
-                                }
-                            } else {
-                                // Instantly clear reveal state on older versions
-                                navigation.themeRevealState.pendingReveal?.let {
-                                    navigation.themeRevealState.clearReveal()
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .fillMaxWidth()
-                                    .height(statusBarHeight + 24.dp)
-                                    .background(
-                                        brush = Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color(0xFF241F52),
-                                                Color.Transparent
-                                            )
-                                        )
-                                    )
+                        val background = MaterialTheme.colorScheme.background
+                        val isLight = background.luminance() > 0.5f
+                        val view = LocalView.current
+                        @Suppress("DEPRECATION")
+                        SideEffect {
+                            val window = (view.context as Activity).window
+                            WindowCompat.setDecorFitsSystemWindows(window, false)
+                            window.statusBarColor = Color.Transparent.toArgb()
+                            window.navigationBarColor = Color.Transparent.toArgb()
+                            val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+                            insetsController.isAppearanceLightStatusBars = isLight
+                            insetsController.isAppearanceLightNavigationBars = isLight
+                        }
+                        val bottomPadding = 80.dp + 16.dp +
+                            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        routes.bottomPadding = bottomPadding
+                        val navBackStackEntry by navController.currentBackStackEntryAsState()
+                        val currentRoute = navBackStackEntry?.destination?.route
+                        val fullscreenRoutes = remember {
+                            listOf(
+                                Routes.CONFIG_IMPORT_CONFIRMATION_ROUTE,
+                                Routes.CONFIG_EXPORT_SUMMARY_ROUTE,
+                                Routes.FRIEND_TRACKER_CONFIG_EXPORT_ROUTE,
+                                Routes.FRIEND_TRACKER_CONFIG_IMPORT_ROUTE
                             )
-                            if (!isFullscreen) {
+                        }
+                        val isFullscreen = currentRoute in fullscreenRoutes || navigation.showGame || navigation.showCinematic
+                        ThankYouDialog()
+
+                        LaunchedEffect(Unit) {
+                            ChimaeraDiscovery.load(managerContext.sharedPreferences)
+                        }
+
+                        Scaffold(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(if (isAphelion) skin.backgroundGradient else PurrfectPalette.backgroundGradient),
+                            containerColor = Color.Transparent,
+                            topBar = {
+                                if (!isFullscreen) {
+                                    navigation.TopBar()
+                                }
+                            },
+                            floatingActionButton = {
+                                if (!isFullscreen) {
+                                    Box(Modifier.padding(bottom = bottomPadding)) {
+                                        navigation.Fab()
+                                    }
+                                }
+                            },
+                            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+                        ) { innerPadding ->
+                            Box(Modifier.fillMaxSize()) {
+                                val contentPadding = if (!isFullscreen) {
+                                    PaddingValues(
+                                        top = innerPadding.calculateTopPadding(),
+                                        start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
+                                        end = innerPadding.calculateEndPadding(LayoutDirection.Ltr),
+                                        bottom = innerPadding.calculateBottomPadding()
+                                    )
+                                } else {
+                                    PaddingValues(0.dp)
+                                }
+                                val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                                navigation.NavContent(contentPadding, startDestination)
+
+                                // Transmission Overlay
+                                navigation.pendingTransmission?.let { message ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(top = statusBarHeight + 12.dp),
+                                        contentAlignment = Alignment.TopCenter
+                                    ) {
+                                        ChimaeraTransmissionToast(
+                                            message = message,
+                                            onDismiss = {
+                                                navigation.pendingTransmission = null
+                                                if (ChimaeraDiscovery.unlocked) {
+                                                    navigation.showCinematic = true
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+
+                                // Cinematic Overlay
+                                if (navigation.showCinematic) {
+                                    ChimaeraCinematic(
+                                        isFirstUnlock = navigation.isFirstUnlock,
+                                        onComplete = {
+                                            navigation.showCinematic = false
+                                            navigation.showGame = true
+                                        }
+                                    )
+                                }
+
+                                // Game Overlay
+                                if (navigation.showGame) {
+                                    ChimaeraGame(
+                                        prefs = managerContext.sharedPreferences,
+                                        onExit = { navigation.showGame = false }
+                                    )
+                                }
+
+                                // Top Fade
                                 Box(
                                     modifier = Modifier
-                                        .align(Alignment.BottomCenter)
+                                        .align(Alignment.TopCenter)
                                         .fillMaxWidth()
-                                        .height(routes.bottomPadding)
+                                        .height(statusBarHeight + 24.dp)
                                         .background(
-                                            brush = Brush.verticalGradient(
-                                                colors = listOf(
-                                                    Color.Transparent,
-                                                    Color(0xFF241F52)
+                                            Brush.verticalGradient(
+                                                listOf(
+                                                    if (isAphelion && skin.id != "LEGACY") skin.textPrimary.copy(alpha = 0.05f) else Color(0xFF261F58),
+                                                    Color.Transparent
                                                 )
                                             )
                                         )
                                 )
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .align(Alignment.BottomCenter)
-                                ) {
-                                    navigation.FloatingBottomBar()
+
+                                if (!isFullscreen) {
+                                    // Bottom Fade
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .height(routes.bottomPadding)
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    listOf(
+                                                        Color.Transparent,
+                                                        if (isAphelion && skin.id != "LEGACY") skin.textPrimary.copy(alpha = 0.08f) else Color(0xFF241F52)
+                                                    )
+                                                )
+                                            )
+                                    )
+                                    Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
+                                        navigation.FloatingBottomBar()
+                                    }
+                                }
+
+                                // Theme Reveal Overlay (Android 13+ only for stability)
+                                // High Z-Order: Placed at the bottom to cover bars and fades
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    navigation.themeRevealState.pendingReveal?.let { revealRequest ->
+                                        CircularRevealOverlay(
+                                            context = managerContext,
+                                            request = revealRequest,
+                                            onComplete = { navigation.themeRevealState.clearReveal() }
+                                        )
+                                    }
+                                } else {
+                                    navigation.themeRevealState.pendingReveal?.let {
+                                        navigation.themeRevealState.clearReveal()
+                                    }
                                 }
                             }
                         }

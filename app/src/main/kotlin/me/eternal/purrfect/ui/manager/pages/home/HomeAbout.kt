@@ -1,4 +1,4 @@
-package me.eternal.purrfect.ui.manager.pages.home
+﻿package me.eternal.purrfect.ui.manager.pages.home
 
 import android.os.SystemClock
 import androidx.compose.foundation.BorderStroke
@@ -31,8 +31,31 @@ import kotlinx.coroutines.delay
 import me.eternal.purrfect.R
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.ManagerTheme
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
+import me.eternal.purrfect.ui.util.PurrfectMarqueeText
 import me.eternal.purrfect.ui.util.scaleOnPress
+
+private object AboutSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val backgroundGradient: Brush @Composable get() = LocalPurrfectSkin.current.backgroundGradient
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
+    val panelGradient: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+}
+
 
 class HomeAbout : Routes.Route() {
     override val translation by lazy { context.translation.getCategory("manager.sections.home_about") }
@@ -62,9 +85,9 @@ class HomeAbout : Routes.Route() {
     @Composable
     internal fun DeveloperCard(
         name: String,
+        subtitle: String? = null,
         imageRes: Int,
         avenirNext: FontFamily,
-        subtitle: String? = null,
         modifier: Modifier = Modifier
     ) {
         val tapSource = remember { MutableInteractionSource() }
@@ -85,28 +108,24 @@ class HomeAbout : Routes.Route() {
                     routes.retroGame.navigate()
                 }
             },
-            modifier = modifier
-                .height(150.dp)
-                .scaleOnPress(tapSource),
+            modifier = modifier.scaleOnPress(tapSource),
             interactionSource = tapSource,
             shape = RoundedCornerShape(22.dp),
-            color = Color.White.copy(alpha = 0.06f),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+            color = AboutSkinPalette.textPrimary.copy(alpha = 0.06f),
+            border = BorderStroke(1.dp, AboutSkinPalette.textPrimary.copy(alpha = 0.1f)),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(14.dp),
+                modifier = Modifier.padding(14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Surface(
                     modifier = Modifier.size(64.dp),
                     shape = CircleShape,
                     color = Color.Transparent,
-                    border = BorderStroke(2.dp, Brush.linearGradient(listOf(PurrfectPalette.glowPrimary, PurrfectPalette.glowSecondary)))
+                    border = BorderStroke(2.dp, Brush.linearGradient(listOf(AboutSkinPalette.glowPrimary, AboutSkinPalette.glowSecondary)))
                 ) {
                     Image(
                         painter = painterResource(id = imageRes),
@@ -115,29 +134,29 @@ class HomeAbout : Routes.Route() {
                         modifier = Modifier.fillMaxSize().clip(CircleShape)
                     )
                 }
-                Text(
-                    text = name,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    fontFamily = avenirNext,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                subtitle?.takeIf { it.isNotBlank() }?.let {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = it,
-                        color = PurrfectPalette.textSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    PurrfectMarqueeText(
+                        text = name,
+                        color = AboutSkinPalette.textPrimary,
+                        style = TextStyle(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            fontFamily = avenirNext
+                        )
                     )
+                    subtitle?.let {
+                        Text(
+                            text = it,
+                            color = AboutSkinPalette.textSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
     }
 }
+

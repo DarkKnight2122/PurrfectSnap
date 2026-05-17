@@ -53,10 +53,31 @@ import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import me.eternal.purrfect.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.util.openFile
 import java.text.DateFormat
+
+private object FileImportSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else Brush.verticalGradient(listOf(Color(0xFF5C4B99), Color(0xFF322B5E), Color(0xFF1B1836)))
+}
 
 class FileImportsRoot: Routes.Route() {
     private lateinit var activityLauncherHelper: ActivityLauncherHelper
@@ -71,14 +92,14 @@ class FileImportsRoot: Routes.Route() {
         val shape = RoundedCornerShape(18.dp)
         val border = Brush.linearGradient(
             listOf(
-                PurrfectPalette.glowPrimary.copy(alpha = 0.7f),
-                PurrfectPalette.glowSecondary.copy(alpha = 0.6f)
+                FileImportSkinPalette.glowPrimary.copy(alpha = 0.7f),
+                FileImportSkinPalette.glowSecondary.copy(alpha = 0.6f)
             )
         )
         val fill = Brush.linearGradient(
             listOf(
-                PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                FileImportSkinPalette.glowPrimary.copy(alpha = 0.35f),
+                FileImportSkinPalette.glowSecondary.copy(alpha = 0.28f)
             )
         )
         Row(
@@ -86,8 +107,8 @@ class FileImportsRoot: Routes.Route() {
                 .shadow(
                     elevation = 12.dp,
                     shape = shape,
-                    ambientColor = PurrfectPalette.glowSecondary.copy(alpha = 0.2f),
-                    spotColor = PurrfectPalette.glowPrimary.copy(alpha = 0.25f)
+                    ambientColor = FileImportSkinPalette.glowSecondary.copy(alpha = 0.2f),
+                    spotColor = FileImportSkinPalette.glowPrimary.copy(alpha = 0.25f)
                 )
                 .clip(shape)
                 .background(fill)
@@ -97,10 +118,10 @@ class FileImportsRoot: Routes.Route() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Default.Upload, contentDescription = null, tint = Color.White)
+            Icon(Icons.Default.Upload, contentDescription = null, tint = FileImportSkinPalette.textPrimary)
             Text(
                 text = translation["import_file_button"],
-                color = Color.White,
+                color = FileImportSkinPalette.textPrimary,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -149,7 +170,7 @@ class FileImportsRoot: Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(PurrfectPalette.backgroundGradient)
+                .background(FileImportSkinPalette.backgroundGradient)
         ) {
             LazyColumn(
                 modifier = Modifier
@@ -166,10 +187,10 @@ class FileImportsRoot: Routes.Route() {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
-                                color = PurrfectPalette.cardOverlayColor,
+                                color = FileImportSkinPalette.cardOverlayColor,
                                 tonalElevation = 0.dp,
                                 shadowElevation = 10.dp,
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                                border = BorderStroke(1.dp, FileImportSkinPalette.textPrimary.copy(alpha = 0.1f))
                             ) {
                                 Text(
                                     text = translation["no_files_hint"],
@@ -179,7 +200,7 @@ class FileImportsRoot: Routes.Route() {
                                     textAlign = TextAlign.Center,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color.White
+                                    color = FileImportSkinPalette.textPrimary
                                 )
                             }
                         }
@@ -191,15 +212,15 @@ class FileImportsRoot: Routes.Route() {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(20.dp),
-                            color = PurrfectPalette.cardOverlayColor,
+                            color = FileImportSkinPalette.cardOverlayColor,
                             tonalElevation = 0.dp,
                             shadowElevation = 10.dp,
                             border = BorderStroke(
                                 1.dp,
                                 Brush.linearGradient(
                                     listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                        FileImportSkinPalette.glowPrimary.copy(alpha = 0.4f),
+                                        FileImportSkinPalette.glowSecondary.copy(alpha = 0.35f)
                                     )
                                 )
                             )
@@ -213,13 +234,13 @@ class FileImportsRoot: Routes.Route() {
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
-                                    color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f)
+                                    color = FileImportSkinPalette.glowPrimary.copy(alpha = 0.16f)
                                 ) {
                                     Icon(
                                         Icons.Default.AttachFile,
                                         contentDescription = null,
                                         modifier = Modifier.padding(10.dp),
-                                        tint = Color.White
+                                        tint = FileImportSkinPalette.textPrimary
                                     )
                                 }
                                 Column(
@@ -230,7 +251,7 @@ class FileImportsRoot: Routes.Route() {
                                         text = file.name,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
-                                        color = Color.White,
+                                        color = FileImportSkinPalette.textPrimary,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -240,7 +261,7 @@ class FileImportsRoot: Routes.Route() {
                                                 DateFormat.getDateTimeInstance().format(lastModified)
                                             }",
                                             lineHeight = 15.sp,
-                                            color = PurrfectPalette.textSecondary,
+                                            color = FileImportSkinPalette.textSecondary,
                                             fontSize = 12.sp
                                         )
                                     }
@@ -258,7 +279,7 @@ class FileImportsRoot: Routes.Route() {
                                     Icon(
                                         Icons.Default.DeleteOutline,
                                         contentDescription = null,
-                                        tint = PurrfectPalette.glowSecondary
+                                        tint = FileImportSkinPalette.glowSecondary
                                     )
                                 }
                             }

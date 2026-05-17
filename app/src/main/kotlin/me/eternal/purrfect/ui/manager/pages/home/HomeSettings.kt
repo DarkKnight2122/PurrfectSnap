@@ -56,6 +56,8 @@ import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import me.eternal.purrfect.storage.getAllScopeNotes
 import me.eternal.purrfect.storage.setAllScopeNotes
 import me.eternal.purrfect.task.UpdateCheckWorker
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.ui.manager.theme.aetherGlass
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.ManagerTheme
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
@@ -184,7 +186,12 @@ class HomeSettings : Routes.Route() {
     internal fun handleTargetSwitch(targetApp: TargetApp) {
         if (isTargetReady(targetApp)) {
             context.setActiveTargetApp(targetApp)
-            routes.home.navigateReset()
+            
+            // Cold Restart to ensure entire engine (ABI, Config, Locale) reloads for the new target app
+            val intent = Intent(context.androidContext, me.eternal.purrfect.ui.manager.MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            context.androidContext.startActivity(intent)
+            context.activity?.finish()
         } else {
             launchTargetInstallSetup(targetApp)
         }
@@ -193,6 +200,7 @@ class HomeSettings : Routes.Route() {
     @Composable
     private fun LimitedTargetSettingsScreen() {
         val hapticFeedback = LocalHapticFeedback.current
+        val skin = LocalPurrfectSkin.current
         val currentTarget = context.activeTargetApp
         val title = when (currentTarget) {
             TargetApp.REDDIT -> translation["reddit_settings_title"]
@@ -208,7 +216,7 @@ class HomeSettings : Routes.Route() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(HomeRootSection.pageBackgroundGradient)
+                .background(skin.backgroundGradient)
                 .padding(horizontal = 18.dp)
                 .verticalScroll(rememberScrollState()),
             contentAlignment = Alignment.Center
@@ -223,12 +231,12 @@ class HomeSettings : Routes.Route() {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = skin.textPrimary,
                     modifier = Modifier.size(48.dp)
                 )
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = skin.textPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
@@ -239,8 +247,8 @@ class HomeSettings : Routes.Route() {
                         Button(
                             onClick = { switchTo(targetApp) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFF1B152E)
+                                containerColor = skin.textPrimary,
+                                contentColor = skin.cardOverlayColor
                             )
                         ) {
                             Icon(Icons.Filled.Forum, contentDescription = null)
@@ -256,12 +264,13 @@ class HomeSettings : Routes.Route() {
 
     @Composable
     internal fun RowTitle(title: String) {
+        val skin = LocalPurrfectSkin.current
         Text(
             text = title,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = skin.textPrimary
         )
     }
 
@@ -327,7 +336,8 @@ class HomeSettings : Routes.Route() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = text, modifier = Modifier.padding(start = 26.dp, end = 16.dp), fontSize = 14.sp)
+            val skin = LocalPurrfectSkin.current
+            Text(text = text, modifier = Modifier.padding(start = 26.dp, end = 16.dp), fontSize = 14.sp, color = skin.textPrimary)
             Switch(
                 checked = value,
                 onCheckedChange = null,
@@ -359,7 +369,8 @@ class HomeSettings : Routes.Route() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = text, modifier = Modifier.padding(start = 26.dp, end = 16.dp), fontSize = 14.sp)
+            val skin = LocalPurrfectSkin.current
+            Text(text = text, modifier = Modifier.padding(start = 26.dp, end = 16.dp), fontSize = 14.sp, color = skin.textPrimary)
             Switch(
                 checked = value,
                 onCheckedChange = null,
@@ -374,6 +385,7 @@ class HomeSettings : Routes.Route() {
         var confirmationDialog by remember {
             mutableStateOf(false)
         }
+        val skin = LocalPurrfectSkin.current
         fun takeAction() {
             if (requireConfirmation) {
                 confirmationDialog = true
@@ -404,8 +416,8 @@ class HomeSettings : Routes.Route() {
             Column(
                 modifier = Modifier.weight(1f),
             ) {
-                Text(text = context.translation["actions.$key.name"], fontSize = 16.sp, fontWeight = FontWeight.Bold, lineHeight = 20.sp)
-                context.translation.getOrNull("actions.$key.description")?.let { Text(text = it, fontSize = 12.sp, fontWeight = FontWeight.Light, lineHeight = 15.sp) }
+                Text(text = context.translation["actions.$key.name"], fontSize = 16.sp, fontWeight = FontWeight.Bold, lineHeight = 20.sp, color = skin.textPrimary)
+                context.translation.getOrNull("actions.$key.description")?.let { Text(text = it, fontSize = 12.sp, fontWeight = FontWeight.Light, lineHeight = 15.sp, color = skin.textPrimary.copy(alpha = 0.8f)) }
             }
             IconButton(onClick = { takeAction() },
                 modifier = Modifier.padding(end = 2.dp)
@@ -413,7 +425,8 @@ class HomeSettings : Routes.Route() {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                     contentDescription = context.translation.getOrNull("actions.$key.name"),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(24.dp),
+                    tint = skin.textPrimary
                 )
             }
         }
@@ -438,14 +451,15 @@ class HomeSettings : Routes.Route() {
         modifier: Modifier = Modifier,
         content: @Composable ColumnScope.() -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
         Surface(
-            modifier = modifier,
+            modifier = modifier.aetherGlass(skin, 22.dp),
             shape = RoundedCornerShape(22.dp),
-            color = Color.White.copy(alpha = 0.04f),
+            color = Color.Transparent,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
-            contentColor = Color.White
+            border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.2f)),
+            contentColor = skin.textPrimary
         ) {
             Column(
                 modifier = Modifier
@@ -466,18 +480,19 @@ class HomeSettings : Routes.Route() {
         modifier: Modifier = Modifier,
         onClick: () -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
         val shape = RoundedCornerShape(16.dp)
         Row(
             modifier = modifier
                 .clip(shape)
-                .background(Color.White.copy(alpha = 0.06f))
-                .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
+                .background(skin.cardOverlayColor.copy(alpha = 0.3f))
+                .border(1.dp, skin.glassBorder.copy(alpha = 0.45f), shape)
                 .clickable { onClick() }
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = value, color = Color.White)
+            Text(text = value, color = skin.textPrimary)
             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
         }
     }

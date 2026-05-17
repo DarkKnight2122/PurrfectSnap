@@ -14,15 +14,38 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+
+internal object ComponentsSkinPalette {
+    @Composable
+    private fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else Color(0xFF8C7BFF)
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else Color(0xFF5FD8FF)
+    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else Brush.verticalGradient(listOf(Color(0xFF261F58), Color(0xFF302A6D), Color(0xFF241F52)))
+    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else SolidColor(Color(0xFF1B152E))
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else Color.White
+    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else Color(0xFFD9D3FF)
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else Color(0xFF1B152E)
+    val refractiveColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.refractiveColor else Color(0xFF8C7BFF)
+    val panelGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else Brush.verticalGradient(listOf(Color(0xFF5C4B99), Color(0xFF322B5E), Color(0xFF1B1836)))
+}
 
 @Composable
 fun AestheticEmptyState(
@@ -50,8 +73,8 @@ fun AestheticEmptyState(
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                                ComponentsSkinPalette.glowPrimary.copy(alpha = 0.32f),
+                                ComponentsSkinPalette.glowSecondary.copy(alpha = 0.28f)
                             )
                         ),
                         CircleShape
@@ -77,7 +100,7 @@ fun AestheticEmptyState(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
-                color = PurrfectPalette.textSecondary,
+                color = ComponentsSkinPalette.textSecondary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)
             )
@@ -89,4 +112,3 @@ fun AestheticEmptyState(
         }
     }
 }
-

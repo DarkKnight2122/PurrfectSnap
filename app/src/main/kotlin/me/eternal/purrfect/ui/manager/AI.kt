@@ -52,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,7 +84,8 @@ import me.eternal.purrfect.storage.newTrackerRule
 import me.eternal.purrfect.storage.replaceAssistantRegistry
 import me.eternal.purrfect.storage.setRuleTrackerScopes
 import me.eternal.purrfect.storage.setTrackerRuleState
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectPalette
 import me.eternal.purrfect.ui.util.saveFile
 import kotlin.math.max
 import kotlin.math.min
@@ -592,7 +594,7 @@ private class ManagerAssistantEngine(
     private fun developerReply(normalized: String): AssistantResult? {
         val relevant = normalized.contains("who develops") || normalized.contains("who made") || normalized.contains("who created purrfect")
         if (!relevant) return null
-        return AssistantResult("Eternal and his team founded the mod back in October 2025. Now, it's maintained by Kaladin, schrodingerspet, and their team.")
+        return AssistantResult("ΞTΞRNAL and his team founded the mod back in October 2025. Now, it's maintained by ᴋᴀʟᴀᴅɪɴ, 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝, and their team.")
     }
 
     private fun featureCountReply(normalized: String): AssistantResult? {
@@ -2058,14 +2060,15 @@ private fun ManagerAssistantTrigger(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val skin = LocalPurrfectSkin.current
     val border = when (style) {
-        ManagerAssistantTriggerStyle.DEFAULT -> BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        ManagerAssistantTriggerStyle.DEFAULT -> BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
         ManagerAssistantTriggerStyle.APHELION -> BorderStroke(
             1.dp,
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         )
@@ -2073,7 +2076,7 @@ private fun ManagerAssistantTrigger(
     Surface(
         modifier = modifier.height(36.dp).defaultMinSize(minWidth = 36.dp),
         shape = RoundedCornerShape(40.dp),
-        color = Color.White.copy(alpha = 0.06f),
+        color = skin.textPrimary.copy(alpha = 0.06f),
         border = border
     ) {
         Row(
@@ -2081,13 +2084,13 @@ private fun ManagerAssistantTrigger(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Icon(Icons.Default.SmartToy, contentDescription = "Open assistant", tint = Color.White, modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.SmartToy, contentDescription = "Open assistant", tint = skin.textPrimary, modifier = Modifier.size(20.dp))
             val labelAlpha = if (style == ManagerAssistantTriggerStyle.APHELION) (shrinkFactor - 0.1f).coerceIn(0f, 1f) else 1f
             if (labelAlpha > 0.02f) {
                 Spacer(modifier = Modifier.width((8 * shrinkFactor).dp))
                 Text(
                     text = "AI",
-                    color = Color.White.copy(alpha = labelAlpha),
+                    color = skin.textPrimary.copy(alpha = labelAlpha),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -2106,6 +2109,7 @@ fun ManagerAssistantDialog(
     showImprovementLogging: Boolean = true,
     onDismiss: () -> Unit
 ) {
+    val skin = LocalPurrfectSkin.current
     val scope = rememberCoroutineScope()
     val engine = remember(context, routes) { ManagerAssistantEngine(context, routes) }
     val messages = remember {
@@ -2215,15 +2219,15 @@ fun ManagerAssistantDialog(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.42f)
+                        skin.glowPrimary.copy(alpha = 0.55f),
+                        skin.glowSecondary.copy(alpha = 0.42f)
                     )
                 )
             )
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, RoundedCornerShape(26.dp))
+                    .background(skin.cardOverlay, RoundedCornerShape(26.dp))
                     .padding(18.dp)
             ) {
                 Column(
@@ -2242,23 +2246,23 @@ fun ManagerAssistantDialog(
                             Surface(
                                 modifier = Modifier.size(42.dp),
                                 shape = RoundedCornerShape(14.dp),
-                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f)
+                                color = skin.glowPrimary.copy(alpha = 0.18f)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.SmartToy, contentDescription = null, tint = Color.White)
+                                    Icon(Icons.Default.SmartToy, contentDescription = null, tint = skin.textPrimary)
                                 }
                             }
                             Column {
                                 Text(
                                     text = "Purrfect AI",
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = Color.White,
+                                    color = skin.textPrimary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                         IconButton(onClick = onDismiss) {
-                            Text("x", color = Color.White, fontSize = 20.sp)
+                            Text("x", color = skin.textPrimary, fontSize = 20.sp)
                         }
                     }
 
@@ -2279,9 +2283,9 @@ fun ManagerAssistantDialog(
                                     )
                                 },
                                 colors = AssistChipDefaults.assistChipColors(
-                                    containerColor = Color.White.copy(alpha = 0.08f),
-                                    labelColor = Color.White,
-                                    leadingIconContentColor = Color.White
+                                    containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                    labelColor = skin.textPrimary,
+                                    leadingIconContentColor = skin.textPrimary
                                 ),
                                 leadingIcon = { Icon(Icons.Default.SmartToy, contentDescription = null) }
                             )
@@ -2298,14 +2302,14 @@ fun ManagerAssistantDialog(
                         }
                         if (isWorking) {
                             item {
-                                Surface(shape = RoundedCornerShape(18.dp), color = Color.White.copy(alpha = 0.06f)) {
+                                Surface(shape = RoundedCornerShape(18.dp), color = skin.textPrimary.copy(alpha = 0.06f)) {
                                     Row(
                                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.White)
-                                        Text("Working on that...", color = Color.White)
+                                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = skin.textPrimary)
+                                        Text("Working on that...", color = skin.textPrimary)
                                     }
                                 }
                             }
@@ -2323,9 +2327,9 @@ fun ManagerAssistantDialog(
                                     onClick = { submitQuery(suggestion) },
                                     label = { Text(suggestion, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                     colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = Color.White.copy(alpha = 0.08f),
-                                        labelColor = Color.White,
-                                        leadingIconContentColor = Color.White
+                                        containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                        labelColor = skin.textPrimary,
+                                        leadingIconContentColor = skin.textPrimary
                                     ),
                                     leadingIcon = { Icon(Icons.Default.SmartToy, contentDescription = null) }
                                 )
@@ -2342,15 +2346,15 @@ fun ManagerAssistantDialog(
                             value = input,
                             onValueChange = { input = it },
                             modifier = Modifier.weight(1f),
-                            placeholder = { Text("Ask or command the app...", color = PurrfectPalette.textSecondary) },
+                            placeholder = { Text("Ask or command the app...", color = skin.textSecondary) },
                             colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.04f),
+                                focusedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
+                                unfocusedContainerColor = skin.textPrimary.copy(alpha = 0.04f),
                                 focusedIndicatorColor = Color.Transparent,
                                 unfocusedIndicatorColor = Color.Transparent,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                cursorColor = Color.White
+                                focusedTextColor = skin.textPrimary,
+                                unfocusedTextColor = skin.textPrimary,
+                                cursorColor = skin.textPrimary
                             ),
                             shape = RoundedCornerShape(18.dp),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
@@ -2361,8 +2365,8 @@ fun ManagerAssistantDialog(
                             onClick = { submitQuery(input) },
                             enabled = input.isNotBlank() && !isWorking,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                contentColor = Color.White
+                                containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                                contentColor = skin.textPrimary
                             ),
                             shape = RoundedCornerShape(18.dp),
                             modifier = Modifier.height(56.dp).wrapContentWidth()
@@ -2378,6 +2382,7 @@ fun ManagerAssistantDialog(
 
 @Composable
 private fun AssistantBubble(message: AssistantMessage) {
+    val skin = LocalPurrfectSkin.current
     val isUser = message.role == AssistantRole.USER
     val shape = RoundedCornerShape(
         topStart = 18.dp,
@@ -2388,15 +2393,15 @@ private fun AssistantBubble(message: AssistantMessage) {
     val background = if (isUser) {
         Brush.linearGradient(
             listOf(
-                PurrfectPalette.glowPrimary.copy(alpha = 0.34f),
-                PurrfectPalette.glowSecondary.copy(alpha = 0.28f)
+                skin.glowPrimary.copy(alpha = 0.34f),
+                skin.glowSecondary.copy(alpha = 0.28f)
             )
         )
     } else {
         Brush.linearGradient(
             listOf(
-                Color.White.copy(alpha = 0.08f),
-                Color.White.copy(alpha = 0.05f)
+                skin.textPrimary.copy(alpha = 0.08f),
+                skin.textPrimary.copy(alpha = 0.05f)
             )
         )
     }
@@ -2408,12 +2413,12 @@ private fun AssistantBubble(message: AssistantMessage) {
             modifier = Modifier.widthIn(max = 520.dp),
             shape = shape,
             color = Color.Transparent,
-            border = BorderStroke(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.08f))))
+            border = BorderStroke(1.dp, Brush.linearGradient(listOf(skin.textPrimary.copy(alpha = 0.12f), skin.textPrimary.copy(alpha = 0.08f))))
         ) {
             Box(
                 modifier = Modifier.background(background, shape).padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
-                Text(text = message.text, color = Color.White, style = MaterialTheme.typography.bodyMedium)
+                Text(text = message.text, color = skin.textPrimary, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

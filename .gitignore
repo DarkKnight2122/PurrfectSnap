@@ -23,3 +23,5 @@ valdi/node_modules/
 hs_err_pid*.log
 replay_pid*.log
 .vs
+_reference*
+_archive*

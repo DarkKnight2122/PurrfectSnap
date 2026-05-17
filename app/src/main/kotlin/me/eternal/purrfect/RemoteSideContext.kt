@@ -554,6 +554,21 @@ class RemoteSideContext(
         sharedPreferences.edit().putLong("last_build_version_code", currentVersion).apply()
     }
 
+    fun syncSkinSettings() {
+        runCatching {
+            val uiSettings = config.root.global.uiSettings
+            sharedPreferences.edit()
+                .putString("manager_theme", uiSettings.managerTheme.get())
+                .putString("aphelion_skin", uiSettings.aphelionSkin.get())
+                .putString("lumina_mode", uiSettings.luminaMode.get())
+                .putString("lumina_accent", uiSettings.luminaAccent.get())
+                .putString("aether_mode", uiSettings.aetherMode.get())
+                .putString("aether_accent", uiSettings.aetherAccent.get())
+                .putBoolean("aether_amoled", uiSettings.aetherAmoled.get())
+                .apply()
+        }
+    }
+
     companion object {
         const val REDDIT_FEATURE_PREFS = "reddit_features"
         const val REDDIT_FEATURE_CONFIG_FILE = "reddit_features.json"

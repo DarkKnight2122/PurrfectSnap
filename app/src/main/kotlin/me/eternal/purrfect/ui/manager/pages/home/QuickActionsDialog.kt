@@ -10,194 +10,185 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import me.eternal.purrfect.common.bridge.wrapper.LocaleWrapper
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
-import me.eternal.purrfect.ui.util.purrfectSwitchColors
-import androidx.compose.ui.window.Dialog
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectPalette
+import me.eternal.purrfect.ui.manager.Routes
+import me.eternal.purrfect.SharedContextHolder
+
+internal object QuickActionsSkinPalette {
+    @Composable
+    fun isAphelion(): Boolean {
+        val context = LocalContext.current
+        return remember(context) { 
+            SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        }
+    }
+
+    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else PurrfectPalette.glowPrimary
+    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else PurrfectPalette.glowSecondary
+    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else PurrfectPalette.cardOverlayColor
+    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else PurrfectPalette.textPrimary
+}
 
 @Composable
 fun QuickActionsDialog(
-    quickActions: Map<Pair<String, ImageVector>, Any>,
+    quickActions: Map<Pair<String, ImageVector>, Routes.() -> Unit>,
     selectedQuickActions: List<String>,
     onDismiss: () -> Unit,
     onSave: (List<String>) -> Unit,
     translation: LocaleWrapper
 ) {
-    val selected = remember { mutableStateListOf(*selectedQuickActions.toTypedArray()) }
+    val isAphelion = QuickActionsSkinPalette.isAphelion()
+    val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
+    val selected = remember { mutableStateListOf<String>().apply { addAll(selectedQuickActions) } }
 
-    Dialog(onDismissRequest = onDismiss) {
-        val dialogShape = RoundedCornerShape(24.dp)
+    me.eternal.purrfect.ui.util.Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .wrapContentHeight(),
-            shape = dialogShape,
-            color = Color.Transparent,
-            tonalElevation = 0.dp,
-            shadowElevation = 16.dp,
+                .padding(horizontal = 14.dp, vertical = 20.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = skin.cardOverlayColor,
+            tonalElevation = 12.dp,
+            shadowElevation = 12.dp,
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                        skin.glowPrimary.copy(alpha = 0.55f),
+                        skin.glowSecondary.copy(alpha = 0.45f)
                     )
                 )
             )
         ) {
             Column(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, dialogShape)
-                    .padding(horizontal = 18.dp, vertical = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
-                                    )
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.AutoAwesome,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = translation["manager.dialogs.quick_actions_dialog.title"],
-                            style = MaterialTheme.typography.titleLarge,
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Text(
-                            text = translation["manager.dialogs.quick_actions_dialog.subtitle"],
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = PurrfectPalette.textSecondary
-                        )
-                    }
-                }
+                Text(
+                    text = translation["manager.dialogs.quick_actions_dialog.title"] ?: "Select Quick Actions",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = skin.textPrimary,
+                    textAlign = TextAlign.Center
+                )
 
-                quickActions.keys.forEach { (name, icon) ->
-                    val isSelected = selected.contains(name)
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (isSelected) selected.remove(name) else selected.add(name)
-                            },
-                        shape = RoundedCornerShape(16.dp),
-                        color = PurrfectPalette.cardOverlayColor,
-                        tonalElevation = 0.dp,
-                        shadowElevation = 0.dp,
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 600.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(quickActions.keys.toList()) { action ->
+                        val isSelected = selected.contains(action.first)
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isSelected) {
+                                        selected.remove(action.first)
+                                    } else {
+                                        selected.add(action.first)
+                                    }
+                                },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isSelected) skin.textPrimary.copy(alpha = 0.12f) else skin.textPrimary.copy(alpha = 0.05f),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isSelected) Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary))
+                                else SolidColor(skin.textPrimary.copy(alpha = 0.1f))
+                            )
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f),
-                                tonalElevation = 0.dp
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
-                                    imageVector = icon,
-                                    contentDescription = name,
-                                    modifier = Modifier.padding(10.dp),
-                                    tint = Color.White
-                                )
-                            }
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                Text(
-                                    name,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
+                                    imageVector = action.second,
+                                    contentDescription = null,
+                                    tint = if (isSelected) skin.glowPrimary else skin.textPrimary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                                 Text(
-                                    text = if (isSelected) translation["enabled"] else translation["disabled"],
-                                    color = PurrfectPalette.textSecondary,
-                                    style = MaterialTheme.typography.labelSmall
+                                    text = action.first,
+                                    fontSize = 15.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = skin.textPrimary,
+                                    modifier = Modifier.weight(1f)
                                 )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = skin.glowSecondary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
-                            Switch(
-                                checked = isSelected,
-                                onCheckedChange = { toggled ->
-                                    if (toggled) selected.add(name) else selected.remove(name)
-                                },
-                                colors = purrfectSwitchColors()
-                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(translation["button.cancel"], color = PurrfectPalette.textSecondary)
+                    OutlinedButton(
+                        modifier = Modifier.weight(1f),
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.2f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
+                    ) {
+                        Text(text = translation["button.cancel"] ?: "Cancel")
                     }
                     Button(
+                        modifier = Modifier.weight(1f),
                         onClick = { onSave(selected.toList()) },
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                            contentColor = Color.White
+                            containerColor = skin.textPrimary,
+                            contentColor = skin.cardOverlayColor
                         )
                     ) {
-                        Text(translation["button.save"])
+                        Text(text = translation["button.save"] ?: "Save")
                     }
                 }
             }
