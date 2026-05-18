@@ -692,7 +692,7 @@ class AutoReply : MessagingRuleFeature("Auto Reply", MessagingRuleType.AUTO_REPL
 
                     if (provider == "openrouter") {
                         reqBuilder
-                            .addHeader("HTTP-Referer", "https://purrfectsnap.app")
+                            .addHeader("HTTP-Referer", "https://purrfect.app")
                             .addHeader("X-Title", "Purrfect")
                     }
 

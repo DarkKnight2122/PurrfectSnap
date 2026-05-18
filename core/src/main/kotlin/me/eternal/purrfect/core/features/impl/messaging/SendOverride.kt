@@ -988,24 +988,29 @@ class SendOverride : Feature("Send Override") {
                 
                 createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
                     PurrfectOverlayTheme {
+                        val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
                         val mainTranslation = remember {
                             context.translation.getCategory("send_override_dialog")
                         }
                         val dialogShape = RoundedCornerShape(24.dp)
-                        val dialogSurfaceColor = Color(0xFF2A2452)
-                        val border = remember {
+                        val dialogSurfaceColor = skin.cardOverlayColor
+                        
+                        val glowPrimary = skin.glowPrimary
+                        val glowSecondary = skin.glowSecondary
+                        
+                        val border = remember(glowPrimary, glowSecondary) {
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                                    PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f)
+                                    glowPrimary.copy(alpha = 0.55f),
+                                    glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
                         }
-                        val dialogBackground = remember {
+                        val dialogBackground = remember(dialogSurfaceColor) {
                             Brush.linearGradient(
                                 listOf(
-                                    Color(0xFF2A2452),
-                                    Color(0xFF1A143A)
+                                    dialogSurfaceColor,
+                                    dialogSurfaceColor.copy(alpha = 0.6f)
                                 )
                             )
                         }
@@ -1024,10 +1029,10 @@ class SendOverride : Feature("Send Override") {
                                 shape = RoundedCornerShape(18.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 4.dp else 1.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (selected) Color(0xFF3E3478) else Color(0xFF2F2A5B),
-                                    contentColor = Color.White
+                                    containerColor = if (selected) glowPrimary.copy(alpha = 0.2f) else dialogSurfaceColor.copy(alpha = 0.5f),
+                                    contentColor = skin.textPrimary
                                 ),
-                                border = if (selected) BorderStroke(1.dp, PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.6f)) else null
+                                border = if (selected) BorderStroke(1.dp, glowPrimary.copy(alpha = 0.6f)) else null
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -1040,13 +1045,15 @@ class SendOverride : Feature("Send Override") {
                                         icon,
                                         contentDescription = title,
                                         modifier = Modifier.size(28.dp),
-                                        tint = if (selected) PurrfectOverlayPalette.glowSecondary else Color.White.copy(alpha = 0.9f)
+                                        tint = if (selected) glowSecondary else skin.textPrimary.copy(alpha = 0.9f)
                                     )
                                     Spacer(Modifier.height(6.dp))
                                     Text(
                                         title,
                                         modifier = Modifier.fillMaxWidth(),
                                         fontSize = 12.sp,
+                                        color = skin.textPrimary,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.SansSerif,
                                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                         softWrap = true,
                                         lineHeight = 14.sp,

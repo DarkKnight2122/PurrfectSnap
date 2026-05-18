@@ -130,194 +130,205 @@ class MainActivity : ComponentActivity() {
             }
 
             AppMaterialTheme(themeMode = themeMode) {
-                AphelionSkinProvider(managerContext.androidContext) {
-                    val skin = LocalPurrfectSkin.current
-                    val isAphelion = managerContext.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+                Box(Modifier.fillMaxSize()) {
+                    AphelionSkinProvider(managerContext.androidContext) {
+                        val managerTheme = managerContext.config.root.global.uiSettings.managerTheme.get()
+                        val activeSkin = LocalPurrfectSkin.current
+                        val skin = remember(managerTheme, activeSkin) { 
+                            if (managerTheme == "APHELION") activeSkin else me.eternal.purrfect.common.ui.theme.PurrfectPalette 
+                        }
+                        val isAphelion = managerTheme == "APHELION"
 
-                    CompositionLocalProvider(LocalContentColor provides skin.textPrimary) {
-                        val shouldShowAbiWarning = remember {
-                            val deviceIsArm64 = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it.startsWith("arm64") }
-                            val libDir = context.applicationInfo.nativeLibraryDir.orEmpty()
-                            val appIsArm64 = libDir.contains("arm64")
-                            deviceIsArm64 && !appIsArm64
-                        }
-                        if (shouldShowAbiWarning) {
-                            AestheticDialog(
-                                onDismissRequest = {},
-                                title = managerContext.translation["setup.activity.wrong_apk_title"],
-                                text = "",
-                                icon = Icons.Filled.Warning,
-                                confirmButtonText = managerContext.translation["setup.activity.close_button"],
-                                onConfirm = { (context as? Activity)?.finishAffinity() },
-                                showCloseButton = false,
-                                opaque = true,
-                                customContent = {
-                                    Text(
-                                        text = managerContext.translation["setup.activity.wrong_apk_message"],
-                                        color = skin.textPrimary.copy(alpha = 0.7f),
-                                        lineHeight = 18.sp
-                                    )
-                                }
-                            )
-                        }
-                        val background = MaterialTheme.colorScheme.background
-                        val isLight = background.luminance() > 0.5f
-                        val view = LocalView.current
-                        @Suppress("DEPRECATION")
-                        SideEffect {
-                            val window = (view.context as Activity).window
-                            WindowCompat.setDecorFitsSystemWindows(window, false)
-                            window.statusBarColor = Color.Transparent.toArgb()
-                            window.navigationBarColor = Color.Transparent.toArgb()
-                            val insetsController = WindowInsetsControllerCompat(window, window.decorView)
-                            insetsController.isAppearanceLightStatusBars = isLight
-                            insetsController.isAppearanceLightNavigationBars = isLight
-                        }
-                        val bottomPadding = 80.dp + 16.dp +
-                            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                        routes.bottomPadding = bottomPadding
-                        val navBackStackEntry by navController.currentBackStackEntryAsState()
-                        val currentRoute = navBackStackEntry?.destination?.route
-                        val fullscreenRoutes = remember {
-                            listOf(
-                                Routes.CONFIG_IMPORT_CONFIRMATION_ROUTE,
-                                Routes.CONFIG_EXPORT_SUMMARY_ROUTE,
-                                Routes.FRIEND_TRACKER_CONFIG_EXPORT_ROUTE,
-                                Routes.FRIEND_TRACKER_CONFIG_IMPORT_ROUTE
-                            )
-                        }
-                        val isFullscreen = currentRoute in fullscreenRoutes || navigation.showGame || navigation.showCinematic
-                        ThankYouDialog()
-
-                        LaunchedEffect(Unit) {
-                            ChimaeraDiscovery.load(managerContext.sharedPreferences)
-                        }
-
-                        Scaffold(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(if (isAphelion) skin.backgroundGradient else PurrfectPalette.backgroundGradient),
-                            containerColor = Color.Transparent,
-                            topBar = {
-                                if (!isFullscreen) {
-                                    navigation.TopBar()
-                                }
-                            },
-                            floatingActionButton = {
-                                if (!isFullscreen) {
-                                    Box(Modifier.padding(bottom = bottomPadding)) {
-                                        navigation.Fab()
+                        CompositionLocalProvider(
+                            LocalPurrfectSkin provides skin,
+                            LocalContentColor provides skin.textPrimary
+                        ) {
+                            val shouldShowAbiWarning = remember {
+                                val deviceIsArm64 = Build.SUPPORTED_ABIS.any { it == "arm64-v8a" || it.startsWith("arm64") }
+                                val libDir = context.applicationInfo.nativeLibraryDir.orEmpty()
+                                val appIsArm64 = libDir.contains("arm64")
+                                deviceIsArm64 && !appIsArm64
+                            }
+                            if (shouldShowAbiWarning) {
+                                AestheticDialog(
+                                    onDismissRequest = {},
+                                    title = managerContext.translation["setup.activity.wrong_apk_title"],
+                                    text = "",
+                                    icon = Icons.Filled.Warning,
+                                    confirmButtonText = managerContext.translation["setup.activity.close_button"],
+                                    onConfirm = { (context as? Activity)?.finishAffinity() },
+                                    showCloseButton = false,
+                                    opaque = true,
+                                    customContent = {
+                                        Text(
+                                            text = managerContext.translation["setup.activity.wrong_apk_message"],
+                                            color = skin.textPrimary.copy(alpha = 0.7f),
+                                            lineHeight = 18.sp
+                                        )
                                     }
-                                }
-                            },
-                            contentWindowInsets = WindowInsets(0, 0, 0, 0)
-                        ) { innerPadding ->
-                            Box(Modifier.fillMaxSize()) {
-                                val contentPadding = if (!isFullscreen) {
-                                    PaddingValues(
-                                        top = innerPadding.calculateTopPadding(),
-                                        start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
-                                        end = innerPadding.calculateEndPadding(LayoutDirection.Ltr),
-                                        bottom = innerPadding.calculateBottomPadding()
-                                    )
-                                } else {
-                                    PaddingValues(0.dp)
-                                }
-                                val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                                navigation.NavContent(contentPadding, startDestination)
+                                )
+                            }
+                            val background = MaterialTheme.colorScheme.background
+                            val isLight = background.luminance() > 0.5f
+                            val view = LocalView.current
+                            @Suppress("DEPRECATION")
+                            SideEffect {
+                                val window = (view.context as Activity).window
+                                WindowCompat.setDecorFitsSystemWindows(window, false)
+                                window.statusBarColor = Color.Transparent.toArgb()
+                                window.navigationBarColor = Color.Transparent.toArgb()
+                                val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+                                insetsController.isAppearanceLightStatusBars = isLight
+                                insetsController.isAppearanceLightNavigationBars = isLight
+                            }
+                            val bottomPadding = 80.dp + 16.dp +
+                                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                            routes.bottomPadding = bottomPadding
+                            val navBackStackEntry by navController.currentBackStackEntryAsState()
+                            val currentRoute = navBackStackEntry?.destination?.route
+                            val fullscreenRoutes = remember {
+                                listOf(
+                                    Routes.CONFIG_IMPORT_CONFIRMATION_ROUTE,
+                                    Routes.CONFIG_EXPORT_SUMMARY_ROUTE,
+                                    Routes.FRIEND_TRACKER_CONFIG_EXPORT_ROUTE,
+                                    Routes.FRIEND_TRACKER_CONFIG_IMPORT_ROUTE
+                                )
+                            }
+                            val isFullscreen = currentRoute in fullscreenRoutes || navigation.showGame || navigation.showCinematic
+                            ThankYouDialog()
 
-                                // Transmission Overlay
-                                navigation.pendingTransmission?.let { message ->
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(top = statusBarHeight + 12.dp),
-                                        contentAlignment = Alignment.TopCenter
-                                    ) {
-                                        ChimaeraTransmissionToast(
-                                            message = message,
-                                            onDismiss = {
-                                                navigation.pendingTransmission = null
-                                                if (ChimaeraDiscovery.unlocked) {
-                                                    navigation.showCinematic = true
+                            LaunchedEffect(Unit) {
+                                ChimaeraDiscovery.load(managerContext.sharedPreferences)
+                            }
+
+                            Scaffold(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(if (isAphelion) skin.backgroundGradient else me.eternal.purrfect.common.ui.theme.PurrfectPalette.backgroundGradient),
+                                containerColor = Color.Transparent,
+                                topBar = {
+                                    if (!isFullscreen) {
+                                        navigation.TopBar()
+                                    }
+                                },
+                                floatingActionButton = {
+                                    if (!isFullscreen) {
+                                        Box(Modifier.padding(bottom = bottomPadding)) {
+                                            navigation.Fab()
+                                        }
+                                    }
+                                },
+                                // Disable automatic padding so content can draw behind the bottom bar
+                                contentWindowInsets = WindowInsets(0, 0, 0, 0)
+                            ) { innerPadding ->
+                                Box(Modifier.fillMaxSize()) {
+                                    val contentPadding = if (!isFullscreen) {
+                                        PaddingValues(
+                                            top = innerPadding.calculateTopPadding(),
+                                            start = innerPadding.calculateStartPadding(LayoutDirection.Ltr),
+                                            end = innerPadding.calculateEndPadding(LayoutDirection.Ltr),
+                                            bottom = innerPadding.calculateBottomPadding()
+                                        )
+                                    } else {
+                                        PaddingValues(0.dp)
+                                    }
+                                    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                                    navigation.NavContent(contentPadding, startDestination)
+
+                                    // Transmission Overlay
+                                    navigation.pendingTransmission?.let { message ->
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(top = statusBarHeight + 12.dp),
+                                            contentAlignment = Alignment.TopCenter
+                                        ) {
+                                            ChimaeraTransmissionToast(
+                                                message = message,
+                                                onDismiss = {
+                                                    navigation.pendingTransmission = null
+                                                    if (ChimaeraDiscovery.unlocked) {
+                                                        navigation.showCinematic = true
+                                                    }
                                                 }
+                                            )
+                                        }
+                                    }
+
+                                    // Cinematic Overlay
+                                    if (navigation.showCinematic) {
+                                        ChimaeraCinematic(
+                                            isFirstUnlock = navigation.isFirstUnlock,
+                                            onComplete = {
+                                                navigation.showCinematic = false
+                                                navigation.showGame = true
                                             }
                                         )
                                     }
-                                }
 
-                                // Cinematic Overlay
-                                if (navigation.showCinematic) {
-                                    ChimaeraCinematic(
-                                        isFirstUnlock = navigation.isFirstUnlock,
-                                        onComplete = {
-                                            navigation.showCinematic = false
-                                            navigation.showGame = true
-                                        }
-                                    )
-                                }
-
-                                // Game Overlay
-                                if (navigation.showGame) {
-                                    ChimaeraGame(
-                                        prefs = managerContext.sharedPreferences,
-                                        onExit = { navigation.showGame = false }
-                                    )
-                                }
-
-                                // Top Fade
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .fillMaxWidth()
-                                        .height(statusBarHeight + 24.dp)
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(
-                                                    if (isAphelion && skin.id != "LEGACY") skin.textPrimary.copy(alpha = 0.05f) else Color(0xFF261F58),
-                                                    Color.Transparent
-                                                )
-                                            )
+                                    // Game Overlay
+                                    if (navigation.showGame) {
+                                        ChimaeraGame(
+                                            prefs = managerContext.sharedPreferences,
+                                            onExit = { navigation.showGame = false }
                                         )
-                                )
+                                    }
 
-                                if (!isFullscreen) {
-                                    // Bottom Fade
+                                    // Top Fade
                                     Box(
                                         modifier = Modifier
-                                            .align(Alignment.BottomCenter)
+                                            .align(Alignment.TopCenter)
                                             .fillMaxWidth()
-                                            .height(routes.bottomPadding)
+                                            .height(statusBarHeight + 24.dp)
                                             .background(
                                                 Brush.verticalGradient(
                                                     listOf(
-                                                        Color.Transparent,
-                                                        if (isAphelion && skin.id != "LEGACY") skin.textPrimary.copy(alpha = 0.08f) else Color(0xFF241F52)
+                                                        if (isAphelion && skin.id != "LEGACY") skin.textPrimary.copy(alpha = 0.05f) else Color(0xFF261F58),
+                                                        Color.Transparent
                                                     )
                                                 )
                                             )
                                     )
-                                    Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
-                                        navigation.FloatingBottomBar()
-                                    }
-                                }
 
-                                // Theme Reveal Overlay (Android 13+ only for stability)
-                                // High Z-Order: Placed at the bottom to cover bars and fades
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    navigation.themeRevealState.pendingReveal?.let { revealRequest ->
-                                        CircularRevealOverlay(
-                                            context = managerContext,
-                                            request = revealRequest,
-                                            onComplete = { navigation.themeRevealState.clearReveal() }
+                                    if (!isFullscreen) {
+                                        // Bottom Fade
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .height(routes.bottomPadding)
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        listOf(
+                                                            Color.Transparent,
+                                                            if (isAphelion && skin.id != "LEGACY") skin.textPrimary.copy(alpha = 0.08f) else Color(0xFF241F52)
+                                                        )
+                                                    )
+                                                )
                                         )
-                                    }
-                                } else {
-                                    navigation.themeRevealState.pendingReveal?.let {
-                                        navigation.themeRevealState.clearReveal()
+                                        Box(modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter)) {
+                                            navigation.FloatingBottomBar()
+                                        }
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // Theme Reveal Overlay (Android 13+ only for stability)
+                    // High Z-Order: Placed at the bottom of the root Box to cover everything
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        navigation.themeRevealState.pendingReveal?.let { revealRequest ->
+                            CircularRevealOverlay(
+                                context = managerContext,
+                                request = revealRequest,
+                                onComplete = { navigation.themeRevealState.clearReveal() }
+                            )
+                        }
+                    } else {
+                        // Instantly clear reveal state on older versions
+                        navigation.themeRevealState.pendingReveal?.let {
+                            navigation.themeRevealState.clearReveal()
                         }
                     }
                 }

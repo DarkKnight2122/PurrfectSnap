@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,8 +69,8 @@ import me.eternal.purrfect.core.event.events.impl.BindViewEvent
 import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.features.impl.downloader.MediaDownloader
 import me.eternal.purrfect.core.features.impl.messaging.Messaging
-import me.eternal.purrfect.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.core.util.hook.HookStage
 import me.eternal.purrfect.core.util.hook.hook
 import me.eternal.purrfect.core.util.ktx.getObjectField
@@ -199,55 +200,60 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                 val endExtra = context.userInterface.dpToPx(7)
 
                 val button = createComposeView(viewGroup.context) {
-                    val mediaDownloader = remember { context.feature(MediaDownloader::class) }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (creatorInfoState.value != null) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .background(color = Color.Black.copy(alpha = 0.15f), shape = CircleShape)
-                                    .clickable {
-                                        val now = SystemClock.elapsedRealtime()
-                                        if (now - lastClickTime < 500) return@clickable
-                                        lastClickTime = now
-                                        showDialogState.value = true
-                                    }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.RemoveRedEye,
-                                    contentDescription = "Creator Info",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-                        if (context.config.downloader.operaDownloadButton.get()) {
-                            @OptIn(ExperimentalFoundationApi::class)
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .background(color = Color.Black.copy(alpha = 0.15f), shape = CircleShape)
-                                    .combinedClickable(
-                                        onClick = {
-                                            mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
-                                        },
-                                        onLongClick = {
-                                            context.androidContext.vibrateLongPress()
-                                            mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
+                    PurrfectOverlayTheme(modContext = context) {
+                        val skin = LocalPurrfectSkin.current
+                        val mediaDownloader = remember { context.feature(MediaDownloader::class) }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (creatorInfoState.value != null) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .background(color = skin.cardOverlayColor.copy(alpha = 0.7f), shape = CircleShape)
+                                        .androidx.compose.ui.draw.clip(CircleShape)
+                                        .clickable {
+                                            val now = SystemClock.elapsedRealtime()
+                                            if (now - lastClickTime < 500) return@clickable
+                                            lastClickTime = now
+                                            showDialogState.value = true
                                         }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.RemoveRedEye,
+                                        contentDescription = "Creator Info",
+                                        tint = skin.textPrimary,
+                                        modifier = Modifier.size(22.dp)
                                     )
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Download,
-                                    contentDescription = "Download",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                }
+                            }
+                            if (context.config.downloader.operaDownloadButton.get()) {
+                                @OptIn(ExperimentalFoundationApi::class)
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .background(color = skin.cardOverlayColor.copy(alpha = 0.7f), shape = CircleShape)
+                                        .androidx.compose.ui.draw.clip(CircleShape)
+                                        .combinedClickable(
+                                            onClick = {
+                                                mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
+                                            },
+                                            onLongClick = {
+                                                context.androidContext.vibrateLongPress()
+                                                mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
+                                            }
+                                        )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Download,
+                                        contentDescription = "Download",
+                                        tint = skin.textPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -262,7 +268,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                         this.marginEnd = endExtra
                         gravity = Gravity.TOP or Gravity.END
                     }
-                    addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                    addOnAttachStateChangeListener(object : View.AttachStateChangeListener {
                         override fun onViewAttachedToWindow(v: View) {
                             buttonViews.add(v)
                         }
@@ -422,7 +428,8 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
         }
 
         Dialog(onDismissRequest = onDismiss) {
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(modContext = context) {
+                val skin = LocalPurrfectSkin.current
                 val shape = RoundedCornerShape(20.dp)
                 Surface(
                     modifier = Modifier
@@ -434,8 +441,8 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f)
+                                skin.glowPrimary.copy(alpha = 0.55f),
+                                skin.glowSecondary.copy(alpha = 0.35f)
                             )
                         )
                     ),
@@ -444,7 +451,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(PurrfectOverlayPalette.cardOverlay, shape)
+                            .background(skin.cardOverlay, shape)
                             .padding(20.dp)
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -457,25 +464,26 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     text = translation["title"] as? String ?: "Creator Info",
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = PurrfectOverlayPalette.textPrimary
+                                    color = skin.textPrimary
                                 )
                                 IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
                                     Icon(
                                         Icons.Default.Close,
                                         contentDescription = translation["close"] as? String ?: "Close",
                                         modifier = Modifier.size(20.dp),
-                                        tint = PurrfectOverlayPalette.textSecondary
+                                        tint = skin.textSecondary
                                     )
                                 }
                             }
 
-                            HorizontalDivider(color = PurrfectOverlayPalette.textSecondary.copy(alpha = 0.2f))
+                            HorizontalDivider(color = skin.textSecondary.copy(alpha = 0.2f))
 
                             creatorInfo.timestamp?.let { ts ->
                                 InfoRow(
                                     icon = Icons.Default.Schedule,
                                     label = translation["posted_on"] as? String ?: "Posted",
-                                    value = formatDate(ts)
+                                    value = formatDate(ts),
+                                    skin = skin
                                 )
                             }
 
@@ -483,7 +491,8 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                             InfoRow(
                                 icon = Icons.Default.Person,
                                 label = translation["display_name"] as? String ?: "Display name",
-                                value = displayName
+                                value = displayName,
+                                skin = skin
                             )
 
                             if (isLoading) {
@@ -494,84 +503,55 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(18.dp),
                                         strokeWidth = 2.dp,
-                                        color = PurrfectOverlayPalette.glowPrimary
+                                        color = skin.glowPrimary
                                     )
                                     Text(
-                                        translation["loading_username"] as? String ?: "Loading…",
-                                        fontSize = 13.sp,
-                                        color = PurrfectOverlayPalette.textSecondary
+                                        translation["loading_username"] as? String ?: "Loading...",
+                                        fontSize = 14.sp,
+                                        color = skin.textSecondary
                                     )
                                 }
                             } else {
-                                val username = snapchatterInfo?.username
-                                InfoRowWithCopy(
-                                    icon = Icons.Default.AccountCircle,
-                                    label = translation["username"] as? String ?: "Username",
-                                    value = username ?: (context.translation.getOrNull("common.unknown") ?: "—"),
-                                    canCopy = username != null,
-                                    onCopy = {
-                                        username?.let {
-                                            context.androidContext.copyToClipboard(it, translation["username"] as? String ?: "Username")
-                                            context.inAppOverlay.showStatusToast(
-                                                Icons.Default.Check,
-                                                translation["username_copied"] as? String ?: "Copied"
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-
-                            originalUsername?.takeIf { it != snapchatterInfo?.username }?.let { orig ->
-                                InfoRowWithCopy(
-                                    icon = Icons.Default.Badge,
-                                    label = translation["first_created_username"] as? String ?: "First Created Username",
-                                    value = orig,
-                                    canCopy = true,
-                                    onCopy = {
-                                        context.androidContext.copyToClipboard(
-                                            orig,
-                                            translation["first_created_username"] as? String ?: "First Created Username"
-                                        )
-                                        context.inAppOverlay.showStatusToast(
-                                            Icons.Default.Check,
-                                            translation["username_copied"] as? String ?: "Copied"
-                                        )
-                                    }
-                                )
-                            }
-
-                            InfoRowWithCopy(
-                                icon = Icons.Default.Fingerprint,
-                                label = translation["user_id"] as? String ?: "User ID",
-                                value = creatorInfo.creatorUserId ?: (context.translation.getOrNull("common.unknown") ?: "—"),
-                                canCopy = creatorInfo.creatorUserId != null,
-                                onCopy = {
-                                    creatorInfo.creatorUserId?.let {
-                                        context.androidContext.copyToClipboard(it, translation["user_id"] as? String ?: "User ID")
-                                        context.inAppOverlay.showStatusToast(
-                                            Icons.Default.Check,
-                                            translation["user_id_copied"] as? String ?: "Copied"
-                                        )
-                                    }
-                                }
-                            )
-
-                            creatorInfo.friendLinkType?.let { linkType ->
-                                val statusText = when (linkType) {
-                                    FriendLinkType.MUTUAL -> translation["mutual_friend"] as? String ?: "Mutual friend"
-                                    FriendLinkType.FOLLOWING -> translation["following"] as? String ?: "Following"
-                                    FriendLinkType.OUTGOING -> translation["friend_request_sent"] as? String ?: "Request sent"
-                                    FriendLinkType.INCOMING -> translation["friend_request_received"] as? String ?: "Request received"
-                                    FriendLinkType.BLOCKED -> translation["blocked"] as? String ?: "Blocked"
-                                    FriendLinkType.DELETED -> translation["friend_removed"] as? String ?: "Removed"
-                                    else -> null
-                                }
-                                if (statusText != null) {
+                                val username = snapchatterInfo?.username ?: creatorInfo.creatorUserId
+                                username?.let {
                                     InfoRow(
-                                        icon = Icons.Default.Person,
-                                        label = translation["friend_status"] as? String ?: "Friend status",
-                                        value = statusText
+                                        icon = Icons.Default.AccountCircle,
+                                        label = translation["username"] as? String ?: "Username",
+                                        value = it,
+                                        isCopyable = true,
+                                        skin = skin
                                     )
+                                }
+
+                                originalUsername?.let {
+                                    InfoRow(
+                                        icon = Icons.Default.Fingerprint,
+                                        label = translation["original_username"] as? String ?: "Original user",
+                                        value = it,
+                                        isCopyable = true,
+                                        skin = skin
+                                    )
+                                }
+
+                                snapchatterInfo?.userId?.let {
+                                    InfoRow(
+                                        icon = Icons.Default.Badge,
+                                        label = "User ID",
+                                        value = it,
+                                        isCopyable = true,
+                                        skin = skin
+                                    )
+                                }
+
+                                creatorInfo.friendLinkType?.let { type ->
+                                    if (type != FriendLinkType.NONE) {
+                                        InfoRow(
+                                            icon = Icons.Default.Check,
+                                            label = translation["relationship"] as? String ?: "Status",
+                                            value = type.name,
+                                            skin = skin
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -582,74 +562,61 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
     }
 
     @Composable
-    private fun InfoRow(icon: ImageVector, label: String, value: String) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(20.dp),
-                tint = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.9f)
-            )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = label,
-                    fontSize = 11.sp,
-                    color = PurrfectOverlayPalette.textSecondary
-                )
-                Text(
-                    text = value,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = PurrfectOverlayPalette.textPrimary
-                )
-            }
-        }
-    }
-
-    @Composable
-    private fun InfoRowWithCopy(
+    private fun InfoRow(
         icon: ImageVector,
         label: String,
         value: String,
-        canCopy: Boolean,
-        onCopy: () -> Unit
+        isCopyable: Boolean = false,
+        skin: me.eternal.purrfect.common.ui.theme.PurrfectColorSet
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(20.dp),
-                tint = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.9f)
-            )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(skin.textPrimary.copy(alpha = 0.06f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = skin.glowPrimary
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,
                     fontSize = 11.sp,
-                    color = PurrfectOverlayPalette.textSecondary
+                    color = skin.textSecondary,
+                    fontWeight = FontWeight.Medium
                 )
-                Text(
-                    text = value,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = PurrfectOverlayPalette.textPrimary
-                )
-            }
-            if (canCopy) {
-                IconButton(onClick = onCopy, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.ContentCopy,
-                        contentDescription = "Copy",
-                        modifier = Modifier.size(18.dp),
-                        tint = PurrfectOverlayPalette.glowSecondary
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = value,
+                        fontSize = 15.sp,
+                        color = skin.textPrimary,
+                        fontWeight = FontWeight.SemiBold
                     )
+                    if (isCopyable) {
+                        IconButton(
+                            onClick = { context.androidContext.copyToClipboard(value) },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = "Copy",
+                                modifier = Modifier.size(14.dp),
+                                tint = skin.glowPrimary
+                            )
+                        }
+                    }
                 }
             }
         }

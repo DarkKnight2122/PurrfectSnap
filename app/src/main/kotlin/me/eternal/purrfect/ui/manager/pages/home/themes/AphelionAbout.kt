@@ -63,7 +63,9 @@ fun HomeAbout.AphelionAboutContent(nav: NavBackStackEntry) {
     val tapCount = remember { mutableIntStateOf(0) }
     val lastTapTime = remember { mutableLongStateOf(0L) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val skin = LocalPurrfectSkin.current
+    val managerTheme = context.config.root.global.uiSettings.managerTheme.get()
+    val activeSkin = LocalPurrfectSkin.current
+    val skin = remember(managerTheme, activeSkin) { if (managerTheme == "APHELION") activeSkin else me.eternal.purrfect.common.ui.theme.PurrfectPalette }
 
     val isRedditMode = remember(context.activeTargetApp) { context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT }
     val targetAccent = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100)

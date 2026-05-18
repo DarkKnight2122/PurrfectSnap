@@ -517,7 +517,7 @@ class ScriptingRootSection : Routes.Route() {
         val scriptingFolder = rememberAsyncMutableState(defaultValue = null, updateDispatcher = reloadDispatcher) {
             context.scriptManager.getScriptsFolder()
         }
-        val titles = listOf(translation["installed_tab"], translation["catalog_tab"])
+        val titles = listOf(translation["scripts_tab"], translation["catalog_tab"])
         var showImportDialog by remember { mutableStateOf(false) }
         val coroutineScope = rememberCoroutineScope()
 

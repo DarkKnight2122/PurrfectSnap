@@ -119,12 +119,64 @@ fun Modifier.aetherGlass(
                         dispersionShader.setFloatUniform("refractionAmount", 15f * focusFactor)
                         drawRect(dispersionBrush)
                     }
-                }
-                
-                drawContent()
-            }
-        }
-    } else {
-        this.background(skin.cardOverlayColor.copy(alpha = 0.85f * focusFactor), shape)
-    }
-}
+                    }
+
+                    drawContent()
+                    }
+                    }
+                    } else {
+                    this.background(skin.cardOverlayColor.copy(alpha = 0.85f * focusFactor), shape)
+                    }
+                    }
+
+                    /**
+                    * Premium Refractive Scatter Layer.
+                    * Uses SDF-clipped AGSL to simulate light-scattering gradients inside a solid slab.
+                    */
+                    fun Modifier.refractiveScatter(
+                        skin: PurrfectColorSet,
+                        cornerRadius: Dp = 28.dp,
+                        scrollOffset: Float = 0f,
+                        intensity: Float = 1.0f
+                    ): Modifier = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        this.drawWithCache {
+                            val shader = RuntimeShader(AetherShaders.SLAB_SCATTER)
+                            val brush = ShaderBrush(shader)
+                            val r = cornerRadius.toPx()
+
+                            onDrawWithContent {
+                                val path = Path().apply {
+                                    addRoundRect(
+                                        RoundRect(
+                                            rect = Rect(Offset.Zero, size),
+                                            cornerRadius = CornerRadius(r, r)
+                                        )
+                                    )
+                                }
+                                clipPath(path) {
+                                    // Set uniforms for gradient material slab
+                                    shader.setFloatUniform("size", size.width, size.height)
+                                    shader.setFloatUniform("cornerRadii", r, r, r, r)
+                                    shader.setFloatUniform("time", scrollOffset)
+                                    shader.setFloatUniform("intensity", intensity)
+
+                                    // Theme-correct Gradient Material Colors
+                                    shader.setColorUniform("colorTop", skin.cardOverlayColor.copy(alpha = 0.98f).toArgb())
+                                    shader.setColorUniform("colorBottom", skin.cardOverlayColor.copy(alpha = 0.94f).toArgb())
+
+                                    // STEP 1: Draw the glass slab material background
+                                    drawRect(brush)
+
+                                    // STEP 2: Draw the content (icons, text, indicator) ON TOP
+                                    this@onDrawWithContent.drawContent()
+                                }
+                            }
+                        }
+                    } else this
+
+                    private fun Color.toArgb(): Int {
+                    return (this.alpha * 255).toInt() shl 24 or
+                    (this.red * 255).toInt() shl 16 or
+                    (this.green * 255).toInt() shl 8 or
+                    (this.blue * 255).toInt()
+                    }

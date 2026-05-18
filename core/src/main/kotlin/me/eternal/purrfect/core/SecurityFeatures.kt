@@ -126,7 +126,7 @@ class SecurityFeatures(
     @Composable
     private fun LoginSignupHelpDialog(onDismiss: () -> Unit) {
         Dialog(onDismissRequest = onDismiss) {
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(context) {
                 val shape = RoundedCornerShape(20.dp)
                 Surface(
                     modifier = Modifier
@@ -331,9 +331,11 @@ class SecurityFeatures(
             }
 
             if (isLoginScreen && !disableHelpButton) {
-                LoginSignupHelpButton(
-                    onClick = { showDialog = true }
-                )
+                PurrfectOverlayTheme(context) {
+                    LoginSignupHelpButton(
+                        onClick = { showDialog = true }
+                    )
+                }
             }
 
             if (isLoginScreen && !disableHelpButton && showDialog) {

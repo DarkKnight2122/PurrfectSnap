@@ -35,26 +35,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private object LogsSkinPalette {
-    @Composable
-    private fun isAphelion(): Boolean {
-        val context = LocalContext.current
-        return remember(context) { 
-            me.eternal.purrfect.SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
-        }
-    }
-
-    val glowPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowPrimary else PurrfectPalette.glowPrimary
-    val glowSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.glowSecondary else PurrfectPalette.glowSecondary
-    val backgroundGradient: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.backgroundGradient else PurrfectPalette.backgroundGradient
-    val cardOverlay: Brush @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlay else PurrfectPalette.cardOverlay
-    val textPrimary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textPrimary else PurrfectPalette.textPrimary
-    val textSecondary: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.textSecondary else PurrfectPalette.textSecondary
-    val cardOverlayColor: Color @Composable get() = if (isAphelion()) LocalPurrfectSkin.current.cardOverlayColor else PurrfectPalette.cardOverlayColor
-}
-
 @Composable
 fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
+    val managerTheme = context.config.root.global.uiSettings.managerTheme.get()
+    val activeSkin = LocalPurrfectSkin.current
+    val skin = remember(managerTheme, activeSkin) { if (managerTheme == "APHELION") activeSkin else PurrfectPalette }
     val coroutineScope = rememberCoroutineScope()
     var controlsHeight by remember { mutableStateOf(100.dp) }
     val composeContext = LocalContext.current
@@ -109,8 +94,8 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
-                            color = LogsSkinPalette.textPrimary.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, LogsSkinPalette.textPrimary.copy(alpha = 0.05f))
+                            color = skin.textPrimary.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.05f))
                         ) {
                             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 HomeLogs.LogCategory.entries.forEach { category ->
@@ -132,15 +117,15 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                                                 refreshLogs()
                                             },
                                             colors = CheckboxDefaults.colors(
-                                                checkedColor = LogsSkinPalette.glowPrimary,
-                                                uncheckedColor = LogsSkinPalette.textPrimary.copy(alpha = 0.3f),
-                                                checkmarkColor = LogsSkinPalette.textPrimary
+                                                checkedColor = skin.glowPrimary,
+                                                uncheckedColor = skin.textPrimary.copy(alpha = 0.3f),
+                                                checkmarkColor = skin.textPrimary
                                             )
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = translation[category.translationKey] ?: category.name,
-                                            color = LogsSkinPalette.textPrimary,
+                                            color = skin.textPrimary,
                                             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                                         )
                                     }
@@ -153,8 +138,8 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                             modifier = Modifier.fillMaxWidth().height(54.dp),
                             shape = RoundedCornerShape(18.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = LogsSkinPalette.glowPrimary,
-                                contentColor = LogsSkinPalette.textPrimary
+                                containerColor = skin.glowPrimary,
+                                contentColor = skin.textPrimary
                             )
                         ) {
                             Text(text = translation["button.positive"] ?: "Close", fontWeight = FontWeight.Bold)
@@ -182,7 +167,7 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(LogsSkinPalette.backgroundGradient)
+            .background(skin.backgroundGradient)
     ) {
         var showDropDown by remember { mutableStateOf(false) }
         
@@ -191,10 +176,10 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                 .fillMaxSize()
                 .padding(horizontal = 12.dp),
             shape = RoundedCornerShape(24.dp),
-            color = LogsSkinPalette.textPrimary.copy(alpha = 0.04f),
+            color = skin.textPrimary.copy(alpha = 0.04f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
-            border = BorderStroke(1.dp, LogsSkinPalette.textPrimary.copy(alpha = 0.08f))
+            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.08f))
         ) {
             if (visibleLogs.isEmpty() && logReader != null) {
                 EmptyLogsState()
@@ -229,24 +214,24 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
-                        color = LogsSkinPalette.textPrimary
+                        color = skin.textPrimary
                     )
                 }
                 IconButton(onClick = { showFilterDialog = true }) {
-                    Icon(Icons.Filled.FilterList, contentDescription = "Filter", tint = LogsSkinPalette.glowSecondary)
+                    Icon(Icons.Filled.FilterList, contentDescription = "Filter", tint = skin.glowSecondary)
                 }
                 IconButton(onClick = { refreshLogs() }) {
-                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = LogsSkinPalette.textPrimary)
+                    Icon(Icons.Filled.Refresh, contentDescription = "Refresh", tint = skin.textPrimary)
                 }
                 Box {
                     IconButton(onClick = { showDropDown = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = null, tint = LogsSkinPalette.textPrimary)
+                        Icon(Icons.Filled.MoreVert, contentDescription = null, tint = skin.textPrimary)
                     }
                     DropdownMenu(
                         expanded = showDropDown,
                         onDismissRequest = { showDropDown = false },
                         offset = DpOffset(0.dp, 8.dp),
-                        containerColor = LogsSkinPalette.cardOverlayColor,
+                        containerColor = skin.cardOverlayColor,
                         tonalElevation = 8.dp,
                         shadowElevation = 12.dp,
                         shape = RoundedCornerShape(14.dp)
@@ -256,11 +241,11 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                                 clearLogsAndReload()
                                 showDropDown = false
                             },
-                            leadingIcon = { Icon(Icons.Filled.DeleteSweep, contentDescription = null, tint = LogsSkinPalette.glowPrimary) },
-                            text = { Text(translation["clear_logs_button"] ?: "Clear", color = LogsSkinPalette.textPrimary) },
+                            leadingIcon = { Icon(Icons.Filled.DeleteSweep, contentDescription = null, tint = skin.glowPrimary) },
+                            text = { Text(translation["clear_logs_button"] ?: "Clear", color = skin.textPrimary) },
                             colors = MenuDefaults.itemColors(
-                                textColor = LogsSkinPalette.textPrimary,
-                                leadingIconColor = LogsSkinPalette.glowPrimary
+                                textColor = skin.textPrimary,
+                                leadingIconColor = skin.glowPrimary
                             )
                         )
                         DropdownMenuItem(
@@ -268,11 +253,11 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                                 exportLogs()
                                 showDropDown = false
                             },
-                            leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null, tint = LogsSkinPalette.glowSecondary) },
-                            text = { Text(translation["export_logs_button"] ?: "Export", color = LogsSkinPalette.textPrimary) },
+                            leadingIcon = { Icon(Icons.Filled.Download, contentDescription = null, tint = skin.glowSecondary) },
+                            text = { Text(translation["export_logs_button"] ?: "Export", color = skin.textPrimary) },
                             colors = MenuDefaults.itemColors(
-                                textColor = LogsSkinPalette.textPrimary,
-                                leadingIconColor = LogsSkinPalette.glowSecondary
+                                textColor = skin.textPrimary,
+                                leadingIconColor = skin.glowSecondary
                             )
                         )
                     }

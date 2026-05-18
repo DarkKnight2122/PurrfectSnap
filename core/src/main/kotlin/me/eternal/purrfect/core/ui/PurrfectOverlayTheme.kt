@@ -13,65 +13,101 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Text
 import androidx.compose.ui.text.TextStyle
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectColorSet
+import me.eternal.purrfect.common.ui.theme.PurrfectSkins
+import me.eternal.purrfect.core.ModContext
 
+val LocalModContext = compositionLocalOf<ModContext?> { null }
+
+@Composable
+fun resolveActiveSkin(modContext: ModContext?): PurrfectColorSet {
+    val managerTheme = remember(modContext) {
+        modContext?.config?.global?.uiSettings?.managerTheme?.get() ?: "APHELION"
+    }
+    if (managerTheme != "APHELION") return me.eternal.purrfect.common.ui.theme.PurrfectPalette
+
+    val skinId = remember(modContext) {
+        modContext?.config?.global?.uiSettings?.aphelionSkin?.get() ?: "UMBRA"
+    }
+    val luminaMode = remember(modContext) {
+        modContext?.config?.global?.uiSettings?.luminaMode?.get() ?: "AUTO"
+    }
+    val luminaAccent = remember(modContext) {
+        modContext?.config?.global?.uiSettings?.luminaAccent?.get() ?: "MAUVE"
+    }
+    return remember(skinId, luminaMode, luminaAccent) {
+        PurrfectSkins.fromId(
+            skinId = skinId,
+            colorScheme = null,
+            isSystemDark = true, // Snapchat overlays usually default to dark logic for better visibility on media
+            luminaMode = luminaMode,
+            luminaAccent = luminaAccent
+        )
+    }
+}
+
+/**
+ * Legacy support object for Core UI.
+ * Provides easy access to the currently active skin's colors.
+ */
 @Immutable
 object PurrfectOverlayPalette {
-    val glowPrimary = Color(0xFF8C7BFF)
-    val glowSecondary = Color(0xFF5FD8FF)
-    val textPrimary = Color.White
-    val textSecondary = Color(0xFFD9D3FF)
-
-    val backgroundGradient = Brush.verticalGradient(
-        listOf(
-            Color(0xFF261F58),
-            Color(0xFF302A6D),
-            Color(0xFF241F52),
-        )
-    )
-
-    val cardOverlay = Brush.linearGradient(
-        listOf(
-            Color(0xFF2A2452).copy(alpha = 0.96f),
-            Color(0xFF1A143A).copy(alpha = 0.92f),
-        )
-    )
-
-    val cardOverlayColor = Color(0xFF2A2452).copy(alpha = 0.94f)
+    val glowPrimary: Color @Composable get() = LocalPurrfectSkin.current.glowPrimary
+    val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
+    val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
+    val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
+    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
 }
 
 @Composable
-fun PurrfectOverlayTheme(content: @Composable () -> Unit) {
-    val scheme = darkColorScheme(
-        primary = PurrfectOverlayPalette.glowPrimary,
-        secondary = PurrfectOverlayPalette.glowSecondary,
-        background = Color.Transparent,
-        surface = PurrfectOverlayPalette.cardOverlayColor,
-        onPrimary = Color.White,
-        onSecondary = Color.White,
-        onBackground = Color.White,
-        onSurface = Color.White,
-    )
+fun PurrfectOverlayTheme(modContext: ModContext? = null, content: @Composable () -> Unit) {
+    val skin = resolveActiveSkin(modContext)
+
+    val scheme = if (skin.isDark) {
+        darkColorScheme(
+            primary = skin.glowPrimary,
+            secondary = skin.glowSecondary,
+            background = Color.Transparent,
+            surface = skin.cardOverlayColor,
+            onPrimary = skin.textPrimary,
+            onSecondary = skin.textPrimary,
+            onBackground = skin.textPrimary,
+            onSurface = skin.textPrimary,
+        )
+    } else {
+        lightColorScheme(
+            primary = skin.glowPrimary,
+            secondary = skin.glowSecondary,
+            background = Color.Transparent,
+            surface = skin.cardOverlayColor,
+            onPrimary = skin.textPrimary,
+            onSecondary = skin.textPrimary,
+            onBackground = skin.textPrimary,
+            onSurface = skin.textPrimary,
+        )
+    }
+
     MaterialTheme(
         colorScheme = scheme,
         shapes = MaterialTheme.shapes.copy(
@@ -81,9 +117,11 @@ fun PurrfectOverlayTheme(content: @Composable () -> Unit) {
         ),
         content = {
             CompositionLocalProvider(
-                androidx.compose.material3.LocalContentColor provides PurrfectOverlayPalette.textPrimary,
+                LocalModContext provides modContext,
+                LocalPurrfectSkin provides skin,
+                androidx.compose.material3.LocalContentColor provides skin.textPrimary,
                 LocalTextStyle provides LocalTextStyle.current.merge(
-                    TextStyle(color = PurrfectOverlayPalette.textPrimary)
+                    TextStyle(color = skin.textPrimary)
                 )
             ) {
                 content()
@@ -100,24 +138,28 @@ fun PurrfectGlassCard(
     icon: ImageVector? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val shape = RoundedCornerShape(22.dp)
+    val skin = LocalPurrfectSkin.current
+    val isAether = skin.id == "AETHER"
+    val shape = if (isAether) me.eternal.purrfect.common.ui.util.G2RoundedRectangle(28.dp) else RoundedCornerShape(22.dp)
+    
     Surface(
         modifier = modifier
             .shadow(
                 elevation = 18.dp,
                 shape = shape,
-                spotColor = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.25f),
-                ambientColor = PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.18f),
+                spotColor = skin.glowPrimary.copy(alpha = 0.25f),
+                ambientColor = skin.glowSecondary.copy(alpha = 0.18f),
             )
             .clip(shape)
-            .background(PurrfectOverlayPalette.cardOverlay, shape)
+            .background(if (isAether) skin.cardOverlayColor else Color.Transparent, shape)
             .border(
                 BorderStroke(
                     1.dp,
-                    Brush.linearGradient(
+                    if (isAether) SolidColor(skin.laserBorder.copy(alpha = 0.45f))
+                    else Brush.linearGradient(
                         listOf(
-                            PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                            PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f),
+                            skin.glowPrimary.copy(alpha = 0.55f),
+                            skin.glowSecondary.copy(alpha = 0.35f),
                         )
                     )
                 ),
@@ -129,7 +171,7 @@ fun PurrfectGlassCard(
     ) {
         Box(
             modifier = Modifier
-                .background(PurrfectOverlayPalette.cardOverlay, shape)
+                .background(if (isAether) skin.cardOverlayColor else skin.cardOverlayColor.copy(alpha = 0.85f), shape)
                 .padding(16.dp)
         ) {
             Column {
@@ -140,11 +182,11 @@ fun PurrfectGlassCard(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(14.dp)),
+                                    .background(skin.textPrimary.copy(alpha = 0.08f))
+                                    .border(1.dp, skin.textPrimary.copy(alpha = 0.10f), RoundedCornerShape(14.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(icon, contentDescription = null, tint = skin.textPrimary, modifier = Modifier.size(20.dp))
                             }
                             Spacer(Modifier.width(12.dp))
                         }
@@ -152,7 +194,7 @@ fun PurrfectGlassCard(
                             if (title != null) {
                                 Text(
                                     text = title,
-                                    color = PurrfectOverlayPalette.textPrimary,
+                                    color = skin.textPrimary,
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 18.sp,
                                     maxLines = 1,
@@ -163,7 +205,7 @@ fun PurrfectGlassCard(
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = subtitle,
-                                    color = PurrfectOverlayPalette.textSecondary,
+                                    color = skin.textSecondary,
                                     fontSize = 12.sp,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
@@ -178,4 +220,3 @@ fun PurrfectGlassCard(
         }
     }
 }
-

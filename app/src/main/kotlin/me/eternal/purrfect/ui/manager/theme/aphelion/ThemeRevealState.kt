@@ -1,9 +1,39 @@
 package me.eternal.purrfect.ui.manager.theme.aphelion
 
+import android.graphics.Bitmap
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.PixelCopy
+import android.view.Window
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+
+suspend fun captureHardwareBitmap(window: Window): Bitmap? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+    return suspendCoroutine { continuation ->
+        try {
+            val bitmap = Bitmap.createBitmap(
+                window.decorView.width,
+                window.decorView.height,
+                Bitmap.Config.ARGB_8888
+            )
+            PixelCopy.request(window, bitmap, { result ->
+                if (result == PixelCopy.SUCCESS) {
+                    continuation.resume(bitmap)
+                } else {
+                    continuation.resume(null)
+                }
+            }, Handler(Looper.getMainLooper()))
+        } catch (e: Exception) {
+            continuation.resume(null)
+        }
+    }
+}
 
 /**
  * Carries all data needed to execute one theme reveal transition.

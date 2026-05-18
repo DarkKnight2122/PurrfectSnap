@@ -105,11 +105,10 @@ fun HomeRootSection.AphelionHomeView(
     val activeCards = if (isRedditMode) redditCards else cards
     val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
 
-    val selectedTiles = rememberAsyncMutableStateList<String>(defaultValue = if (isRedditMode) allQuickTileNames else emptyList()) {
-        if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
+    val selectedTiles = rememberAsyncMutableStateList<String>(defaultValue = emptyList()) {
         context.database.getQuickTiles()
     }
-    
+
     val channelLabel = "STABLE"
 
     var showQuickActionsMenu by rememberSaveable { mutableStateOf(false) }
@@ -117,23 +116,22 @@ fun HomeRootSection.AphelionHomeView(
     var announcementsText by rememberSaveable { mutableStateOf<String?>(null) }
     var showFullChangelogDialog by rememberSaveable { mutableStateOf(false) }
     var fullChangelogText by rememberSaveable { mutableStateOf<String?>(null) }
-    
+
     val onShowAnnouncements = {
         coroutineScope.launch {
             announcementsText = fetchTextWithFallback(announcementsUrls)
             showAnnouncementsDialog = true
         }
     }
-    
+
     val onShowFullChangelog = {
         coroutineScope.launch {
             fullChangelogText = fetchTextWithFallback(changelogStableUrls)
             showFullChangelogDialog = true
         }
     }
-    
-    val onShowQuickActionsMenu = { if (!isRedditMode) showQuickActionsMenu = true }
 
+    val onShowQuickActionsMenu = { showQuickActionsMenu = true }
     fun onUpdateAction() {
         if (downloadState == UpdateDownloader.DownloadState.IDLE || downloadState == UpdateDownloader.DownloadState.FAILED) {
             latestUpdate?.let { update ->
@@ -180,7 +178,7 @@ fun HomeRootSection.AphelionHomeView(
 
     if (showQuickActionsMenu) {
         QuickActionsDialog(
-            quickActions = cards,
+            quickActions = activeCards,
             selectedQuickActions = selectedTiles,
             onDismiss = { showQuickActionsMenu = false },
             onSave = { updatedTiles ->
@@ -308,7 +306,8 @@ fun HomeRootSection.AphelionHomeView(
                         fontSize = 12.sp, fontWeight = FontWeight.Medium,
                         maxLines = 1, overflow = TextOverflow.Clip,
                         modifier = Modifier
-                            .graphicsLayer { alpha = labelAlpha }
+                            .graphicsLayer { alpha = labelAlpha; translationX = (-4 * (1f - shrinkFactor)).dp.toPx() }
+                            .widthIn(max = (75 * shrinkFactor).dp)
                     )
                 }
             }
@@ -319,6 +318,7 @@ fun HomeRootSection.AphelionHomeView(
     fun RowScope.AphelionHomeActionChips(scrollState: ScrollState, haptic: HapticFeedback) {
         val focusFactor = (scrollState.value.toFloat() / Motion.HEADER_MORPH_THRESHOLD).coerceIn(0f, 1f)
         val shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f)
+        val isRedditMode = remember { context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT }
         me.eternal.purrfect.ui.manager.ManagerAssistantEntry(
             context = context,
             routes = routes,
@@ -606,21 +606,23 @@ fun HomeRootSection.AphelionHomeView(
                 ) {
                     val unifiedButtonWidth = 180.dp
                     Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = skin.cardOverlayColor.copy(alpha = 0.6f),
-                            border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.glowPrimary.copy(alpha = 0.35f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.10f)),
-                            modifier = Modifier.width(unifiedButtonWidth).height(46.dp)
-                        ) {
-                            Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                                    LivingPurrAura(isActive = isPurrAuraActive, haptic = haptic)
+                        if (!isRedditMode) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = skin.cardOverlayColor.copy(alpha = 0.6f),
+                                border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.glowPrimary.copy(alpha = 0.35f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.10f)),
+                                modifier = Modifier.width(unifiedButtonWidth).height(46.dp)
+                            ) {
+                                Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                    Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                                        LivingPurrAura(isActive = isPurrAuraActive, haptic = haptic)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
+                                        color = skin.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                    )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "",
-                                    color = skin.textPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp
-                                )
                             }
                         }
                         OutlinedButton(
@@ -771,41 +773,72 @@ fun HomeRootSection.AphelionHomeView(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = internalTopPadding)
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = lerp(14.dp, 28.dp, focusFactor))
                         .height(headerHeight)
                 ) {
-                    Text(
-                        text = "Purrfect",
-                        color = skin.textPrimary.copy(alpha = stickyBrandingAlpha),
-                        fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = avenirNext,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                    val announcementShift by remember(focusFactor) { derivedStateOf { (-6 * focusFactor).dp } }
+                    val rowShrinkFactor = (1f - focusFactor).coerceIn(0f, 1f)
+                    
                     Row(
-                        modifier = Modifier.align(Alignment.CenterStart).graphicsLayer { translationX = announcementShift.toPx() },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        AphelionTopBarActionChip(
-                            icon = Icons.Filled.Notifications, label = null,
-                            shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f),
-                            contentDescription = translation["announcements_button_description"],
-                            haptic = haptic
-                        ) { onShowAnnouncements() }
-                        AphelionTopBarActionChip(
-                            icon = Icons.Filled.Description, label = null,
-                            shrinkFactor = (1f - focusFactor).coerceIn(0f, 1f),
-                            contentDescription = translation.getOrNull("changelog_button_description") ?: "Open full changelog",
-                            haptic = haptic
-                        ) { onShowFullChangelog() }
-                    }
-                    val settingsShift by remember(focusFactor) { derivedStateOf { (6 * focusFactor).dp } }
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd).graphicsLayer { translationX = settingsShift.toPx() },
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        AphelionHomeActionChips(scrollState = scrollState, haptic = haptic)
+                        // LEADING BRANDING: Fades in and expands width to push icons
+                        Box(modifier = Modifier.width(lerp(0.dp, 72.dp, focusFactor))) {
+                            Text(
+                                text = "Purrfect",
+                                color = skin.textPrimary.copy(alpha = stickyBrandingAlpha),
+                                fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = avenirNext,
+                                maxLines = 1,
+                                modifier = Modifier.graphicsLayer { 
+                                    alpha = stickyBrandingAlpha
+                                    translationX = (-12 * (1f - stickyBrandingAlpha)).dp.toPx() 
+                                }
+                            )
+                        }
+
+                        // DYNAMIC SPACER: Only active during scroll
+                        if (focusFactor > 0.1f) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+
+                        // UNIFIED ACTION CLUSTER: Spans wide when static, clumps when scrolling
+                        Row(
+                            modifier = Modifier.then(if (focusFactor <= 0.1f) Modifier.weight(1f) else Modifier.wrapContentWidth()),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = if (focusFactor <= 0.1f) Arrangement.SpaceBetween else Arrangement.spacedBy(8.dp)
+                        ) {
+                            AphelionTopBarActionChip(
+                                icon = Icons.Filled.Notifications, label = null,
+                                shrinkFactor = rowShrinkFactor,
+                                contentDescription = translation["announcements_button_description"],
+                                haptic = haptic
+                            ) { onShowAnnouncements() }
+                            
+                            AphelionTopBarActionChip(
+                                icon = Icons.Filled.Description, label = null,
+                                shrinkFactor = rowShrinkFactor,
+                                contentDescription = translation.getOrNull("changelog_button_description") ?: "Open full changelog",
+                                haptic = haptic
+                            ) { onShowFullChangelog() }
+
+                            me.eternal.purrfect.ui.manager.ManagerAssistantEntry(
+                                context = context,
+                                routes = routes,
+                                style = me.eternal.purrfect.ui.manager.ManagerAssistantTriggerStyle.APHELION,
+                                shrinkFactor = rowShrinkFactor,
+                                modifier = Modifier.width(lerp(36.dp, 66.dp, rowShrinkFactor))
+                            )
+
+                            AphelionTopBarActionChip(
+                                icon = Icons.Filled.BugReport, label = context.translation["manager.routes.home_logs"],
+                                shrinkFactor = rowShrinkFactor, haptic = haptic
+                            ) { routes.homeLogs.navigate() }
+
+                            AphelionTopBarActionChip(
+                                icon = Icons.Filled.Settings, label = context.translation["manager.routes.home_settings"],
+                                shrinkFactor = rowShrinkFactor, haptic = haptic
+                            ) { routes.settings.navigate() }
+                        }
                     }
                 }
             }

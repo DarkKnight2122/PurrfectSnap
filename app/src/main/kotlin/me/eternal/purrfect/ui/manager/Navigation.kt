@@ -286,7 +286,16 @@ class Navigation(
             Brush.verticalGradient(
                 listOf(
                     skin.cardOverlayColor.copy(alpha = 0.98f),
-                    skin.cardOverlayColor.copy(alpha = 0.88f)
+                    skin.cardOverlayColor.copy(alpha = 0.95f)
+                )
+            )
+        }
+
+        val barSheen = remember {
+            Brush.verticalGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.14f),
+                    Color.Transparent
                 )
             )
         }
@@ -308,57 +317,13 @@ class Navigation(
                 color = Color.Transparent,
                 contentColor = skin.textPrimary,
                 border = BorderStroke(
-                    if (isMechanicalMode) 2.dp else 1.dp,
-                    if (isMechanicalMode) SolidColor(skin.glowPrimary) else barBorder
+                    if (skin.id == "AETHER") 2.dp else 1.dp,
+                    if (skin.id == "AETHER") SolidColor(skin.glowPrimary) else barBorder
                 ),
                 modifier = Modifier
                     .then(if (targetBarWidth != null) Modifier.width(animatedBarWidth) else Modifier.fillMaxWidth())
-                    .then(
-                        if (isMechanicalMode) {
-                            Modifier.background(skin.cardOverlayColor, barShape)
-                        } else if (isAphelion) {
-                            Modifier.background(slabGradient, barShape)
-                        } else {
-                            Modifier.aetherGlass(skin = skin, cornerRadius = 32.dp, focusFactor = 1f)
-                        }
-                    )
-                    .drawBehind {
-                        if (isMechanicalMode) return@drawBehind
-                        
-                        // REFRACTIVE SCATTERING: Premium mesh glow effect for Aphelion
-                        if (isAphelion) {
-                            val radius = size.width * 0.85f
-                            drawCircle(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        skin.glowPrimary.copy(alpha = 0.15f),
-                                        skin.glowSecondary.copy(alpha = 0.10f),
-                                        Color.Transparent
-                                    ),
-                                    center = center,
-                                    radius = radius
-                                ),
-                                radius = radius,
-                                center = center
-                            )
-                        } else {
-                            val radius = size.width * 0.62f
-                            drawCircle(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        skin.glowPrimary.copy(alpha = 0.25f),
-                                        Color.Transparent
-                                    ),
-                                    center = center,
-                                    radius = radius
-                                ),
-                                radius = radius,
-                                center = center
-                            )
-                        }
-                    }
                     .shadow(
-                        elevation = if (isMechanicalMode) 0.dp else 28.dp,
+                        elevation = if (skin.id == "AETHER") 0.dp else 28.dp,
                         shape = barShape,
                         spotColor = skin.glowPrimary.copy(alpha = 0.35f),
                         ambientColor = skin.glowSecondary.copy(alpha = 0.26f)
@@ -369,7 +334,49 @@ class Navigation(
                         .fillMaxWidth()
                         .height(barHeight)
                         .clip(barShape)
+                        .background(if (skin.id == "AETHER") skin.cardOverlayColor else Color.Transparent)
                 ) {
+                    // LAYER 1: Core Material Slab (All skins except Aether)
+                    if (skin.id != "AETHER") {
+                        Box(Modifier.matchParentSize().background(slabGradient))
+                    }
+
+                    // LAYER 2: Physical Rim Sheen (All skins except Aether)
+                    if (skin.id != "AETHER") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(18.dp)
+                                .align(Alignment.TopCenter)
+                                .background(barSheen)
+                                .graphicsLayer { alpha = 0.6f }
+                        )
+                    }
+
+                    // LAYER 3: Refractive Mesh Glow (All skins except Aether)
+                    if (skin.id != "AETHER") {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .graphicsLayer { alpha = 0.25f }
+                                .drawBehind {
+                                    val radius = size.width * 0.42f
+                                    drawCircle(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(
+                                                skin.glowSecondary.copy(alpha = 0.2f),
+                                                Color.Transparent
+                                            ),
+                                            center = center,
+                                            radius = radius
+                                        ),
+                                        radius = radius,
+                                        center = center
+                                    )
+                                }
+                        )
+                    }
+
                     Box(Modifier.fillMaxWidth().height(barHeight)) {
                         var barWidthPx by remember { mutableStateOf(0f) }
                         val itemCount = selectedRoutes.size.coerceAtLeast(1)
@@ -435,41 +442,39 @@ class Navigation(
                                 val mult = (distForScale - 1).coerceAtLeast(0)
                                 val scaleXAnim = 1f + (scaleXBase + scaleXExtra * mult) * pulse
                                 val scaleYAnim = 1f - (scaleYBase + scaleYExtra * mult) * pulse
-                                if (barWidthPx > 0f && itemCount > 0) {
-                                    val offsetX = with(density) { offsetAnim.value.toDp() } + horizontalInset
-                                    
-                                    // DYNAMIC GEOMETRY: 18.dp Squircle (Expanded) -> 24.dp Pill (Shrunk)
-                                    val indicatorShape = if (isMechanicalMode) {
-                                        G2RoundedRectangle(lerp(18.dp, 24.dp, focusFactor))
-                                    } else {
-                                        RoundedCornerShape(18.dp)
-                                    }
+                                // Page Indicator (Always visible)
+                                val offsetX = if (barWidthPx > 0f) with(density) { offsetAnim.value.toDp() } + horizontalInset else 0.dp
 
+                                // DYNAMIC GEOMETRY: 18.dp Squircle (Expanded) -> 24.dp Pill (Shrunk)
+                                val indicatorShape = if (isMechanicalMode) {
+                                    G2RoundedRectangle(lerp(18.dp, 24.dp, focusFactor))
+                                } else {
+                                    RoundedCornerShape(18.dp)
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .width(indicatorWidth.coerceAtLeast(0.dp))
+                                        .offset(x = offsetX)
+                                        .padding(vertical = if (isMechanicalMode) 12.dp else lerp(10.dp, 8.dp, focusFactor), horizontal = 2.dp)
+                                        .graphicsLayer { scaleX = scaleXAnim; scaleY = scaleYAnim }
+                                        .clip(indicatorShape)
+                                ) {
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxHeight()
-                                            .width(indicatorWidth.coerceAtLeast(0.dp))
-                                            .offset(x = offsetX)
-                                            .padding(vertical = if (isMechanicalMode) 12.dp else lerp(10.dp, 8.dp, focusFactor), horizontal = 2.dp)
-                                            .graphicsLayer { scaleX = scaleXAnim; scaleY = scaleYAnim }
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .matchParentSize()
-                                                .clip(indicatorShape)
-                                                .background(
-                                                    if (isMechanicalMode) SolidColor(skin.glowPrimary)
-                                                    else Brush.linearGradient(
-                                                        listOf(
-                                                            skin.glowPrimary.copy(alpha = 0.42f),
-                                                            skin.glowSecondary.copy(alpha = 0.38f)
-                                                        )
+                                            .matchParentSize()
+                                            .background(
+                                                if (isMechanicalMode) SolidColor(skin.glowPrimary)
+                                                else Brush.linearGradient(
+                                                    listOf(
+                                                        skin.glowPrimary.copy(alpha = 0.85f),
+                                                        skin.glowSecondary.copy(alpha = 0.75f)
                                                     )
                                                 )
-                                        )
-                                    }
-                                }
-                            }
+                                            )
+                                    )
+                                }                            }
                         }
                         NavigationBar(
                             containerColor = Color.Transparent,

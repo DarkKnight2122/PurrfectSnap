@@ -80,8 +80,7 @@ fun HomeRootSection.LegacyHomeView(
     val activeCards = if (isRedditMode) redditCards else cards
     val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
 
-    val selectedTiles = rememberAsyncMutableStateList<String>(defaultValue = if (isRedditMode) allQuickTileNames else emptyList()) {
-        if (isRedditMode) return@rememberAsyncMutableStateList allQuickTileNames
+    val selectedTiles = rememberAsyncMutableStateList<String>(defaultValue = emptyList()) {
         context.database.getQuickTiles()
     }
 
@@ -92,7 +91,7 @@ fun HomeRootSection.LegacyHomeView(
     var fullChangelogText by rememberSaveable { mutableStateOf<String?>(null) }
     
     val channelLabel = "STABLE"
-    val onShowQuickActionsMenu = { if (!isRedditMode) showQuickActionsMenu = true }
+    val onShowQuickActionsMenu = { showQuickActionsMenu = true }
 
     fun onUpdateAction() {
         if (downloadState == UpdateDownloader.DownloadState.IDLE || downloadState == UpdateDownloader.DownloadState.FAILED) {
@@ -265,20 +264,17 @@ fun HomeRootSection.LegacyHomeView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.Start), verticalAlignment = Alignment.CenterVertically) {
                     TopBarActionChip(icon = Icons.Filled.Notifications) { onShowAnnouncements() }
                     TopBarActionChip(icon = Icons.Filled.Description) { onShowFullChangelog() }
                 }
-                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
                     me.eternal.purrfect.ui.manager.ManagerAssistantEntry(
                         context = context,
                         routes = routes,
-                        style = me.eternal.purrfect.ui.manager.ManagerAssistantTriggerStyle.DEFAULT,
-                        modifier = Modifier.weight(1f)
+                        style = me.eternal.purrfect.ui.manager.ManagerAssistantTriggerStyle.DEFAULT
                     )
-                    if (!isRedditMode) {
-                        TopBarActionChip(icon = Icons.Filled.BugReport, label = context.translation["manager.routes.home_logs"]) { routes.homeLogs.navigate() }
-                    }
+                    TopBarActionChip(icon = Icons.Filled.BugReport, label = context.translation["manager.routes.home_logs"]) { routes.homeLogs.navigate() }
                     TopBarActionChip(icon = Icons.Filled.Info, label = translation["manager.routes.home_about"]) { routes.about.navigate() }
                 }
             }
@@ -384,14 +380,16 @@ fun HomeRootSection.LegacyHomeView(
                     ) {
                         val unifiedButtonWidth = 180.dp
                         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Surface(
-                                shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),        
-                                modifier = Modifier.width(unifiedButtonWidth).height(46.dp)
-                            ) {
-                                Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                    Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(if (isPurrAuraActive) skin.glowPrimary else Color(0xFF8C8CA3)))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            if (!isRedditMode) {
+                                Surface(
+                                    shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.06f), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                                    modifier = Modifier.width(unifiedButtonWidth).height(46.dp)
+                                ) {
+                                    Row(modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                        Box(modifier = Modifier.size(14.dp).clip(RoundedCornerShape(50)).background(if (isPurrAuraActive) skin.glowPrimary else Color(0xFF8C8CA3)))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = if (isPurrAuraActive) translation["purr_aura_active_label"] ?: "" else translation["purr_aura_inactive_label"] ?: "", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    }
                                 }
                             }
                             OutlinedButton(

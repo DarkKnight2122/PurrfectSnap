@@ -105,4 +105,37 @@ object AetherShaders {
             return highlightColor * intensity;
         }
     """
+
+    @Language("AGSL")
+    const val SLAB_SCATTER = """
+        uniform float2 size;
+        uniform float4 cornerRadii;
+        uniform float time;
+        uniform float intensity;
+        layout(color) uniform half4 colorTop;
+        layout(color) uniform half4 colorBottom;
+
+        $SDF_LIB
+
+        float hash(float2 p) {
+            return fract(sin(dot(p, float2(127.1, 311.7))) * 43758.5453123);
+        }
+
+        half4 main(float2 coord) {
+            float2 halfSize = size * 0.5;
+            float2 centeredCoord = coord - halfSize;
+            float radius = radiusAt(centeredCoord, cornerRadii);
+            float sd = sdRoundedRect(centeredCoord, halfSize, radius);
+            
+            if (sd > 0.0) return half4(0.0);
+
+            float2 uv = coord / size;
+            float scatter = hash(uv + time * 0.05) * 0.04 * intensity;
+            
+            half4 finalColor = mix(colorTop, colorBottom, uv.y);
+            finalColor.rgb += scatter;
+            
+            return finalColor;
+        }
+    """
 }

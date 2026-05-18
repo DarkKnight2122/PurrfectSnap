@@ -86,7 +86,7 @@ import me.eternal.purrfect.ui.manager.theme.aetherGlass
 import me.eternal.purrfect.common.ui.util.G2RoundedRectangle
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.ManagerTheme
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.PurrfectPalette
 import me.eternal.purrfect.ui.util.*
 import me.eternal.purrfect.ui.util.Dialog
 import me.eternal.purrfect.ui.util.DialogProperties
@@ -322,6 +322,46 @@ class FeaturesRootSection : Routes.Route() {
         routes.activityLauncher.let(block)
     }
 
+    internal val actions: @Composable () -> List<Triple<String, ImageVector, () -> Unit>> = {
+        val haptic = LocalHapticFeedback.current
+        remember {
+            listOf(
+                Triple(translation["export_option"] ?: "Export", Icons.Filled.SaveAlt) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (context.isRedditMode) {
+                        routes.configExportSummary.navigate {
+                            put("exportSensitiveData", "false")
+                            put("includeSavedLocations", "false")
+                        }
+                    } else {
+                        // showExportDialog = true (Handled by caller)
+                    }
+                },
+                Triple(translation["import_option"] ?: "Import", Icons.Filled.FileDownload) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    activityLauncher {
+                        openFile("application/json") { uriString ->
+                            runCatching {
+                                val uri = android.net.Uri.parse(uriString)
+                                context.androidContext.contentResolver.openInputStream(uri)?.use {
+                                    routes.configJsonForImport = it.readBytes().toString(Charsets.UTF_8)
+                                    routes.configImportConfirmation.navigate()
+                                }
+                            }.onFailure { err ->
+                                context.log.error("Failed to read config file", err)
+                                context.longToast(translation.format("config_import_failure_toast", "error" to (err.message ?: "Unknown")))
+                            }
+                        }
+                    }
+                },
+                Triple(translation["reset_option"] ?: "Reset", Icons.Filled.Refresh) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    // showResetConfirmationDialog = true (Handled by caller)
+                }
+            )
+        }
+    }
+
     override val content: @Composable (NavBackStackEntry) -> Unit = { nav ->
         val themeId by produceState(initialValue = context.config.root.global.uiSettings.managerTheme.get()) {
             while (true) {
@@ -393,7 +433,8 @@ class FeaturesRootSection : Routes.Route() {
 
     @Composable
     internal fun FeatureAuroraBackdrop(modifier: Modifier = Modifier) {
-        val skin = LocalPurrfectSkin.current
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -403,7 +444,8 @@ class FeaturesRootSection : Routes.Route() {
 
     @Composable
     internal fun NoticeBadge(text: String, color: Color) {
-        val skin = LocalPurrfectSkin.current
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         Surface(
             shape = RoundedCornerShape(50),
             color = color.copy(alpha = 0.16f),
@@ -423,7 +465,8 @@ class FeaturesRootSection : Routes.Route() {
 
     @Composable
     internal fun EmptyState(isSearchResults: Boolean) {
-        val skin = LocalPurrfectSkin.current
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val isAether = skin.id == "AETHER"
         val shape = RoundedCornerShape(24.dp)
         val border = if (isAether) SolidColor(skin.laserBorder.copy(alpha = 0.45f)) else Brush.linearGradient(
@@ -488,7 +531,8 @@ class FeaturesRootSection : Routes.Route() {
         onConfigChanged: () -> Unit,
         registerClickCallback: (() -> Unit) -> (() -> Unit)
     ) {
-        val skin = LocalPurrfectSkin.current
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         var showDialog by remember { mutableStateOf(false) }
         var dialogComposable by remember { mutableStateOf<@Composable () -> Unit>({}) }
         var showRandomProfileProgressDialog by remember { mutableStateOf(false) }
@@ -1023,7 +1067,8 @@ class FeaturesRootSection : Routes.Route() {
         text: String,
         onClick: () -> Unit
     ) {
-        val skin = LocalPurrfectSkin.current
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         Surface(
             modifier = Modifier
                 .size(52.dp)
@@ -1072,8 +1117,8 @@ class FeaturesRootSection : Routes.Route() {
         onConfigChanged: () -> Unit,
         onOpen: (() -> Unit)? = null
     ) {
-        val skin = LocalPurrfectSkin.current
-        val isAphelion = remember { context.config.root.global.uiSettings.managerTheme.get() == "APHELION" }
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         var clickCallback by remember { mutableStateOf<(() -> Unit)?>(null) }
         val noticeColorMap = remember {
             mapOf(
@@ -1238,8 +1283,8 @@ class FeaturesRootSection : Routes.Route() {
         modifier: Modifier = Modifier,
         onHeightMeasured: (androidx.compose.ui.unit.Dp) -> Unit = {}
     ) {
-        val skin = LocalPurrfectSkin.current
-        val isAphelion = remember { context.config.root.global.uiSettings.managerTheme.get() == "APHELION" }
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         var showSearchBar by rememberSaveable { mutableStateOf(isSearchResults) }
         val focusRequester = remember { FocusRequester() }
         val isOverlay = activeSectionTitle != null
@@ -1757,7 +1802,8 @@ class FeaturesRootSection : Routes.Route() {
         enableGlobalSearch: Boolean = false,
         onBack: (() -> Unit)? = null
     ) {
-        val skin = LocalPurrfectSkin.current
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val density = LocalDensity.current
         var controlsHeight by remember { mutableStateOf(100.dp) }
         var configRefreshNonce by rememberSaveable { mutableStateOf(0) }
@@ -1888,7 +1934,8 @@ class FeaturesRootSection : Routes.Route() {
         onDismiss: () -> Unit,
         onConfirm: (exportSensitiveData: Boolean, includeSavedLocations: Boolean) -> Unit
     ) {
-        val skin = LocalPurrfectSkin.current
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val haptic = LocalHapticFeedback.current
         Dialog(onDismissRequest = onDismiss) {
             val includeSavedLocations = remember { mutableStateOf(false) }

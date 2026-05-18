@@ -50,8 +50,9 @@ import androidx.compose.ui.graphics.SolidColor
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FeaturesRootSection.LegacyFeaturesContent(nav: NavBackStackEntry) {
-    val managerTheme = remember { context.config.root.global.uiSettings.managerTheme.get() }
-    val skin = if (managerTheme == "APHELION") LocalPurrfectSkin.current else PurrfectPalette
+    val managerTheme = context.config.root.global.uiSettings.managerTheme.get()
+    val activeSkin = LocalPurrfectSkin.current
+    val skin = remember(managerTheme, activeSkin) { if (managerTheme == "APHELION") activeSkin else PurrfectPalette }
     val navBackStackEntry by routes.navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     
@@ -266,21 +267,16 @@ fun FeaturesRootSection.LegacyFeaturesContent(nav: NavBackStackEntry) {
                                     tonalElevation = 8.dp,
                                     shadowElevation = 12.dp
                                 ) {
-                                    DropdownMenuItem(
-                                        leadingIcon = { Icon(Icons.Filled.SaveAlt, null, tint = skin.glowPrimary) },
-                                        text = { Text(translation["export_option"] ?: "Export", color = skin.textPrimary) },
-                                        onClick = { showExportDropdownMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        leadingIcon = { Icon(Icons.Filled.FileDownload, null, tint = skin.glowPrimary) },
-                                        text = { Text(translation["import_option"] ?: "Import", color = skin.textPrimary) },
-                                        onClick = { showExportDropdownMenu = false }
-                                    )
-                                    DropdownMenuItem(
-                                        leadingIcon = { Icon(Icons.Filled.Refresh, null, tint = skin.glowPrimary) },
-                                        text = { Text(translation["reset_option"] ?: "Reset", color = skin.textPrimary) },
-                                        onClick = { showExportDropdownMenu = false; context.config.reset() }
-                                    )
+                                    this@LegacyFeaturesContent.actions().forEach { (label, icon, action) ->
+                                        DropdownMenuItem(
+                                            leadingIcon = { Icon(icon, null, tint = skin.glowPrimary) },
+                                            text = { Text(label, color = skin.textPrimary) },
+                                            onClick = {
+                                                showExportDropdownMenu = false
+                                                action()
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

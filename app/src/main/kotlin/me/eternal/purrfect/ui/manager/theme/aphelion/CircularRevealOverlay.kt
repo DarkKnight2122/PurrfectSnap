@@ -18,6 +18,8 @@ import kotlin.math.sqrt
 import androidx.compose.ui.platform.LocalHapticFeedback
 import me.eternal.purrfect.RemoteSideContext
 
+import kotlinx.coroutines.withTimeoutOrNull
+
 private const val REVEAL_DURATION_MS = 3200
 private const val WAVE_BAND_WIDTH_PX = 300f
 
@@ -36,7 +38,7 @@ fun CircularRevealOverlay(
         LaunchedEffect(request.id) { onComplete() }
         return
     }
-    
+
     if (bitmap.isRecycled) {
         LaunchedEffect(request.id) { onComplete() }
         return
@@ -46,11 +48,6 @@ fun CircularRevealOverlay(
     val density = LocalDensity.current
     val hapticFeedback = LocalHapticFeedback.current
 
-    // Ensure the reveal is cleared even if navigation happens mid-animation
-    DisposableEffect(request.id) {
-        onDispose { onComplete() }
-    }
-    
     val maxRadius = remember(configuration) {
         with(density) {
             val w = configuration.screenWidthDp.dp.toPx()
@@ -62,15 +59,16 @@ fun CircularRevealOverlay(
     val animatedRadius = remember(request.id) { Animatable(0f) }
 
     LaunchedEffect(request.id) {
-        AphelionHaptics.themeRevealTick(context, hapticFeedback)
+        withTimeoutOrNull(4000L) {
+            AphelionHaptics.themeRevealTick(context, hapticFeedback)
 
-        animatedRadius.animateTo(
-            targetValue = maxRadius + WAVE_BAND_WIDTH_PX,
-            animationSpec = tween(durationMillis = REVEAL_DURATION_MS, easing = AphelionEasing)
-        )
+            animatedRadius.animateTo(
+                targetValue = maxRadius + WAVE_BAND_WIDTH_PX,
+                animationSpec = tween(durationMillis = REVEAL_DURATION_MS, easing = AphelionEasing)
+            )
+        }
         onComplete()
     }
-
     val progress = (animatedRadius.value / (maxRadius + WAVE_BAND_WIDTH_PX)).coerceIn(0f, 1f)
 
     val infiniteTransition = rememberInfiniteTransition(label = "wave_time")

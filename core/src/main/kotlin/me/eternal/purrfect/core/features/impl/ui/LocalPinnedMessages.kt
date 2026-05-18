@@ -1,5 +1,9 @@
 package me.eternal.purrfect.core.features.impl.ui
 
+import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+
 import android.graphics.Rect
 import android.view.View
 import android.view.ViewGroup
@@ -38,7 +42,6 @@ import me.eternal.purrfect.core.event.events.impl.AddViewEvent
 import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.features.impl.messaging.Messaging
 import me.eternal.purrfect.core.ui.CustomComposable
-import me.eternal.purrfect.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfect.core.wrapper.impl.getMessageText
 import me.eternal.purrfect.core.wrapper.impl.sanitizeForLayout
@@ -171,13 +174,14 @@ class LocalPinnedMessages : Feature("Local Pinned Messages") {
                             .padding(top = 62.dp, start = 14.dp, end = 14.dp)
                             .align(Alignment.TopCenter)
                     ) {
-                        PurrfectOverlayTheme {
+                        PurrfectOverlayTheme(context) {
+                            val skin = LocalPurrfectSkin.current
                             val shape = RoundedCornerShape(14.dp)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(PurrfectOverlayPalette.cardOverlayColor.copy(alpha = 0.95f), shape)
-                                    .border(1.dp, Color.White.copy(alpha = 0.10f), shape)
+                                    .background(skin.cardOverlayColor.copy(alpha = 0.95f), shape)
+                                    .border(1.dp, skin.textPrimary.copy(alpha = 0.10f), shape)
                                     .clickable { }
                                     .padding(horizontal = 12.dp, vertical = 9.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -186,11 +190,11 @@ class LocalPinnedMessages : Feature("Local Pinned Messages") {
                                 Icon(
                                     imageVector = Icons.Outlined.PushPin,
                                     contentDescription = null,
-                                    tint = PurrfectOverlayPalette.glowPrimary
+                                    tint = skin.glowPrimary
                                 )
                                 Text(
                                     text = pinned.preview,
-                                    color = Color.White.copy(alpha = 0.95f),
+                                    color = skin.textPrimary.copy(alpha = 0.95f),
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 2,
@@ -200,7 +204,7 @@ class LocalPinnedMessages : Feature("Local Pinned Messages") {
                                 Icon(
                                     imageVector = Icons.Outlined.Close,
                                     contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.8f),
+                                    tint = skin.textPrimary.copy(alpha = 0.8f),
                                     modifier = Modifier.clickable {
                                         unpinFocusedConversation()
                                     }

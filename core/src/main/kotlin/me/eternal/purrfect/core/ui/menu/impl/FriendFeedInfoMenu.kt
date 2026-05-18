@@ -1,5 +1,9 @@
 package me.eternal.purrfect.core.ui.menu.impl
 
+import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+
 import android.graphics.BitmapFactory
 import android.view.Gravity
 import android.view.View
@@ -60,7 +64,6 @@ import me.eternal.purrfect.core.features.impl.spying.StealthMode
 import me.eternal.purrfect.core.ui.ViewAppearanceHelper
 import me.eternal.purrfect.core.ui.children
 import me.eternal.purrfect.core.ui.PurrfectGlassCard
-import me.eternal.purrfect.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfect.core.ui.menu.AbstractMenu
 import me.eternal.purrfect.core.ui.triggerRootCloseTouchEvent
@@ -137,12 +140,13 @@ class FriendFeedInfoMenu : AbstractMenu() {
             }.getOrNull()
 
             createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
-                PurrfectOverlayTheme {
+                PurrfectOverlayTheme(this@FriendFeedInfoMenu.context) {
+                    val skin = LocalPurrfectSkin.current
                     val border = remember {
                         Brush.linearGradient(
                             listOf(
-                                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
-                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.35f)
+                                skin.glowPrimary.copy(alpha = 0.55f),
+                                skin.glowSecondary.copy(alpha = 0.35f)
                             )
                         )
                     }
@@ -166,7 +170,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                     ) {
                         Column(
                             modifier = Modifier
-                                .background(PurrfectOverlayPalette.cardOverlay, shape)
+                                .background(skin.cardOverlay, shape)
                                 .padding(horizontal = 18.dp, vertical = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -178,19 +182,19 @@ class FriendFeedInfoMenu : AbstractMenu() {
                             ) {
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = Color.White.copy(alpha = 0.08f)
+                                    color = skin.textPrimary.copy(alpha = 0.08f)
                                 ) {
                                     Icon(
                                         Icons.Outlined.Info,
                                         contentDescription = null,
                                         modifier = Modifier.padding(8.dp),
-                                        tint = Color.White
+                                        tint = skin.textPrimary
                                     )
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = translation["title"] ?: "Profile Info",
-                                        color = Color.White,
+                                        color = skin.textPrimary,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp
                                     )
@@ -201,15 +205,15 @@ class FriendFeedInfoMenu : AbstractMenu() {
                                     ).firstOrNull()?.toString().orEmpty()
                                     Text(
                                         text = subtitleText,
-                                        color = PurrfectOverlayPalette.textSecondary,
+                                        color = skin.textSecondary,
                                         fontSize = 12.sp
                                     )
                                 }
                             }
                             Surface(
                                 shape = RoundedCornerShape(999.dp),
-                                color = Color.White.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+                                color = skin.textPrimary.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -227,7 +231,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                                         Icon(
                                             Icons.Outlined.Person,
                                             contentDescription = null,
-                                            tint = Color.White.copy(alpha = 0.85f),
+                                            tint = skin.textPrimary.copy(alpha = 0.85f),
                                             modifier = Modifier.size(32.dp)
                                         )
                                     }
@@ -235,8 +239,8 @@ class FriendFeedInfoMenu : AbstractMenu() {
                             }
                             Surface(
                                 shape = RoundedCornerShape(18.dp),
-                                color = Color.White.copy(alpha = 0.06f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                                color = skin.textPrimary.copy(alpha = 0.06f),
+                                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Column(
@@ -248,7 +252,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                                     lines.forEach { line ->
                                         Text(
                                             text = line,
-                                            color = Color.White,
+                                            color = skin.textPrimary,
                                             fontSize = 13.sp,
                                             lineHeight = 16.sp
                                         )
@@ -261,7 +265,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                             ) {
                                 Text(
                                     text = context.translation["button.ok"] ?: "OK",
-                                    color = Color.White,
+                                    color = skin.glowPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier
                                         .clickable { alertDialog.dismiss() }
@@ -345,10 +349,11 @@ class FriendFeedInfoMenu : AbstractMenu() {
                         }
 
                         {
+                            val skin = LocalPurrfectSkin.current
                             Text(
                                 text = "$displayUsername: $messageString",
                                 modifier = Modifier.padding(4.dp),
-                                color = Color.White
+                                color = skin.textPrimary
                             )
                         }
                     }
@@ -358,7 +363,8 @@ class FriendFeedInfoMenu : AbstractMenu() {
                     }
                 }
 
-                PurrfectOverlayTheme {
+                PurrfectOverlayTheme(this@FriendFeedInfoMenu.context) {
+                    val skin = LocalPurrfectSkin.current
                     PurrfectGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -375,16 +381,17 @@ class FriendFeedInfoMenu : AbstractMenu() {
                         ) {
                             @Composable
                             fun Entry(icon: ImageVector, text: String?, title: Boolean) {
+                                val skin = LocalPurrfectSkin.current
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = 0.9f))
+                                    Icon(icon, contentDescription = null, tint = skin.textPrimary.copy(alpha = 0.9f))
                                     Text(
                                         text = text ?: "",
                                         fontWeight = if (title) FontWeight.Bold else FontWeight.Normal,
                                         fontSize = if (title) 14.sp else 12.sp,
-                                        color = Color.White.copy(alpha = if (title) 0.95f else 0.80f),
+                                        color = skin.textPrimary.copy(alpha = if (title) 0.95f else 0.80f),
                                         maxLines = if (title) 1 else 2,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                     )
@@ -416,7 +423,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                                     IconButton(
                                         onClick = { coroutineScope.launch(Dispatchers.IO) { showProfileInfo(it) } }
                                     ) {
-                                        Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = Color.White)
+                                        Icon(Icons.Outlined.MoreVert, contentDescription = null, tint = skin.textPrimary)
                                     }
                                 }
                             }
@@ -425,7 +432,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                                 modifier = Modifier
                                     .height(1.dp)
                                     .fillMaxWidth()
-                                    .background(Color.White.copy(alpha = 0.10f))
+                                    .background(skin.textPrimary.copy(alpha = 0.10f))
                             )
 
                             LazyColumn(
@@ -436,7 +443,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                                 items(messages) { message ->
                                     Row(modifier = Modifier.fillMaxWidth()) {
                                         CompositionLocalProvider(
-                                            LocalContentColor provides Color.White
+                                            LocalContentColor provides skin.textPrimary
                                         ) {
                                             message()
                                         }
@@ -452,7 +459,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                                                 .padding(4.dp)
                                                 .fillMaxWidth(),
                                             textAlign = TextAlign.Center,
-                                            color = Color.White.copy(alpha = 0.75f)
+                                            color = skin.textPrimary.copy(alpha = 0.75f)
                                         )
                                     }
                                 }
@@ -473,23 +480,24 @@ class FriendFeedInfoMenu : AbstractMenu() {
         onLongClick: (() -> Unit)? = null,
         content: @Composable RowScope.() -> Unit = {}
     ) {
+        val skin = LocalPurrfectSkin.current
         val shape = RoundedCornerShape(18.dp)
         val border = Brush.linearGradient(
             listOf(
-                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.45f),
-                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.28f)
+                skin.glowPrimary.copy(alpha = 0.45f),
+                skin.glowSecondary.copy(alpha = 0.28f)
             )
         )
         if (index > 0) Spacer(Modifier.height(10.dp))
         Surface(
             color = Color.Transparent,
-            contentColor = Color.White,
+            contentColor = skin.textPrimary,
             shape = shape,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(PurrfectOverlayPalette.cardOverlay, shape)
+                .background(skin.cardOverlay, shape)
                 .border(1.dp, border, shape)
         ) {
             Row(
@@ -517,6 +525,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                     modifier = Modifier.weight(1f),
                     lineHeight = 18.sp,
                     fontSize = 16.sp,
+                    color = skin.textPrimary
                 )
                 content()
             }
@@ -595,6 +604,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
 
         @Composable
         fun ComposeFriendFeedMenu() {
+            val skin = LocalPurrfectSkin.current
             Column(
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -646,7 +656,7 @@ class FriendFeedInfoMenu : AbstractMenu() {
                             },
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
-                                checkedTrackColor = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.55f),
+                                checkedTrackColor = skin.glowPrimary.copy(alpha = 0.55f),
                                 checkedBorderColor = Color.Transparent,
                                 uncheckedThumbColor = Color.White.copy(alpha = 0.9f),
                                 uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
@@ -743,7 +753,8 @@ class FriendFeedInfoMenu : AbstractMenu() {
 
         viewConsumer(
             createComposeView(actionSheetItemsContainer.context) {
-                PurrfectOverlayTheme {
+                PurrfectOverlayTheme(this@FriendFeedInfoMenu.context) {
+                    val skin = LocalPurrfectSkin.current
                     CompositionLocalProvider(
                         LocalTextStyle provides LocalTextStyle.current.merge(
                             TextStyle(
@@ -784,18 +795,19 @@ class FriendFeedInfoMenu : AbstractMenu() {
 
                     orientation = LinearLayout.VERTICAL
                     addView(createComposeView(actionSheetItemsContainer.context) {
-                        PurrfectOverlayTheme {
+                        PurrfectOverlayTheme(this@FriendFeedInfoMenu.context) {
+                            val skin = LocalPurrfectSkin.current
                             val shape = RoundedCornerShape(18.dp)
                             Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.White.copy(alpha = 0.06f), shape)
+                                    .background(skin.textPrimary.copy(alpha = 0.06f), shape)
                                     .border(
                                         1.dp,
                                         Brush.linearGradient(
                                             listOf(
-                                                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.4f),
-                                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.28f)
+                                                skin.glowPrimary.copy(alpha = 0.4f),
+                                                skin.glowSecondary.copy(alpha = 0.28f)
                                             )
                                         ),
                                         shape
