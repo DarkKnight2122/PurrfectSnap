@@ -27,11 +27,11 @@ import me.eternal.purrfect.common.data.download.DownloadMediaType
 import me.eternal.purrfect.common.data.download.InputMedia
 import me.eternal.purrfect.common.data.download.MediaDownloadSource
 import me.eternal.purrfect.common.data.download.toKeyPair
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.common.ui.createComposeView
 import me.eternal.purrfect.core.event.events.impl.AddViewEvent
 import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.ui.getValdiContext
-import me.eternal.purrfect.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfect.core.ui.triggerCloseTouchEvent
 import me.eternal.purrfect.core.util.EvictingMap
 import me.eternal.purrfect.core.util.hook.HookStage
@@ -79,19 +79,15 @@ class ChatWallpaperDownloader : Feature("Chat Wallpaper Downloader") {
                 val chatWallpaper = chatWallpapers[conversationId] ?: return@post
 
                 event.parent.addView(createComposeView(event.parent.context) {
+                    val skin = LocalPurrfectSkin.current
                     val label = context.translation["chat_wallpaper_downloader.download_button"]
                     val stroke = Brush.linearGradient(
                         listOf(
-                            PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.75f),
-                            PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.6f)
+                            skin.glowPrimary.copy(alpha = 0.75f),
+                            skin.glowSecondary.copy(alpha = 0.6f)
                         )
                     )
-                    val background = Brush.linearGradient(
-                        listOf(
-                            Color(0xFF2A2452),
-                            Color(0xFF1B163A)
-                        )
-                    )
+                    val background = skin.cardOverlay
                     val shape = RoundedCornerShape(20.dp)
                     Surface(
                         modifier = Modifier
@@ -139,13 +135,13 @@ class ChatWallpaperDownloader : Feature("Chat Wallpaper Downloader") {
                             Icon(
                                 imageVector = Icons.Filled.DownloadForOffline,
                                 contentDescription = label,
-                                tint = Color.White,
+                                tint = skin.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                             Spacer(modifier = Modifier.size(10.dp))
                             Text(
                                 text = label,
-                                color = Color.White,
+                                color = skin.textPrimary,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }

@@ -1,5 +1,9 @@
 package me.eternal.purrfect.core.features.impl.messaging
 
+import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
+
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +29,6 @@ import me.eternal.purrfect.core.event.events.impl.SendMessageWithContentEvent
 import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.features.impl.spying.StealthMode
 import me.eternal.purrfect.core.ui.PurrfectGlassCard
-import me.eternal.purrfect.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfect.core.ui.ViewAppearanceHelper
 import me.eternal.purrfect.core.util.CallbackBuilder
@@ -64,7 +67,8 @@ class AutoMarkAsRead : Feature("Auto Mark As Read") {
         }
 
         createComposeAlertDialog(activity) {
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(context) {
+                val skin = LocalPurrfectSkin.current
                 PurrfectGlassCard(
                     modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
                     title = "Rate Limited",
@@ -77,11 +81,11 @@ class AutoMarkAsRead : Feature("Auto Mark As Read") {
                     ) {
                         Text(
                             text = "Processed $processed of $total snaps before the request was rate limited.",
-                            color = PurrfectOverlayPalette.textSecondary
+                            color = skin.textSecondary
                         )
                         Text(
                             text = "No bypass was attempted. Wait a bit and run it again, or lower the per-run limit in settings.",
-                            color = PurrfectOverlayPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     }
                 }
@@ -175,7 +179,8 @@ class AutoMarkAsRead : Feature("Auto Mark As Read") {
         val dialog = createComposeAlertDialog(context.mainActivity!!, builder = {
             setOnDismissListener { job?.cancel() }
         }) {
-            PurrfectOverlayTheme {
+            PurrfectOverlayTheme(context) {
+                val skin = LocalPurrfectSkin.current
                 PurrfectGlassCard(
                     modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
                     title = "Marking Snaps as Seen",
@@ -188,12 +193,12 @@ class AutoMarkAsRead : Feature("Auto Mark As Read") {
                         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator(
-                            color = PurrfectOverlayPalette.glowSecondary,
-                            trackColor = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.18f)
+                            color = skin.glowSecondary,
+                            trackColor = skin.glowPrimary.copy(alpha = 0.18f)
                         )
                         Text(
                             text = "${processedCount.intValue}/${targetMessageIds.size}",
-                            color = PurrfectOverlayPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     }
                 }
