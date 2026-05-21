@@ -3,6 +3,7 @@ package me.eternal.purrfect.core
 import android.system.Os
 import android.view.ViewGroup
 import androidx.compose.foundation.BorderStroke
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,6 +72,7 @@ class SecurityFeatures(
 
     @Composable
     private fun LoginSignupHelpButton(onClick: () -> Unit) {
+        val skin = LocalPurrfectSkin.current
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -85,14 +87,14 @@ class SecurityFeatures(
                     .background(
                         Brush.horizontalGradient(
                             listOf(
-                                PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.92f),
-                                PurrfectOverlayPalette.glowSecondary.copy(alpha = 0.62f)
+                                Color(0xFF6F28A8).copy(alpha = 0.92f),
+                                Color(0xFF0059B7).copy(alpha = 0.62f)
                             )
                         ),
                         RoundedCornerShape(999.dp)
                     )
                     .border(
-                        BorderStroke(1.dp, PurrfectOverlayPalette.textPrimary.copy(alpha = 0.18f)),
+                        BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
                         RoundedCornerShape(999.dp)
                     )
                     .clickable(onClick = onClick)
@@ -331,11 +333,9 @@ class SecurityFeatures(
             }
 
             if (isLoginScreen && !disableHelpButton) {
-                PurrfectOverlayTheme(context) {
-                    LoginSignupHelpButton(
-                        onClick = { showDialog = true }
-                    )
-                }
+                LoginSignupHelpButton(
+                    onClick = { showDialog = true }
+                )
             }
 
             if (isLoginScreen && !disableHelpButton && showDialog) {

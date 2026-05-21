@@ -245,19 +245,21 @@ class BetterLocation : Feature("Better Location") {
                     val view = (mapView.parent as ViewGroup).children().firstOrNull { it is RelativeLayout } as? RelativeLayout ?: throw IllegalStateException("Map view parent not found")
 
                     view.addView(createComposeView(view.context) {
-                        val darkTheme = remember { context.androidContext.isDarkTheme() }
-                        Box(
-                            modifier = Modifier.padding(start = 8.dp)
-                        ) {
-                            FilledIconButton(
-                                modifier = Modifier.size(40.dp),
-                                colors = IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = if (darkTheme) Color(0xFF1D1D1D) else Color.White,
-                                    contentColor = if (darkTheme) Color.White else Color(0xFF151A1A),
-                                ),
-                                onClick = { openManagementOverlay() }
+                        me.eternal.purrfect.core.ui.PurrfectOverlayTheme(context) {
+                            val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
+                            Box(
+                                modifier = Modifier.padding(start = 8.dp)
                             ) {
-                                Icon(Icons.Default.EditLocation, contentDescription = null)
+                                FilledIconButton(
+                                    modifier = Modifier.size(40.dp),
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = skin.cardOverlayColor,
+                                        contentColor = skin.textPrimary,
+                                    ),
+                                    onClick = { openManagementOverlay() }
+                                ) {
+                                    Icon(Icons.Default.EditLocation, contentDescription = null)
+                                }
                             }
                         }
                     }.apply {

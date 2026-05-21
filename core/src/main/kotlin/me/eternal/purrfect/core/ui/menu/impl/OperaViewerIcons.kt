@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -39,6 +40,11 @@ import me.eternal.purrfect.core.event.events.impl.AddViewEvent
 import me.eternal.purrfect.core.event.events.impl.OnSnapInteractionEvent
 import me.eternal.purrfect.core.features.impl.downloader.MediaDownloader
 import me.eternal.purrfect.core.features.impl.downloader.OperaViewerMessageContext
+import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.core.util.ktx.vibrateLongPress
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import me.eternal.purrfect.core.features.impl.messaging.AutoMarkAsRead
 import me.eternal.purrfect.core.ui.children
 import me.eternal.purrfect.core.ui.iterateParent
@@ -51,7 +57,6 @@ import me.eternal.purrfect.core.util.hook.HookStage
 import me.eternal.purrfect.core.util.hook.hook
 import me.eternal.purrfect.core.util.ktx.getObjectField
 import me.eternal.purrfect.core.util.isSnapchatVersionAtLeast
-import me.eternal.purrfect.core.util.ktx.vibrateLongPress
 import me.eternal.purrfect.mapper.impl.OperaPageViewControllerMapper
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -126,30 +131,31 @@ class OperaViewerIcons : AbstractMenu() {
         }
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
     private fun OverlayActionButton(
         icon: ImageVector,
         onTap: () -> Unit,
         onLongPress: (() -> Unit)? = null
     ) {
+        val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
         Surface(
             modifier = Modifier
-                .size(52.dp)
-                .pointerInput(onLongPress) {
-                    detectTapGestures(
-                        onTap = { onTap() },
-                        onLongPress = {
-                            onLongPress?.invoke()
-                        }
-                    )
-                },
+                .size(42.dp)
+                .clip(CircleShape)
+                .combinedClickable(
+                    onClick = onTap,
+                    onLongClick = onLongPress
+                ),
             shape = CircleShape,
-            color = Color.Black.copy(alpha = 0.55f)
+            color = skin.cardOverlayColor.copy(alpha = 0.7f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.1f))
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = icon,
-                    tint = Color.White,
+                    tint = skin.textPrimary,
+                    modifier = Modifier.size(20.dp),
                     contentDescription = null
                 )
             }
@@ -195,38 +201,42 @@ class OperaViewerIcons : AbstractMenu() {
 
             if (!showDownloadFallback && !showMarkFallback) return@addCustomComposable
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(end = 18.dp, bottom = 118.dp),
-                contentAlignment = Alignment.BottomEnd
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    horizontalAlignment = Alignment.End
+            PurrfectOverlayTheme(null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(end = 10.dp, top = 50.dp),
+                    contentAlignment = Alignment.TopEnd
                 ) {
-                    if (showDownloadFallback) {
-                        OverlayActionButton(
-                            icon = Icons.Outlined.Download,
-                            onTap = {
-                                mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
-                            },
-                            onLongPress = {
-                                context.androidContext.vibrateLongPress()
-                                mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
-                            }
-                        )
-                    }
-
-                    if (showMarkFallback) {
-                        OverlayActionButton(
-                            icon = Icons.Default.RemoveRedEye,
-                            onTap = {
-                                context.coroutineScope.launch {
-                                    markCurrentSnapAsSeen(parent = null)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        if (showDownloadFallback) {
+                            OverlayActionButton(
+                                icon = Icons.Outlined.Download,
+                                onTap = {
+                                    context.androidContext.vibrateLongPress()
+                                    mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
+                                },
+                                onLongPress = {
+                                    context.androidContext.vibrateLongPress()
+                                    mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
                                 }
-                            }
-                        )
+                            )
+                        }
+
+                        if (showMarkFallback) {
+                            OverlayActionButton(
+                                icon = Icons.Default.RemoveRedEye,
+                                onTap = {
+                                    context.androidContext.vibrateLongPress()
+                                    context.coroutineScope.launch {
+                                        markCurrentSnapAsSeen(parent = null)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }

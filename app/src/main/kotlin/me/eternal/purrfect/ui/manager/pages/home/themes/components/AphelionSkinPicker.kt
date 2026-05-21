@@ -63,10 +63,17 @@ fun AphelionSkinPicker(
                 available = true
             ),
             SkinOption(
+                id = "AMBER",
+                name = "Amber",
+                description = "A prestigious palette of warm cream and lustrous gold. Light theme.",
+                previewColors = listOf(Color(0xFFFCF7E8), Color(0xFFF4E3BA), Color(0xFFD4AF37)),
+                available = true
+            ),
+            SkinOption(
                 id = "NOX",
                 name = "Nox",
-                description = "Luxury Rose Gold AMOLED Black. Dark Theme.",
-                previewColors = listOf(Color(0xFF000000), Color(0xFF101014), Color(0xFFE6B9A6)),
+                description = "AMOLED Black. Dark Theme.",
+                previewColors = listOf(Color(0xFF000000), Color(0xFF2D2D2D), Color(0xFFFFFFFF)),
                 available = true
             ),
             SkinOption(
@@ -147,9 +154,11 @@ private fun SkinCard(
     val skin = LocalPurrfectSkin.current
 
     val borderBrush = if (isSelected) {
-        Brush.linearGradient(
-            listOf(skin.glowPrimary, skin.glowSecondary)
-        )
+        if (skin.isDark) {
+            Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary))
+        } else {
+            Brush.linearGradient(listOf(Color.Black.copy(alpha = 0.8f), Color.Black.copy(alpha = 0.8f)))
+        }
     } else {
         Brush.linearGradient(listOf(skin.glassBorder, skin.glassBorder))
     }

@@ -139,16 +139,7 @@ fun HomeAbout.AphelionAboutContent(nav: NavBackStackEntry) {
                                     lastTapTime.longValue = now
                                     if (tapCount.intValue >= 5) {
                                         tapCount.intValue = 0
-                                        if (ChimaeraDiscovery.isWindowActive) {
-                                            ChimaeraDiscovery.completeStage2(context.sharedPreferences)
-                                            routes.navigation?.isFirstUnlock = true
-                                            routes.navigation?.pendingTransmission = ChimaeraDiscovery.unlockMessage
-                                        } else if (ChimaeraDiscovery.unlocked) {
-                                            routes.navigation?.isFirstUnlock = false
-                                            routes.navigation?.pendingTransmission = ChimaeraDiscovery.welcomeBackMessage
-                                        } else {
-                                            routes.retroGame.navigate()
-                                        }
+                                        routes.retroGame.navigate()
                                     }
                                 }
                             )

@@ -19,6 +19,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,6 +31,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -64,6 +68,10 @@ import me.eternal.purrfect.core.action.AbstractAction
 import me.eternal.purrfect.core.features.impl.experiments.AddFriendSourceSpoof
 import me.eternal.purrfect.core.features.impl.experiments.BetterLocation
 import me.eternal.purrfect.core.features.impl.messaging.Messaging
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectColorSet
+import androidx.compose.ui.graphics.toArgb
+import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfect.core.ui.ViewAppearanceHelper
 import me.eternal.purrfect.core.util.EvictingMap
 import me.eternal.purrfect.core.util.dataBuilder
@@ -156,6 +164,7 @@ class BulkMessagingAction : AbstractAction() {
 
     private fun removeAction(
         ctx: Context,
+        skin: me.eternal.purrfect.common.ui.theme.PurrfectColorSet,
         ids: List<String>,
         delay: Pair<Long, Long>,
         action: suspend (id: String, setDialogMessage: (String) -> Unit) -> Unit = { _, _ -> }
@@ -188,18 +197,18 @@ class BulkMessagingAction : AbstractAction() {
             d.window?.setBackgroundDrawable(GradientDrawable(
                 GradientDrawable.Orientation.TOP_BOTTOM,
                 intArrayOf(
-                    AndroidColor.parseColor("#2A2452"),
-                    AndroidColor.parseColor("#1A143A")
+                    AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.cardOverlayColor.toArgb())),
+                    AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.glassSurface.toArgb()))
                 )
             ).apply {
                 cornerRadius = (20 * density).toFloat()
             })
             val titleId = ctx.resources.getIdentifier("alertTitle", "id", "android")
             if (titleId != 0) {
-                (d.window?.decorView?.findViewById<View>(titleId) as? TextView)?.setTextColor(AndroidColor.WHITE)
+                (d.window?.decorView?.findViewById<View>(titleId) as? TextView)?.setTextColor(AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.textPrimary.toArgb())))
             }
-            statusTextView.setTextColor(AndroidColor.parseColor("#E0E0E0"))
-            progressBar.indeterminateTintList = ColorStateList.valueOf(AndroidColor.parseColor("#8C7BFF"))
+            statusTextView.setTextColor(AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.textPrimary.toArgb())))
+            progressBar.indeterminateTintList = ColorStateList.valueOf(AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.glowPrimary.toArgb())))
             d
         }
 
@@ -232,42 +241,43 @@ class BulkMessagingAction : AbstractAction() {
         onCancel: () -> Unit,
     ) {
         Dialog(onDismissRequest = onCancel) {
+            val skin = LocalPurrfectSkin.current
             val shape = RoundedCornerShape(22.dp)
             Surface(
                 shape = shape,
                 color = Color.Transparent,
                 tonalElevation = 0.dp,
                 shadowElevation = 16.dp,
-                border = BorderStroke(1.dp, BulkMessagingPalette.glowStroke)
+                border = BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.3f))
             ) {
                 Column(
                     modifier = Modifier
-                        .background(BulkMessagingPalette.cardOverlay, shape)
+                        .background(skin.cardOverlayColor, shape)
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = BulkMessagingPalette.faintSurface
+                        color = skin.textPrimary.copy(alpha = 0.02f)
                     ) {
                         Icon(
                             Icons.Default.WarningAmber,
                             contentDescription = null,
-                            tint = BulkMessagingPalette.textPrimary,
+                            tint = skin.textPrimary,
                             modifier = Modifier.padding(10.dp)
                         )
                     }
                     Text(
                         text = translation["confirmation_dialog.title"],
                         style = MaterialTheme.typography.titleLarge,
-                        color = BulkMessagingPalette.textPrimary,
+                        color = skin.textPrimary,
                         textAlign = TextAlign.Center
                     )
                     Text(
                         text = translation["confirmation_dialog.message"],
                         style = MaterialTheme.typography.bodyMedium,
-                        color = BulkMessagingPalette.textSecondary,
+                        color = skin.textSecondary,
                         textAlign = TextAlign.Center
                     )
                     Row(
@@ -278,7 +288,7 @@ class BulkMessagingAction : AbstractAction() {
                             onClick = onCancel,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.White.copy(alpha = 0.08f),
-                                contentColor = BulkMessagingPalette.textPrimary
+                                contentColor = skin.textPrimary
                             )
                         ) {
                             Text(text = context.translation["button.negative"])
@@ -286,11 +296,15 @@ class BulkMessagingAction : AbstractAction() {
                         Button(
                             onClick = onConfirm,
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = BulkMessagingPalette.glowPrimary.copy(alpha = 0.34f),
-                                contentColor = BulkMessagingPalette.textPrimary
+                                containerColor = skin.glowPrimary,
+                                contentColor = Color.Black
                             )
                         ) {
-                            Text(text = context.translation["button.positive"])
+                            Text(
+                                text = context.translation["button.positive"],
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
                         }
                     }
                 }
@@ -389,6 +403,7 @@ class BulkMessagingAction : AbstractAction() {
 
         val focusManager = LocalFocusManager.current
         var nameFilter by remember { mutableStateOf("") }
+        val skin = LocalPurrfectSkin.current
 
         suspend fun refreshList(clearSelected: Boolean = true) {
             val myLocation = betterLocation.locationHistory[context.database.myUserId]
@@ -516,7 +531,6 @@ class BulkMessagingAction : AbstractAction() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(BulkMessagingPalette.background)
                 .padding(horizontal = 10.dp, vertical = 8.dp)
         ) {
             Surface(
@@ -524,14 +538,13 @@ class BulkMessagingAction : AbstractAction() {
                     .fillMaxWidth()
                     .widthIn(max = 760.dp),
                 shape = RoundedCornerShape(26.dp),
-                color = Color.Transparent,
+                color = skin.cardOverlayColor,
                 tonalElevation = 0.dp,
                 shadowElevation = 18.dp,
-                border = BorderStroke(1.dp, BulkMessagingPalette.glowStroke)
+                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
             ) {
                 Column(
                     modifier = Modifier
-                        .background(BulkMessagingPalette.cardOverlay)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -544,13 +557,13 @@ class BulkMessagingAction : AbstractAction() {
                         Text(
                             text = "Bulk messaging",
                             style = MaterialTheme.typography.titleLarge,
-                            color = BulkMessagingPalette.textPrimary,
+                            color = skin.textPrimary,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = translation["conversation_types.${conversationType.name.lowercase()}"],
                             style = MaterialTheme.typography.bodyMedium,
-                            color = BulkMessagingPalette.textSecondary,
+                            color = skin.textSecondary,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -562,18 +575,16 @@ class BulkMessagingAction : AbstractAction() {
                     ConversationType.BOTH to translation["conversation_types.both"],
                 )
             }
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(18.dp)),
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.elevatedCardColors(containerColor = Color.Transparent),
-                elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
+                color = skin.textPrimary.copy(alpha = 0.04f),
+                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(BulkMessagingPalette.faintSurface, RoundedCornerShape(18.dp))
+                        .height(IntrinsicSize.Max)
                         .padding(6.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -587,28 +598,26 @@ class BulkMessagingAction : AbstractAction() {
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .border(
-                                    BorderStroke(1.dp, if (selected) BulkMessagingPalette.glowPrimary else BulkMessagingPalette.outline),
-                                    RoundedCornerShape(14.dp)
-                                )
-                                .background(
-                                    if (selected) BulkMessagingPalette.glowPrimary.copy(alpha = 0.12f) else Color.Transparent,
-                                    RoundedCornerShape(14.dp)
-                                )
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (selected) skin.glowPrimary.copy(alpha = 0.15f) else Color.Transparent)
+                                .border(1.dp, if (selected) skin.glowPrimary.copy(alpha = 0.4f) else Color.Transparent, RoundedCornerShape(14.dp))
                                 .clickable {
                                     if (!selected) {
                                         conversationType = type
                                         coroutineScope.launch { refreshList() }
                                     }
                                 }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = 10.dp, horizontal = 4.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = label,
-                                color = if (selected) BulkMessagingPalette.textPrimary else BulkMessagingPalette.textSecondary,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                textAlign = TextAlign.Center
+                                color = if (selected) skin.textPrimary else skin.textSecondary,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                textAlign = TextAlign.Center,
+                                fontSize = 12.sp,
+                                lineHeight = 14.sp
                             )
                         }
                     }
@@ -619,7 +628,7 @@ class BulkMessagingAction : AbstractAction() {
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(18.dp)),
+                    .border(BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)), RoundedCornerShape(18.dp)),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.elevatedCardColors(containerColor = Color.Transparent),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
@@ -639,22 +648,22 @@ class BulkMessagingAction : AbstractAction() {
                         },
                         singleLine = true,
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = BulkMessagingPalette.textPrimary
+                            color = skin.textPrimary
                         ),
-                        cursorBrush = SolidColor(BulkMessagingPalette.glowPrimary),
+                        cursorBrush = SolidColor(skin.glowPrimary),
                         modifier = Modifier.fillMaxWidth()
                     ) { innerTextField ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .border(1.dp, BulkMessagingPalette.outline, searchShape)
+                                .border(1.dp, skin.textPrimary.copy(alpha = 0.12f), searchShape)
                                 .background(Color.Transparent, searchShape)
                                 .padding(horizontal = 12.dp, vertical = 10.dp)
                         ) {
                             if (nameFilter.isEmpty()) {
                                 Text(
                                     text = translation["search_by_name"],
-                                    color = BulkMessagingPalette.textSecondary
+                                    color = skin.textSecondary
                                 )
                             }
                             innerTextField()
@@ -663,31 +672,35 @@ class BulkMessagingAction : AbstractAction() {
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         var filterMenuExpanded by remember { mutableStateOf(false) }
                         ExposedDropdownMenuBox(
                             expanded = filterMenuExpanded,
                             onExpandedChange = { filterMenuExpanded = it },
+                            modifier = Modifier.weight(1f)
                         ) {
-                            ElevatedCard(
+                            Surface(
                                 modifier = Modifier
-                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                    .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(14.dp)),
+                                    .fillMaxWidth()
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.elevatedCardColors(containerColor = Color.Transparent)
+                                color = skin.textPrimary.copy(alpha = 0.05f),
+                                border = BorderStroke(1.dp, (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.12f))
                             ) {
                                 Text(
                                     text = translation["filters.${filter.name.lowercase()}"],
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    color = BulkMessagingPalette.textPrimary
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp).basicMarquee(),
+                                    color = skin.textPrimary,
+                                    maxLines = 1
                                 )
                             }
 
                             DropdownMenu(
                                 expanded = filterMenuExpanded,
                                 onDismissRequest = { filterMenuExpanded = false },
-                                containerColor = BulkMessagingPalette.surface
+                                containerColor = skin.cardOverlayColor
                             ) {
                                 Filter.entries.forEach { entry ->
                                     DropdownMenuItem(
@@ -699,7 +712,7 @@ class BulkMessagingAction : AbstractAction() {
                                             Text(
                                                 text = translation["filters.${entry.name.lowercase()}"],
                                                 fontWeight = if (entry == filter) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (entry == filter) BulkMessagingPalette.glowPrimary else BulkMessagingPalette.textPrimary
+                                                color = if (entry == filter) skin.glowPrimary else skin.textPrimary
                                             )
                                         }
                                     )
@@ -707,31 +720,32 @@ class BulkMessagingAction : AbstractAction() {
                             }
                         }
 
-                        Spacer(Modifier.width(8.dp))
-
                         var sortMenuExpanded by remember { mutableStateOf(false) }
                         ExposedDropdownMenuBox(
                             expanded = sortMenuExpanded,
                             onExpandedChange = { sortMenuExpanded = it },
+                            modifier = Modifier.weight(1f)
                         ) {
-                            ElevatedCard(
+                            Surface(
                                 modifier = Modifier
-                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                    .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(14.dp)),
+                                    .fillMaxWidth()
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable),
                                 shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.elevatedCardColors(containerColor = Color.Transparent)
+                                color = skin.textPrimary.copy(alpha = 0.05f),
+                                border = BorderStroke(1.dp, (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.12f))
                             ) {
                                 Text(
                                     text = translation["sort_by"],
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    color = BulkMessagingPalette.textPrimary
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp).basicMarquee(),
+                                    color = skin.textPrimary,
+                                    maxLines = 1
                                 )
                             }
 
                             DropdownMenu(
                                 expanded = sortMenuExpanded,
                                 onDismissRequest = { sortMenuExpanded = false },
-                                containerColor = BulkMessagingPalette.surface
+                                containerColor = skin.cardOverlayColor
                             ) {
                                 SortBy.entries.forEach { entry ->
                                     DropdownMenuItem(
@@ -743,7 +757,7 @@ class BulkMessagingAction : AbstractAction() {
                                             Text(
                                                 text = translation["sort_options.${entry.name.lowercase()}"],
                                                 fontWeight = if (entry == sortBy) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (entry == sortBy) BulkMessagingPalette.glowPrimary else BulkMessagingPalette.textPrimary
+                                                color = if (entry == sortBy) skin.glowPrimary else skin.textPrimary
                                             )
                                         }
                                     )
@@ -751,102 +765,97 @@ class BulkMessagingAction : AbstractAction() {
                             }
                         }
 
-                        Spacer(modifier = Modifier.weight(1f))
+                        val totalItems = when (conversationType) {
+                            ConversationType.FRIENDS_ONLY -> friends.size
+                            ConversationType.GROUPS_ONLY -> groups.size
+                            ConversationType.BOTH -> friends.size + groups.size
+                        }
+                        val selectedItems = when (conversationType) {
+                            ConversationType.FRIENDS_ONLY -> selectedFriends.size
+                            ConversationType.GROUPS_ONLY -> selectedGroups.size
+                            ConversationType.BOTH -> selectedFriends.size + selectedGroups.size
+                        }
+                        val isAllSelected = totalItems > 0 && selectedItems == totalItems
 
-                        Text(
-                            text = context.translation["manager.dialogs.messaging_action.select_all_button"],
-                            fontSize = 14.sp,
-                            color = BulkMessagingPalette.textSecondary
-                        )
-
-                        Checkbox(
-                            checked = {
-                                val totalItems = when (conversationType) {
-                                    ConversationType.FRIENDS_ONLY -> friends.size
-                                    ConversationType.GROUPS_ONLY -> groups.size
-                                    ConversationType.BOTH -> friends.size + groups.size
-                                }
-                                val selectedItems = when (conversationType) {
-                                    ConversationType.FRIENDS_ONLY -> selectedFriends.size
-                                    ConversationType.GROUPS_ONLY -> selectedGroups.size
-                                    ConversationType.BOTH -> selectedFriends.size + selectedGroups.size
-                                }
-                                totalItems > 0 && selectedItems == totalItems
-                            }(),
-                            onCheckedChange = { state ->
-                                if (state) {
-                                    when (conversationType) {
-                                        ConversationType.FRIENDS_ONLY -> {
-                                            friends.mapNotNull { it.userId }.forEach { userId ->
-                                                if (!selectedFriends.contains(userId)) {
-                                                    selectedFriends.add(userId)
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    val state = !isAllSelected
+                                    if (state) {
+                                        when (conversationType) {
+                                            ConversationType.FRIENDS_ONLY -> {
+                                                friends.mapNotNull { it.userId }.forEach { userId ->
+                                                    if (!selectedFriends.contains(userId)) selectedFriends.add(userId)
+                                                }
+                                            }
+                                            ConversationType.GROUPS_ONLY -> {
+                                                groups.mapNotNull { it.key }.forEach { conversationId ->
+                                                    if (!selectedGroups.contains(conversationId)) selectedGroups.add(conversationId)
+                                                }
+                                            }
+                                            ConversationType.BOTH -> {
+                                                friends.mapNotNull { it.userId }.forEach { userId ->
+                                                    if (!selectedFriends.contains(userId)) selectedFriends.add(userId)
+                                                }
+                                                groups.mapNotNull { it.key }.forEach { conversationId ->
+                                                    if (!selectedGroups.contains(conversationId)) selectedGroups.add(conversationId)
                                                 }
                                             }
                                         }
-                                        ConversationType.GROUPS_ONLY -> {
-                                            groups.mapNotNull { it.key }.forEach { conversationId ->
-                                                if (!selectedGroups.contains(conversationId)) {
-                                                    selectedGroups.add(conversationId)
+                                    } else {
+                                        when (conversationType) {
+                                            ConversationType.FRIENDS_ONLY -> {
+                                                if (nameFilter.isNotBlank()) {
+                                                    filterFriends(friends, filter, nameFilter).mapNotNull { it.userId }.forEach { userId ->
+                                                        selectedFriends.remove(userId)
+                                                    }
+                                                } else {
+                                                    selectedFriends.clear()
                                                 }
                                             }
-                                        }
-                                        ConversationType.BOTH -> {
-                                            friends.mapNotNull { it.userId }.forEach { userId ->
-                                                if (!selectedFriends.contains(userId)) {
-                                                    selectedFriends.add(userId)
+                                            ConversationType.GROUPS_ONLY -> {
+                                                if (nameFilter.isNotBlank()) {
+                                                    groups.filter { it.feedDisplayName?.contains(nameFilter, ignoreCase = true) == true }
+                                                        .mapNotNull { it.key }.forEach { conversationId ->
+                                                        selectedGroups.remove(conversationId)
+                                                    }
+                                                } else {
+                                                    selectedGroups.clear()
                                                 }
                                             }
-                                            groups.mapNotNull { it.key }.forEach { conversationId ->
-                                                if (!selectedGroups.contains(conversationId)) {
-                                                    selectedGroups.add(conversationId)
+                                            ConversationType.BOTH -> {
+                                                if (nameFilter.isNotBlank()) {
+                                                    filterFriends(friends, filter, nameFilter).mapNotNull { it.userId }.forEach { userId ->
+                                                        selectedFriends.remove(userId)
+                                                    }
+                                                    groups.filter { it.feedDisplayName?.contains(nameFilter, ignoreCase = true) == true }
+                                                        .mapNotNull { it.key }.forEach { conversationId ->
+                                                        selectedGroups.remove(conversationId)
+                                                    }
+                                                } else {
+                                                    selectedFriends.clear()
+                                                    selectedGroups.clear()
                                                 }
                                             }
                                         }
                                     }
-                                } else {
-                                    when (conversationType) {
-                                        ConversationType.FRIENDS_ONLY -> {
-                                            if (nameFilter.isNotBlank()) {
-                                                filterFriends(friends, filter, nameFilter).mapNotNull { it.userId }.forEach { userId ->
-                                                    selectedFriends.remove(userId)
-                                                }
-                                            } else {
-                                                selectedFriends.clear()
-                                            }
-                                        }
-                                        ConversationType.GROUPS_ONLY -> {
-                                            if (nameFilter.isNotBlank()) {
-                                                groups.filter { it.feedDisplayName?.contains(nameFilter, ignoreCase = true) == true }
-                                                    .mapNotNull { it.key }.forEach { conversationId ->
-                                                    selectedGroups.remove(conversationId)
-                                                }
-                                            } else {
-                                                selectedGroups.clear()
-                                            }
-                                        }
-                                        ConversationType.BOTH -> {
-                                            if (nameFilter.isNotBlank()) {
-                                                filterFriends(friends, filter, nameFilter).mapNotNull { it.userId }.forEach { userId ->
-                                                    selectedFriends.remove(userId)
-                                                }
-                                                groups.filter { it.feedDisplayName?.contains(nameFilter, ignoreCase = true) == true }
-                                                    .mapNotNull { it.key }.forEach { conversationId ->
-                                                    selectedGroups.remove(conversationId)
-                                                }
-                                            } else {
-                                                selectedFriends.clear()
-                                                selectedGroups.clear()
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = BulkMessagingPalette.glowPrimary,
-                                uncheckedColor = BulkMessagingPalette.outline,
-                                checkmarkColor = BulkMessagingPalette.textPrimary
+                                },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isAllSelected) skin.glowPrimary.copy(alpha = 0.2f) else skin.textPrimary.copy(alpha = 0.05f),
+                            border = BorderStroke(
+                                1.dp,
+                                if (isAllSelected) skin.glowPrimary.copy(alpha = 0.5f) else (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.12f)
                             )
-                        )
+                        ) {
+                            Text(
+                                text = "Select All",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp).basicMarquee(),
+                                color = if (isAllSelected) skin.textPrimary else skin.textSecondary,
+                                fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Normal,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
             }
@@ -854,7 +863,7 @@ class BulkMessagingAction : AbstractAction() {
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(18.dp)),
+                    .border(BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)), RoundedCornerShape(18.dp)),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.elevatedCardColors(containerColor = Color.Transparent),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
@@ -878,7 +887,7 @@ class BulkMessagingAction : AbstractAction() {
                             ConversationType.FRIENDS_ONLY -> translation["no_friends_found"]
                             ConversationType.GROUPS_ONLY -> translation["no_groups_found"]
                             ConversationType.BOTH -> translation["no_friends_or_groups_found"]
-                        }, fontSize = 12.sp, fontWeight = FontWeight.Light, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = BulkMessagingPalette.textPrimary)
+                        }, fontSize = 12.sp, fontWeight = FontWeight.Light, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = skin.textPrimary)
                     }
                 }
                 items(friends, key = { it.userId!! }) { friendInfo ->
@@ -894,17 +903,16 @@ class BulkMessagingAction : AbstractAction() {
                         }
                     }
 
-                    ElevatedCard(
+                    Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(14.dp)),
-                        colors = CardDefaults.elevatedCardColors(containerColor = BulkMessagingPalette.surface),
-                        shape = RoundedCornerShape(14.dp)
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = skin.textPrimary.copy(alpha = 0.04f),
+                        border = BorderStroke(1.dp, (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.12f))
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.Transparent)
                                 .clickable {
                                     selectFriend(!selectedFriends.contains(friendInfo.userId))
                                 }.pointerInput(Unit) {
@@ -946,8 +954,8 @@ class BulkMessagingAction : AbstractAction() {
                                 horizontalArrangement = Arrangement.spacedBy(3.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ){
-                                Text(text = (friendInfo.displayName ?: friendInfo.mutableUsername).toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, overflow = TextOverflow.Ellipsis, maxLines = 1, lineHeight = 10.sp, color = BulkMessagingPalette.textPrimary)
-                                Text(text = friendInfo.mutableUsername.toString(), fontSize = 10.sp, fontWeight = FontWeight.Light, overflow = TextOverflow.Ellipsis, maxLines = 1, lineHeight = 10.sp, color = BulkMessagingPalette.textSecondary)
+                                Text(text = (friendInfo.displayName ?: friendInfo.mutableUsername).toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, overflow = TextOverflow.Ellipsis, maxLines = 1, lineHeight = 10.sp, color = skin.textPrimary)
+                                Text(text = friendInfo.mutableUsername.toString(), fontSize = 10.sp, fontWeight = FontWeight.Light, overflow = TextOverflow.Ellipsis, maxLines = 1, lineHeight = 10.sp, color = skin.textSecondary)
                             }
                             val lastMessage by rememberAsyncMutableState(defaultValue = null) {
                                 getDMLastMessage(friendInfo.userId)
@@ -979,16 +987,16 @@ class BulkMessagingAction : AbstractAction() {
                                     }
                                 }
                             }
-                            Text(text = userInfo, fontSize = 12.sp, fontWeight = FontWeight.Light, lineHeight = 12.sp, overflow = TextOverflow.Ellipsis, color = BulkMessagingPalette.textSecondary)
+                            Text(text = userInfo, fontSize = 12.sp, fontWeight = FontWeight.Light, lineHeight = 12.sp, overflow = TextOverflow.Ellipsis, color = skin.textSecondary)
                         }
 
                         Checkbox(
                             checked = selectedFriends.contains(friendInfo.userId),
                             onCheckedChange = { selectFriend(it) },
                             colors = CheckboxDefaults.colors(
-                                checkedColor = BulkMessagingPalette.glowPrimary,
-                                uncheckedColor = BulkMessagingPalette.outline,
-                                checkmarkColor = BulkMessagingPalette.textPrimary
+                                checkedColor = skin.glowPrimary,
+                                uncheckedColor = skin.textPrimary.copy(alpha = 0.12f),
+                                checkmarkColor = skin.textPrimary
                             )
                         )
                     }
@@ -1007,17 +1015,16 @@ class BulkMessagingAction : AbstractAction() {
                         }
                     }
 
-                    ElevatedCard(
+                    Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(14.dp)),
-                        colors = CardDefaults.elevatedCardColors(containerColor = BulkMessagingPalette.surface),
-                        shape = RoundedCornerShape(14.dp)
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = skin.textPrimary.copy(alpha = 0.04f),
+                        border = BorderStroke(1.dp, (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.12f))
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.Transparent)
                                 .clickable {
                                     selectGroup(!selectedGroups.contains(groupInfo.key))
                                 }.pointerInput(Unit) {
@@ -1046,7 +1053,7 @@ class BulkMessagingAction : AbstractAction() {
                                     overflow = TextOverflow.Ellipsis, 
                                     maxLines = 1, 
                                     lineHeight = 10.sp,
-                                    color = BulkMessagingPalette.textPrimary
+                                    color = skin.textPrimary
                                 )
                                 
                                 val groupInfo = remember(groupInfo) {
@@ -1057,16 +1064,16 @@ class BulkMessagingAction : AbstractAction() {
                                         }
                                     }
                                 }
-                                Text(text = groupInfo, fontSize = 12.sp, fontWeight = FontWeight.Light, lineHeight = 12.sp, overflow = TextOverflow.Ellipsis, color = BulkMessagingPalette.textSecondary)
+                                Text(text = groupInfo, fontSize = 12.sp, fontWeight = FontWeight.Light, lineHeight = 12.sp, overflow = TextOverflow.Ellipsis, color = skin.textSecondary)
                             }
 
                             Checkbox(
                                 checked = selectedGroups.contains(groupInfo.key),
                                 onCheckedChange = { selectGroup(it) },
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = BulkMessagingPalette.glowPrimary,
-                                    uncheckedColor = BulkMessagingPalette.outline,
-                                    checkmarkColor = BulkMessagingPalette.textPrimary
+                                    checkedColor = skin.glowPrimary,
+                                    uncheckedColor = skin.textPrimary.copy(alpha = 0.12f),
+                                    checkmarkColor = skin.textPrimary
                                 )
                             )
                         }
@@ -1116,7 +1123,7 @@ class BulkMessagingAction : AbstractAction() {
                             val ids = selectedFriends.toList()
                             selectedFriends.clear()
                             fetchConversations(ids, errorKey) { conversations ->
-                                removeAction(ctx, ids, 500L to 1200L) { userId, setDialogMessage ->
+                                removeAction(ctx, skin, ids, 500L to 1200L) { userId, setDialogMessage ->
                                     unfollowUser(userId)
                                     conversations[userId]?.let { conversationId ->
                                         clearConversationFeed(conversationId, setDialogMessage, onFailure = {
@@ -1133,7 +1140,7 @@ class BulkMessagingAction : AbstractAction() {
                             selectedFriends.clear()
                             fetchConversations(ids, errorKey) { conversations ->
                                 val reverse = conversations.entries.associate { it.value to it.key }
-                                removeAction(ctx, conversations.values.distinct(), 500L to 1200L) { conversationId, setDialogMessage ->
+                                removeAction(ctx, skin, conversations.values.distinct(), 500L to 1200L) { conversationId, setDialogMessage ->
                                     cleanConversation(conversationId, setDialogMessage)
                                     reverse[conversationId]?.let { unfollowUser(it) }
                                     clearConversationFeed(conversationId, setDialogMessage, onSuccess = {
@@ -1151,7 +1158,7 @@ class BulkMessagingAction : AbstractAction() {
                                 put({ "${translation["accept_requests"]} (${selectedFriends.size})" }) {
                                     val ids = selectedFriends.toList()
                                     selectedFriends.clear()
-                                    removeAction(ctx, ids, 500L to 1200L) { userId, setDialogMessage ->
+                                    removeAction(ctx, skin, ids, 500L to 1200L) { userId, setDialogMessage ->
                                         acceptFriendRequest(userId)
                                         setDialogMessage(translation["actions.accept"])
                                         markRemoval(userId, null)
@@ -1160,7 +1167,7 @@ class BulkMessagingAction : AbstractAction() {
                                 put({ "${translation["ignore_requests"]} (${selectedFriends.size})" }) {
                                     val ids = selectedFriends.toList()
                                     selectedFriends.clear()
-                                    removeAction(ctx, ids, 500L to 1200L) { userId, setDialogMessage ->
+                                    removeAction(ctx, skin, ids, 500L to 1200L) { userId, setDialogMessage ->
                                         ignoreFriendRequest(userId)
                                         setDialogMessage(translation["actions.ignore"])
                                         markRemoval(userId, null)
@@ -1172,7 +1179,7 @@ class BulkMessagingAction : AbstractAction() {
                                 context.feature(Messaging::class).conversationManager?.getOneOnOneConversationIds(selectedFriends.toList().also { selectedFriends.clear() }, onError = { error ->
                                     context.shortToast(translation.format("failed_to_fetch_conversations", "error" to error))
                                 }, onSuccess = { conversations ->
-                                    removeAction(ctx, conversations.map { it.second }.distinct(), 10L to 40L) { conversationId, setDialogMessage ->
+                                    removeAction(ctx, skin, conversations.map { it.second }.distinct(), 10L to 40L) { conversationId, setDialogMessage ->
                                         cleanConversation(conversationId, setDialogMessage)
                                     }.invokeOnCompletion { coroutineScope.launch { refreshList() } }
                                 })
@@ -1186,7 +1193,7 @@ class BulkMessagingAction : AbstractAction() {
                                         coroutineScope.launch { refreshList() }
                                         return@fetchConversations
                                     }
-                                    removeAction(ctx, conversationIds, 10L to 40L) { conversationId, setDialogMessage ->
+                                    removeAction(ctx, skin, conversationIds, 10L to 40L) { conversationId, setDialogMessage ->
                                         clearConversationFeed(conversationId, setDialogMessage, onSuccess = {
                                             markRemoval(conversationId = conversationId)
                                             coroutineScope.launch { refreshList(clearSelected = false) }
@@ -1201,7 +1208,7 @@ class BulkMessagingAction : AbstractAction() {
                                 val ids = selectedFriends.toList()
                                 selectedFriends.clear()
                                 fetchConversations(ids, "failed_to_fetch_conversations") { conversations ->
-                                    removeAction(ctx, ids, 500L to 1200L) { userId, setDialogMessage ->
+                                    removeAction(ctx, skin, ids, 500L to 1200L) { userId, setDialogMessage ->
                                     removeFriend(userId)
                                     conversations[userId]?.let { conversationId ->
                                         clearConversationFeed(conversationId, setDialogMessage, onFailure = {
@@ -1217,7 +1224,7 @@ class BulkMessagingAction : AbstractAction() {
                                 context.feature(Messaging::class).conversationManager?.getOneOnOneConversationIds(selectedFriends.toList().also { selectedFriends.clear() }, onError = { error ->
                                     context.shortToast(translation.format("failed_to_fetch_conversations", "error" to error))
                                 }, onSuccess = { conversations ->
-                                    removeAction(ctx, conversations.map { it.second }.distinct(), 500L to 1200L) { conversationId, setDialogMessage ->
+                                    removeAction(ctx, skin, conversations.map { it.second }.distinct(), 500L to 1200L) { conversationId, setDialogMessage ->
                                         cleanConversation(conversationId, setDialogMessage)
                                         conversations.firstOrNull { it.second == conversationId }?.first?.let { friendId ->
                                             removeFriend(friendId)
@@ -1232,7 +1239,7 @@ class BulkMessagingAction : AbstractAction() {
                         }
                         ConversationType.GROUPS_ONLY -> if (!following) {
                             put({ translation.format("clean_group_conversations", "count" to selectedGroups.size.toString()) }) {
-                                removeAction(ctx, selectedGroups.toList().also { selectedGroups.clear() }, 10L to 40L) { conversationId, setDialogMessage ->
+                                removeAction(ctx, skin, selectedGroups.toList().also { selectedGroups.clear() }, 10L to 40L) { conversationId, setDialogMessage ->
                                     cleanConversation(conversationId, setDialogMessage)
                                 }.invokeOnCompletion { coroutineScope.launch { refreshList() } }
                             }
@@ -1242,7 +1249,7 @@ class BulkMessagingAction : AbstractAction() {
                                     selectedGroups.clear()
                                     coroutineScope.launch { refreshList() }
                                 } else {
-                                    removeAction(ctx, ids, 10L to 40L) { conversationId, setDialogMessage ->
+                                    removeAction(ctx, skin, ids, 10L to 40L) { conversationId, setDialogMessage ->
                                         clearConversationFeed(conversationId, setDialogMessage, onSuccess = {
                                             markRemoval(conversationId = conversationId)
                                             coroutineScope.launch { refreshList(clearSelected = false) }
@@ -1262,11 +1269,11 @@ class BulkMessagingAction : AbstractAction() {
                                     context.feature(Messaging::class).conversationManager?.getOneOnOneConversationIds(selectedFriends.toList(), onError = { error ->
                                         context.shortToast(translation.format("failed_to_fetch_friend_conversations", "error" to error))
                                     }, onSuccess = { conversations ->
-                                        removeAction(ctx, conversations.map { it.second }.distinct(), 10L to 40L) { conversationId, setDialogMessage ->
+                                        removeAction(ctx, skin, conversations.map { it.second }.distinct(), 10L to 40L) { conversationId, setDialogMessage ->
                                             cleanConversation(conversationId, setDialogMessage)
                                         }.invokeOnCompletion {
                                             if (selectedGroups.isNotEmpty()) {
-                                                removeAction(ctx, selectedGroups.toList(), 10L to 40L) { conversationId, setDialogMessage ->
+                                                removeAction(ctx, skin, selectedGroups.toList(), 10L to 40L) { conversationId, setDialogMessage ->
                                                     cleanConversation(conversationId, setDialogMessage)
                                                 }.invokeOnCompletion {
                                                     selectedFriends.clear()
@@ -1280,7 +1287,7 @@ class BulkMessagingAction : AbstractAction() {
                                         }
                                     })
                                 } else if (selectedGroups.isNotEmpty()) {
-                                    removeAction(ctx, selectedGroups.toList().also { selectedGroups.clear() }, 10L to 40L) { conversationId, setDialogMessage ->
+                                    removeAction(ctx, skin, selectedGroups.toList().also { selectedGroups.clear() }, 10L to 40L) { conversationId, setDialogMessage ->
                                         cleanConversation(conversationId, setDialogMessage)
                                     }.invokeOnCompletion { coroutineScope.launch { refreshList() } }
                                 }
@@ -1296,14 +1303,14 @@ class BulkMessagingAction : AbstractAction() {
                                 fetchConversations(friendIds, "failed_to_fetch_friend_conversations") { conversations ->
                                     val conversationIds = conversations.values.distinct()
                                     when {
-                                        conversationIds.isNotEmpty() -> removeAction(ctx, conversationIds, 10L to 40L) { conversationId, setDialogMessage ->
+                                        conversationIds.isNotEmpty() -> removeAction(ctx, skin, conversationIds, 10L to 40L) { conversationId, setDialogMessage ->
                                             clearConversationFeed(conversationId, setDialogMessage, onSuccess = {
                                                 markRemoval(conversationId = conversationId)
                                                 coroutineScope.launch { refreshList(clearSelected = false) }
                                             })
                                         }.invokeOnCompletion {
                                             if (groupIds.isNotEmpty()) {
-                                                removeAction(ctx, groupIds, 10L to 40L) { conversationId, setDialogMessage ->
+                                                removeAction(ctx, skin, groupIds, 10L to 40L) { conversationId, setDialogMessage ->
                                                     clearConversationFeed(conversationId, setDialogMessage, onSuccess = {
                                                         markRemoval(conversationId = conversationId)
                                                         coroutineScope.launch { refreshList(clearSelected = false) }
@@ -1311,7 +1318,7 @@ class BulkMessagingAction : AbstractAction() {
                                                 }.invokeOnCompletion { finish() }
                                             } else finish()
                                         }
-                                        groupIds.isNotEmpty() -> removeAction(ctx, groupIds, 10L to 40L) { conversationId, setDialogMessage ->
+                                        groupIds.isNotEmpty() -> removeAction(ctx, skin, groupIds, 10L to 40L) { conversationId, setDialogMessage ->
                                             clearConversationFeed(conversationId, setDialogMessage, onSuccess = {
                                                 markRemoval(conversationId = conversationId)
                                                 coroutineScope.launch { refreshList(clearSelected = false) }
@@ -1325,7 +1332,7 @@ class BulkMessagingAction : AbstractAction() {
                                 val ids = selectedFriends.toList()
                                 selectedFriends.clear()
                                 fetchConversations(ids, "failed_to_fetch_friend_conversations") { conversations ->
-                                    removeAction(ctx, ids, 500L to 1200L) { userId, setDialogMessage ->
+                                    removeAction(ctx, skin, ids, 500L to 1200L) { userId, setDialogMessage ->
                                         removeFriend(userId)
                                         conversations[userId]?.let { conversationId ->
                                         clearConversationFeed(conversationId, setDialogMessage, onFailure = {
@@ -1345,7 +1352,7 @@ class BulkMessagingAction : AbstractAction() {
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(BorderStroke(1.dp, BulkMessagingPalette.outline), RoundedCornerShape(18.dp)),
+                    .border(BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)), RoundedCornerShape(18.dp)),
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.elevatedCardColors(containerColor = Color.Transparent),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp)
@@ -1360,8 +1367,8 @@ class BulkMessagingAction : AbstractAction() {
                     Text(
                         text = "Choose an action",
                         style = MaterialTheme.typography.titleMedium,
-                        color = BulkMessagingPalette.textPrimary,
-                        fontWeight = FontWeight.SemiBold,
+                        color = skin.textPrimary,
+                        fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
                     var actionsMenuExpanded by remember { mutableStateOf(false) }
@@ -1373,24 +1380,32 @@ class BulkMessagingAction : AbstractAction() {
                             ConversationType.GROUPS_ONLY -> selectedGroups.isNotEmpty()
                             ConversationType.BOTH -> selectedFriends.isNotEmpty() || selectedGroups.isNotEmpty()
                         },
+                        modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = BulkMessagingPalette.glowPrimary,
-                            contentColor = BulkMessagingPalette.textPrimary
-                        )
+                            containerColor = skin.glowPrimary,
+                            contentColor = Color.Black,
+                            disabledContainerColor = skin.glowPrimary.copy(alpha = 0.25f),
+                            disabledContentColor = Color.Black.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text(text = translation["actions.title"])
+                        Text(
+                            text = translation["actions.title"], 
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black
+                        )
                     }
                     DropdownMenu(
                         expanded = actionsMenuExpanded,
                         onDismissRequest = { actionsMenuExpanded = false },
-                        containerColor = BulkMessagingPalette.surface
+                        containerColor = skin.cardOverlayColor
                     ) {
                         actionsList.forEach { (textBuilder, actionFunction) ->
                             DropdownMenuItem(
                                 text = {
                                     Text(
                                         text = remember(selectedFriends.size, selectedGroups.size) { textBuilder() },
-                                        color = BulkMessagingPalette.textPrimary
+                                        color = skin.textPrimary
                                     )
                                 },
                                 onClick = {
@@ -1438,8 +1453,32 @@ class BulkMessagingAction : AbstractAction() {
     override fun run() {
         context.coroutineScope.launch(Dispatchers.Main) {
             createComposeAlertDialog(context.mainActivity!!) {
-                BulkMessagingDialog()
+                me.eternal.purrfect.core.ui.PurrfectOverlayTheme(null) {
+                    val skin = LocalPurrfectSkin.current
+                    val isAether = skin.id == "AETHER"
+                    val shape = if (isAether) me.eternal.purrfect.common.ui.util.G2RoundedRectangle(26.dp) else RoundedCornerShape(26.dp)
+
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.85f).dp)
+                                .clip(shape)
+                                .border(1.dp, skin.textPrimary.copy(alpha = 0.12f), shape),
+                            shape = shape,
+                            color = skin.cardOverlayColor,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 18.dp
+                        ) {
+                            BulkMessagingDialog()
+                        }
+                    }
+                }
             }.apply {
+                window?.setGravity(android.view.Gravity.CENTER)
                 setCanceledOnTouchOutside(false)
                 show()
             }
@@ -1613,4 +1652,3 @@ class BulkMessagingAction : AbstractAction() {
         }
     }
 }
-

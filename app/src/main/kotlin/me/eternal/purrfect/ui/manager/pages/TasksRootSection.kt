@@ -116,14 +116,16 @@ class TasksRootSection : Routes.Route() {
     }
 
     override val content: @Composable (NavBackStackEntry) -> Unit = { nav ->
-        val themeId by produceState(initialValue = context.config.root.global.uiSettings.managerTheme.get()) {
+        val themeId by produceState(
+            initialValue = context.config.root.global.uiSettings.managerTheme.get()
+        ) {
             while (true) {
                 delay(300)
                 value = context.config.root.global.uiSettings.managerTheme.get()
             }
         }
-
-        key(themeId) {
+        val skin = LocalPurrfectSkin.current
+        key(themeId, skin.id) {
             with(ManagerTheme.fromId(themeId).theme) {
                 this@TasksRootSection.TasksScreen(nav)
             }

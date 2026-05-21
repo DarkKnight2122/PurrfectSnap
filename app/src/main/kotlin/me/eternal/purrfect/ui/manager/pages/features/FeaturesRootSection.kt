@@ -369,8 +369,8 @@ class FeaturesRootSection : Routes.Route() {
                 value = context.config.root.global.uiSettings.managerTheme.get()
             }
         }
-
-        key(themeId) {
+        val skin = LocalPurrfectSkin.current
+        key(themeId, skin.id) {
             LaunchedEffect(themeId) {
                 routes.navigation?.globalScrollOffset = 0
             }
@@ -446,12 +446,13 @@ class FeaturesRootSection : Routes.Route() {
     internal fun NoticeBadge(text: String, color: Color) {
         val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
         val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
+        val bgAlpha = if (skin.isDark) 0.16f else 0.32f
         Surface(
             shape = RoundedCornerShape(50),
-            color = color.copy(alpha = 0.16f),
+            color = color.copy(alpha = bgAlpha),
             shadowElevation = 0.dp,
             tonalElevation = 0.dp,
-            border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
+            border = BorderStroke(1.dp, color.copy(alpha = 0.45f))
         ) {
             Text(
                 text = text,
@@ -1321,22 +1322,22 @@ class FeaturesRootSection : Routes.Route() {
         if (showResetConfirmationDialog) {
             val haptic = LocalHapticFeedback.current
             Dialog(onDismissRequest = { showResetConfirmationDialog = false }) {
-                Surface(
-                    shape = RoundedCornerShape(24.dp),
-                    color = skin.textPrimary.copy(alpha = 0.06f),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 16.dp,
-                    border = BorderStroke(
-                        1.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                skin.glowPrimary.copy(alpha = 0.55f),
-                                skin.glowSecondary.copy(alpha = 0.45f)
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = skin.cardOverlayColor,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 16.dp,
+                        border = BorderStroke(
+                            1.dp,
+                            Brush.linearGradient(
+                                listOf(
+                                    skin.glowPrimary.copy(alpha = 0.55f),
+                                    skin.glowSecondary.copy(alpha = 0.45f)
+                                )
                             )
                         )
-                    )
-                ) {
-                    Box(modifier = Modifier.background(skin.cardOverlay)) {
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1554,7 +1555,7 @@ class FeaturesRootSection : Routes.Route() {
                                     Icon(
                                         imageVector = Icons.Filled.MoreVert,
                                         contentDescription = null,
-                                        tint = skin.glowSecondary
+                                        tint = skin.textPrimary
                                     )
                                 }
                                 DropdownMenu(
@@ -1572,7 +1573,7 @@ class FeaturesRootSection : Routes.Route() {
                                                 Icon(
                                                     imageVector = icon,
                                                     contentDescription = null,
-                                                    tint = skin.glowPrimary
+                                                    tint = skin.textPrimary
                                                 )
                                             },
                                             text = { Text(text = name ?: "", color = skin.textPrimary) },

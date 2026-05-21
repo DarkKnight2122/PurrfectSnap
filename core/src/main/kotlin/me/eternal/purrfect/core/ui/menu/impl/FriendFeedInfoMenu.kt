@@ -1,23 +1,21 @@
 package me.eternal.purrfect.core.ui.menu.impl
 
-import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
-
-import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
-
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Message
@@ -34,10 +32,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -45,14 +45,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.common.data.ContentType
 import me.eternal.purrfect.common.data.FriendLinkType
+import me.eternal.purrfect.common.data.MessagingRuleType
 import me.eternal.purrfect.common.database.impl.ConversationMessage
 import me.eternal.purrfect.common.database.impl.FriendInfo
-import me.eternal.purrfect.common.scripting.JSModule
 import me.eternal.purrfect.common.scripting.ui.EnumScriptInterface
 import me.eternal.purrfect.common.scripting.ui.InterfaceManager
 import me.eternal.purrfect.common.scripting.ui.ScriptInterface
 import me.eternal.purrfect.common.ui.createComposeAlertDialog
 import me.eternal.purrfect.common.ui.createComposeView
+import me.eternal.purrfect.common.ui.rememberAsyncMutableState
+import me.eternal.purrfect.common.ui.rememberAsyncMutableStateList
+import me.eternal.purrfect.common.ui.rememberAsyncUpdateDispatcher
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.common.util.protobuf.ProtoReader
 import me.eternal.purrfect.common.util.snap.BitmojiSelfie
 import me.eternal.purrfect.core.event.events.impl.AddViewEvent
@@ -61,24 +65,21 @@ import me.eternal.purrfect.core.features.impl.messaging.AutoMarkAsRead
 import me.eternal.purrfect.core.features.impl.messaging.Messaging
 import me.eternal.purrfect.core.features.impl.spying.MessageLogger
 import me.eternal.purrfect.core.features.impl.spying.StealthMode
-import me.eternal.purrfect.core.ui.ViewAppearanceHelper
-import me.eternal.purrfect.core.ui.children
 import me.eternal.purrfect.core.ui.PurrfectGlassCard
 import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
+import me.eternal.purrfect.core.ui.children
 import me.eternal.purrfect.core.ui.menu.AbstractMenu
 import me.eternal.purrfect.core.ui.triggerRootCloseTouchEvent
-import me.eternal.purrfect.core.util.ktx.isDarkTheme
+import me.eternal.purrfect.core.util.ktx.vibrateLongPress
 import me.eternal.purrfect.core.wrapper.impl.sanitizeForLayout
 import java.net.URL
 import java.text.DateFormat
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 class FriendFeedInfoMenu : AbstractMenu() {
     private fun formatDate(timestamp: Long): String? {
-        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH).format(Date(timestamp))
+        return SimpleDateFormat("yyyy-MM-dd HH:ss", Locale.ENGLISH).format(Date(timestamp))
     }
 
     private fun showProfileInfo(profile: FriendInfo) {
@@ -472,63 +473,117 @@ class FriendFeedInfoMenu : AbstractMenu() {
     }
 
     @Composable
-    private fun MenuElement(
-        index: Int,
-        icon: ImageVector,
+    private fun ListButton(
+        icon: ImageVector? = null,
         text: String,
         onClick: () -> Unit,
         onLongClick: (() -> Unit)? = null,
+        showDivider: Boolean = true,
         content: @Composable RowScope.() -> Unit = {}
     ) {
         val skin = LocalPurrfectSkin.current
-        val shape = RoundedCornerShape(18.dp)
-        val border = Brush.linearGradient(
-            listOf(
-                skin.glowPrimary.copy(alpha = 0.45f),
-                skin.glowSecondary.copy(alpha = 0.28f)
-            )
-        )
-        if (index > 0) Spacer(Modifier.height(10.dp))
-        Surface(
-            color = Color.Transparent,
-            contentColor = skin.textPrimary,
-            shape = shape,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(skin.cardOverlay, shape)
-                .border(1.dp, border, shape)
-        ) {
+        val androidContext = LocalContext.current
+
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable {
+                        androidContext.vibrateLongPress()
+                        onClick()
+                    }
                     .pointerInput(Unit) {
                         detectTapGestures(
                             onLongPress = {
+                                androidContext.vibrateLongPress()
                                 onLongClick?.invoke()
-                            },
-                            onTap = {
-                                onClick()
                             }
                         )
                     }
-                    .heightIn(min = 55.dp)
-                    .padding(start = 16.dp, end = 16.dp),
+                    .height(56.dp)
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(icon, contentDescription = null, modifier = Modifier
-                    .size(32.dp)
-                    .padding(end = 8.dp))
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = skin.textPrimary
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
                 Text(
                     text = text,
                     modifier = Modifier.weight(1f),
-                    lineHeight = 18.sp,
+                    color = skin.textPrimary,
                     fontSize = 16.sp,
-                    color = skin.textPrimary
+                    lineHeight = 18.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 content()
             }
+            if (showDivider) {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(skin.textPrimary.copy(alpha = 0.12f))
+                )
+            }
+        }
+    }
+
+    @Composable
+    private fun RuleToggle(
+        ruleType: MessagingRuleType,
+        conversationId: String,
+        targetUser: String?,
+        showDivider: Boolean,
+        closeMenu: () -> Unit
+    ) {
+        val skin = LocalPurrfectSkin.current
+        val currentRules: List<MessagingRuleType> = remember { context.bridgeClient.getRules(targetUser ?: conversationId) }
+        var state by remember { mutableStateOf<Boolean>(currentRules.contains(ruleType)) }
+
+        fun toggle() {
+            val newState = !state
+            state = newState
+            context.coroutineScope.launch {
+                context.bridgeClient.setRule(targetUser ?: conversationId, ruleType, newState)
+                withContext(Dispatchers.Main) {
+                    context.inAppOverlay.showStatusToast(
+                        if (newState) Icons.Default.CheckCircleOutline else Icons.Default.NotInterested,
+                        context.translation.format("rules.toasts.${if (newState) "enabled" else "disabled"}", "ruleName" to context.translation[ruleType.translateOptionKey("whitelist")]),
+                        durationMs = 1500
+                    )
+                    closeMenu()
+                }
+            }
+        }
+
+        val rawText = context.translation[ruleType.translateOptionKey("whitelist")] ?: ruleType.key
+        val cleanText = remember(rawText) { rawText.replace(Regex("[^\\p{L}\\p{N}\\p{P}\\p{Z}]"), "").trim() }
+
+        ListButton(
+            icon = ruleType.icon,
+            text = cleanText,
+            showDivider = showDivider,
+            onClick = { toggle() }
+        ) {
+            Switch(
+                checked = state,
+                onCheckedChange = { toggle() },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = skin.glowPrimary,
+                    checkedBorderColor = Color.Transparent,
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.9f),
+                    uncheckedTrackColor = skin.textPrimary.copy(alpha = 0.12f),
+                    uncheckedBorderColor = Color.Transparent
+                )
+            )
         }
     }
 
@@ -605,16 +660,30 @@ class FriendFeedInfoMenu : AbstractMenu() {
         @Composable
         fun ComposeFriendFeedMenu() {
             val skin = LocalPurrfectSkin.current
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                var elementIndex by remember { mutableIntStateOf(0) }
 
-                if (friendFeedMenuOptions.contains("conversation_info")) {
-                    MenuElement(
-                        remember { elementIndex++ },
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Transparent)
+            ) {
+                val ruleFeatures = context.features.getRuleFeatures()
+                val allOptions = remember(friendFeedMenuOptions) {
+                    (ruleFeatures.map { it.ruleType } + listOf(MessagingRuleType.SNAP_STEALTH, MessagingRuleType.CHAT_STEALTH))
+                        .filter { friendFeedMenuOptions.contains(it.key) }
+                        .distinctBy { it.key }
+                        .sortedBy { it.ordinal }
+                }
+
+                val showPreview = friendFeedMenuOptions.contains("conversation_info")
+                val showMarkSnaps = friendFeedMenuOptions.contains("mark_snaps_as_seen")
+                val showMarkChat = friendFeedMenuOptions.contains("mark_chat_as_read")
+                val showMarkStories = targetUser != null && friendFeedMenuOptions.contains("mark_stories_as_seen_locally")
+
+                if (showPreview) {
+                    ListButton(
                         Icons.Outlined.RemoveRedEye,
                         translation["preview"],
+                        showDivider = allOptions.isNotEmpty() || showMarkSnaps || showMarkChat || showMarkStories,
                         onClick = {
                             context.coroutineScope.launch {
                                 showConversationPreview(targetUser, conversationId)
@@ -623,54 +692,22 @@ class FriendFeedInfoMenu : AbstractMenu() {
                     )
                 }
 
-                context.features.getRuleFeatures().forEach { ruleFeature ->
-                    if (!friendFeedMenuOptions.contains(ruleFeature.ruleType.key)) return@forEach
-
-                    val ruleState = ruleFeature.getRuleState() ?: return@forEach
-                    var state by remember { mutableStateOf(ruleFeature.getState(conversationId)) }
-
-                    fun toggle() {
-                        state = !ruleFeature.getState(conversationId)
-                        ruleFeature.setState(conversationId, state)
-                        context.inAppOverlay.showStatusToast(
-                            if (state) Icons.Default.CheckCircleOutline else Icons.Default.NotInterested,
-                            context.translation.format("rules.toasts.${if (state) "enabled" else "disabled"}", "ruleName" to context.translation[ruleFeature.ruleType.translateOptionKey(ruleState.key)]),
-                            durationMs = 1500
-                        )
-                        closeMenu()
-                    }
-
-                    MenuElement(
-                        remember { elementIndex++ },
-                        icon = ruleFeature.ruleType.icon,
-                        text = context.translation[ruleFeature.ruleType.translateOptionKey(ruleState.key)],
-                        onClick = {
-                            toggle()
-                        }
-                    ) {
-                        Switch(
-                            checked = state,
-                            onCheckedChange = {
-                                state = it
-                                toggle()
-                            },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = skin.glowPrimary.copy(alpha = 0.55f),
-                                checkedBorderColor = Color.Transparent,
-                                uncheckedThumbColor = Color.White.copy(alpha = 0.9f),
-                                uncheckedTrackColor = Color.White.copy(alpha = 0.12f),
-                                uncheckedBorderColor = Color.White.copy(alpha = 0.18f),
-                            )
-                        )
-                    }
+                allOptions.forEachIndexed { index, ruleType ->
+                    val isLast = index == allOptions.size - 1 && !showMarkSnaps && !showMarkChat && !showMarkStories
+                    RuleToggle(
+                        ruleType = ruleType,
+                        conversationId = conversationId,
+                        targetUser = targetUser,
+                        showDivider = !isLast,
+                        closeMenu = { closeMenu() }
+                    )
                 }
 
-                if (friendFeedMenuOptions.contains("mark_snaps_as_seen")) {
-                    MenuElement(
-                        remember { elementIndex++ },
+                if (showMarkSnaps) {
+                    ListButton(
                         Icons.Outlined.EditNote,
                         translation["mark_snaps_as_seen"],
+                        showDivider = showMarkChat || showMarkStories,
                         onClick = {
                             context.apply {
                                 closeMenu()
@@ -680,11 +717,11 @@ class FriendFeedInfoMenu : AbstractMenu() {
                     )
                 }
 
-                if (friendFeedMenuOptions.contains("mark_chat_as_read")) {
-                    MenuElement(
-                        remember { elementIndex++ },
+                if (showMarkChat) {
+                    ListButton(
                         Icons.Outlined.MarkChatRead,
                         translation["mark_chat_as_read"],
+                        showDivider = showMarkStories,
                         onClick = {
                             context.apply {
                                 closeMenu()
@@ -715,13 +752,13 @@ class FriendFeedInfoMenu : AbstractMenu() {
                     )
                 }
 
-                if (targetUser != null && friendFeedMenuOptions.contains("mark_stories_as_seen_locally")) {
+                if (showMarkStories) {
                     val markAsSeenTranslation = remember { context.translation.getCategory("mark_as_seen") }
 
-                    MenuElement(
-                        remember { elementIndex++ },
+                    ListButton(
                         Icons.Outlined.RemoveRedEye,
                         translation["mark_stories_as_seen_locally"],
+                        showDivider = false,
                         onClick = {
                             context.apply {
                                 closeMenu()
@@ -734,16 +771,14 @@ class FriendFeedInfoMenu : AbstractMenu() {
                             }
                         },
                         onLongClick = {
-                            actionSheetItemsContainer.post {
-                                context.apply {
-                                    closeMenu()
-                                    inAppOverlay.showStatusToast(
-                                        Icons.Default.Info,
-                                        if (database.setStoriesViewedState(targetUser!!, false)) markAsSeenTranslation["unseen_toast"]
-                                        else markAsSeenTranslation["already_unseen_toast"],
-                                        durationMs = 2500
-                                    )
-                                }
+                            context.apply {
+                                closeMenu()
+                                inAppOverlay.showStatusToast(
+                                    Icons.Default.Info,
+                                    if (database.setStoriesViewedState(targetUser!!, false)) markAsSeenTranslation["unseen_toast"]
+                                    else markAsSeenTranslation["already_unseen_toast"],
+                                    durationMs = 2500
+                                )
                             }
                         }
                     )
@@ -758,15 +793,14 @@ class FriendFeedInfoMenu : AbstractMenu() {
                     CompositionLocalProvider(
                         LocalTextStyle provides LocalTextStyle.current.merge(
                             TextStyle(
-                                fontFamily = FontFamily.SansSerif,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.Normal
                             )
                         )
                     ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 10.dp, vertical = 10.dp)
+                                .padding(top = 10.dp, bottom = 0.dp)
                         ) {
                             ComposeFriendFeedMenu()
                         }
@@ -785,53 +819,53 @@ class FriendFeedInfoMenu : AbstractMenu() {
                 val interfaceManager = getBinding(InterfaceManager::class)
                     ?.takeIf {
                         it.hasInterface(EnumScriptInterface.FRIEND_FEED_CONTEXT_MENU)
-                    } ?: return@eachModule
+                      } ?: return@eachModule
 
-                viewConsumer(LinearLayout(actionSheetItemsContainer.context).apply {
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
+                  viewConsumer(LinearLayout(actionSheetItemsContainer.context).apply {
+                      layoutParams = ViewGroup.LayoutParams(
+                          ViewGroup.LayoutParams.MATCH_PARENT,
+                          ViewGroup.LayoutParams.WRAP_CONTENT
+                      )
 
-                    orientation = LinearLayout.VERTICAL
-                    addView(createComposeView(actionSheetItemsContainer.context) {
-                        PurrfectOverlayTheme(this@FriendFeedInfoMenu.context) {
-                            val skin = LocalPurrfectSkin.current
-                            val shape = RoundedCornerShape(18.dp)
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(skin.textPrimary.copy(alpha = 0.06f), shape)
-                                    .border(
-                                        1.dp,
-                                        Brush.linearGradient(
-                                            listOf(
-                                                skin.glowPrimary.copy(alpha = 0.4f),
-                                                skin.glowSecondary.copy(alpha = 0.28f)
-                                            )
-                                        ),
-                                        shape
-                                    )
-                                    .padding(10.dp),
-                                color = Color.Transparent,
-                                shape = shape,
-                                tonalElevation = 0.dp,
-                                shadowElevation = 0.dp
-                            ) {
-                                ScriptInterface(interfaceBuilder = remember {
-                                    interfaceManager.buildInterface(
-                                        EnumScriptInterface.FRIEND_FEED_CONTEXT_MENU,
-                                        mapOf(
-                                            "conversationId" to conversationId,
-                                            "userId" to targetUser
-                                        )
-                                    )
-                                } ?: return@Surface)
-                            }
-                        }
-                    })
-                })
-            }
-        }
-    }
-}
+                      orientation = LinearLayout.VERTICAL
+                      addView(createComposeView(actionSheetItemsContainer.context) {
+                          PurrfectOverlayTheme(this@FriendFeedInfoMenu.context) {
+                              val skin = LocalPurrfectSkin.current
+                              val shape = RoundedCornerShape(18.dp)
+                              Surface(
+                                  modifier = Modifier
+                                      .fillMaxWidth()
+                                      .background(skin.textPrimary.copy(alpha = 0.06f), shape)
+                                      .border(
+                                          1.dp,
+                                          Brush.linearGradient(
+                                              listOf(
+                                                  skin.glowPrimary.copy(alpha = 0.4f),
+                                                  skin.glowSecondary.copy(alpha = 0.28f)
+                                              )
+                                          ),
+                                          shape
+                                      )
+                                      .padding(10.dp),
+                                  color = Color.Transparent,
+                                  shape = shape,
+                                  tonalElevation = 0.dp,
+                                  shadowElevation = 0.dp
+                              ) {
+                                  ScriptInterface(interfaceBuilder = remember {
+                                      interfaceManager.buildInterface(
+                                          EnumScriptInterface.FRIEND_FEED_CONTEXT_MENU,
+                                          mapOf(
+                                              "conversationId" to conversationId,
+                                              "userId" to targetUser
+                                          )
+                                      )
+                                  } ?: return@Surface)
+                              }
+                          }
+                      })
+                  })
+              }
+          }
+      }
+  }

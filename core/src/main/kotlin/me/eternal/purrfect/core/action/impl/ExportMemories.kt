@@ -1,5 +1,6 @@
 package me.eternal.purrfect.core.action.impl
 
+import android.app.AlertDialog
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteDatabase.OpenParams
 import android.net.Uri
@@ -7,46 +8,49 @@ import android.os.Environment
 import androidx.documentfile.provider.DocumentFile
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DateRangePicker
-import androidx.compose.material3.DisplayMode
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDateRangePickerState
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.*
 import me.eternal.purrfect.common.data.FileType
 import me.eternal.purrfect.common.ui.createComposeAlertDialog
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.common.util.ktx.getLongOrNull
 import me.eternal.purrfect.common.util.ktx.getStringOrNull
 import me.eternal.purrfect.core.action.AbstractAction
+import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
 import okhttp3.OkHttpClient
 import java.io.File
 import java.io.FileOutputStream
@@ -67,24 +71,7 @@ import kotlin.math.absoluteValue
 
 class ExportMemories : AbstractAction() {
     private val translation by lazy { context.translation.getCategory("memories") }
-    private val dialogBackground = Brush.verticalGradient(
-        listOf(
-            Color(0xFF1D1538),
-            Color(0xFF130F2A)
-        )
-    )
-    private val panelOverlay = Brush.linearGradient(
-        listOf(
-            Color(0xFF2C2551),
-            Color(0xFF1B1636)
-        )
-    )
-    private val accentGradient = Brush.horizontalGradient(
-        listOf(
-            Color(0xFF8C7BFF),
-            Color(0xFF5FD8FF)
-        )
-    )
+    
     private val rangeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
     data class TimeRange(
         val start: Long?,
@@ -173,7 +160,7 @@ class ExportMemories : AbstractAction() {
         var failed = 0
 
         fun updateProgress() {
-            progress((currentCount.toFloat() / totalCount.toFloat() * 100f).toInt(), failed)
+            progress((if (totalCount == 0) 0 else (currentCount.toFloat() / totalCount.toFloat() * 100f).toInt()), failed)
         }
 
         val jobs = mutableListOf<Job>()
@@ -266,7 +253,7 @@ class ExportMemories : AbstractAction() {
                             }
 
                             withContext(writeToZipContext) {
-                                val zipEntry = ZipEntry("${if (folders) entry.folderName + "/" else entry.folderName}${downloadedFile.name}")
+                                val zipEntry = ZipEntry("${if (folders) entry.folderName + "/" else ""}${downloadedFile.name}")
                                 FileTime.fromMillis(entry.createTime).let {
                                     zipEntry.lastModifiedTime = it
                                     zipEntry.lastAccessTime = it
@@ -312,7 +299,8 @@ class ExportMemories : AbstractAction() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun ExporterDialog(database: SQLiteDatabase, onDismiss: () -> Unit) {
+    private fun ExporterDialogContent(database: SQLiteDatabase, onDismiss: () -> Unit) {
+        val skin = LocalPurrfectSkin.current
         var exportJob by remember { mutableStateOf(null as Job?) }
         var exportFinished by remember { mutableStateOf(false) }
         var exportProgress by remember { mutableStateOf(Pair(0, 0)) } // progress, failed
@@ -337,150 +325,101 @@ class ExportMemories : AbstractAction() {
             }
         }
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(dialogBackground)
-                .padding(12.dp)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .padding(6.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .size(220.dp)
-                        .align(Alignment.TopEnd)
-                        .offset(x = 46.dp, y = (-38).dp)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(Color(0xFF8C7BFF).copy(alpha = 0.35f), Color.Transparent)
-                            )
-                        )
-                )
-                Box(
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(skin.textPrimary.copy(alpha = 0.08f))
+                        .border(1.dp, skin.textPrimary.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                        .padding(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Download,
+                        tint = skin.glowPrimary,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(28.dp),
+                        contentDescription = null
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = translation.get("export_title"),
+                        color = skin.textPrimary,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = translation.get("total_memories").replace("{count}", totalCount.toString()),
+                        color = skin.textSecondary,
+                        fontSize = 14.sp
+                    )
+                }
+                Text(
+                    text = "ZIP",
+                    color = skin.textPrimary,
+                    fontSize = 12.sp,
                     modifier = Modifier
-                        .size(240.dp)
-                        .align(Alignment.BottomStart)
-                        .offset(x = (-60).dp, y = 32.dp)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(Color(0xFF5FD8FF).copy(alpha = 0.32f), Color.Transparent)
-                            )
-                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(skin.textPrimary.copy(alpha = 0.12f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.Center)
-                    .border(1.2.dp, accentGradient, RoundedCornerShape(28.dp)),
-                shape = RoundedCornerShape(28.dp),
-                tonalElevation = 0.dp,
-                color = Color.White.copy(alpha = 0.04f)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(panelOverlay)
-                        .padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+
+            if (exportJob != null) {
+                BasicText(
+                    text = translation.get("exporting_memories").replace("{failed}", exportProgress.second.toString()),
+                    modifier = Modifier.fillMaxWidth(),
+                    style = TextStyle(color = skin.textPrimary, fontSize = 14.sp, textAlign = TextAlign.Start)
+                )
+                ProgressBar(progress = exportProgress.first / 100f, skin = skin)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
-                                .padding(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Download,
-                                tint = Color.White,
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .size(28.dp),
-                                contentDescription = null
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = translation.get("export_title"),
-                                color = Color.White,
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.ExtraBold
-                            )
-                            Text(
-                                text = translation.get("total_memories").replace("{count}", totalCount.toString()),
-                                color = Color(0xFFD9D3FF),
-                                fontSize = 14.sp
-                            )
-                        }
-                        Text(
-                            text = "ZIP",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.12f))
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
+                    SecondaryButton(text = translation.get("quit"), modifier = Modifier.weight(1f), onClick = {
+                        exportJob?.cancel()
+                        exportJob = null
+                        onDismiss()
+                    }, skin = skin)
+                    if (exportFinished) {
+                        PrimaryButton(text = translation.get("done"), modifier = Modifier.weight(1f), onClick = {
+                            exportJob = null
+                            onDismiss()
+                        }, skin = skin)
                     }
+                }
+            } else {
+                var dateRangeDialog by remember { mutableStateOf(false) }
 
-                    if (exportJob != null) {
-                        BasicText(
-                            text = translation.get("exporting_memories").replace("{failed}", exportProgress.second.toString()),
-                            modifier = Modifier.fillMaxWidth(),
-                            style = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp, textAlign = TextAlign.Start)
-                        )
-                        ProgressBar(progress = exportProgress.first / 100f)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            SecondaryButton(text = translation.get("quit"), modifier = Modifier.weight(1f)) {
-                                exportJob?.cancel()
-                                exportJob = null
-                                onDismiss()
-                            }
-                            if (exportFinished) {
-                                PrimaryButton(text = translation.get("done"), modifier = Modifier.weight(1f)) {
-                                    exportJob = null
-                                    onDismiss()
-                                }
-                            }
-                        }
-                    } else {
-                        var dateRangeDialog by remember { mutableStateOf(false) }
-
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = translation.get("date_range"),
-                                    color = Color(0xFFD9D3FF),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                BareToggle(
-                                    checked = dateRangeFilter,
-                                    onCheckedChange = { dateRangeFilter = it },
-                                    accent = Color(0xFF8EF0F3)
-                                )
-                            }
+                Column(
+                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    SectionLabel(translation.get("date_range"), skin)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(skin.textPrimary.copy(alpha = 0.04f))
+                            .border(1.dp, skin.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
+                            .clickable { dateRangeDialog = true }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
                             val formattedRange = remember(
                                 dateRangePickerState.selectedStartDateMillis,
                                 dateRangePickerState.selectedEndDateMillis
@@ -492,184 +431,103 @@ class ExportMemories : AbstractAction() {
                             }
                             Text(
                                 text = formattedRange,
-                                color = Color(0xFFD9D3FF),
-                                fontSize = 11.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .border(1.dp, accentGradient, RoundedCornerShape(12.dp))
-                                    .background(Color.White.copy(alpha = 0.08f))
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                            )
-                            PrimaryButton(
-                                text = translation.get("select"),
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = { dateRangeDialog = true }
+                                color = skin.textPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-
-                        LaunchedEffect(dateRangeFilter) {
-                            if (dateRangeFilter) dateRangeDialog = true
-                        }
-
-                        if (dateRangeDialog) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.55f))
-                                    .clickable { dateRangeDialog = false }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(skin.textPrimary.copy(alpha = 0.08f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Checkbox(
+                                checked = dateRangeFilter,
+                                onCheckedChange = { dateRangeFilter = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = skin.glowPrimary,
+                                    checkmarkColor = skin.cardOverlayColor,
+                                    uncheckedColor = skin.textPrimary.copy(alpha = 0.4f)
+                                )
                             )
-                            GlassPopup(onDismiss = { dateRangeDialog = false }) {
+                        }
+                    }
+
+                    if (dateRangeDialog) {
+                        Dialog(
+                            onDismissRequest = { dateRangeDialog = false },
+                            properties = DialogProperties(usePlatformDefaultWidth = false)
+                        ) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(0.95f),
+                                shape = RoundedCornerShape(26.dp),
+                                color = skin.cardOverlayColor,
+                                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.15f))
+                            ) {
                                 Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
+                                    modifier = Modifier.background(skin.cardOverlay).padding(16.dp),
                                     verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = translation.get("date_range"),
-                                            color = Color.White,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 16.sp
+                                    Text(translation.get("date_range"), color = skin.textPrimary, fontWeight = FontWeight.Bold)
+                                    DateRangePicker(
+                                        state = dateRangePickerState,
+                                        showModeToggle = true,
+                                        colors = DatePickerDefaults.colors(
+                                            containerColor = Color.Transparent,
+                                            titleContentColor = skin.textPrimary,
+                                            headlineContentColor = skin.textPrimary,
+                                            selectedDayContainerColor = skin.glowPrimary,
+                                            selectedDayContentColor = skin.cardOverlayColor,
+                                            todayContentColor = skin.glowSecondary,
+                                            todayDateBorderColor = skin.glowSecondary
                                         )
-                                    Icon(
-                                        imageVector = Icons.Filled.Close,
-                                        contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.8f),
-                                        modifier = Modifier
-                                            .size(22.dp)
-                                            .clickable { dateRangeDialog = false }
                                     )
-                                }
-                                    CompositionLocalProvider(
-                                        LocalTextSelectionColors provides TextSelectionColors(
-                                            handleColor = Color(0xFF8EF0F3),
-                                            backgroundColor = Color(0x338EF0F3)
-                                        )
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .background(
-                                                    Brush.radialGradient(
-                                                    listOf(
-                                                        Color(0xFF8C7BFF).copy(alpha = 0.22f),
-                                                        Color.Transparent
-                                                    ),
-                                                    radius = 520f
-                                                )
-                                            )
-                                            .border(1.dp, accentGradient, RoundedCornerShape(20.dp))
-                                            .padding(10.dp)
-                                        ) {
-                                            DateRangePicker(
-                                                state = dateRangePickerState,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .background(Color.White.copy(alpha = 0.03f), RoundedCornerShape(16.dp)),
-                                                showModeToggle = true,
-                                                colors = DatePickerDefaults.colors(
-                                                    containerColor = Color.Transparent,
-                                                    titleContentColor = Color.White,
-                                                    headlineContentColor = Color.White,
-                                                    weekdayContentColor = Color.White.copy(alpha = 0.9f),
-                                                    subheadContentColor = Color(0xFFD9D3FF),
-                                                    selectedDayContainerColor = Color(0xFF8C7BFF).copy(alpha = 0.6f),
-                                                    selectedDayContentColor = Color(0xFF0A0F1D),
-                                                    todayContentColor = Color.White,
-                                                    todayDateBorderColor = Color(0xFF5FD8FF),
-                                                    dayContentColor = Color.White.copy(alpha = 0.95f),
-                                                    disabledDayContentColor = Color.White.copy(alpha = 0.35f),
-                                                    dividerColor = Color.White.copy(alpha = 0.16f),
-                                                    navigationContentColor = Color.White,
-                                                    dateTextFieldColors = OutlinedTextFieldDefaults.colors(
-                                                        focusedContainerColor = Color(0xFF0E1221),
-                                                        unfocusedContainerColor = Color(0xFF0E1221),
-                                                        disabledContainerColor = Color(0x330E1221),
-                                                        cursorColor = Color(0xFF8EF0F3),
-                                                        focusedLabelColor = Color(0xFF8EF0F3),
-                                                        unfocusedLabelColor = Color(0xFFD9D3FF),
-                                                        focusedBorderColor = Color.Transparent,
-                                                        unfocusedBorderColor = Color.Transparent,
-                                                        disabledBorderColor = Color.Transparent,
-                                                        focusedTextColor = Color.White,
-                                                        unfocusedTextColor = Color.White
-                                                    )
-                                                )
-                                            )
-                                        }
-                                    }
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        SecondaryButton(
-                                            text = translation.get("cancel"),
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            dateRangePickerState.setSelection(
-                                                startDateMillis = null,
-                                                endDateMillis = null
-                                            )
-                                            dateRangeDialog = false
-                                        }
-                                        PrimaryButton(
-                                            text = translation.get("ok"),
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            dateRangeDialog = false
-                                        }
-                                    }
+                                    PrimaryButton(text = translation.get("ok"), onClick = { dateRangeDialog = false }, skin = skin)
                                 }
                             }
                         }
+                    }
 
-                        SectionLabel(translation.get("sort_by_folder"))
-                        NeonToggle(
-                            checked = sortByFolder,
-                            onCheckedChange = { sortByFolder = it },
-                            label = translation.get("sort_by_folder"),
-                            accent = Color(0xFF9EF88F)
-                        )
+                    SectionLabel(translation.get("sort_by_folder"), skin)
+                    NeonToggle(
+                        checked = sortByFolder,
+                        onCheckedChange = { sortByFolder = it },
+                        label = translation.get("sort_by_folder"),
+                        skin = skin
+                    )
 
-                        SectionLabel(translation.get("include_my_eyes_only"))
-                        NeonToggle(
-                            checked = includeMEO,
-                            onCheckedChange = { includeMEO = it },
-                            label = translation.get("include_my_eyes_only"),
-                            accent = Color(0xFFE6B8FF)
-                        )
+                    SectionLabel(translation.get("include_my_eyes_only"), skin)
+                    NeonToggle(
+                        checked = includeMEO,
+                        onCheckedChange = { includeMEO = it },
+                        label = translation.get("include_my_eyes_only"),
+                        skin = skin
+                    )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            SecondaryButton(text = translation.get("cancel"), modifier = Modifier.weight(1f), onClick = onDismiss)
-                            PrimaryButton(text = translation.get("export"), modifier = Modifier.weight(1f)) {
-                                context.coroutineScope.launch {
-                                    exportMemories(
-                                        scope = this,
-                                        database = database,
-                                        timeRange = dateRangePickerState.takeIf { dateRangeFilter }?.let {
-                                            TimeRange(it.selectedStartDateMillis, it.selectedEndDateMillis)
-                                        },
-                                        folders = sortByFolder,
-                                        includeMEO = includeMEO,
-                                    ) { progress, failed ->
-                                        exportProgress = Pair(progress, failed)
-                                    }
-                                }.also { exportJob = it }.invokeOnCompletion {
-                                    exportFinished = true
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SecondaryButton(text = translation.get("cancel"), modifier = Modifier.weight(1f), onClick = onDismiss, skin = skin)
+                        PrimaryButton(text = translation.get("export"), modifier = Modifier.weight(1f), onClick = {
+                            context.coroutineScope.launch {
+                                exportMemories(
+                                    scope = this,
+                                    database = database,
+                                    timeRange = dateRangePickerState.takeIf { dateRangeFilter }?.let {
+                                        TimeRange(it.selectedStartDateMillis, it.selectedEndDateMillis)
+                                    },
+                                    folders = sortByFolder,
+                                    includeMEO = includeMEO,
+                                ) { progress, failed ->
+                                    exportProgress = Pair(progress, failed)
                                 }
+                            }.also { exportJob = it }.invokeOnCompletion {
+                                exportFinished = true
                             }
-                        }
+                        }, skin = skin)
                     }
                 }
             }
@@ -677,84 +535,36 @@ class ExportMemories : AbstractAction() {
     }
 
     @Composable
-    private fun ProgressBar(progress: Float) {
+    private fun ProgressBar(progress: Float, skin: me.eternal.purrfect.common.ui.theme.PurrfectColorSet) {
         val clamped = progress.coerceIn(0f, 1f)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(10.dp)
                 .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.08f))
+                .background(skin.textPrimary.copy(alpha = 0.08f))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(fraction = clamped)
                     .fillMaxHeight()
-                    .background(accentGradient)
+                    .background(Brush.horizontalGradient(listOf(skin.glowPrimary, skin.glowSecondary)))
             )
         }
     }
 
     @Composable
-    private fun GlassPopup(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-        Popup(
-            alignment = Alignment.Center,
-            properties = PopupProperties(focusable = true, dismissOnClickOutside = true, dismissOnBackPress = true),
-            onDismissRequest = onDismiss
-        ) {
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 520.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(panelOverlay)
-                    .border(1.2.dp, accentGradient, RoundedCornerShape(20.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                content()
-            }
-        }
-    }
-
-    @Composable
-    private fun SectionLabel(text: String) {
+    private fun SectionLabel(text: String, skin: me.eternal.purrfect.common.ui.theme.PurrfectColorSet) {
         BasicText(
             text = text,
-            modifier = Modifier.fillMaxWidth(),
-            style = androidx.compose.ui.text.TextStyle(
-                color = Color(0xFFD9D3FF),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            style = TextStyle(
+                color = skin.textSecondary,
                 fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Start
             )
         )
-    }
-
-    @Composable
-    private fun BareToggle(
-        checked: Boolean,
-        onCheckedChange: (Boolean) -> Unit,
-        accent: Color
-    ) {
-        val knobOffset by animateFloatAsState(targetValue = if (checked) 18f else 0f, animationSpec = tween(180), label = "bareToggle")
-        Box(
-            modifier = Modifier
-                .width(44.dp)
-                .height(24.dp)
-                .clip(RoundedCornerShape(50))
-                .border(1.dp, accent.copy(alpha = 0.6f), RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.04f))
-                .clickable { onCheckedChange(!checked) }
-                .padding(3.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(18.dp)
-                    .offset(x = knobOffset.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Brush.horizontalGradient(listOf(accent, Color(0xFF6C7CFF))))
-            )
-        }
     }
 
     @Composable
@@ -762,44 +572,37 @@ class ExportMemories : AbstractAction() {
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit,
         label: String,
-        accent: Color
+        skin: me.eternal.purrfect.common.ui.theme.PurrfectColorSet
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color.White.copy(alpha = 0.07f))
-                .border(1.dp, accentGradient, RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(18.dp))
+                .background(skin.textPrimary.copy(alpha = 0.04f))
+                .border(1.dp, skin.textPrimary.copy(alpha = 0.08f), RoundedCornerShape(18.dp))
                 .clickable { onCheckedChange(!checked) }
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp, 22.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color(0xFF0F1727))
-                    .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(50))
-                    .padding(3.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(16.dp)
-                        .offset(x = if (checked) 18.dp else 0.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(Brush.horizontalGradient(listOf(accent, Color(0xFF6C7CFF))))
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = skin.textPrimary,
+                    checkedTrackColor = skin.glowPrimary,
+                    uncheckedThumbColor = skin.textPrimary.copy(alpha = 0.6f),
+                    uncheckedTrackColor = skin.textPrimary.copy(alpha = 0.1f)
                 )
-            }
+            )
             Column {
                 BasicText(
                     text = label,
-                    style = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp)
+                    style = TextStyle(color = skin.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 )
                 BasicText(
-                    text = if (checked) "On" else "Off",
-                    style = androidx.compose.ui.text.TextStyle(color = Color(0xFFB1B4D7), fontSize = 11.sp)
+                    text = if (checked) "Enabled" else "Disabled",
+                    style = TextStyle(color = skin.textSecondary, fontSize = 11.sp)
                 )
             }
         }
@@ -809,19 +612,20 @@ class ExportMemories : AbstractAction() {
     private fun PrimaryButton(
         text: String,
         modifier: Modifier = Modifier,
-        onClick: () -> Unit
+        onClick: () -> Unit,
+        skin: me.eternal.purrfect.common.ui.theme.PurrfectColorSet
     ) {
         Box(
             modifier = modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(accentGradient)
-                .clickable(onClick = onClick)
-                .padding(vertical = 12.dp),
+                .height(48.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Brush.horizontalGradient(listOf(skin.glowPrimary, skin.glowSecondary)))
+                .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
             BasicText(
                 text = text,
-                style = androidx.compose.ui.text.TextStyle(color = Color(0xFF0A0F1D), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                style = TextStyle(color = skin.primaryButtonText, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             )
         }
     }
@@ -830,20 +634,21 @@ class ExportMemories : AbstractAction() {
     private fun SecondaryButton(
         text: String,
         modifier: Modifier = Modifier,
-        onClick: () -> Unit
+        onClick: () -> Unit,
+        skin: me.eternal.purrfect.common.ui.theme.PurrfectColorSet
     ) {
         Box(
             modifier = modifier
-                .clip(RoundedCornerShape(14.dp))
-                .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(14.dp))
-                .background(Color.White.copy(alpha = 0.06f))
-                .clickable(onClick = onClick)
-                .padding(vertical = 12.dp),
+                .height(48.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .border(1.dp, skin.textPrimary.copy(alpha = 0.16f), RoundedCornerShape(999.dp))
+                .background(skin.textPrimary.copy(alpha = 0.05f))
+                .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
             BasicText(
                 text = text,
-                style = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                style = TextStyle(color = skin.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
             )
         }
     }
@@ -870,7 +675,33 @@ class ExportMemories : AbstractAction() {
             }
 
             createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
-                ExporterDialog(database) { alertDialog.dismiss() }
+                me.eternal.purrfect.core.ui.PurrfectOverlayTheme(null) {
+                    val skin = LocalPurrfectSkin.current
+                    val isAether = skin.id == "AETHER"
+                    val shape = if (isAether) me.eternal.purrfect.common.ui.util.G2RoundedRectangle(26.dp) else RoundedCornerShape(26.dp)
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .heightIn(max = (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.85f).dp)
+                                .clip(shape)
+                                .border(1.dp, skin.textPrimary.copy(alpha = 0.12f), shape),
+                            shape = shape,
+                            color = skin.cardOverlayColor,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 18.dp
+                        ) {
+                            ExporterDialogContent(database) {
+                                database.close()
+                                alertDialog.dismiss()
+                            }
+                        }
+                    }
+                }
             }.apply {
                 setOnDismissListener { database.close() }
                 setCanceledOnTouchOutside(false)

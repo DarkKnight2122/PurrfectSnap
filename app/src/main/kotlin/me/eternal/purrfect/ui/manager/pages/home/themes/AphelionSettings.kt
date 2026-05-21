@@ -315,14 +315,14 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                                     },
                                                 shape = RoundedCornerShape(10.dp),
                                                 color = if (isSelected) skin.glowPrimary.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.05f),
-                                                border = if (isSelected) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                                border = if (isSelected) BorderStroke(1.dp, if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f)) else null
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Text(
                                                         text = mode,
                                                         fontSize = 11.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                        color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
+                                                        color = if (isSelected) (if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black) else skin.textPrimary.copy(alpha = 0.7f)
                                                     )
                                                 }
                                             }
@@ -334,51 +334,76 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                     val accents = remember { 
                                         me.eternal.purrfect.common.ui.theme.Catppuccin.mocha.accents
                                             .filter { it.first != "Espresso" && it.first != "Forest" }
-                                            .toMutableList().apply {
-                                                add("Cyber" to Color(0xFF00FFD1))
-                                            }
                                     }
-                                    
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .horizontalScroll(rememberScrollState())
-                                            .padding(horizontal = 14.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        accents.forEach { (name, color) ->
-                                            val isSelected = currentAccent.equals(name, ignoreCase = true)
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(34.dp)
-                                                    .clip(androidx.compose.foundation.shape.CircleShape)
-                                                    .background(color)
-                                                    .border(
-                                                        width = if (isSelected) 2.dp else 1.dp,
-                                                        color = if (isSelected) skin.textPrimary else Color.Transparent,
-                                                        shape = androidx.compose.foundation.shape.CircleShape
-                                                    )
-                                                    .clickable {
-                                                        context.config.root.global.uiSettings.luminaAccent.set(name)
-                                                        context.syncSkinSettings()
-                                                        context.config.writeConfig()
-                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isSelected) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .horizontalScroll(rememberScrollState())
+                                                .padding(horizontal = 14.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            accents.forEach { (name, color) ->
+                                                val isSelected = if (currentSkinId == "LUMINA") {
+                                                    context.config.root.global.uiSettings.luminaAccent.get().equals(name, ignoreCase = true)
+                                                } else {
+                                                    context.config.root.global.uiSettings.aetherAccent.get().equals(name, ignoreCase = true)
+                                                }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(34.dp)
+                                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                                        .background(color)
+                                                        .border(
+                                                            width = if (isSelected) 2.dp else 1.dp,
+                                                            color = if (isSelected) skin.textPrimary else skin.textPrimary.copy(alpha = 0.1f),
+                                                            shape = androidx.compose.foundation.shape.CircleShape
+                                                        )
+                                                        .clickable {
+                                                            if (currentSkinId == "LUMINA") {
+                                                                context.config.root.global.uiSettings.luminaAccent.set(name)
+                                                            } else {
+                                                                context.config.root.global.uiSettings.aetherAccent.set(name)
+                                                            }
+                                                            context.syncSkinSettings()
+                                                            context.config.writeConfig()
+                                                            AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isSelected) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Check,
+                                                            contentDescription = null,
+                                                            tint = if (color.luminance() > 0.5f) skin.cardOverlayColor else Color.White,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                }
+
+                                        // Centered Dynamic Accent Label
+                                        val activeAccentName = if (currentSkinId == "LUMINA") {
+                                            context.config.root.global.uiSettings.luminaAccent.get()
+                                        } else {
+                                            context.config.root.global.uiSettings.aetherAccent.get()
+                                        }
+                                        Text(
+                                            text = "Accent: $activeAccentName",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (skin.isDark) skin.glowPrimary.copy(alpha = 0.85f) else skin.textPrimary,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }                                }
                             }
 
                             // AETHER CUSTOMIZATION
@@ -423,14 +448,14 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                                     },
                                                 shape = RoundedCornerShape(10.dp),
                                                 color = if (isSelected) skin.glowPrimary.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.05f),
-                                                border = if (isSelected) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                                border = if (isSelected) BorderStroke(1.dp, if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f)) else null
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Text(
                                                         text = mode,
                                                         fontSize = 11.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                        color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
+                                                        color = if (isSelected) (if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black) else skin.textPrimary.copy(alpha = 0.7f)
                                                     )
                                                 }
                                             }
@@ -449,7 +474,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                                     },
                                                 shape = RoundedCornerShape(10.dp),
                                                 color = if (isAmoled) Color.Black else skin.textPrimary.copy(alpha = 0.05f),
-                                                border = if (isAmoled) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                                border = if (isAmoled) BorderStroke(1.dp, skin.glowPrimary) else null
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Icon(
@@ -468,51 +493,63 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                     val accents = remember { 
                                         me.eternal.purrfect.common.ui.theme.Catppuccin.mocha.accents
                                             .filter { it.first != "Espresso" && it.first != "Forest" }
-                                            .toMutableList().apply {
-                                                add("Cyber" to Color(0xFF00FFD1))
-                                            }
                                     }
-                                    
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .horizontalScroll(rememberScrollState())
-                                            .padding(horizontal = 14.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        accents.forEach { (name, color) ->
-                                            val isSelected = currentAccent.equals(name, ignoreCase = true)
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(34.dp)
-                                                    .clip(androidx.compose.foundation.shape.CircleShape)
-                                                    .background(color)
-                                                    .border(
-                                                        width = if (isSelected) 2.dp else 1.dp,
-                                                        color = if (isSelected) skin.textPrimary else Color.Transparent,
-                                                        shape = androidx.compose.foundation.shape.CircleShape
-                                                    )
-                                                    .clickable {
-                                                        context.config.root.global.uiSettings.aetherAccent.set(name)
-                                                        context.syncSkinSettings()
-                                                        context.config.writeConfig()
-                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isSelected) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .horizontalScroll(rememberScrollState())
+                                                .padding(horizontal = 14.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            accents.forEach { (name, color) ->
+                                                val isSelected = currentAccent.equals(name, ignoreCase = true)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(34.dp)
+                                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                                        .background(color)
+                                                        .border(
+                                                            width = if (isSelected) 2.dp else 1.dp,
+                                                            color = if (isSelected) skin.textPrimary else skin.textPrimary.copy(alpha = 0.1f),
+                                                            shape = androidx.compose.foundation.shape.CircleShape
+                                                        )
+                                                        .clickable {
+                                                            context.config.root.global.uiSettings.aetherAccent.set(name)
+                                                            context.syncSkinSettings()
+                                                            context.config.writeConfig()
+                                                            AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isSelected) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Check,
+                                                            contentDescription = null,
+                                                            tint = if (color.luminance() > 0.5f) skin.cardOverlayColor else Color.White,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                }
+
+                                        // Centered Dynamic Accent Label
+                                        Text(
+                                            text = "Accent: $currentAccent",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (skin.isDark) skin.glowPrimary.copy(alpha = 0.85f) else skin.textPrimary,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }                                }
                             }
                         }
                     }
@@ -1060,10 +1097,10 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                 val summary = translation.format("message_logger_summary", "messageCount" to storedMessagesCount.toString(), "storyCount" to storedStoriesCount.toString()).replace("\n", " | ")
                                 Text(summary, maxLines = 2, color = skin.textPrimary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                                 FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(10.dp) ) {
-                                    Button(onClick = { showExportOptionsDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["export_button"]) }
-                                    Button(onClick = { runCatching { activityLauncherHelper.openFile("application/octet-stream") { uri -> val tempFile = File(context.androidContext.cacheDir, "view_logger.db"); context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { it.copyTo(tempFile.outputStream()) }; routes.viewLoggerHistory.navigate { put("uri", URLEncoder.encode(tempFile.toUri().toString(), "UTF-8")) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["view_button"]) }
-                                    Button(onClick = { runCatching { context.messageLogger.purgeAll(); storedMessagesCount = 0; storedStoriesCount = 0 }.onSuccess { context.shortToast(translation["success_toast"]) } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["clear_button"]) }
-                                    Button(onClick = { showImportDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["import_button"]) }
+                                    Button(onClick = { showExportOptionsDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))) { Text(text = translation["export_button"] ?: "Export", fontWeight = FontWeight.Bold) }
+                                    Button(onClick = { runCatching { activityLauncherHelper.openFile("application/octet-stream") { uri -> val tempFile = File(context.androidContext.cacheDir, "view_logger.db"); context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { it.copyTo(tempFile.outputStream()) }; routes.viewLoggerHistory.navigate { put("uri", URLEncoder.encode(tempFile.toUri().toString(), "UTF-8")) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))) { Text(text = translation["view_button"] ?: "View", fontWeight = FontWeight.Bold) }
+                                    Button(onClick = { runCatching { context.messageLogger.purgeAll(); storedMessagesCount = 0; storedStoriesCount = 0 }.onSuccess { context.shortToast(translation["success_toast"]) } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))) { Text(text = translation["clear_button"] ?: "Clear", fontWeight = FontWeight.Bold) }
+                                    Button(onClick = { showImportDialog = true }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))) { Text(text = translation["import_button"] ?: "Import", fontWeight = FontWeight.Bold) }
                                 }
                             }
                             OutlinedButton(modifier = Modifier.fillMaxWidth().padding(5.dp), onClick = { routes.loggerHistory.navigate() }, colors = sharedOutlinedColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.2f))) { Text(translation["view_logger_history_button"]) }
@@ -1089,7 +1126,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = sharedButtonColors,
-                                            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
+                                            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))
                                         ) {
                                             Text(translation["message_logger_export_individual_chat"] ?: "Export Individual Chat")
                                         }
@@ -1100,7 +1137,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = sharedButtonColors,
-                                            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
+                                            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))
                                         ) {
                                             Text(translation["message_logger_export_full_database"] ?: "Export Full Database")
                                         }
@@ -1250,7 +1287,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                                     },
                                                     modifier = Modifier.fillMaxWidth(),
                                                     colors = sharedButtonColors,
-                                                    border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
+                                                    border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))
                                                 ) {
                                                     Text(formatLabel)
                                                 }
@@ -1268,8 +1305,8 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                 Text(text = translation["friend_notes_description"], modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp), color = skin.textPrimary, textAlign = TextAlign.Center)
                                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 5.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        Button(onClick = { runCatching { val notes = context.database.getAllScopeNotes(); if (notes.isEmpty()) return@runCatching; val json = context.gson.toJson(notes); activityLauncherHelper.saveFile("notes.json", "application/json") { uri -> context.androidContext.contentResolver.openOutputStream(uri.toUri())?.use { it.write(json.toByteArray()) }; context.shortToast(translation["friend_notes_backup_success"]) } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["backup_button"]) }
-                                        Button(onClick = { runCatching { activityLauncherHelper.openFile("application/json") { uri -> context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { val json = it.reader().readText(); val notes = context.gson.fromJson<Map<String, String>>(json, object : com.google.gson.reflect.TypeToken<Map<String, String>>() {}.type); context.database.setAllScopeNotes(notes); context.shortToast(translation["friend_notes_restore_success"]) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))) { Text(text = translation["restore_button"]) }
+                                        Button(onClick = { runCatching { val notes = context.database.getAllScopeNotes(); if (notes.isEmpty()) return@runCatching; val json = context.gson.toJson(notes); activityLauncherHelper.saveFile("notes.json", "application/json") { uri -> context.androidContext.contentResolver.openOutputStream(uri.toUri())?.use { it.write(json.toByteArray()) }; context.shortToast(translation["friend_notes_backup_success"]) } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))) { Text(text = translation["backup_button"]) }
+                                        Button(onClick = { runCatching { activityLauncherHelper.openFile("application/json") { uri -> context.androidContext.contentResolver.openInputStream(uri.toUri())?.use { val json = it.reader().readText(); val notes = context.gson.fromJson<Map<String, String>>(json, object : com.google.gson.reflect.TypeToken<Map<String, String>>() {}.type); context.database.setAllScopeNotes(notes); context.shortToast(translation["friend_notes_restore_success"]) } } } }, colors = sharedButtonColors, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.25f))) { Text(text = translation["restore_button"]) }
                                     }
                                 }
                             }
@@ -1576,14 +1613,14 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                                             },
                                         shape = RoundedCornerShape(10.dp),
                                         color = if (isSelected) skin.glowPrimary.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.05f),
-                                        border = if (isSelected) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                        border = if (isSelected) BorderStroke(1.dp, if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f)) else null
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
                                                 text = mode,
                                                 fontSize = 11.sp,
                                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
+                                                color = if (isSelected) (if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black) else skin.textPrimary.copy(alpha = 0.7f)
                                             )
                                         }
                                     }
@@ -1595,51 +1632,76 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                             val accents = remember { 
                                 me.eternal.purrfect.common.ui.theme.Catppuccin.mocha.accents
                                     .filter { it.first != "Espresso" && it.first != "Forest" }
-                                    .toMutableList().apply {
-                                        add("Cyber" to Color(0xFF00FFD1))
-                                    }
                             }
-                            
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState())
-                                    .padding(horizontal = 14.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                accents.forEach { (name, color) ->
-                                    val isSelected = currentAccent.equals(name, ignoreCase = true)
-                                    Box(
-                                        modifier = Modifier
-                                            .size(34.dp)
-                                            .clip(androidx.compose.foundation.shape.CircleShape)
-                                            .background(color)
-                                            .border(
-                                                width = if (isSelected) 2.dp else 1.dp,
-                                                color = if (isSelected) skin.textPrimary else Color.Transparent,
-                                                shape = androidx.compose.foundation.shape.CircleShape
-                                            )
-                                            .clickable {
-                                                context.config.root.global.uiSettings.luminaAccent.set(name)
-                                                context.syncSkinSettings()
-                                                context.config.writeConfig()
-                                                AphelionHaptics.themeRevealTick(context, hapticFeedback)
-                                            },
-                                        contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isSelected) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState())
+                                        .padding(horizontal = 14.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    accents.forEach { (name, color) ->
+                                        val isSelected = if (currentSkinId == "LUMINA") {
+                                            context.config.root.global.uiSettings.luminaAccent.get().equals(name, ignoreCase = true)
+                                        } else {
+                                            context.config.root.global.uiSettings.aetherAccent.get().equals(name, ignoreCase = true)
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                                .background(color)
+                                                .border(
+                                                    width = if (isSelected) 2.dp else 1.dp,
+                                                    color = if (isSelected) skin.textPrimary else skin.textPrimary.copy(alpha = 0.1f),
+                                                    shape = androidx.compose.foundation.shape.CircleShape
+                                                )
+                                                .clickable {
+                                                    if (currentSkinId == "LUMINA") {
+                                                        context.config.root.global.uiSettings.luminaAccent.set(name)
+                                                    } else {
+                                                        context.config.root.global.uiSettings.aetherAccent.set(name)
+                                                    }
+                                                    context.syncSkinSettings()
+                                                    context.config.writeConfig()
+                                                    AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isSelected) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = if (color.luminance() > 0.5f) skin.cardOverlayColor else Color.White,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
                                             }
                                         }
                                     }
                                 }
+
+                                // Centered Dynamic Accent Label
+                                val activeAccentName = if (currentSkinId == "LUMINA") {
+                                    context.config.root.global.uiSettings.luminaAccent.get()
+                                } else {
+                                    context.config.root.global.uiSettings.aetherAccent.get()
+                                }
+                                Text(
+                                    text = "Accent: $activeAccentName",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (skin.isDark) skin.glowPrimary.copy(alpha = 0.85f) else skin.textPrimary,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }                                }
                             }
 
                             // AETHER CUSTOMIZATION
@@ -1684,14 +1746,14 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                                                     },
                                                 shape = RoundedCornerShape(10.dp),
                                                 color = if (isSelected) skin.glowPrimary.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.05f),
-                                                border = if (isSelected) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                                border = if (isSelected) BorderStroke(1.dp, if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.6f)) else null
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Text(
                                                         text = mode,
                                                         fontSize = 11.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                        color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
+                                                        color = if (isSelected) (if (skin.isDark) skin.glowPrimary else androidx.compose.ui.graphics.Color.Black) else skin.textPrimary.copy(alpha = 0.7f)
                                                     )
                                                 }
                                             }
@@ -1710,7 +1772,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                                                     },
                                                 shape = RoundedCornerShape(10.dp),
                                                 color = if (isAmoled) Color.Black else skin.textPrimary.copy(alpha = 0.05f),
-                                                border = if (isAmoled) BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.5f)) else null
+                                                border = if (isAmoled) BorderStroke(1.dp, skin.glowPrimary) else null
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Icon(
@@ -1729,51 +1791,63 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                                     val accents = remember { 
                                         me.eternal.purrfect.common.ui.theme.Catppuccin.mocha.accents
                                             .filter { it.first != "Espresso" && it.first != "Forest" }
-                                            .toMutableList().apply {
-                                                add("Cyber" to Color(0xFF00FFD1))
-                                            }
                                     }
-                                    
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .horizontalScroll(rememberScrollState())
-                                            .padding(horizontal = 14.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        accents.forEach { (name, color) ->
-                                            val isSelected = currentAccent.equals(name, ignoreCase = true)
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(34.dp)
-                                                    .clip(androidx.compose.foundation.shape.CircleShape)
-                                                    .background(color)
-                                                    .border(
-                                                        width = if (isSelected) 2.dp else 1.dp,
-                                                        color = if (isSelected) skin.textPrimary else Color.Transparent,
-                                                        shape = androidx.compose.foundation.shape.CircleShape
-                                                    )
-                                                    .clickable {
-                                                        context.config.root.global.uiSettings.aetherAccent.set(name)
-                                                        context.syncSkinSettings()
-                                                        context.config.writeConfig()
-                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
-                                                    },
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (isSelected) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Check,
-                                                        contentDescription = null,
-                                                        tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .horizontalScroll(rememberScrollState())
+                                                .padding(horizontal = 14.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            accents.forEach { (name, color) ->
+                                                val isSelected = currentAccent.equals(name, ignoreCase = true)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(34.dp)
+                                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                                        .background(color)
+                                                        .border(
+                                                            width = if (isSelected) 2.dp else 1.dp,
+                                                            color = if (isSelected) skin.textPrimary else skin.textPrimary.copy(alpha = 0.1f),
+                                                            shape = androidx.compose.foundation.shape.CircleShape
+                                                        )
+                                                        .clickable {
+                                                            context.config.root.global.uiSettings.aetherAccent.set(name)
+                                                            context.syncSkinSettings()
+                                                            context.config.writeConfig()
+                                                            AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    if (isSelected) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Check,
+                                                            contentDescription = null,
+                                                            tint = if (color.luminance() > 0.5f) skin.cardOverlayColor else Color.White,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                }
+
+                                        // Centered Dynamic Accent Label
+                                        Text(
+                                            text = "Accent: $currentAccent",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (skin.isDark) skin.glowPrimary.copy(alpha = 0.85f) else skin.textPrimary,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }                                }
                             }
                 }
             }

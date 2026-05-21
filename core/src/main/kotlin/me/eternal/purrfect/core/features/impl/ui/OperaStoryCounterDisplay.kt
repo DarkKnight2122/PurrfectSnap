@@ -8,6 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+
 @Composable
 fun OperaStoryCounterDisplay(
     counterText: String,
@@ -17,6 +19,7 @@ fun OperaStoryCounterDisplay(
     modifier: Modifier = Modifier
 ) {
     if (counterText.isEmpty()) return
+    val skin = LocalPurrfectSkin.current
 
     Row(
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
@@ -28,7 +31,7 @@ fun OperaStoryCounterDisplay(
     ) {
         Text(
             text = counterText,
-            color = Color.White,
+            color = skin.textPrimary,
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium
         )

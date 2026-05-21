@@ -1,16 +1,22 @@
-@file:OptIn(androidx.compose.animation.ExperimentalAnimationApi::class)
+@file:OptIn(
+    androidx.compose.animation.ExperimentalAnimationApi::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 package me.eternal.purrfect.ui.overlay
 
 import android.app.Dialog
 import android.content.Intent
-import android.graphics.drawable.ColorDrawable
 import android.net.Uri
-import android.provider.Settings
+import android.graphics.drawable.ColorDrawable
+import android.os.Bundle
+import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -20,24 +26,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
-import com.arthenica.ffmpegkit.Packages.getPackageName
 import me.eternal.purrfect.R
 import me.eternal.purrfect.RemoteSideContext
 import me.eternal.purrfect.common.TargetApp
-import me.eternal.purrfect.common.ui.AppMaterialTheme
-import me.eternal.purrfect.common.ui.ThemeMode
-import me.eternal.purrfect.common.ui.createComposeView
 import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.manager.Navigation
 import me.eternal.purrfect.ui.manager.Routes
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
-
 
 class RemoteOverlay(
     private val context: RemoteSideContext
@@ -45,25 +46,10 @@ class RemoteOverlay(
     private lateinit var dialog: Dialog
     private var dismissCallback: (() -> Boolean)? = null
 
-    private fun checkForPermissions(): Boolean {
-        if (!Settings.canDrawOverlays(context.androidContext)) {
-            val myIntent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-            myIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            myIntent.setData(Uri.parse("package:" + getPackageName()))
-            context.androidContext.startActivity(myIntent)
-            return false
-        }
-        return true
-    }
-
     @Composable
     private fun OverlayContent(startRoute: (Routes) -> Routes.Route) {
         val navHostController = rememberNavController()
-
-        LaunchedEffect(Unit) {
-            dismissCallback = { navHostController.popBackStack() }
-        }
-
+        LaunchedEffect(Unit) { dismissCallback = { navHostController.popBackStack() } }
         val navigation = remember { Navigation(context, navHostController) }
 
         Scaffold(
@@ -82,79 +68,78 @@ class RemoteOverlay(
         dismissCallback = null
         context.setTargetAppOverride(null)
         context.sharedPreferences.edit().putBoolean("overlay_active", false).apply()
-        context.androidContext.mainExecutor.execute {
-            dialog.dismiss()
-        }
+        context.androidContext.mainExecutor.execute { dialog.dismiss() }
     }
 
     fun show(targetAppOverride: TargetApp? = null, route: (Routes) -> Routes.Route) {
-        if (!checkForPermissions()) {
+        if (!android.provider.Settings.canDrawOverlays(context.androidContext)) {
+            val myIntent = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+            myIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            myIntent.setData(android.net.Uri.parse("package:" + context.androidContext.packageName))
+            context.androidContext.startActivity(myIntent)
             return
         }
 
-        if (::dialog.isInitialized && dialog.isShowing) {
-            return
-        }
+        if (::dialog.isInitialized && dialog.isShowing) return
 
         context.setTargetAppOverride(targetAppOverride)
         context.sharedPreferences.edit().putBoolean("overlay_active", true).apply()
         context.androidContext.mainExecutor.execute {
             dialog = object: Dialog(context.androidContext, R.style.FullscreenOverlayDialog) {
                 override fun dismiss() {
-                    dismissCallback?.also {
-                        if (it()) return
-                    }
+                    dismissCallback?.also { if (it()) return }
                     super.dismiss()
-                    this@RemoteOverlay.context.sharedPreferences.edit()
-                        .putBoolean("overlay_active", false)
-                        .apply()
+                    this@RemoteOverlay.context.sharedPreferences.edit().putBoolean("overlay_active", false).apply()
                     this@RemoteOverlay.context.setTargetAppOverride(null)
                     this@RemoteOverlay.context.config.writeConfig()
                 }
             }
             dialog.window?.apply {
-                setBackgroundDrawable(ColorDrawable(Color.Transparent.value.toInt()))
-                setLayout(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                )
+                setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+                setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
                 clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
                 setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
             }
 
             dialog.setContentView(
-                createComposeView(context.androidContext) {
-                    AppMaterialTheme(themeMode = ThemeMode.DARK) {
-                        CompositionLocalProvider(
-                            LocalContentColor provides Color.White,
-                            LocalTextStyle provides LocalTextStyle.current.merge(TextStyle(color = Color.White))
+                me.eternal.purrfect.common.ui.createComposeView(context.androidContext) {
+                    me.eternal.purrfect.core.ui.PurrfectOverlayTheme(null) {
+                        androidx.compose.runtime.CompositionLocalProvider(
+                            androidx.compose.foundation.LocalOverscrollConfiguration provides null
                         ) {
-                            val overlayShape = MaterialTheme.shapes.large
-                            Surface(
+                            val skin = LocalPurrfectSkin.current
+                            val isAether = skin.id == "AETHER"
+                            val shape = if (isAether) me.eternal.purrfect.common.ui.util.G2RoundedRectangle(26.dp) else RoundedCornerShape(26.dp)
+
+                            Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(start = 12.dp, end = 12.dp)
-                                    .clip(overlayShape),
-                                shape = overlayShape,
-                                color = Color.Transparent,
-                                contentColor = Color.White,
-                                tonalElevation = 0.dp,
-                                shadowElevation = 10.dp
+                                    .background(Color.Black.copy(alpha = 0.45f))
+                                    .clickable { dialog.dismiss() },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
+                                Surface(
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(overlayShape)
-                                        .background(LocalPurrfectSkin.current.backgroundGradient)
+                                        .fillMaxWidth(0.92f)
+                                        .fillMaxHeight()
+                                        .padding(top = 52.dp, bottom = 48.dp)
+                                        .clip(shape)
+                                        .border(1.dp, skin.textPrimary.copy(alpha = 0.12f), shape)
+                                        .clickable(enabled = false) {},
+                                    shape = shape,
+                                    color = skin.cardOverlayColor,
+                                    tonalElevation = 0.dp,
+                                    shadowElevation = 24.dp
                                 ) {
-                                    OverlayContent(route)
+                                    Box(modifier = Modifier.background(skin.cardOverlay)) {
+                                        OverlayContent(route)
+                                    }
                                 }
                             }
                         }
                     }
                 }
             )
-
             dialog.setCancelable(true)
             dialog.show()
         }

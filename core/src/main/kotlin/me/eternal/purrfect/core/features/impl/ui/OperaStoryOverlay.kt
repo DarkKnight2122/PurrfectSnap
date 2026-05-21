@@ -7,15 +7,7 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -36,8 +28,10 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import me.eternal.purrfect.core.features.impl.downloader.MediaDownloader
 import me.eternal.purrfect.core.util.ktx.vibrateLongPress
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,10 +40,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.common.ui.createComposeView
 import me.eternal.purrfect.common.util.ktx.copyToClipboard
 import me.eternal.purrfect.core.event.events.impl.AddViewEvent
@@ -103,6 +101,7 @@ private fun dedupeStoryOverlayComposes(
     }
     (keep.parent as? ViewGroup)?.let(setStoryFrame)
 }
+
 class OperaStoryOverlay : Feature("OperaStoryOverlay") {
     private val overlayState = OperaStoryOverlayState()
     private var storyFrameLayout = WeakReference<ViewGroup>(null)
@@ -144,336 +143,365 @@ class OperaStoryOverlay : Feature("OperaStoryOverlay") {
                     storyFrameLayout = WeakReference(viewGroup)
 
                     val composeView = createComposeView(viewGroup.context) {
-                        val counterText = overlayState.counterState.value
-                        val source = overlayState.sourceState.value
-                        val snapSource = overlayState.snapSourceState.value
-                        val playlistV2 = overlayState.playlistV2GroupState.value
-                        val inSpotlight = overlayState.isInSpotlightContext.value
-                        val mapStoryEligible = overlayState.mapStoryOverlayEligible.value
-                        val showCounterContext = shouldShowStoryCounterOverlay(snapSource, playlistV2, inSpotlight, mapStoryEligible)
-                        val hasCounter = showCounter && counterText.isNotEmpty() && showCounterContext
-                        val hasSource = showSourceIndicator && source.isNotEmpty() && showCounterContext
-                        val currentIdx = overlayState.currentIndexState.intValue
-                        val totalCount = overlayState.totalCountState.intValue
-                        val hasSnapJump = enableSnapJump && totalCount > 1 && showCounterContext
-                        val captionText = overlayState.captionTextState.value
-                        val hasCaptionText = showCaptionText && captionText.isNotEmpty() && showCounterContext
-                        var showJumpDialog by remember { mutableStateOf(false) }
+                        PurrfectOverlayTheme(modContext = context) {
+                            val skin = LocalPurrfectSkin.current
+                            val counterText = overlayState.counterState.value
+                            val source = overlayState.sourceState.value
+                            val snapSource = overlayState.snapSourceState.value
+                            val playlistV2 = overlayState.playlistV2GroupState.value
+                            val inSpotlight = overlayState.isInSpotlightContext.value
+                            val mapStoryEligible = overlayState.mapStoryOverlayEligible.value
+                            val showCounterContext = shouldShowStoryCounterOverlay(snapSource, playlistV2, inSpotlight, mapStoryEligible)
+                            val hasCounter = showCounter && counterText.isNotEmpty() && showCounterContext
+                            val hasSource = showSourceIndicator && source.isNotEmpty() && showCounterContext
+                            val currentIdx = overlayState.currentIndexState.intValue
+                            val totalCount = overlayState.totalCountState.intValue
+                            val hasSnapJump = enableSnapJump && totalCount > 1 && showCounterContext
+                            val captionText = overlayState.captionTextState.value
+                            val hasCaptionText = showCaptionText && captionText.isNotEmpty() && showCounterContext
+                            var showJumpDialog by remember { mutableStateOf(false) }
 
-                        val isDownloadButtonEnabled = context.config.downloader.operaDownloadButton.get()
-                        val isInConversation = overlayState.isInConversationState.value
-                        val overlayDownloadVisible = isDownloadButtonEnabled && showCounterContext &&
-                            snapSource != "SINGLE_SNAP_STORY" && snapSource != "SPOTLIGHT" && snapSource != "PUBLIC_STORY" && !isInConversation && !inSpotlight
-                        val showCollapsibleToggle = collapsibleStoryOverlay && showCounterContext && !inSpotlight
+                            val isDownloadButtonEnabled = context.config.downloader.operaDownloadButton.get()
+                            val isInConversation = overlayState.isInConversationState.value
+                            val overlayDownloadVisible = isDownloadButtonEnabled && showCounterContext &&
+                                snapSource != "SINGLE_SNAP_STORY" && snapSource != "SPOTLIGHT" && snapSource != "PUBLIC_STORY" && !isInConversation && !inSpotlight
+                            val showCollapsibleToggle = collapsibleStoryOverlay && showCounterContext && !inSpotlight
 
-                        if (hasCounter || hasSource || hasSnapJump || hasCaptionText || overlayDownloadVisible) {
-                            Column(
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                var overlayExpanded by remember { mutableStateOf(false) }
-                                val hasInfoRow = hasCounter || hasSource || hasSnapJump || hasCaptionText
-                                val panelOrigin = TransformOrigin(1f, 0f)
-                                val panelScaleSpring = spring<Float>(
-                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                                val panelEnter = fadeIn(
-                                    animationSpec = tween(
-                                        durationMillis = 280,
-                                        delayMillis = 40,
-                                        easing = FastOutSlowInEasing
+                            if (hasCounter || hasSource || hasSnapJump || hasCaptionText || overlayDownloadVisible) {
+                                Column(
+                                    horizontalAlignment = Alignment.End
+                                ) {
+                                    var overlayExpanded by remember { mutableStateOf(false) }
+                                    val hasInfoRow = hasCounter || hasSource || hasSnapJump || hasCaptionText
+                                    val panelOrigin = TransformOrigin(1f, 0f)
+                                    val panelScaleSpring = spring<Float>(
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
                                     )
-                                ) + scaleIn(
-                                    initialScale = 0.86f,
-                                    transformOrigin = panelOrigin,
-                                    animationSpec = panelScaleSpring
-                                ) + slideInVertically(
-                                    initialOffsetY = { (-(it / 5)).coerceAtLeast(-48) },
-                                    animationSpec = tween(
-                                        durationMillis = 320,
-                                        delayMillis = 20,
-                                        easing = FastOutSlowInEasing
-                                    )
-                                )
-                                val panelExit = fadeOut(
-                                    animationSpec = tween(180, easing = FastOutLinearInEasing)
-                                ) + scaleOut(
-                                    targetScale = 0.9f,
-                                    transformOrigin = panelOrigin,
-                                    animationSpec = tween(200, easing = FastOutLinearInEasing)
-                                ) + slideOutVertically(
-                                    targetOffsetY = { (-(it / 6)).coerceAtLeast(-40) },
-                                    animationSpec = tween(200, easing = FastOutLinearInEasing)
-                                )
-
-                                if (showCollapsibleToggle) {
-                                    val chevronRotation by animateFloatAsState(
-                                        targetValue = if (overlayExpanded) 180f else 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessMedium
-                                        ),
-                                        label = "story_overlay_chevron"
-                                    )
-                                    val toggleScale by animateFloatAsState(
-                                        targetValue = if (overlayExpanded) 1.06f else 1f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioNoBouncy,
-                                            stiffness = Spring.StiffnessMedium
-                                        ),
-                                        label = "story_overlay_toggle_scale"
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .scale(toggleScale)
-                                            .background(
-                                                color = Color(0x4C000000),
-                                                shape = CircleShape
-                                            )
-                                            .clickable { overlayExpanded = !overlayExpanded }
-                                            .padding(6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.KeyboardArrowDown,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier
-                                                .size(17.dp)
-                                                .rotate(chevronRotation)
+                                    val panelEnter = fadeIn(
+                                        animationSpec = tween(
+                                            durationMillis = 280,
+                                            delayMillis = 40,
+                                            easing = FastOutSlowInEasing
                                         )
-                                    }
-                                    AnimatedVisibility(
-                                        visible = overlayExpanded,
-                                        enter = panelEnter,
-                                        exit = panelExit
-                                    ) {
-                                        Column(horizontalAlignment = Alignment.End) {
-                                            if (hasInfoRow) {
-                                                Spacer(modifier = Modifier.height(6.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(
-                                                            color = Color(0x4C000000),
-                                                            shape = CircleShape
-                                                        )
-                                                ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                    ) {
-                                                        if (hasCounter) {
-                                                            OperaStoryCounterDisplay(
-                                                                counterText = counterText,
-                                                                enableSnapJump = enableSnapJump,
-                                                                totalCount = totalCount,
-                                                                onCounterClick = { showJumpDialog = true }
-                                                            )
-                                                        }
+                                    ) + scaleIn(
+                                        initialScale = 0.86f,
+                                        transformOrigin = panelOrigin,
+                                        animationSpec = panelScaleSpring
+                                    ) + slideInVertically(
+                                        initialOffsetY = { (-(it / 5)).coerceAtLeast(-48) },
+                                        animationSpec = tween(
+                                            durationMillis = 320,
+                                            delayMillis = 20,
+                                            easing = FastOutSlowInEasing
+                                        )
+                                    )
+                                    val panelExit = fadeOut(
+                                        animationSpec = tween(180, easing = FastOutLinearInEasing)
+                                    ) + scaleOut(
+                                        targetScale = 0.9f,
+                                        transformOrigin = panelOrigin,
+                                        animationSpec = tween(200, easing = FastOutLinearInEasing)
+                                    ) + slideOutVertically(
+                                        targetOffsetY = { (-(it / 6)).coerceAtLeast(-40) },
+                                        animationSpec = tween(200, easing = FastOutLinearInEasing)
+                                    )
 
-                                                        if (hasSnapJump) {
-                                                            if (hasCounter) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .width(1.dp)
-                                                                        .height(10.dp)
-                                                                        .background(Color.White.copy(alpha = 0.4f))
-                                                                )
-                                                            }
-                                                            Icon(
-                                                                imageVector = Icons.Outlined.SkipNext,
-                                                                contentDescription = null,
-                                                                tint = Color.White,
-                                                                modifier = Modifier
-                                                                    .size(14.dp)
-                                                                    .clickable { showJumpDialog = true }
-                                                            )
-                                                        }
-
-                                                        if (hasSource) {
-                                                            if (hasCounter || hasSnapJump) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .width(1.dp)
-                                                                        .height(10.dp)
-                                                                        .background(Color.White.copy(alpha = 0.4f))
-                                                                )
-                                                            }
-                                                            OperaStorySourceIndicatorDisplay(source = source)
-                                                        }
-
-                                                        if (hasCaptionText) {
-                                                            if (hasCounter || hasSnapJump || hasSource) {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .width(1.dp)
-                                                                        .height(10.dp)
-                                                                        .background(Color.White.copy(alpha = 0.4f))
-                                                                )
-                                                            }
-                                                            OperaStoryCaptionTextDisplay(
-                                                                captionText = captionText,
-                                                                onClick = {
-                                                                    context.androidContext.copyToClipboard(captionText)
-                                                                    context.shortToast("Caption copied")
-                                                                }
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            if (overlayDownloadVisible) {
-                                                val mediaDownloader = remember { context.feature(MediaDownloader::class) }
-                                                if (hasInfoRow) {
-                                                    Spacer(modifier = Modifier.height(6.dp))
-                                                }
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(
-                                                            color = Color(0x4C000000),
-                                                            shape = CircleShape
-                                                        )
-                                                ) {
-                                                    @OptIn(ExperimentalFoundationApi::class)
-                                                    Icon(
-                                                        imageVector = Icons.Outlined.Download,
-                                                        contentDescription = null,
-                                                        tint = Color.White,
-                                                        modifier = Modifier
-                                                            .padding(6.dp)
-                                                            .size(18.dp)
-                                                            .combinedClickable(
-                                                                onClick = {
-                                                                    mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
-                                                                },
-                                                                onLongClick = {
-                                                                    context.androidContext.vibrateLongPress()
-                                                                    mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
-                                                                }
-                                                            )
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    if (hasInfoRow) {
+                                    if (showCollapsibleToggle) {
+                                        val chevronRotation by animateFloatAsState(
+                                            targetValue = if (overlayExpanded) 180f else 0f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            ),
+                                            label = "story_overlay_chevron"
+                                        )
+                                        val toggleScale by animateFloatAsState(
+                                            targetValue = if (overlayExpanded) 1.06f else 1f,
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            ),
+                                            label = "story_overlay_toggle_scale"
+                                        )
                                         Box(
                                             modifier = Modifier
+                                                .scale(toggleScale)
                                                 .background(
-                                                    color = Color(0x4C000000),
+                                                    color = skin.cardOverlayColor.copy(alpha = 0.7f),
                                                     shape = CircleShape
                                                 )
+                                                .clip(CircleShape)
+                                                .clickable { 
+                                                    viewGroup.context.vibrateLongPress()
+                                                    overlayExpanded = !overlayExpanded 
+                                                }
+                                                .padding(6.dp)
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            ) {
-                                                if (hasCounter) {
-                                                    OperaStoryCounterDisplay(
-                                                        counterText = counterText,
-                                                        enableSnapJump = enableSnapJump,
-                                                        totalCount = totalCount,
-                                                        onCounterClick = { showJumpDialog = true }
-                                                    )
-                                                }
-
-                                                if (hasSnapJump) {
-                                                    if (hasCounter) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .width(1.dp)
-                                                                .height(10.dp)
-                                                                .background(Color.White.copy(alpha = 0.4f))
-                                                        )
-                                                    }
-                                                    Icon(
-                                                        imageVector = Icons.Outlined.SkipNext,
-                                                        contentDescription = null,
-                                                        tint = Color.White,
+                                            Icon(
+                                                imageVector = Icons.Filled.KeyboardArrowDown,
+                                                contentDescription = null,
+                                                tint = skin.textPrimary,
+                                                modifier = Modifier
+                                                    .size(17.dp)
+                                                    .rotate(chevronRotation)
+                                            )
+                                        }
+                                        AnimatedVisibility(
+                                            visible = overlayExpanded,
+                                            enter = panelEnter,
+                                            exit = panelExit
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                if (hasInfoRow) {
+                                                    Spacer(modifier = Modifier.height(6.dp))
+                                                    Box(
                                                         modifier = Modifier
-                                                            .size(14.dp)
-                                                            .clickable { showJumpDialog = true }
-                                                    )
-                                                }
+                                                            .background(
+                                                                color = skin.cardOverlayColor.copy(alpha = 0.7f),
+                                                                shape = CircleShape
+                                                            )
+                                                            .clip(CircleShape)
+                                                    ) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        ) {
+                                                            if (hasCounter) {
+                                                                OperaStoryCounterDisplay(
+                                                                    counterText = counterText,
+                                                                    enableSnapJump = enableSnapJump,
+                                                                    totalCount = totalCount,
+                                                                    onCounterClick = { 
+                                                                        viewGroup.context.vibrateLongPress()
+                                                                        showJumpDialog = true 
+                                                                    }
+                                                                )
+                                                            }
 
-                                                if (hasSource) {
-                                                    if (hasCounter || hasSnapJump) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .width(1.dp)
-                                                                .height(10.dp)
-                                                                .background(Color.White.copy(alpha = 0.4f))
-                                                        )
-                                                    }
-                                                    OperaStorySourceIndicatorDisplay(source = source)
-                                                }
+                                                            if (hasSnapJump) {
+                                                                if (hasCounter) {
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .width(1.dp)
+                                                                            .height(10.dp)
+                                                                            .background(skin.textPrimary.copy(alpha = 0.4f))
+                                                                    )
+                                                                }
+                                                                Icon(
+                                                                    imageVector = Icons.Outlined.SkipNext,
+                                                                    contentDescription = null,
+                                                                    tint = skin.textPrimary,
+                                                                    modifier = Modifier
+                                                                        .size(14.dp)
+                                                                        .clickable { 
+                                                                            viewGroup.context.vibrateLongPress()
+                                                                            showJumpDialog = true 
+                                                                        }
+                                                                )
+                                                            }
 
-                                                if (hasCaptionText) {
-                                                    if (hasCounter || hasSnapJump || hasSource) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .width(1.dp)
-                                                                .height(10.dp)
-                                                                .background(Color.White.copy(alpha = 0.4f))
-                                                        )
-                                                    }
-                                                    OperaStoryCaptionTextDisplay(
-                                                        captionText = captionText,
-                                                        onClick = {
-                                                            context.androidContext.copyToClipboard(captionText)
-                                                            context.shortToast("Caption copied")
+                                                            if (hasSource) {
+                                                                if (hasCounter || hasSnapJump) {
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .width(1.dp)
+                                                                            .height(10.dp)
+                                                                            .background(skin.textPrimary.copy(alpha = 0.4f))
+                                                                    )
+                                                                }
+                                                                OperaStorySourceIndicatorDisplay(source = source)
+                                                            }
+
+                                                            if (hasCaptionText) {
+                                                                if (hasCounter || hasSnapJump || hasSource) {
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .width(1.dp)
+                                                                            .height(10.dp)
+                                                                            .background(skin.textPrimary.copy(alpha = 0.4f))
+                                                                    )
+                                                                }
+                                                                OperaStoryCaptionTextDisplay(
+                                                                    captionText = captionText,
+                                                                    onClick = {
+                                                                        viewGroup.context.vibrateLongPress()
+                                                                        context.androidContext.copyToClipboard(captionText)
+                                                                        context.shortToast("Caption copied")
+                                                                    }
+                                                                )
+                                                            }
                                                         }
-                                                    )
+                                                    }
                                                 }
+
+                                                if (overlayDownloadVisible) {
+                                                    val mediaDownloader = remember { context.feature(MediaDownloader::class) }
+                                                    if (hasInfoRow) {
+                                                        Spacer(modifier = Modifier.height(6.dp))
+                                                    }
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .background(
+                                                                color = skin.cardOverlayColor.copy(alpha = 0.7f),
+                                                                shape = CircleShape
+                                                            )
+                                                            .clip(CircleShape)
+                                                    ) {
+                                                        @OptIn(ExperimentalFoundationApi::class)
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.Download,
+                                                            contentDescription = null,
+                                                            tint = skin.textPrimary,
+                                                            modifier = Modifier
+                                                                .padding(6.dp)
+                                                                .size(18.dp)
+                                                                .combinedClickable(
+                                                                    onClick = {
+                                                                        viewGroup.context.vibrateLongPress()
+                                                                        mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
+                                                                    },
+                                                                    onLongClick = {
+                                                                        context.androidContext.vibrateLongPress()
+                                                                        mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
+                                                                    }
+                                                                )
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        if (hasInfoRow) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        color = skin.cardOverlayColor.copy(alpha = 0.7f),
+                                                        shape = CircleShape
+                                                    )
+                                                    .clip(CircleShape)
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    if (hasCounter) {
+                                                        OperaStoryCounterDisplay(
+                                                            counterText = counterText,
+                                                            enableSnapJump = enableSnapJump,
+                                                            totalCount = totalCount,
+                                                            onCounterClick = { 
+                                                                viewGroup.context.vibrateLongPress()
+                                                                showJumpDialog = true 
+                                                            }
+                                                        )
+                                                    }
+
+                                                    if (hasSnapJump) {
+                                                        if (hasCounter) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .width(1.dp)
+                                                                    .height(10.dp)
+                                                                    .background(skin.textPrimary.copy(alpha = 0.4f))
+                                                            )
+                                                        }
+                                                        Icon(
+                                                            imageVector = Icons.Outlined.SkipNext,
+                                                            contentDescription = null,
+                                                            tint = skin.textPrimary,
+                                                            modifier = Modifier
+                                                                .size(14.dp)
+                                                                .clickable { 
+                                                                    viewGroup.context.vibrateLongPress()
+                                                                    showJumpDialog = true 
+                                                                }
+                                                        )
+                                                    }
+
+                                                    if (hasSource) {
+                                                        if (hasCounter || hasSnapJump) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .width(1.dp)
+                                                                    .height(10.dp)
+                                                                    .background(skin.textPrimary.copy(alpha = 0.4f))
+                                                            )
+                                                        }
+                                                        OperaStorySourceIndicatorDisplay(source = source)
+                                                    }
+
+                                                    if (hasCaptionText) {
+                                                        if (hasCounter || hasSnapJump || hasSource) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .width(1.dp)
+                                                                    .height(10.dp)
+                                                                    .background(skin.textPrimary.copy(alpha = 0.4f))
+                                                            )
+                                                        }
+                                                        OperaStoryCaptionTextDisplay(
+                                                            captionText = captionText,
+                                                            onClick = {
+                                                                viewGroup.context.vibrateLongPress()
+                                                                context.androidContext.copyToClipboard(captionText)
+                                                                context.shortToast("Caption copied")
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        if (overlayDownloadVisible) {
+                                            val mediaDownloader = remember { context.feature(MediaDownloader::class) }
+                                            if (hasInfoRow) {
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        color = skin.cardOverlayColor.copy(alpha = 0.7f),
+                                                        shape = CircleShape
+                                                    )
+                                                    .clip(CircleShape)
+                                            ) {
+                                                @OptIn(ExperimentalFoundationApi::class)
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Download,
+                                                    contentDescription = null,
+                                                    tint = skin.textPrimary,
+                                                    modifier = Modifier
+                                                        .padding(6.dp)
+                                                        .size(18.dp)
+                                                        .combinedClickable(
+                                                            onClick = {
+                                                                viewGroup.context.vibrateLongPress()
+                                                                mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
+                                                            },
+                                                            onLongClick = {
+                                                                context.androidContext.vibrateLongPress()
+                                                                mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
+                                                            }
+                                                        )
+                                                )
                                             }
                                         }
                                     }
 
-                                            if (overlayDownloadVisible) {
-                                                val mediaDownloader = remember { context.feature(MediaDownloader::class) }
-                                                Spacer(modifier = Modifier.height(6.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .background(
-                                                            color = Color(0x4C000000),
-                                                            shape = CircleShape
-                                                        )
-                                                ) {
-                                            @OptIn(ExperimentalFoundationApi::class)
-                                            Icon(
-                                                imageVector = Icons.Outlined.Download,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier
-                                                    .padding(6.dp)
-                                                    .size(18.dp)
-                                                    .combinedClickable(
-                                                        onClick = {
-                                                            mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
-                                                        },
-                                                        onLongClick = {
-                                                            context.androidContext.vibrateLongPress()
-                                                            mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = true)
-                                                        }
-                                                    )
-                                            )
-                                        }
+                                    if (enableSnapJump && showJumpDialog && totalCount > 1) {
+                                        OperaStorySnapJumpDialog(
+                                            currentIndex = currentIdx,
+                                            totalCount = totalCount,
+                                            onDismiss = { showJumpDialog = false },
+                                            onJump = { targetIndex ->
+                                                showJumpDialog = false
+                                                snapJump.jumpToSnap(targetIndex)
+                                            }
+                                        )
                                     }
-                                }
-
-                                if (hasSnapJump && showJumpDialog) {
-                                    OperaStorySnapJumpDialog(
-                                        currentIndex = currentIdx,
-                                        totalCount = totalCount,
-                                        onDismiss = { showJumpDialog = false },
-                                        onJump = { targetIndex ->
-                                            showJumpDialog = false
-                                            snapJump.jumpToSnap(targetIndex)
-                                        }
-                                    )
                                 }
                             }
                         }
@@ -539,6 +567,7 @@ class OperaStoryOverlay : Feature("OperaStoryOverlay") {
             )
         }
     }
+
     fun requestJumpToSnap(targetIndex: Int, totalCountOverride: Int? = null): Boolean =
         snapJump.requestJumpToSnap(targetIndex, totalCountOverride)
 }

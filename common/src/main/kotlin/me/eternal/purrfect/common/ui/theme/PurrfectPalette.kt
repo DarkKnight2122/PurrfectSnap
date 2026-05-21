@@ -44,5 +44,6 @@ val PurrfectPalette = PurrfectColorSet(
     glowSecondary = Color(0xFF5FD8FF),
     textPrimary = Color.White,
     textSecondary = Color(0xFFD9D3FF),
+    primaryButtonText = Color.White,
     iconTint = Color.White
 )

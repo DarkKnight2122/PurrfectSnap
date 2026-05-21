@@ -3,22 +3,11 @@ package me.eternal.purrfect.core.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,33 +25,20 @@ import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.common.ui.theme.PurrfectColorSet
 import me.eternal.purrfect.common.ui.theme.PurrfectSkins
 import me.eternal.purrfect.core.ModContext
+import me.eternal.purrfect.core.util.ktx.isDarkTheme
 
 val LocalModContext = compositionLocalOf<ModContext?> { null }
 
 @Composable
 fun resolveActiveSkin(modContext: ModContext?): PurrfectColorSet {
-    val managerTheme = remember(modContext) {
-        modContext?.config?.global?.uiSettings?.managerTheme?.get() ?: "APHELION"
-    }
-    if (managerTheme != "APHELION") return me.eternal.purrfect.common.ui.theme.PurrfectPalette
-
-    val skinId = remember(modContext) {
-        modContext?.config?.global?.uiSettings?.aphelionSkin?.get() ?: "UMBRA"
-    }
-    val luminaMode = remember(modContext) {
-        modContext?.config?.global?.uiSettings?.luminaMode?.get() ?: "AUTO"
-    }
-    val luminaAccent = remember(modContext) {
-        modContext?.config?.global?.uiSettings?.luminaAccent?.get() ?: "MAUVE"
-    }
-    return remember(skinId, luminaMode, luminaAccent) {
-        PurrfectSkins.fromId(
-            skinId = skinId,
-            colorScheme = null,
-            isSystemDark = true, // Snapchat overlays usually default to dark logic for better visibility on media
-            luminaMode = luminaMode,
-            luminaAccent = luminaAccent
-        )
+    val isSystemDark = isSystemInDarkTheme()
+    
+    return remember(isSystemDark) {
+        if (isSystemDark) {
+            PurrfectSkins.nox
+        } else {
+            PurrfectSkins.lux
+        }
     }
 }
 
@@ -76,12 +52,15 @@ object PurrfectOverlayPalette {
     val glowSecondary: Color @Composable get() = LocalPurrfectSkin.current.glowSecondary
     val textPrimary: Color @Composable get() = LocalPurrfectSkin.current.textPrimary
     val textSecondary: Color @Composable get() = LocalPurrfectSkin.current.textSecondary
-    val cardOverlay: Brush @Composable get() = LocalPurrfectSkin.current.cardOverlay
+    val cardOverlay: Brush @Composable get() = SolidColor(LocalPurrfectSkin.current.cardOverlayColor)
     val cardOverlayColor: Color @Composable get() = LocalPurrfectSkin.current.cardOverlayColor
 }
 
 @Composable
-fun PurrfectOverlayTheme(modContext: ModContext? = null, content: @Composable () -> Unit) {
+fun PurrfectOverlayTheme(
+    modContext: ModContext? = null,
+    content: @Composable () -> Unit
+) {
     val skin = resolveActiveSkin(modContext)
 
     val scheme = if (skin.isDark) {
@@ -90,8 +69,8 @@ fun PurrfectOverlayTheme(modContext: ModContext? = null, content: @Composable ()
             secondary = skin.glowSecondary,
             background = Color.Transparent,
             surface = skin.cardOverlayColor,
-            onPrimary = skin.textPrimary,
-            onSecondary = skin.textPrimary,
+            onPrimary = skin.primaryButtonText,
+            onSecondary = skin.primaryButtonText,
             onBackground = skin.textPrimary,
             onSurface = skin.textPrimary,
         )
@@ -101,8 +80,8 @@ fun PurrfectOverlayTheme(modContext: ModContext? = null, content: @Composable ()
             secondary = skin.glowSecondary,
             background = Color.Transparent,
             surface = skin.cardOverlayColor,
-            onPrimary = skin.textPrimary,
-            onSecondary = skin.textPrimary,
+            onPrimary = skin.primaryButtonText,
+            onSecondary = skin.primaryButtonText,
             onBackground = skin.textPrimary,
             onSurface = skin.textPrimary,
         )
@@ -151,7 +130,6 @@ fun PurrfectGlassCard(
                 ambientColor = skin.glowSecondary.copy(alpha = 0.18f),
             )
             .clip(shape)
-            .background(if (isAether) skin.cardOverlayColor else Color.Transparent, shape)
             .border(
                 BorderStroke(
                     1.dp,
@@ -165,13 +143,13 @@ fun PurrfectGlassCard(
                 ),
                 shape
             ),
-        color = Color.Transparent,
+        color = skin.cardOverlayColor,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
         Box(
             modifier = Modifier
-                .background(if (isAether) skin.cardOverlayColor else skin.cardOverlayColor.copy(alpha = 0.85f), shape)
+                .fillMaxWidth()
                 .padding(16.dp)
         ) {
             Column {

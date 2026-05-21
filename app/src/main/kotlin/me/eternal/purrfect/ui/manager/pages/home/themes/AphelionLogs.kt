@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavBackStackEntry
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
 import me.eternal.purrfect.ui.manager.pages.home.HomeLogs
@@ -82,16 +83,19 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
     @Composable
     fun LogFilterDialog(onDismiss: () -> Unit) {
         androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-            me.eternal.purrfect.core.ui.PurrfectOverlayTheme {
-                me.eternal.purrfect.core.ui.PurrfectGlassCard(
-                    title = translation["filter_logs_title"] ?: "Log Filters",
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+            me.eternal.purrfect.ui.util.AlertDialogs(translation).DefaultDialogCard {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Surface(
+                    Text(
+                        text = translation["filter_logs_title"] ?: "Log Filters",
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = skin.textPrimary,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)
+                    )
+                    Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
                             color = skin.textPrimary.copy(alpha = 0.08f),
@@ -148,7 +152,6 @@ fun HomeLogs.AphelionLogsContent(nav: NavBackStackEntry) {
                 }
             }
         }
-    }
 
     if (showFilterDialog) {
         LogFilterDialog { showFilterDialog = false }

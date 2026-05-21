@@ -2212,7 +2212,7 @@ fun ManagerAssistantDialog(
         Surface(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             shape = RoundedCornerShape(26.dp),
-            color = Color.Transparent,
+            color = skin.cardOverlayColor,
             tonalElevation = 0.dp,
             shadowElevation = 18.dp,
             border = BorderStroke(
@@ -2227,7 +2227,7 @@ fun ManagerAssistantDialog(
         ) {
             Box(
                 modifier = Modifier
-                    .background(skin.cardOverlay, RoundedCornerShape(26.dp))
+                    .fillMaxWidth()
                     .padding(18.dp)
             ) {
                 Column(

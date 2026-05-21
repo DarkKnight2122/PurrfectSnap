@@ -24,10 +24,11 @@ import kotlinx.coroutines.delay
 @Composable
 fun ChimaeraTransmissionToast(
     message: String,
-    displayDurationMs: Int = 6000,
+    displayDurationMs: Int = 3000,
     onDismiss: () -> Unit
 ) {
     var visible by remember { mutableStateOf(false) }
+    var liveMessage by remember { mutableStateOf(message) }
 
     val progress by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
@@ -37,7 +38,18 @@ fun ChimaeraTransmissionToast(
 
     LaunchedEffect(Unit) {
         visible = true
-        delay(displayDurationMs.toLong())
+        
+        // If this is a live signal, start the countdown ticker
+        if (message.contains("CHIMAERA SIGNAL")) {
+            val startTime = System.currentTimeMillis()
+            while (System.currentTimeMillis() - startTime < displayDurationMs) {
+                liveMessage = ChimaeraDiscovery.transmissionMessage
+                delay(500)
+            }
+        } else {
+            delay(displayDurationMs.toLong())
+        }
+        
         visible = false
         delay(400)
         onDismiss()
@@ -109,7 +121,7 @@ fun ChimaeraTransmissionToast(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                message.lines().forEach { line ->
+                liveMessage.lines().forEach { line ->
                     val isSignature = line.startsWith("—") || line.startsWith("  I.S.D.")
                     Text(
                         text = line,

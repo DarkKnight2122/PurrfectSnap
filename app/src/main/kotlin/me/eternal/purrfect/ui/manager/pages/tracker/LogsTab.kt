@@ -462,7 +462,7 @@ fun LogsTab(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(filterType.name, color = TrackerSkinPalette.textPrimary)
+                                    Text(translation["filter_types.${filterType.name.lowercase()}"] ?: filterType.name, color = TrackerSkinPalette.textPrimary)
                                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropDownExpanded)
                                 }
                             }
@@ -481,7 +481,7 @@ fun LogsTab(
                                             dropDownExpanded = false
                                             coroutineScope.launch { resetAndLoadLogs() }
                                         },
-                                        text = { Text(type.name, color = TrackerSkinPalette.textPrimary) }
+                                        text = { Text(translation["filter_types.${type.name.lowercase()}"] ?: type.name, color = TrackerSkinPalette.textPrimary) }
                                     )
                                 }
                             }

@@ -35,5 +35,6 @@ data class PurrfectColorSet(
     val glowSecondary: Color,
     val textPrimary: Color,
     val textSecondary: Color,
+    val primaryButtonText: Color,
     val iconTint: Color
 )

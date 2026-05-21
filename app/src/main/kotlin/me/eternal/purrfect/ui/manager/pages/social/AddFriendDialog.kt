@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.*
 import me.eternal.purrfect.RemoteSideContext
 import me.eternal.purrfect.common.data.MessagingFriendInfo
@@ -202,15 +203,15 @@ class AddFriendDialog(
                     Icon(Icons.Filled.Search, contentDescription = translation["search_icon_description"], tint = skin.textPrimary)
                 },
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = skin.cardOverlayColor.copy(alpha = 0.9f),
-                    unfocusedContainerColor = skin.cardOverlayColor.copy(alpha = 0.8f),
+                    focusedContainerColor = skin.cardOverlayColor.copy(alpha = 0.95f),
+                    unfocusedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = skin.textPrimary,
+                    cursorColor = skin.glowSecondary,
                     focusedTextColor = skin.textPrimary,
                     unfocusedTextColor = skin.textPrimary,
-                    focusedLeadingIconColor = skin.textPrimary,
-                    unfocusedLeadingIconColor = skin.textPrimary.copy(alpha = 0.85f),
+                    focusedLeadingIconColor = skin.glowSecondary,
+                    unfocusedLeadingIconColor = skin.textPrimary.copy(alpha = 0.6f),
                     focusedPlaceholderColor = skin.textSecondary,
                     unfocusedPlaceholderColor = skin.textSecondary
                 ),
@@ -336,6 +337,10 @@ class AddFriendDialog(
                     }
 
                     val searchKeyword = remember { mutableStateOf("") }
+
+                    BackHandler(enabled = searchKeyword.value.isNotEmpty()) {
+                        searchKeyword.value = ""
+                    }
 
                     val filteredGroups = cachedGroups!!.takeIf { searchKeyword.value.isNotBlank() }?.filter {
                         it.name.contains(searchKeyword.value, ignoreCase = true)

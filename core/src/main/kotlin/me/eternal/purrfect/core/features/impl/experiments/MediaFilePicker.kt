@@ -35,7 +35,9 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -46,6 +48,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfect.common.data.FileType
 import me.eternal.purrfect.common.ui.createComposeView
+import me.eternal.purrfect.common.ui.createComposeAlertDialog
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.core.util.ktx.vibrateLongPress
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.*
 import me.eternal.purrfect.common.util.ktx.getLongOrNull
 import me.eternal.purrfect.common.util.ktx.getTypeArguments
 import me.eternal.purrfect.core.event.events.impl.ActivityResultEvent
@@ -623,14 +631,69 @@ class MediaFilePicker : Feature("Media File Picker") {
                     return@subscribe
                 }
 
-                android.app.AlertDialog.Builder(context.mainActivity!!)
-                    .setTitle("Convert video file")
-                    .setItems(arrayOf("Send as video/audio", "Send as audio only")) { _, which ->
-                        startConversion(which == 1)
-                    }
-                    .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }.show()
-            }
+                createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
+                    PurrfectOverlayTheme(modContext = context) {
+                        val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
+                        val shape = RoundedCornerShape(24.dp)
 
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            shape = shape,
+                            color = skin.cardOverlayColor,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp),
+                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Convert video file",
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = skin.textPrimary
+                                )
+
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    arrayOf<Pair<String, androidx.compose.ui.graphics.vector.ImageVector>>(
+                                        "Send as video/audio" to Icons.Default.Movie,
+                                        "Send as audio only" to Icons.Default.Audiotrack
+                                    ).forEachIndexed { index, (label, icon) ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(skin.textPrimary.copy(alpha = 0.05f))
+                                                .clickable {
+                                                    context.androidContext.vibrateLongPress()
+                                                    startConversion(index == 1)
+                                                    alertDialog.dismiss()
+                                                }
+                                                .padding(16.dp),
+                                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Icon(icon, contentDescription = null, tint = skin.glowPrimary, modifier = Modifier.size(22.dp))
+                                            Text(text = label, color = skin.textPrimary, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+
+                                Button(
+                                    onClick = { alertDialog.dismiss() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = skin.glowPrimary,
+                                        contentColor = skin.primaryButtonText
+                                    ),
+                                    shape = RoundedCornerShape(999.dp)
+                                ) {
+                                    Text("Cancel", color = skin.primaryButtonText, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }.show()
+                }
             val buttonTag = Random.nextInt(0, 65535)
 
             context.event.subscribe(AddViewEvent::class) { event ->

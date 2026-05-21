@@ -53,6 +53,29 @@ private const val FIRE_RATE_MS = 600L
 private const val BUFF_DURATION_MS = 6000L
 private const val PREF_HIGH_SCORE = "chimaera_high_score"
 
+private val starWarsQuotes = listOf(
+    "Not every shadow is cast by the enemy." to "Grand Admiral Thrawn",
+    "No one is ever completely immune to error." to "Grand Admiral Thrawn",
+    "Experience is the best teacher." to "Grand Admiral Thrawn",
+    "To defeat an enemy, you must know them." to "Grand Admiral Thrawn",
+    "One's own knowledge is never complete." to "Grand Admiral Thrawn",
+    "Do or do not. There is no try." to "Master Yoda",
+    "The greatest teacher, failure is." to "Master Yoda",
+    "Always in motion is the future." to "Master Yoda",
+    "Your focus determines your reality." to "Master Yoda",
+    "Patience you must have, my young Padawan." to "Master Yoda",
+    "The Force will be with you. Always." to "General Obi-Wan Kenobi",
+    "In my experience, there is no such thing as luck." to "General Obi-Wan Kenobi",
+    "Your eyes can deceive you. Don't trust them." to "General Obi-Wan Kenobi",
+    "Train yourself to let go of everything you fear to lose." to "Master Yoda",
+    "Hope is not lost today, it is found." to "Princess Leia Organa",
+    "Never tell me the odds!" to "Captain Han Solo",
+    "I find your lack of faith disturbing." to "Lord Vader",
+    "Difficult to see. Always in motion is the future." to "Master Yoda",
+    "Rebellions are built on hope." to "Jyn Erso",
+    "We are what they grow beyond." to "Master Yoda"
+)
+
 // ── Data classes ──────────────────────────────────────────────────────────────
 
 private data class Enemy(
@@ -442,16 +465,58 @@ fun ChimaeraGame(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("DESIGNED & BUILT BY", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = skin.textSecondary)
                     Text("ᴋᴀʟᴀᴅɪɴ", fontFamily = FontFamily.Monospace, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = skin.glowPrimary)
-                    Text("FOR APHELION  •  PURRFECTSNAP", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = skin.textSecondary)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("\"Not every shadow is cast by the enemy.\"", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = skin.textSecondary, textAlign = TextAlign.Center)
-                    Text("    — Thrawn", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = skin.glowSecondary)
+                    Text("FOR APHELION  •  PURRFECT", fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = skin.textSecondary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val randomQuote = remember(gameState) { starWarsQuotes.random() }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "\"${randomQuote.first}\"",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            color = skin.textSecondary,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 16.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        Text(
+                            text = "— ${randomQuote.second}",
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            color = skin.glowSecondary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("▓".repeat(24), fontFamily = FontFamily.Monospace, color = skin.glowPrimary.copy(alpha = 0.4f), fontSize = 10.sp)
                     Spacer(modifier = Modifier.height(24.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        androidx.compose.material3.OutlinedButton(onClick = onExit, colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) { Text("EXIT", fontFamily = FontFamily.Monospace) }
-                        androidx.compose.material3.Button(onClick = { score = 0; lives = 3; combo = 0; enemies = listOf(); bullets = listOf(); buffs = listOf(); activeBuffs = listOf(); gameState = GameState.PLAYING }, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = skin.glowPrimary, contentColor = Color.White)) { Text("PLAY AGAIN", fontFamily = FontFamily.Monospace) }
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onExit() },
+                            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                        ) { 
+                            Text("EXIT", fontFamily = FontFamily.Monospace) 
+                        }
+                        androidx.compose.material3.Button(
+                            onClick = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                score = 0
+                                lives = 3
+                                combo = 0
+                                enemies = listOf()
+                                bullets = listOf()
+                                buffs = listOf()
+                                activeBuffs = listOf()
+                                lastFrameTime = System.currentTimeMillis()
+                                lastFireTime = 0L
+                                lastFormationTime = 0L
+                                gameState = GameState.PLAYING 
+                            }, 
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = skin.glowPrimary, contentColor = Color.White)
+                        ) { 
+                            Text("PLAY AGAIN", fontFamily = FontFamily.Monospace) 
+                        }
                     }
                 }
             }

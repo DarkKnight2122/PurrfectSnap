@@ -74,7 +74,8 @@ class HomeAbout : Routes.Route() {
             context.shortToast(translation["about_magic_toast"] ?: "Tap 5 times in this screen to see some magic 😉!")
         }
 
-        key(themeId) {
+        val skin = LocalPurrfectSkin.current
+        key(themeId, skin.id) {
             val currentTheme = ManagerTheme.fromId(themeId).theme
             with(currentTheme) {
                 this@HomeAbout.AboutScreen(nav)

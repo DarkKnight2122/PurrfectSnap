@@ -8,6 +8,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -627,7 +629,7 @@ class InAppOverlay(
             val isDark = runCatching { safeContext.isDarkTheme() }.getOrDefault(true)
             
             root.addView(createComposeView(safeContext) {
-                AppMaterialTheme(isDarkTheme = isDark) {
+                PurrfectOverlayTheme(modContext = context) {
                     OverlayContent()
                 }
             }.apply {
@@ -643,6 +645,7 @@ class InAppOverlay(
 
     fun addCustomComposable(composable: CustomComposable) {
         customComposables.add(composable)
+        context.mainActivity?.let { injectOverlay(it) }
     }
 
     fun removeCustomComposable(composable: CustomComposable) {
@@ -654,11 +657,12 @@ class InAppOverlay(
         duration: Int,
         modifier: Modifier = Modifier
     ) {
+        val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
         val progress = remember { Animatable(1f) }
         val progressGradient = Brush.horizontalGradient(
             listOf(
-                Color(0xFF6F28A8).copy(alpha = 0.7f),
-                Color(0xFF0059B7).copy(alpha = 0.7f)
+                skin.glowPrimary.copy(alpha = 0.7f),
+                skin.glowSecondary.copy(alpha = 0.7f)
             )
         )
 
@@ -673,7 +677,7 @@ class InAppOverlay(
             modifier = modifier
                 .height(3.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(Color(0xFF6F28A8).copy(alpha = 0.25f))
+                .background(skin.textPrimary.copy(alpha = 0.25f))
         ) {
             Box(
                 modifier = Modifier
@@ -692,9 +696,9 @@ class InAppOverlay(
         maxLines: Int = 3
     ) {
         showToast(
-            icon = { Icon(icon, contentDescription = "icon", modifier = Modifier.size(32.dp)) },
+            icon = { Icon(icon, contentDescription = "icon", modifier = Modifier.size(32.dp), tint = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current.textPrimary) },
             text = {
-                Text(text, modifier = Modifier.fillMaxWidth(), maxLines = maxLines, overflow = TextOverflow.Ellipsis, lineHeight = 15.sp, fontSize = 13.sp)
+                Text(text, modifier = Modifier.fillMaxWidth(), maxLines = maxLines, overflow = TextOverflow.Ellipsis, lineHeight = 15.sp, fontSize = 13.sp, color = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current.textPrimary)
             },
             durationMs = durationMs,
             showDuration = showDuration
@@ -703,7 +707,7 @@ class InAppOverlay(
 
     private fun showToast(
         icon: @Composable () -> Unit = {
-            Icon(Icons.Outlined.Warning, contentDescription = "icon", modifier = Modifier.size(32.dp))
+            Icon(Icons.Outlined.Warning, contentDescription = "icon", modifier = Modifier.size(32.dp), tint = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current.textPrimary)
         },
         text: @Composable () -> Unit = {},
         durationMs: Int = 3000,
@@ -712,26 +716,33 @@ class InAppOverlay(
         injectOverlay(context.mainActivity!!)
         toasts.add(Toast(
             composable = {
-                val isDark = LocalContext.current.isDarkTheme()
-                val auroraGradient = Brush.verticalGradient(
-                    listOf(
-                        if (isDark) Color(0xFF2E2E69) else Color(0xFFE9DDFF),
-                        if (isDark) Color(0xFF1B1B4D) else Color(0xFFF9F8FF)
-                    )
-                )
+                val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
+                val cardShape = MaterialTheme.shapes.large
 
                 ElevatedCard(
                     modifier = Modifier
                         .padding(12.dp)
-                        .shadow(12.dp, MaterialTheme.shapes.large)
+                        .shadow(12.dp, cardShape)
                         .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.large),
+                        .clip(cardShape)
+                        .border(
+                            BorderStroke(
+                                1.dp,
+                                Brush.linearGradient(
+                                    listOf(
+                                        skin.glowPrimary.copy(alpha = 0.55f),
+                                        skin.glowSecondary.copy(alpha = 0.35f)
+                                    )
+                                )
+                            ),
+                            cardShape
+                        ),
                     colors = CardDefaults.elevatedCardColors(
-                        containerColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.onSurface
+                        containerColor = skin.cardOverlayColor,
+                        contentColor = skin.textPrimary
                     )
                 ) {
-                    Box(modifier = Modifier.background(auroraGradient)) {
+                    Box {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -764,7 +775,7 @@ class InAppOverlay(
         lateinit var composable: CustomComposable
         composable = {
             var visible by remember { mutableStateOf(false) }
-            
+
             LaunchedEffect(Unit) {
                 visible = true
                 delay(3000)
@@ -827,7 +838,7 @@ class InAppOverlay(
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
-                    
+
                     Text(
                         text = if (isWorking) 
                             context.translation["manager.sections.bypass_status.active"]
@@ -840,7 +851,6 @@ class InAppOverlay(
                 }
             }
         }
-
         context.mainActivity?.let { injectOverlay(it) }
         customComposables.add(composable)
     }

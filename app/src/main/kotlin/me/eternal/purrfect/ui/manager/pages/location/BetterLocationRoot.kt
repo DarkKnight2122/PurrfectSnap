@@ -81,27 +81,16 @@ class BetterLocationRoot : Routes.Route() {
         content: @Composable ColumnScope.() -> Unit
     ) {
         val shape = RoundedCornerShape(22.dp)
-        val glowPrimary = LocationSkinPalette.glowPrimary
-        val glowSecondary = LocationSkinPalette.glowSecondary
-        val borderBrush = remember(glowPrimary, glowSecondary) {
-            Brush.linearGradient(
-                listOf(
-                    glowPrimary.copy(alpha = 0.45f),
-                    glowSecondary.copy(alpha = 0.35f)
-                )
-            )
-        }
         Surface(
             modifier = modifier,
             shape = shape,
-            color = LocationSkinPalette.textPrimary.copy(alpha = 0.06f),
+            color = LocationSkinPalette.cardOverlayColor,
             tonalElevation = 0.dp,
             shadowElevation = 12.dp,
-            border = BorderStroke(1.dp, borderBrush)
+            border = BorderStroke(1.dp, (if (LocationSkinPalette.isAphelion() && !androidx.compose.foundation.isSystemInDarkTheme()) Color.Black else LocationSkinPalette.textPrimary).copy(alpha = 0.12f))
         ) {
             Column(
                 modifier = Modifier
-                    .background(LocationSkinPalette.cardOverlay, shape)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {

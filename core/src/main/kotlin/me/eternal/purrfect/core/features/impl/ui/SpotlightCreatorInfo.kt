@@ -8,6 +8,7 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,18 +49,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import java.text.SimpleDateFormat
-import java.util.Collections
-import java.util.Date
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -160,6 +163,12 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
     private val showDialogState = mutableStateOf(false)
     private val buttonViews = Collections.synchronizedSet(mutableSetOf<View>())
     private val userIdCache = ConcurrentHashMap<String, String>()
+
+    fun showDialog() {
+        if (creatorInfoState.value != null) {
+            showDialogState.value = true
+        }
+    }
     private var lastClickTime = 0L
 
     private fun updateAllButtonVisibility() {
@@ -186,6 +195,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
 
         context.event.subscribe(AddViewEvent::class) { event ->
             if (event.parent.javaClass.superclass?.name?.endsWith("OpenLayout") != true) return@subscribe
+            if (event.view is androidx.compose.ui.platform.ComposeView) return@subscribe
             val viewGroup = event.view as? ViewGroup ?: return@subscribe
             val isWrapped = viewGroup is FrameLayout && viewGroup.childCount == 1 && viewGroup.getChildAt(0) is ViewGroup
             val actualLayer = if (isWrapped) viewGroup.getChildAt(0) as ViewGroup else viewGroup
@@ -213,7 +223,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     modifier = Modifier
                                         .size(38.dp)
                                         .background(color = skin.cardOverlayColor.copy(alpha = 0.7f), shape = CircleShape)
-                                        .androidx.compose.ui.draw.clip(CircleShape)
+                                        .clip(CircleShape)
                                         .clickable {
                                             val now = SystemClock.elapsedRealtime()
                                             if (now - lastClickTime < 500) return@clickable
@@ -236,7 +246,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     modifier = Modifier
                                         .size(38.dp)
                                         .background(color = skin.cardOverlayColor.copy(alpha = 0.7f), shape = CircleShape)
-                                        .androidx.compose.ui.draw.clip(CircleShape)
+                                        .clip(CircleShape)
                                         .combinedClickable(
                                             onClick = {
                                                 mediaDownloader.downloadLastOperaMediaAsync(allowDuplicate = false)
@@ -268,7 +278,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                         this.marginEnd = endExtra
                         gravity = Gravity.TOP or Gravity.END
                     }
-                    addOnAttachStateChangeListener(object : View.AttachStateChangeListener {
+                    addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
                         override fun onViewAttachedToWindow(v: View) {
                             buttonViews.add(v)
                         }
@@ -457,7 +467,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -466,14 +476,6 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     fontWeight = FontWeight.Bold,
                                     color = skin.textPrimary
                                 )
-                                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = translation["close"] as? String ?: "Close",
-                                        modifier = Modifier.size(20.dp),
-                                        tint = skin.textSecondary
-                                    )
-                                }
                             }
 
                             HorizontalDivider(color = skin.textSecondary.copy(alpha = 0.2f))
@@ -537,22 +539,33 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                     InfoRow(
                                         icon = Icons.Default.Badge,
                                         label = "User ID",
-                                        value = it,
+                                        value = it.toString(),
                                         isCopyable = true,
                                         skin = skin
                                     )
                                 }
 
                                 creatorInfo.friendLinkType?.let { type ->
-                                    if (type != FriendLinkType.NONE) {
-                                        InfoRow(
-                                            icon = Icons.Default.Check,
-                                            label = translation["relationship"] as? String ?: "Status",
-                                            value = type.name,
-                                            skin = skin
-                                        )
-                                    }
+                                    // NO_FRIEND or null checks
+                                    InfoRow(
+                                        icon = Icons.Default.Check,
+                                        label = translation["relationship"] as? String ?: "Status",
+                                        value = type?.name ?: "UNKNOWN",
+                                        skin = skin
+                                    )
                                 }
+                            }
+                            
+                            androidx.compose.material3.Button(
+                                onClick = onDismiss,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                    containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                    contentColor = skin.textPrimary
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(translation["close"] as? String ?: "Close", fontWeight = FontWeight.Bold)
                             }
                         }
                     }

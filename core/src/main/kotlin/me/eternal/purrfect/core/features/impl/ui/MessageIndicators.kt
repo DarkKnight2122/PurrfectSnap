@@ -4,15 +4,20 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -30,13 +35,14 @@ import me.eternal.purrfect.common.util.protobuf.ProtoReader
 import me.eternal.purrfect.core.event.events.impl.BindViewEvent
 import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.ui.AppleLogo
+import me.eternal.purrfect.core.util.ktx.vibrateLongPress
 import kotlin.random.Random
 
 @Composable
 private fun GradientIcon(
     imageVector: ImageVector,
     brush: Brush,
-    size: androidx.compose.ui.unit.Dp = 16.dp
+    size: androidx.compose.ui.unit.Dp = 14.dp
 ) {
     Image(
         imageVector = imageVector,
@@ -49,6 +55,16 @@ private fun GradientIcon(
                 drawContent()
                 drawRect(brush = brush, blendMode = BlendMode.SrcAtop)
             }
+    )
+}
+
+@Composable
+private fun IndicatorDivider() {
+    Spacer(
+        modifier = Modifier
+            .width(1.dp)
+            .height(10.dp)
+            .background(Color.White.copy(alpha = 0.15f))
     )
 }
 
@@ -108,7 +124,7 @@ class MessageIndicators : Feature("Message Indicators") {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
-                                .padding(top = 6.dp, end = 6.dp),
+                                .padding(top = 8.dp, end = 10.dp),
                             contentAlignment = Alignment.TopEnd
                         ) {
                             val hasEncryption by rememberAsyncMutableState(defaultValue = false) {
@@ -143,37 +159,61 @@ class MessageIndicators : Feature("Message Indicators") {
                                     || reader.getString(4, 5, 1, 2)?.contains("/h/") == true
                             }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                if (sentWithLocation && messageIndicatorsConfig.contains("location_indicator")) {
-                                    GradientIcon(Icons.Default.LocationOn, locationBrush)
+                            val visibleIndicators = mutableListOf<@Composable () -> Unit>()
+                            
+                            if (sentWithLocation && messageIndicatorsConfig.contains("location_indicator")) {
+                                visibleIndicators.add { GradientIcon(Icons.Default.LocationOn, locationBrush) }
+                            }
+                            if (messageIndicatorsConfig.contains("platform_indicator")) {
+                                val (platformIcon, platformBrush) = when {
+                                    sentFromWebApp -> Icons.Default.Laptop to webBrush
+                                    sentFromIosDevice -> appleLogo to appleBrush
+                                    else -> Icons.Default.Android to androidBrush
                                 }
-                                if (messageIndicatorsConfig.contains("platform_indicator")) {
-                                    val (platformIcon, platformBrush) = when {
-                                        sentFromWebApp -> Icons.Default.Laptop to webBrush
-                                        sentFromIosDevice -> appleLogo to appleBrush
-                                        else -> Icons.Default.Android to androidBrush
-                                    }
-                                    GradientIcon(platformIcon, platformBrush)
-                                }
-                                if (hasEncryption && messageIndicatorsConfig.contains("encryption_indicator")) {
-                                    GradientIcon(Icons.Default.Lock, lockBrush)
-                                }
-                                if (sentUsingDirectorMode && messageIndicatorsConfig.contains("director_mode_indicator")) {
-                                    GradientIcon(Icons.Default.Edit, directorBrush)
-                                }
-                                if (sentFromMemories && messageIndicatorsConfig.contains("memories_indicator")) {
-                                    GradientIcon(Icons.Default.HistoryEdu, memoriesBrush)
-                                }
-                                if (sentUsingOvfEditor && messageIndicatorsConfig.contains("ovf_editor_indicator")) {
+                                visibleIndicators.add { GradientIcon(platformIcon, platformBrush) }
+                            }
+                            if (hasEncryption && messageIndicatorsConfig.contains("encryption_indicator")) {
+                                visibleIndicators.add { GradientIcon(Icons.Default.Lock, lockBrush) }
+                            }
+                            if (sentUsingDirectorMode && messageIndicatorsConfig.contains("director_mode_indicator")) {
+                                visibleIndicators.add { GradientIcon(Icons.Default.Edit, directorBrush) }
+                            }
+                            if (sentFromMemories && messageIndicatorsConfig.contains("memories_indicator")) {
+                                visibleIndicators.add { GradientIcon(Icons.Default.HistoryEdu, memoriesBrush) }
+                            }
+                            if (sentUsingOvfEditor && messageIndicatorsConfig.contains("ovf_editor_indicator")) {
+                                visibleIndicators.add { 
                                     GradientText(
                                         text = "OVF",
                                         brush = ovfBrush,
                                         fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 11.sp
+                                        fontSize = 10.sp
                                     )
+                                }
+                            }
+
+                            if (visibleIndicators.isNotEmpty()) {
+                                Surface(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { 
+                                            event.view.context.vibrateLongPress()
+                                        },
+                                    color = Color.Black.copy(alpha = 0.25f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        visibleIndicators.forEachIndexed { index, indicator ->
+                                            indicator()
+                                            if (index < visibleIndicators.size - 1) {
+                                                IndicatorDivider()
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

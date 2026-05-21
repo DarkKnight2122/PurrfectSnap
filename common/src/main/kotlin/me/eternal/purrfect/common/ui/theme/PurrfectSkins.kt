@@ -43,6 +43,7 @@ object PurrfectSkins {
             glowSecondary = flavor.lavender,
             textPrimary = flavor.text,
             textSecondary = flavor.subtext1,
+            primaryButtonText = if (isDark) flavor.surface0 else flavor.text, // Cutout Effect: Dark text on primary glow in Dark mode, Black text in Light mode
             iconTint = flavor.text
         )
     }
@@ -68,31 +69,58 @@ object PurrfectSkins {
         glowSecondary = Catppuccin.royalVelvet.lavender, // Soft Lavender
         textPrimary = Catppuccin.royalVelvet.text,
         textSecondary = Catppuccin.royalVelvet.subtext1,
+        primaryButtonText = Color.White,
         iconTint = Catppuccin.royalVelvet.text
     )
 
-    // —— NOX (Luxury Rose Gold AMOLED) ——————————————————————————————————————————————
+    // —— AMBER (Prestige Gold Light) ————————————————————————————————————————————————
+    val amber = PurrfectColorSet(
+        id = "AMBER",
+        isDark = false,
+        backgroundGradient = Brush.verticalGradient(listOf(Color(0xFFFCF7E8), Color(0xFFFCF7E8))),
+        panelGradient = Brush.linearGradient(listOf(Color(0xFFFCF7E8), Color(0xFFF4E3BA))), 
+        cardOverlay = SolidColor(Color(0xFFF4E3BA).copy(alpha = 0.90f)),
+        cardOverlayColor = Color(0xFFF4E3BA),
+        glassSurface = Color(0xFFFBF2D8).copy(alpha = 0.45f),
+        glassBorder = Color(0xFFC69C38).copy(alpha = 0.25f),
+        glassSpecular = Color.White.copy(alpha = 0.85f),
+        blurTint = Color(0xFFFCF7E8).copy(alpha = 0.75f),
+        refractiveColor = Color(0xFFFCF7E8),
+        vibrancyFactor = 1.0f,
+        refractionIntensity = 0.2f,
+        laserBorder = Color(0xFF1A1610).copy(alpha = 0.15f),
+        specularAlpha = 0.85f,
+        glowPrimary = Color(0xFFD4AF37), // Primary Gold
+        glowSecondary = Color(0xFFE2B773), // Warm Gold
+        textPrimary = Color(0xFF000000), // Pure Black
+        textSecondary = Color(0xFF3B3322), // Deep Bronze
+        primaryButtonText = Color.Black, // Cutout Effect: Black text on gold glowing buttons
+        iconTint = Color.Black
+    )
+
+    // —— NOX (Midnight Monochrome) —————————————————————————————————————————————————
     val nox = PurrfectColorSet(
         id = "NOX",
         isDark = true,
         backgroundGradient = Brush.verticalGradient(listOf(Color.Black, Color.Black)),
-        panelGradient = Brush.linearGradient(listOf(Color.Black, Color(0xFF101014))), // Near-black lift
-        cardOverlay = SolidColor(Color(0xFF101014).copy(alpha = 0.90f)),
-        cardOverlayColor = Color(0xFF101014),
+        panelGradient = Brush.linearGradient(listOf(Color.Black, Color(0xFF0A0A0A))),
+        cardOverlay = SolidColor(Color(0xFF0A0A0A).copy(alpha = 0.90f)),
+        cardOverlayColor = Color(0xFF0A0A0A),
         glassSurface = Color.White.copy(alpha = 0.03f),
-        glassBorder = Color(0xFFE6B9A6).copy(alpha = 0.2f), // Rose Gold border
-        glassSpecular = Color.White.copy(alpha = 0.18f), // Polished Obsidian specular
+        glassBorder = Color.White.copy(alpha = 0.15f),
+        glassSpecular = Color.White.copy(alpha = 0.20f),
         blurTint = Color.Black.copy(alpha = 0.75f),
         refractiveColor = Color.Black,
         vibrancyFactor = 1.2f,
         refractionIntensity = 0.8f,
-        laserBorder = Color(0xFFE6B9A6).copy(alpha = 0.3f),
+        laserBorder = Color.White.copy(alpha = 0.25f),
         specularAlpha = 0.18f,
-        glowPrimary = Color(0xFFE6B9A6), // Rose Gold
-        glowSecondary = Color(0xFFDDB69E), // Espresso Gold
-        textPrimary = Color(0xFFF2EEF3),
+        glowPrimary = Color.White,
+        glowSecondary = Color(0xFFE8DEF8), // Starlight
+        textPrimary = Color.White,
         textSecondary = Color(0xFFB8B1BD),
-        iconTint = Color(0xFFF2EEF3)
+        primaryButtonText = Color.Black, // Cutout Effect
+        iconTint = Color.White
     )
 
     // —— LUX (Warm Ivory) ———————————————————————————————————————————————————————
@@ -122,7 +150,8 @@ object PurrfectSkins {
         return steppedDepth(flavor, isDark, "LUMINA").copy(
             glowPrimary = accent,
             glowSecondary = if (effectiveAccentName == "CYBER") (if (isDark) Color(0xFF0083B0) else Color(0xFF00FFD1)) else flavor.lavender,
-            laserBorder = accent.copy(alpha = 0.25f)
+            laserBorder = accent.copy(alpha = 0.25f),
+            primaryButtonText = if (isDark) flavor.surface0 else flavor.text // Inherited cutout logic
         )
     }
 
@@ -169,6 +198,7 @@ object PurrfectSkins {
             glowSecondary = if (accentName == "CYBER") (if (isDark) Color(0xFF0083B0) else Color(0xFF00FFD1)) else flavor.lavender,
             textPrimary = flavor.text,
             textSecondary = flavor.subtext1,
+            primaryButtonText = if (isDark) flavor.surface0 else flavor.text, // Cutout Effect
             iconTint = flavor.text
         )
     }
@@ -187,6 +217,7 @@ object PurrfectSkins {
         aetherAccent: String = "MAUVE",
         aetherAmoled: Boolean = false
     ): PurrfectColorSet = when (skinId) {
+        "AMBER"  -> amber
         "NOX"    -> nox
         "LUX"    -> lux
         "LUMINA" -> lumina(luminaMode, luminaAccent, isSystemDark)

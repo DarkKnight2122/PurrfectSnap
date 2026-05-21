@@ -84,6 +84,8 @@ import me.eternal.purrfect.ui.manager.theme.aphelion.ThemeRevealState
 import me.eternal.purrfect.common.ui.util.G2RoundedRectangle
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.math.round
+import androidx.compose.ui.graphics.SolidColor
 import me.eternal.purrfect.ui.manager.theme.aetherGlass
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Canvas
@@ -162,7 +164,6 @@ class Navigation(
                             modifier = Modifier.graphicsLayer {
                                 scaleX = 1f - (activeFocus * 0.05f)
                                 scaleY = 1f - (activeFocus * 0.05f)
-                                translationY = (-2 * activeFocus).dp.toPx()
                             }
                         )
                     }
@@ -192,7 +193,10 @@ class Navigation(
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent,
-                scrolledContainerColor = Color.Transparent
+                scrolledContainerColor = Color.Transparent,
+                navigationIconContentColor = skin.textPrimary,
+                titleContentColor = skin.textPrimary,
+                actionIconContentColor = skin.textPrimary
             ),
             actions = {
                 currentRoute?.topBarActions?.invoke(this)
@@ -294,7 +298,7 @@ class Navigation(
         val barSheen = remember {
             Brush.verticalGradient(
                 colors = listOf(
-                    Color.White.copy(alpha = 0.14f),
+                    skin.textPrimary.copy(alpha = 0.14f),
                     Color.Transparent
                 )
             )
@@ -488,10 +492,8 @@ class Navigation(
                                 val selectionProgress by animateFloatAsState(if (isSelected) 1f else 0f, label = "${route.routeInfo.id}-selection")
                                 
                                 // SCATTERED GRADIENT: Illuminated text/icon visuals for Aphelion
-                                val itemTint = if (isMechanicalMode && isSelected) {
-                                    skin.cardOverlayColor
-                                } else if (isAphelion && isSelected) {
-                                    skin.glowPrimary // Illuminated feel
+                                val itemTint = if (isSelected) {
+                                    skin.primaryButtonText
                                 } else {
                                     skin.textPrimary
                                 }
@@ -505,7 +507,7 @@ class Navigation(
                                             modifier = Modifier
                                                 .size(22.dp + 2.dp * selectionProgress)
                                                 .graphicsLayer { 
-                                                    alpha = if (isMechanicalMode && isSelected) 1f else (0.65f + 0.35f * selectionProgress)
+                                                    alpha = if (isSelected) 1f else (0.65f + 0.35f * selectionProgress)
                                                     translationY = iconTranslationY.toPx()
                                                 },
                                             tint = itemTint
@@ -550,72 +552,264 @@ class Navigation(
             }
 
             if (openBottomBarCustomization) {
-                AestheticDialog(
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                ModalBottomSheet(
                     onDismissRequest = { openBottomBarCustomization = false },
-                    title = translation["customization.title"] ?: "Navigation Tabs",
-                    text = translation["customization.description"] ?: "Select up to 5 tabs to show in the bottom bar.",
-                    icon = Icons.Default.Tune,
-                    showCloseButton = true,
-                    confirmButtonText = context.translation["button.save"] ?: "Save",
-                    onConfirm = {
-                        saveSelected(selectedTabIds)
-                        openBottomBarCustomization = false
-                        navController.navigate(navController.currentDestination?.id ?: 0) {
-                            popUpTo(0)
-                        }
-                    },
-                    customContent = {
+                    sheetState = sheetState,
+                    containerColor = Color.Transparent,
+                    dragHandle = {}
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+                        color = Color.Transparent,
+                        tonalElevation = 0.dp,
+                        shadowElevation = 12.dp,
+                        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.1f))
+                    ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            modifier = Modifier
+                                .background(skin.backgroundGradient)
+                                .padding(vertical = 12.dp)
                         ) {
-                            availableRoutes.forEach { route ->
-                                val isSelected = selectedTabIds.contains(route.routeInfo.id)
-                                Surface(
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                                    .clip(RoundedCornerShape(22.dp))
+                                    .background(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                skin.glowPrimary.copy(alpha = 0.28f),
+                                                skin.glowSecondary.copy(alpha = 0.26f)
+                                            )
+                                        )
+                                    )
+                                    .padding(horizontal = 18.dp, vertical = 16.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = translation["customize_bottom_bar_title"] ?: "Customize Bottom Bar",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = skin.textPrimary,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = translation["customize_bottom_bar_subtitle"] ?: "Select up to 5 tabs",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = skin.textSecondary,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(top = 6.dp, bottom = 2.dp)
+                                    .width(40.dp)
+                                    .height(5.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(skin.textPrimary.copy(alpha = 0.35f))
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = translation["shown_tabs_title"] ?: "Shown Tabs",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                color = skin.textPrimary
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            if (selectedTabIds.isEmpty()) {
+                                Text(
+                                    text = translation["no_tabs_selected_text"] ?: "No tabs selected",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = skin.textSecondary,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            } else {
+                                val hapticCustom = LocalHapticFeedback.current
+                                var draggingId by remember { mutableStateOf<String?>(null) }
+                                var dragDelta by remember { mutableStateOf(0f) }
+                                var dragStartIndex by remember { mutableStateOf(-1) }
+                                var rowHeight by remember { mutableStateOf(0) }
+                                val listState = rememberLazyListState()
+                                LazyColumn(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
-                                            val newIds = selectedTabIds.toMutableList()
-                                            if (isSelected) {
-                                                if (newIds.size > 1) newIds.remove(route.routeInfo.id)
-                                            } else {
-                                                if (newIds.size < 5) newIds.add(route.routeInfo.id)
-                                            }
-                                            selectedTabIds = newIds
-                                        },
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = if (isSelected) skin.glowPrimary.copy(alpha = 0.12f) else skin.textPrimary.copy(alpha = 0.05f),
-                                    border = BorderStroke(1.dp, if (isSelected) skin.glowPrimary.copy(alpha = 0.5f) else skin.textPrimary.copy(alpha = 0.1f))
+                                        .padding(horizontal = 12.dp),
+                                    contentPadding = PaddingValues(bottom = 8.dp),
+                                    state = listState
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    itemsIndexed(selectedTabIds, key = { _, id -> id }) { index, id ->
+                                        val route = availableRouteMap[id] ?: return@itemsIndexed
+                                        val label = context.translation["manager.routes.${route.routeInfo.key.substringBefore("/")}"] ?: ""
+                                        val isDragging = draggingId == id
+                                        val rowShape = RoundedCornerShape(18.dp)
+                                        Surface(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(bottom = 8.dp)
+                                                .animateItem()
+                                                .zIndex(if (isDragging) 1f else 0f)
+                                                .graphicsLayer { if (isDragging) { scaleX = 1.02f; scaleY = 1.02f } }
+                                                .onGloballyPositioned { if (rowHeight == 0) rowHeight = it.size.height }
+                                                .pointerInput(id) {
+                                                    detectDragGestures(
+                                                        onDragStart = {
+                                                            draggingId = id
+                                                            dragStartIndex = selectedTabIds.indexOf(id)
+                                                            dragDelta = 0f
+                                                            hapticCustom.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        },
+                                                        onDrag = { _: PointerInputChange, dragAmount ->
+                                                            dragDelta += dragAmount.y
+                                                            if (rowHeight > 0 && dragStartIndex >= 0) {
+                                                                val currentIndex = selectedTabIds.indexOf(id)
+                                                                val deltaRows = round(dragDelta / rowHeight.toFloat()).toInt()
+                                                                val targetIndex = (dragStartIndex + deltaRows).coerceIn(0, selectedTabIds.lastIndex)
+                                                                if (targetIndex != currentIndex) {
+                                                                    val list = selectedTabIds.toMutableList()
+                                                                    list.removeAt(currentIndex)
+                                                                    list.add(targetIndex, id)
+                                                                    selectedTabIds = list
+                                                                    saveSelected(selectedTabIds)
+                                                                    hapticCustom.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                }
+                                                            }
+                                                        },
+                                                        onDragEnd = { draggingId = null; dragDelta = 0f; dragStartIndex = -1 },
+                                                        onDragCancel = { draggingId = null; dragDelta = 0f; dragStartIndex = -1 }
+                                                    )
+                                                },
+                                            shape = rowShape,
+                                            color = Color.Transparent,
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (isDragging) Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary))
+                                                else SolidColor(skin.textPrimary.copy(alpha = 0.1f))
+                                            ),
+                                            tonalElevation = 0.dp,
+                                            shadowElevation = 0.dp
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .padding(12.dp)
+                                                    .fillMaxWidth()
+                                                    .clip(rowShape)
+                                                    .background(
+                                                        if (isDragging) Brush.linearGradient(
+                                                            colors = listOf(
+                                                                skin.glowPrimary.copy(alpha = 0.18f),
+                                                                skin.glowSecondary.copy(alpha = 0.16f)
+                                                            )
+                                                        ) else SolidColor(skin.textPrimary.copy(alpha = 0.08f))
+                                                    ),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Filled.DragHandle, contentDescription = null, tint = skin.textPrimary.copy(alpha = 0.8f))
+                                                Spacer(Modifier.width(8.dp))
+                                                Icon(route.routeInfo.icon, contentDescription = null, tint = skin.textPrimary)
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(text = label, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, color = skin.textPrimary)
+                                                val defaultEligible = remember { setOf("tasks","features","home","social","scripts") }
+                                                RadioButton(
+                                                    selected = defaultTabId == id,
+                                                    onClick = { if (id in defaultEligible) saveDefault(id) },
+                                                    enabled = id in defaultEligible,
+                                                    colors = RadioButtonDefaults.colors(
+                                                        selectedColor = skin.glowPrimary,
+                                                        unselectedColor = skin.textPrimary.copy(alpha = 0.7f),
+                                                        disabledSelectedColor = skin.glowPrimary.copy(alpha = 0.4f),
+                                                        disabledUnselectedColor = skin.textPrimary.copy(alpha = 0.35f)
+                                                    )
+                                                )
+                                                IconButton(
+                                                    onClick = {
+                                                        if (selectedTabIds.size > 1 && id != defaultTabId && id != "home") {
+                                                            selectedTabIds = selectedTabIds.toMutableList().also { it.removeAt(index) }
+                                                            saveSelected(selectedTabIds)
+                                                        }
+                                                    },
+                                                    enabled = id != defaultTabId && id != "home"
+                                                ) { Icon(Icons.Filled.Close, contentDescription = null, tint = skin.textPrimary) }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(text = translation["available_tabs_title"] ?: "Available Tabs", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 16.dp), color = skin.textPrimary)
+                            Spacer(Modifier.height(6.dp))
+                            FlowRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                              ) {
+                                availableRoutes.forEach { route ->
+                                    val id = route.routeInfo.id
+                                    val already = selectedTabIds.contains(id)
+                                    val label = context.translation["manager.routes.${route.routeInfo.key.substringBefore("/")}"] ?: ""
+                                    AnimatedVisibility(
+                                        visible = !already && selectedTabIds.size < 5,
+                                        enter = scaleIn(tween(160), initialScale = 0.95f) + fadeIn(tween(180)) + slideInVertically(tween(180), initialOffsetY = { it / 3 }),
+                                        exit = scaleOut(tween(120)) + fadeOut(tween(120)) + slideOutVertically(tween(120))
                                     ) {
-                                        Icon(
-                                            imageVector = route.routeInfo.icon,
-                                            contentDescription = null,
-                                            tint = if (isSelected) skin.glowPrimary else skin.textPrimary,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                        Text(
-                                            text = context.translation["manager.routes.${route.routeInfo.key.substringBefore("/")}"] ?: "",
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = skin.textPrimary,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Icon(
-                                            imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                                            contentDescription = null,
-                                            tint = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.3f),
-                                            modifier = Modifier.size(20.dp)
+                                        AssistChip(
+                                            onClick = {
+                                                if (!already && selectedTabIds.size < 5) {
+                                                    selectedTabIds = selectedTabIds + id
+                                                    saveSelected(selectedTabIds)
+                                                }
+                                            },
+                                            label = { Text(text = label) },
+                                            leadingIcon = { Icon(route.routeInfo.icon, contentDescription = null) },
+                                            enabled = true,
+                                            colors = AssistChipDefaults.assistChipColors(
+                                                containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                                labelColor = skin.textPrimary,
+                                                leadingIconContentColor = skin.glowSecondary
+                                            )
                                         )
                                     }
                                 }
                             }
+                            Spacer(Modifier.height(16.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        selectedTabIds = defaultOrder
+                                        saveSelected(selectedTabIds)
+                                    },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary),
+                                    border = BorderStroke(1.dp, Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary)))
+                                ) {
+                                    Text(text = translation["reset_button"] ?: "Reset", style = MaterialTheme.typography.labelLarge)
+                                }
+                                Button(
+                                    onClick = { openBottomBarCustomization = false },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                        contentColor = skin.textPrimary
+                                    )
+                                ) {
+                                    Text(text = translation["done_button"] ?: "Done", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
                         }
                     }
-                )
+                }
             }
         }
     }

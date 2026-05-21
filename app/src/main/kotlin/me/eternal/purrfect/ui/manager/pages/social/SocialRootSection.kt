@@ -311,15 +311,26 @@ class SocialRootSection : Routes.Route() {
                     onClick = onPreview,
                     shape = RoundedCornerShape(50),
                     border = BorderStroke(1.dp, skin.glowPrimary.copy(alpha = 0.4f)),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                     modifier = Modifier.height(34.dp)
                 ) {
-                    Text(
-                        text = "Preview",
-                        color = skin.glowPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RemoveRedEye,
+                            contentDescription = null,
+                            tint = skin.glowPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "Preview",
+                            color = skin.glowPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

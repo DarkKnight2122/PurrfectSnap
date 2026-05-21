@@ -1,26 +1,38 @@
 package me.eternal.purrfect.ui.manager.pages
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import me.eternal.purrfect.R
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,6 +41,7 @@ import androidx.core.net.toUri
 import androidx.navigation.NavBackStackEntry
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.bridge.DownloadCallback
@@ -36,29 +49,31 @@ import me.eternal.purrfect.common.bridge.wrapper.ConversationInfo
 import me.eternal.purrfect.common.bridge.wrapper.LoggedMessage
 import me.eternal.purrfect.common.bridge.wrapper.LoggerWrapper
 import me.eternal.purrfect.common.data.ContentType
+import me.eternal.purrfect.common.data.MessagingFriendInfo
 import me.eternal.purrfect.common.data.download.DownloadMetadata
 import me.eternal.purrfect.common.data.download.DownloadRequest
 import me.eternal.purrfect.common.data.download.MediaDownloadSource
 import me.eternal.purrfect.common.data.download.createNewFilePath
 import me.eternal.purrfect.common.ui.rememberAsyncMutableState
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectPalette
 import me.eternal.purrfect.common.ui.transparentTextFieldColors
 import me.eternal.purrfect.common.util.ktx.copyToClipboard
 import me.eternal.purrfect.common.util.ktx.longHashCode
 import me.eternal.purrfect.common.util.protobuf.ProtoReader
+import me.eternal.purrfect.common.util.snap.BitmojiSelfie
 import me.eternal.purrfect.core.features.impl.downloader.decoder.DecodedAttachment
 import me.eternal.purrfect.core.features.impl.downloader.decoder.MessageDecoder
 import me.eternal.purrfect.download.DownloadProcessor
 import me.eternal.purrfect.storage.findFriend
 import me.eternal.purrfect.ui.manager.Routes
+import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.ui.manager.components.FloatingTopBar
-import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
-import me.eternal.purrfect.common.ui.theme.PurrfectPalette
+import me.eternal.purrfect.ui.util.coil.BitmojiImage
 import java.net.URLDecoder
 import java.text.DateFormat
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.absoluteValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.SolidColor
 
 internal object LoggerSkinPalette {
     @Composable
@@ -84,6 +99,155 @@ class LoggerHistoryRoot : Routes.Route() {
     private var selectedConversation by mutableStateOf<String?>(null)
     private var stringFilter by mutableStateOf("")
     private var reverseOrder by mutableStateOf(true)
+
+    private data class RichConversationInfo(
+        val id: String,
+        val displayName: String,
+        val username: String?,
+        val friendInfo: MessagingFriendInfo? = null,
+        val groupTitle: String? = null
+    )
+
+    @Composable
+    private fun ConversationPickerDialog(
+        onDismiss: () -> Unit,
+        onSelect: (String) -> Unit
+    ) {
+        val conversationsIds by rememberAsyncMutableState(defaultValue = emptyList<String>()) {
+            loggerWrapper.getAllConversations().toList()
+        }
+        
+        val richConversations = remember(conversationsIds) { mutableStateListOf<RichConversationInfo>() }
+        var isResolving by remember { mutableStateOf(true) }
+
+        LaunchedEffect(conversationsIds) {
+            if (conversationsIds.isEmpty()) {
+                isResolving = false
+                return@LaunchedEffect
+            }
+            withContext(Dispatchers.IO) {
+                val resolved = conversationsIds.map { id ->
+                    val friend = context.database.findFriend(id)
+                    val info = loggerWrapper.getConversationInfo(id)
+                    RichConversationInfo(
+                        id = id,
+                        displayName = friend?.displayName ?: info?.groupTitle ?: id,
+                        username = friend?.mutableUsername ?: info?.usernames?.joinToString(", "),
+                        friendInfo = friend,
+                        groupTitle = info?.groupTitle
+                    )
+                }
+                withContext(Dispatchers.Main) {
+                    richConversations.clear()
+                    richConversations.addAll(resolved)
+                    isResolving = false
+                }
+            }
+        }
+
+        var pickerSearch by remember { mutableStateOf("") }
+        val filteredConversations = remember(pickerSearch, richConversations.size) {
+            if (pickerSearch.isBlank()) richConversations 
+            else richConversations.filter { 
+                it.displayName.contains(pickerSearch, ignoreCase = true) || 
+                it.username?.contains(pickerSearch, ignoreCase = true) == true ||
+                it.id.contains(pickerSearch, ignoreCase = true)
+            }
+        }
+
+        AestheticDialog(
+            onDismissRequest = onDismiss,
+            title = translation["select_conversation_placeholder"] ?: "Select Conversation",
+            text = "",
+            icon = Icons.Default.Forum,
+            confirmButtonText = context.translation["button.ok"] ?: "OK",
+            onConfirm = onDismiss,
+            dismissButtonText = context.translation["button.cancel"],
+            onDismiss = onDismiss,
+            opaque = true,
+            showCloseButton = false,
+            showIcon = false,
+            customContent = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = pickerSearch,
+                        onValueChange = { pickerSearch = it },
+                        placeholder = { Text(context.translation["manager.dialogs.add_friend.search_hint"] ?: "Search...", color = LoggerSkinPalette.textSecondary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = LoggerSkinPalette.textSecondary) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.08f),
+                            unfocusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.05f),
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = LoggerSkinPalette.glowSecondary,
+                            focusedTextColor = LoggerSkinPalette.textPrimary,
+                            unfocusedTextColor = LoggerSkinPalette.textPrimary
+                        )
+                    )
+
+                    if (isResolving) {
+                        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = LoggerSkinPalette.glowPrimary)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.heightIn(max = 600.dp),
+                            contentPadding = PaddingValues(vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(filteredConversations, key = { it.id }) { rich ->
+                                Surface(
+                                    onClick = { onSelect(rich.id) },
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = LoggerSkinPalette.textPrimary.copy(alpha = 0.05f),
+                                    border = BorderStroke(1.dp, LoggerSkinPalette.textPrimary.copy(alpha = 0.1f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        if (rich.friendInfo != null) {
+                                            BitmojiImage(
+                                                modifier = Modifier.size(42.dp).clip(CircleShape),
+                                                context = context,
+                                                url = rich.friendInfo.takeIf { it.bitmojiId != null }?.let {
+                                                    BitmojiSelfie.getBitmojiSelfie(it.selfieId, it.bitmojiId, BitmojiSelfie.BitmojiSelfieType.NEW_THREE_D)
+                                                },
+                                                size = 42
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier.size(42.dp).clip(CircleShape).background(LoggerSkinPalette.glowPrimary.copy(alpha = 0.2f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (rich.groupTitle != null) Icons.Default.Groups else Icons.Default.Person,
+                                                    contentDescription = null,
+                                                    tint = LoggerSkinPalette.glowPrimary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
+                                        }
+                                        
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(rich.displayName, fontWeight = FontWeight.Bold, color = LoggerSkinPalette.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            if (rich.username != null) {
+                                                Text(rich.username, fontSize = 12.sp, color = LoggerSkinPalette.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        )
+    }
 
     private inline fun decodeMessage(message: LoggedMessage, result: (contentType: ContentType, messageReader: ProtoReader, attachments: List<DecodedAttachment>) -> Unit) {   
         runCatching {
@@ -275,6 +439,7 @@ class LoggerHistoryRoot : Routes.Route() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     override val content: @Composable (NavBackStackEntry) -> Unit = { navBackStackEntry ->
+        val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
         LaunchedEffect(Unit) {
             val uri = navBackStackEntry.arguments?.getString("uri")?.let {
                 runCatching {
@@ -284,7 +449,22 @@ class LoggerHistoryRoot : Routes.Route() {
             loggerWrapper = LoggerWrapper(context.androidContext, uri)
         }
 
-        val conversationInfoCache = remember { ConcurrentHashMap<String, String?>() }
+        var showPicker by remember { mutableStateOf(false) }
+        var showSearchBar by remember { mutableStateOf(false) }
+        
+        var pinnedIds by remember {
+            mutableStateOf(context.sharedPreferences.getStringSet("logger_pinned_conversations", emptySet()) ?: emptySet())
+        }
+
+        if (showPicker) {
+            ConversationPickerDialog(
+                onDismiss = { showPicker = false },
+                onSelect = { 
+                    selectedConversation = it
+                    showPicker = false
+                }
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -298,220 +478,275 @@ class LoggerHistoryRoot : Routes.Route() {
                 )
 
                 Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-                    var expanded by remember { mutableStateOf(false) }
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 10.dp),
-                shape = RoundedCornerShape(22.dp),
-                color = LoggerSkinPalette.cardOverlayColor,
-                tonalElevation = 0.dp,
-                shadowElevation = 10.dp,
-                border = BorderStroke(1.dp, LoggerSkinPalette.textPrimary.copy(alpha = 0.12f))
-            ) {
-                Column(
-                    modifier = Modifier
-                        .background(LoggerSkinPalette.cardOverlay, RoundedCornerShape(22.dp))
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = it },
-                    ) {
-                        fun formatConversationInfo(conversationInfo: ConversationInfo?): String? {
-                            if (conversationInfo == null) return null
-
-                            return conversationInfo.groupTitle?.let {
-                                translation.format("list_group_format", "name" to it)
-                            } ?: conversationInfo.usernames.takeIf { it.size > 1 }?.let {
-                                translation.format("list_friend_format", "name" to ("(" + it.joinToString(", ") + ")"))
-                            } ?: context.database.findFriend(conversationInfo.conversationId)?.let {
-                                translation.format("list_friend_format", "name" to "(" + (conversationInfo.usernames + listOf(it.mutableUsername)).toSet().joinToString(", ") + ")")
-                            } ?: conversationInfo.usernames.firstOrNull()?.let {
-                                translation.format("list_friend_format", "name" to "($it)")
-                            }
-                        }
-
-                        val selectedConversationInfo by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(selectedConversation)) {
-                            selectedConversation?.let {
-                                conversationInfoCache.getOrPut(it) {
-                                    formatConversationInfo(loggerWrapper.getConversationInfo(it))
+                    if (selectedConversation == null) {
+                        // State 1: Entry Dashboard
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp),
+                            shape = RoundedCornerShape(22.dp),
+                            color = LoggerSkinPalette.cardOverlayColor,
+                            tonalElevation = 0.dp,
+                            shadowElevation = 10.dp,
+                            border = BorderStroke(1.dp, LoggerSkinPalette.textPrimary.copy(alpha = 0.12f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .background(LoggerSkinPalette.cardOverlay, RoundedCornerShape(22.dp))
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Surface(
+                                    onClick = { showPicker = true },
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = LoggerSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                    border = BorderStroke(1.dp, LoggerSkinPalette.textPrimary.copy(alpha = 0.05f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(Icons.Default.Forum, contentDescription = null, tint = LoggerSkinPalette.glowPrimary)
+                                        Text(
+                                            text = translation["select_conversation_placeholder"] ?: "Select a conversation",
+                                            color = LoggerSkinPalette.textPrimary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        OutlinedTextField(
-                            value = selectedConversationInfo ?: translation["select_conversation_placeholder"],
-                            onValueChange = {},
-                            readOnly = true,
-                            modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                .fillMaxWidth(),
-                            colors = TextFieldDefaults.colors(
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent,
-                                focusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.08f),
-                                unfocusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.06f),
-                                focusedTextColor = LoggerSkinPalette.textPrimary,
-                                unfocusedTextColor = LoggerSkinPalette.textPrimary,
-                                cursorColor = LoggerSkinPalette.glowSecondary
+                        if (pinnedIds.isNotEmpty()) {
+                            Text(
+                                text = "Pinned Conversations",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = LoggerSkinPalette.textPrimary,
+                                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
                             )
-                        )
 
-                        val conversations by rememberAsyncMutableState(defaultValue = emptyList<String>()) {
-                            loggerWrapper.getAllConversations().toMutableList()
-                        }
-
-                        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                            conversations.forEach { conversationId ->
-                                DropdownMenuItem(onClick = {
-                                    selectedConversation = conversationId
-                                    expanded = false
-                                }, text = {
-                                    val conversationInfo by rememberAsyncMutableState(defaultValue = null, keys = arrayOf(conversationId)) {
-                                        conversationInfoCache.getOrPut(conversationId) {
-                                            formatConversationInfo(loggerWrapper.getConversationInfo(conversationId))
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(3),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(pinnedIds.toList()) { id ->
+                                    var friendInfo by remember { mutableStateOf<MessagingFriendInfo?>(null) }
+                                    LaunchedEffect(id) {
+                                        withContext(Dispatchers.IO) {
+                                            friendInfo = context.database.findFriend(id)
                                         }
                                     }
 
-                                        Text(
-                                            text = remember(conversationInfo) { conversationInfo ?: conversationId },
-                                            fontWeight = if (conversationId == selectedConversation) FontWeight.Bold else FontWeight.Normal,
-                                            color = LoggerSkinPalette.textPrimary,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    })
-                            }
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = stringFilter,
-                        onValueChange = { stringFilter = it },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        placeholder = {
-                            Text(
-                                text = context.translation["manager.dialogs.add_friend.search_hint"] ?: "Search",
-                                color = LoggerSkinPalette.textSecondary
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Filled.Search,
-                                contentDescription = null,
-                                tint = LoggerSkinPalette.textSecondary
-                            )
-                        },
-                        trailingIcon = if (stringFilter.isNotBlank()) {
-                            {
-                                IconButton(onClick = { stringFilter = "" }) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Close,
-                                        contentDescription = translation["close_button_description"],
-                                        tint = LoggerSkinPalette.textSecondary
-                                    )
-                                }
-                            }
-                        } else null,
-                        colors = TextFieldDefaults.colors(
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            focusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.08f),
-                            unfocusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.06f),
-                            focusedTextColor = LoggerSkinPalette.textPrimary,
-                            unfocusedTextColor = LoggerSkinPalette.textPrimary,
-                            cursorColor = LoggerSkinPalette.glowSecondary
-                        )
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            translation["reverse_order_checkbox"],
-                            color = LoggerSkinPalette.textSecondary,
-                            fontSize = 13.sp
-                        )
-                        Checkbox(
-                            checked = reverseOrder,
-                            onCheckedChange = { reverseOrder = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = LoggerSkinPalette.glowPrimary,
-                                checkmarkColor = LoggerSkinPalette.textPrimary,
-                                uncheckedColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.35f)
-                            )
-                        )
-                    }
-                }
-            }
-
-            var hasReachedEnd by remember(selectedConversation, stringFilter, reverseOrder) { mutableStateOf(false) }
-            var lastFetchMessageTimestamp by remember(selectedConversation, stringFilter, reverseOrder) { mutableLongStateOf(if (reverseOrder) Long.MAX_VALUE else Long.MIN_VALUE) }
-            val messages = remember(selectedConversation, stringFilter, reverseOrder) { mutableStateListOf<LoggedMessage>() }
-
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = routes.bottomPadding)
-            ) {
-                items(messages) { message ->
-                    MessageView(message)
-                }
-                item {
-                    if (selectedConversation != null) {
-                        if (hasReachedEnd) {
-                            Text(translation["no_more_messages"], modifier = Modifier
-                                .padding(8.dp)
-                                .fillMaxWidth(), textAlign = TextAlign.Center, color = LoggerSkinPalette.textPrimary)
-                        } else {
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .height(20.dp)
-                                        .padding(8.dp),
-                                    color = LoggerSkinPalette.glowSecondary,
-                                    strokeWidth = 2.dp
-                                )
-                            }
-                        }
-                    }
-                    LaunchedEffect(Unit, selectedConversation, stringFilter, reverseOrder) {
-                        withContext(Dispatchers.IO) {
-                            val newMessages = loggerWrapper.fetchMessages(
-                                selectedConversation ?: return@withContext,
-                                lastFetchMessageTimestamp,
-                                30,
-                                reverseOrder
-                            ) { messageData ->
-                                if (stringFilter.isEmpty()) return@fetchMessages true
-                                var isMatch = false
-                                decodeMessage(messageData) { contentType, messageReader, _ ->
-                                    if (contentType == ContentType.CHAT) {
-                                        val content = messageReader.getString(2, 1) ?: return@decodeMessage
-                                        isMatch = content.contains(stringFilter, ignoreCase = true)
+                                    Surface(
+                                        onClick = { selectedConversation = id },
+                                        shape = RoundedCornerShape(18.dp),
+                                        color = LoggerSkinPalette.textPrimary.copy(alpha = 0.05f),
+                                        border = BorderStroke(1.dp, LoggerSkinPalette.textPrimary.copy(alpha = 0.1f))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(12.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            BitmojiImage(
+                                                modifier = Modifier.size(52.dp).clip(CircleShape),
+                                                context = context,
+                                                url = friendInfo?.takeIf { it.bitmojiId != null }?.let {
+                                                    BitmojiSelfie.getBitmojiSelfie(it.selfieId, it.bitmojiId, BitmojiSelfie.BitmojiSelfieType.NEW_THREE_D)
+                                                },
+                                                size = 52
+                                            )
+                                            Text(
+                                                text = friendInfo?.displayName ?: id,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = LoggerSkinPalette.textPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
                                     }
                                 }
-                                isMatch
                             }
-                            if (newMessages.isEmpty()) {
-                                hasReachedEnd = true
-                                return@withContext
+                        }
+                    } else {
+                        // State 2: Dynamic Island
+                        var activeFriend by remember { mutableStateOf<MessagingFriendInfo?>(null) }
+                        LaunchedEffect(selectedConversation) {
+                            withContext(Dispatchers.IO) {
+                                activeFriend = context.database.findFriend(selectedConversation!!)
                             }
-                            lastFetchMessageTimestamp = newMessages.lastOrNull()?.sendTimestamp ?: return@withContext
-                            withContext(Dispatchers.Main) {
-                                messages.addAll(newMessages)
+                        }
+
+                        val isPinned = remember(pinnedIds, selectedConversation) { pinnedIds.contains(selectedConversation) }
+
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+                            shape = RoundedCornerShape(22.dp),
+                            color = LoggerSkinPalette.cardOverlayColor,
+                            border = BorderStroke(1.dp, LoggerSkinPalette.textPrimary.copy(alpha = 0.12f))
+                        ) {
+                            Column(modifier = Modifier.background(LoggerSkinPalette.cardOverlay).padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    if (activeFriend != null) {
+                                        BitmojiImage(
+                                            modifier = Modifier.size(48.dp).clip(CircleShape),
+                                            context = context,
+                                            url = activeFriend?.takeIf { it.bitmojiId != null }?.let {
+                                                BitmojiSelfie.getBitmojiSelfie(it.selfieId, it.bitmojiId, BitmojiSelfie.BitmojiSelfieType.NEW_THREE_D)
+                                            },
+                                            size = 48
+                                        )
+                                    } else {
+                                        Box(
+                                            modifier = Modifier.size(48.dp).clip(CircleShape).background(LoggerSkinPalette.glowPrimary.copy(alpha = 0.2f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Person, contentDescription = null, tint = LoggerSkinPalette.glowPrimary, modifier = Modifier.size(28.dp))
+                                        }
+                                    }
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(activeFriend?.displayName ?: selectedConversation!!, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp, color = LoggerSkinPalette.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (activeFriend?.mutableUsername != null) {
+                                            Text("(${activeFriend!!.mutableUsername})", fontSize = 12.sp, color = LoggerSkinPalette.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        }
+                                    }
+                                    
+                                    IconButton(onClick = { showSearchBar = !showSearchBar }) {
+                                        Icon(Icons.Default.Search, contentDescription = "Search", tint = if (showSearchBar) LoggerSkinPalette.glowPrimary else LoggerSkinPalette.textPrimary)
+                                    }
+                                    IconButton(onClick = { 
+                                        selectedConversation = null
+                                        stringFilter = ""
+                                        showSearchBar = false
+                                    }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color(0xFFFF8585))
+                                    }
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showSearchBar,
+                                    enter = expandVertically() + fadeIn(),
+                                    exit = shrinkVertically() + fadeOut()
+                                ) {
+                                    OutlinedTextField(
+                                        value = stringFilter,
+                                        onValueChange = { stringFilter = it },
+                                        placeholder = { Text(context.translation["manager.dialogs.add_friend.search_hint"] ?: "Search messages...", color = LoggerSkinPalette.textSecondary) },
+                                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        singleLine = true,
+                                        trailingIcon = {
+                                            if (stringFilter.isNotEmpty()) {
+                                                IconButton(onClick = { stringFilter = "" }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = null, tint = LoggerSkinPalette.textPrimary)
+                                                }
+                                            }
+                                        },
+                                        colors = TextFieldDefaults.colors(
+                                            focusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.08f),
+                                            unfocusedContainerColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.05f),
+                                            focusedIndicatorColor = Color.Transparent,
+                                            unfocusedIndicatorColor = Color.Transparent,
+                                            cursorColor = LoggerSkinPalette.glowSecondary,
+                                            focusedTextColor = LoggerSkinPalette.textPrimary,
+                                            unfocusedTextColor = LoggerSkinPalette.textPrimary
+                                        )
+                                    )
+                                }
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Checkbox(
+                                            checked = isPinned,
+                                            onCheckedChange = {
+                                                val newPinned = pinnedIds.toMutableSet()
+                                                if (isPinned) newPinned.remove(selectedConversation) else newPinned.add(selectedConversation!!)
+                                                context.sharedPreferences.edit().putStringSet("logger_pinned_conversations", newPinned).apply()
+                                                pinnedIds = newPinned
+                                            },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = LoggerSkinPalette.glowPrimary,
+                                                checkmarkColor = LoggerSkinPalette.textPrimary,
+                                                uncheckedColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.35f)
+                                            )
+                                        )
+                                        Text("Pin Chat", color = LoggerSkinPalette.textSecondary, fontSize = 12.sp, fontFamily = avenirNext)
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(translation["reverse_order_checkbox"], color = LoggerSkinPalette.textSecondary, fontSize = 12.sp, fontFamily = avenirNext)
+                                        Checkbox(
+                                            checked = reverseOrder,
+                                            onCheckedChange = { reverseOrder = it },
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = LoggerSkinPalette.glowPrimary,
+                                                checkmarkColor = LoggerSkinPalette.textPrimary,
+                                                uncheckedColor = LoggerSkinPalette.textPrimary.copy(alpha = 0.35f)
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        var hasReachedEnd by remember(selectedConversation, stringFilter, reverseOrder) { mutableStateOf(false) }
+                        var lastFetchMessageTimestamp by remember(selectedConversation, stringFilter, reverseOrder) { mutableLongStateOf(if (reverseOrder) Long.MAX_VALUE else Long.MIN_VALUE) }
+                        val messages = remember(selectedConversation, stringFilter, reverseOrder) { mutableStateListOf<LoggedMessage>() }
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = routes.bottomPadding)
+                        ) {
+                            items(messages) { message ->
+                                MessageView(message)
+                            }
+                            item {
+                                if (hasReachedEnd) {
+                                    Text(translation["no_more_messages"], modifier = Modifier.padding(16.dp).fillMaxWidth(), textAlign = TextAlign.Center, color = LoggerSkinPalette.textPrimary)
+                                } else {
+                                    Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = LoggerSkinPalette.glowSecondary, strokeWidth = 2.dp)
+                                    }
+                                }
+                                LaunchedEffect(Unit, selectedConversation, stringFilter, reverseOrder) {
+                                    withContext(Dispatchers.IO) {
+                                        val newMessages = loggerWrapper.fetchMessages(
+                                            selectedConversation!!,
+                                            lastFetchMessageTimestamp,
+                                            30,
+                                            reverseOrder
+                                        ) { messageData ->
+                                            if (stringFilter.isEmpty()) return@fetchMessages true
+                                            var isMatch = false
+                                            decodeMessage(messageData) { contentType, messageReader, _ ->
+                                                if (contentType == ContentType.CHAT) {
+                                                    val content = messageReader.getString(2, 1) ?: return@decodeMessage
+                                                    isMatch = content.contains(stringFilter, ignoreCase = true)
+                                                }
+                                            }
+                                            isMatch
+                                        }
+                                        if (newMessages.isEmpty()) {
+                                            hasReachedEnd = true
+                                            return@withContext
+                                        }
+                                        lastFetchMessageTimestamp = newMessages.lastOrNull()?.sendTimestamp ?: return@withContext
+                                        withContext(Dispatchers.Main) {
+                                            messages.addAll(newMessages)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            }
                 }
             }
         }

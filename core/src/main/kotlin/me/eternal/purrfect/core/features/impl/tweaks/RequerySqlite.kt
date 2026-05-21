@@ -8,6 +8,7 @@ import me.eternal.purrfect.core.util.hook.hook
 class RequerySqlite : Feature("Requery Sqlite") {
     override fun init() {
         val hideQuickAddSuggestions = context.config.userInterface.hideQuickAddSuggestions.get()
+
         // 1. Database Integrity Restoration:
         // We have decommissioned the 'hideSuggestedStories' and 'hideFriendFeedEntry' SQL hooks.
         // These were causing global friend disappearance and database corruption.

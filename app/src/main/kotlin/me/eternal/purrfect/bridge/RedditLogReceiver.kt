@@ -1,4 +1,4 @@
-﻿package me.eternal.purrfect.bridge
+package me.eternal.purrfect.bridge
 
 import android.content.BroadcastReceiver
 import android.content.Context

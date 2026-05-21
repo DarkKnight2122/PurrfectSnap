@@ -66,6 +66,7 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import me.eternal.purrfect.core.util.ktx.vibrateLongPress
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -989,6 +990,7 @@ class SendOverride : Feature("Send Override") {
                 createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
                     PurrfectOverlayTheme {
                         val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
+                        val is24Hour = android.text.format.DateFormat.is24HourFormat(context.androidContext)
                         val mainTranslation = remember {
                             context.translation.getCategory("send_override_dialog")
                         }
@@ -1006,14 +1008,7 @@ class SendOverride : Feature("Send Override") {
                                 )
                             )
                         }
-                        val dialogBackground = remember(dialogSurfaceColor) {
-                            Brush.linearGradient(
-                                listOf(
-                                    dialogSurfaceColor,
-                                    dialogSurfaceColor.copy(alpha = 0.6f)
-                                )
-                            )
-                        }
+                        val dialogBackground = skin.cardOverlayColor
 
                         @Composable
                         fun ActionTile(
@@ -1023,16 +1018,19 @@ class SendOverride : Feature("Send Override") {
                             title: String,
                             onClick: () -> Unit
                         ) {
+                            val unselectedColor = if (skin.isDark) Color(0xFF1A1A1A) else Color(0xFFF0F0F0)
+                            val selectedColor = if (skin.isDark) Color(0xFF262626) else Color(0xFFE0E0E0)
+                            
                             Card(
                                 modifier = modifier,
                                 onClick = onClick,
                                 shape = RoundedCornerShape(18.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 4.dp else 1.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (selected) glowPrimary.copy(alpha = 0.2f) else dialogSurfaceColor.copy(alpha = 0.5f),
+                                    containerColor = if (selected) selectedColor else unselectedColor,
                                     contentColor = skin.textPrimary
                                 ),
-                                border = if (selected) BorderStroke(1.dp, glowPrimary.copy(alpha = 0.6f)) else null
+                                border = if (selected) BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.5f)) else null
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -1045,7 +1043,7 @@ class SendOverride : Feature("Send Override") {
                                         icon,
                                         contentDescription = title,
                                         modifier = Modifier.size(28.dp),
-                                        tint = if (selected) glowSecondary else skin.textPrimary.copy(alpha = 0.9f)
+                                        tint = if (selected) skin.textPrimary else skin.textPrimary.copy(alpha = 0.5f)
                                     )
                                     Spacer(Modifier.height(6.dp))
                                     Text(
@@ -1066,14 +1064,13 @@ class SendOverride : Feature("Send Override") {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = dialogShape,
-                            color = dialogSurfaceColor,
+                            color = dialogBackground,
                             tonalElevation = 0.dp,
                             shadowElevation = 18.dp,
                             border = BorderStroke(1.dp, border)
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .background(dialogBackground, dialogShape)
                                     .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -1142,67 +1139,276 @@ class SendOverride : Feature("Send Override") {
                             }
                         }
 
-                        when (selectedType) {
-                            "SNAP", "SAVEABLE_SNAP" -> {
-                                fun toggleSaveable() {
-                                    selectedType = if (selectedType == "SAVEABLE_SNAP") "SNAP" else "SAVEABLE_SNAP"
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                scheduleEnabled = !scheduleEnabled
+                                if (!scheduleEnabled) scheduledTime = null
+                            },
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = scheduleEnabled,
+                                onCheckedChange = {
+                                    scheduleEnabled = it
+                                    if (!it) scheduledTime = null
                                 }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().clickable {
-                                        disableSplitForCurrentSend = !disableSplitForCurrentSend
+                            )
+                            Text(text = mainTranslation["schedule"], modifier = Modifier.weight(1f))
+                            if (scheduleEnabled) {
+                                Button(
+                                    onClick = { 
+                                        context.androidContext.vibrateLongPress()
+                                        showClockPicker = true 
                                     },
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Checkbox(
-                                        checked = disableSplitForCurrentSend,
-                                        onCheckedChange = {
-                                            disableSplitForCurrentSend = it
-                                        }
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = skin.glowPrimary,
+                                        contentColor = skin.primaryButtonText
                                     )
-                                    Text(text = mainTranslation["single_send_hint"], lineHeight = 15.sp)
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().clickable {
-                                        toggleSaveable()
-                                    },
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ){
-                                    Checkbox(
-                                        checked = selectedType == "SAVEABLE_SNAP",
-                                        onCheckedChange = {
-                                            toggleSaveable()
-                                        }
-                                    )
-                                    Text(text = mainTranslation["saveable_snap_hint"], lineHeight = 15.sp)
-                                }
-                                Column(
-                                    modifier = Modifier.padding(start = 8.dp)
                                 ) {
-                                    Text(
-                                        text = mainTranslation.format("duration",
-                                            "duration" to (convertDuration(customDuration)?.toDuration(DurationUnit.MILLISECONDS)?.toString(DurationUnit.SECONDS, 2) ?: mainTranslation["unlimited_duration"])
+                                    scheduledTime?.let { time ->
+                                        val cal = Calendar.getInstance().apply { timeInMillis = time }
+                                        Text(
+                                            text = SimpleDateFormat(if (is24Hour) "HH:mm" else "hh:mm a", Locale.getDefault()).format(cal.time),
+                                            color = skin.primaryButtonText,
+                                            fontWeight = FontWeight.Bold
                                         )
-                                    )
-                                    Slider(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        enabled = selectedType != "SAVEABLE_SNAP",
-                                        value = customDuration,
-                                        onValueChange = {
-                                            customDuration = it
-                                        },
-                                        valueRange = -2f..11f,
+                                    } ?: Text(
+                                        text = context.translation["select"],
+                                        color = skin.primaryButtonText,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
                         }
 
+                        if (scheduleEnabled && showClockPicker) {
+                            val datePickerState = rememberDatePickerState(
+                                initialSelectedDateMillis = scheduledTime ?: System.currentTimeMillis()
+                            )
+                            val timePickerState = rememberTimePickerState(
+                                initialHour = clockPickerHour,
+                                initialMinute = clockPickerMinute,
+                                is24Hour = is24Hour
+                            )
+
+                            var showDatePickerDialog by remember { mutableStateOf(false) }
+                            var showTimePickerDialog by remember { mutableStateOf(false) }
+
+                            if (showDatePickerDialog) {
+                                DatePickerDialog(
+                                    onDismissRequest = { showDatePickerDialog = false },
+                                    confirmButton = {
+                                        TextButton(onClick = {
+                                            context.androidContext.vibrateLongPress()
+                                            showDatePickerDialog = false
+                                        }) {
+                                            Text(context.translation["button.ok"], color = skin.glowPrimary, fontWeight = FontWeight.Bold)
+                                        }
+                                    },
+                                    dismissButton = {
+                                        TextButton(onClick = { showDatePickerDialog = false }) {
+                                            Text(context.translation["button.cancel"], color = skin.textSecondary)
+                                        }
+                                    },
+                                    colors = DatePickerDefaults.colors(
+                                        containerColor = skin.cardOverlayColor,
+                                        titleContentColor = skin.textPrimary,
+                                        headlineContentColor = skin.textPrimary,
+                                        weekdayContentColor = skin.textSecondary,
+                                        subheadContentColor = skin.textSecondary,
+                                        yearContentColor = skin.textSecondary,
+                                        currentYearContentColor = skin.glowPrimary,
+                                        selectedYearContentColor = skin.primaryButtonText,
+                                        selectedYearContainerColor = skin.glowPrimary,
+                                        dayContentColor = skin.textPrimary,
+                                        disabledDayContentColor = skin.textPrimary.copy(alpha = 0.38f),
+                                        selectedDayContentColor = skin.primaryButtonText,
+                                        selectedDayContainerColor = skin.glowPrimary,
+                                        todayContentColor = skin.glowPrimary,
+                                        todayDateBorderColor = skin.glowPrimary
+                                    )
+                                ) {
+                                    DatePicker(
+                                        state = datePickerState,
+                                        colors = DatePickerDefaults.colors(
+                                            containerColor = skin.cardOverlayColor,
+                                            titleContentColor = skin.textPrimary,
+                                            headlineContentColor = skin.textPrimary,
+                                            weekdayContentColor = skin.textSecondary,
+                                            subheadContentColor = skin.textSecondary,
+                                            yearContentColor = skin.textSecondary,
+                                            currentYearContentColor = skin.glowPrimary,
+                                            selectedYearContentColor = skin.primaryButtonText,
+                                            selectedYearContainerColor = skin.glowPrimary,
+                                            dayContentColor = skin.textPrimary,
+                                            disabledDayContentColor = skin.textPrimary.copy(alpha = 0.38f),
+                                            selectedDayContentColor = skin.primaryButtonText,
+                                            selectedDayContainerColor = skin.glowPrimary,
+                                            todayContentColor = skin.glowPrimary,
+                                            todayDateBorderColor = skin.glowPrimary
+                                        )
+                                    )
+                                }
+                            }
+
+                            if (showTimePickerDialog) {
+                                AlertDialog(
+                                    onDismissRequest = { showTimePickerDialog = false },
+                                    confirmButton = {
+                                        TextButton(onClick = {
+                                            context.androidContext.vibrateLongPress()
+                                            clockPickerHour = timePickerState.hour
+                                            clockPickerMinute = timePickerState.minute
+                                            showTimePickerDialog = false
+                                        }) {
+                                            Text(context.translation["button.ok"], color = skin.glowPrimary, fontWeight = FontWeight.Bold)
+                                        }
+                                    },
+                                    dismissButton = {
+                                        TextButton(onClick = { showTimePickerDialog = false }) {
+                                            Text(context.translation["button.cancel"], color = skin.textSecondary)
+                                        }
+                                    },
+                                    containerColor = skin.cardOverlayColor,
+                                    text = {
+                                        TimePicker(
+                                            state = timePickerState,
+                                            colors = TimePickerDefaults.colors(
+                                                clockDialColor = skin.textPrimary.copy(alpha = 0.05f),
+                                                clockDialSelectedContentColor = skin.primaryButtonText,
+                                                clockDialUnselectedContentColor = skin.textPrimary,
+                                                selectorColor = skin.glowPrimary,
+                                                periodSelectorBorderColor = skin.textPrimary.copy(alpha = 0.12f),
+                                                periodSelectorSelectedContainerColor = skin.glowPrimary,
+                                                periodSelectorUnselectedContainerColor = Color.Transparent,
+                                                periodSelectorSelectedContentColor = skin.primaryButtonText,
+                                                periodSelectorUnselectedContentColor = skin.textPrimary,
+                                                timeSelectorSelectedContainerColor = skin.glowPrimary,
+                                                timeSelectorUnselectedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
+                                                timeSelectorSelectedContentColor = skin.primaryButtonText,
+                                                timeSelectorUnselectedContentColor = skin.textPrimary
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                colors = CardDefaults.cardColors(containerColor = skin.textPrimary.copy(alpha = 0.05f))
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Text(
+                                        mainTranslation["select_time"],
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = skin.textPrimary
+                                    )
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            context.androidContext.vibrateLongPress()
+                                            showDatePickerDialog = true
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
+                                    ) {
+                                        Icon(Icons.Default.CalendarToday, contentDescription = null, tint = skin.glowPrimary)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            datePickerState.selectedDateMillis?.let {
+                                                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it)
+                                            } ?: context.translation.getOrNull("select_date") ?: "Select Date"
+                                        )
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            context.androidContext.vibrateLongPress()
+                                            showTimePickerDialog = true
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
+                                    ) {
+                                        Icon(Icons.Default.Schedule, contentDescription = null, tint = skin.glowPrimary)
+                                        Spacer(Modifier.width(8.dp))
+                                        val cal = Calendar.getInstance().apply {
+                                            set(Calendar.HOUR_OF_DAY, clockPickerHour)
+                                            set(Calendar.MINUTE, clockPickerMinute)
+                                        }
+                                        Text(SimpleDateFormat(if (is24Hour) "HH:mm" else "hh:mm a", Locale.getDefault()).format(cal.time))
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { showClockPicker = false },
+                                            modifier = Modifier.weight(1f),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textSecondary)
+                                        ) {
+                                            Text(context.translation["button.cancel"])
+                                        }
+                                        Button(
+                                            onClick = {
+                                                context.androidContext.vibrateLongPress()
+                                                val selectedDateMillis = datePickerState.selectedDateMillis
+                                                if (selectedDateMillis == null) {
+                                                    context.inAppOverlay.showStatusToast(
+                                                        icon = Icons.Default.WarningAmber,
+                                                        text = mainTranslation.getOrNull("select_date_first") ?: "Please select a date"
+                                                    )
+                                                    return@Button
+                                                }
+
+                                                val calendar = Calendar.getInstance()
+                                                calendar.timeInMillis = selectedDateMillis
+                                                calendar.set(Calendar.HOUR_OF_DAY, clockPickerHour)
+                                                calendar.set(Calendar.MINUTE, clockPickerMinute)
+                                                calendar.set(Calendar.SECOND, 0)
+                                                calendar.set(Calendar.MILLISECOND, 0)
+
+                                                if (calendar.timeInMillis <= System.currentTimeMillis()) {
+                                                    context.inAppOverlay.showStatusToast(
+                                                        icon = Icons.Default.WarningAmber,
+                                                        text = mainTranslation.getOrNull("invalid_time") ?: "Please select a future time"
+                                                    )
+                                                    return@Button
+                                                }
+
+                                                scheduledTime = calendar.timeInMillis
+                                                showClockPicker = false
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = skin.glowPrimary,
+                                                contentColor = skin.primaryButtonText
+                                            )
+                                        ) {
+                                            Text(
+                                                text = context.translation["button.ok"], 
+                                                color = skin.primaryButtonText,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth().clickable {
                                 continuousSendEnabled = !continuousSendEnabled
                             },
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Checkbox(
@@ -1234,159 +1440,71 @@ class SendOverride : Feature("Send Override") {
                             )
                         }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = scheduleEnabled,
-                                onCheckedChange = {
-                                    scheduleEnabled = it
-                                    if (!it) scheduledTime = null
+                        when (selectedType) {
+                            "SNAP", "SAVEABLE_SNAP" -> {
+                                fun toggleSaveable() {
+                                    selectedType = if (selectedType == "SAVEABLE_SNAP") "SNAP" else "SAVEABLE_SNAP"
                                 }
-                            )
-                            Text(text = mainTranslation["schedule"], modifier = Modifier.weight(1f))
-                            if (scheduleEnabled) {
-                                Button(onClick = { showClockPicker = true }) {
-                                    scheduledTime?.let { time ->
-                                        Text(text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(time))
-                                    } ?: Text(context.translation["select"])
-                                }
-                            }
-                        }
-
-                        if (scheduleEnabled && showClockPicker) {
-                            val datePickerState = rememberDatePickerState(
-                                initialSelectedDateMillis = scheduledTime ?: System.currentTimeMillis()
-                            )
-                            val timePickerState = rememberTimePickerState(
-                                initialHour = clockPickerHour,
-                                initialMinute = clockPickerMinute
-                            )
-                            
-                            var showDatePickerDialog by remember { mutableStateOf(false) }
-                            var showTimePickerDialog by remember { mutableStateOf(false) }
-                            
-                            if (showDatePickerDialog) {
-                                DatePickerDialog(
-                                    onDismissRequest = { showDatePickerDialog = false },
-                                    confirmButton = {
-                                        TextButton(onClick = { showDatePickerDialog = false }) {
-                                            Text(context.translation["button.ok"])
-                                        }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        disableSplitForCurrentSend = !disableSplitForCurrentSend
                                     },
-                                    dismissButton = {
-                                        TextButton(onClick = { showDatePickerDialog = false }) {
-                                            Text(context.translation["button.cancel"])
-                                        }
-                                    }
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    DatePicker(state = datePickerState)
+                                    Checkbox(
+                                        checked = disableSplitForCurrentSend,
+                                        onCheckedChange = {
+                                            disableSplitForCurrentSend = it
+                                        }
+                                    )
+                                    Text(text = mainTranslation["single_send_hint"], lineHeight = 15.sp)
                                 }
-                            }
-                            
-                            if (showTimePickerDialog) {
-                                AlertDialog(
-                                    onDismissRequest = { showTimePickerDialog = false },
-                                    confirmButton = {
-                                        TextButton(onClick = { 
-                                            clockPickerHour = timePickerState.hour
-                                            clockPickerMinute = timePickerState.minute
-                                            showTimePickerDialog = false 
-                                        }) {
-                                            Text(context.translation["button.ok"])
-                                        }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().clickable {
+                                        toggleSaveable()
                                     },
-                                    dismissButton = {
-                                        TextButton(onClick = { showTimePickerDialog = false }) {
-                                            Text(context.translation["button.cancel"])
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ){
+                                    Checkbox(
+                                        checked = selectedType == "SAVEABLE_SNAP",
+                                        onCheckedChange = {
+                                            toggleSaveable()
                                         }
-                                    },
-                                    text = {
-                                        TimePicker(state = timePickerState)
-                                    }
-                                )
-                            }
-                            
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = MaterialTheme.shapes.medium
-                            ) {
+                                    )
+                                    Text(text = mainTranslation["saveable_snap_hint"], lineHeight = 15.sp)
+                                }
                                 Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    modifier = Modifier.padding(start = 8.dp)
                                 ) {
                                     Text(
-                                        mainTranslation["select_time"], 
-                                        fontWeight = FontWeight.Bold,
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                    
-                                    OutlinedButton(
-                                        onClick = { showDatePickerDialog = true },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Icon(Icons.Default.CalendarToday, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            datePickerState.selectedDateMillis?.let {
-                                                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it)
-                                            } ?: context.translation.getOrNull("select_date") ?: "Select Date"
+                                        text = mainTranslation.format("duration",
+                                            "duration" to (convertDuration(customDuration)?.toDuration(DurationUnit.MILLISECONDS)?.toString(DurationUnit.SECONDS, 2) ?: mainTranslation["unlimited_duration"])
                                         )
-                                    }
-                                    
-                                    OutlinedButton(
-                                        onClick = { showTimePickerDialog = true },
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Icon(Icons.Default.Schedule, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(String.format("%02d:%02d", clockPickerHour, clockPickerMinute))
-                                    }
-                                    
-                                    Row(
+                                    )
+                                    Slider(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceEvenly
-                                    ) {
-                                        OutlinedButton(onClick = { showClockPicker = false }) {
-                                            Text(context.translation["button.cancel"])
-                                        }
-                                        Button(onClick = {
-                                            val selectedDateMillis = datePickerState.selectedDateMillis
-                                            if (selectedDateMillis == null) {
-                                                context.inAppOverlay.showStatusToast(
-                                                    icon = Icons.Default.WarningAmber,
-                                                    text = mainTranslation.getOrNull("select_date_first") ?: "Please select a date"
-                                                )
-                                                return@Button
+                                        enabled = selectedType != "SAVEABLE_SNAP",
+                                        value = customDuration,
+                                        onValueChange = { newValue ->
+                                            val snapped = Math.round(newValue).toFloat().coerceIn(-2f, 11f)
+                                            if (snapped != customDuration) {
+                                                context.androidContext.vibrateLongPress()
+                                                customDuration = snapped
                                             }
-                                            
-                                            val calendar = Calendar.getInstance()
-                                            calendar.timeInMillis = selectedDateMillis
-                                            calendar.set(Calendar.HOUR_OF_DAY, clockPickerHour)
-                                            calendar.set(Calendar.MINUTE, clockPickerMinute)
-                                            calendar.set(Calendar.SECOND, 0)
-                                            calendar.set(Calendar.MILLISECOND, 0)
-                                            
-                                            if (calendar.timeInMillis <= System.currentTimeMillis()) {
-                                                context.inAppOverlay.showStatusToast(
-                                                    icon = Icons.Default.WarningAmber,
-                                                    text = mainTranslation.getOrNull("invalid_time") ?: "Please select a future time"
-                                                )
-                                                return@Button
-                                            }
-                                            
-                                            scheduledTime = calendar.timeInMillis
-                                            showClockPicker = false
-                                        }) {
-                                            Text(context.translation["button.ok"])
-                                        }
-                                    }
+                                        },
+                                        valueRange = -2f..11f,
+                                        steps = 12,
+                                        colors = androidx.compose.material3.SliderDefaults.colors(
+                                            thumbColor = skin.glowPrimary,
+                                            activeTrackColor = skin.glowPrimary,
+                                            inactiveTrackColor = skin.textPrimary.copy(alpha = 0.12f)
+                                        )
+                                    )
                                 }
                             }
                         }
-
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly,
@@ -1398,6 +1516,7 @@ class SendOverride : Feature("Send Override") {
                                 Text(context.translation["button.cancel"])
                             }
                             Button(onClick = {
+                                context.androidContext.vibrateLongPress()
                                 val finalSelectedType = selectedType
                                 val repeatCount = if (continuousSendEnabled) {
                                     continuousSendCount.toIntOrNull()?.takeIf { it > 0 }
@@ -1564,8 +1683,16 @@ class SendOverride : Feature("Send Override") {
                                         )
                                     }
                                 }
-                            }) {
-                                Text(if (scheduledTime != null) mainTranslation["schedule"] else context.translation["button.send"])
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = skin.glowPrimary,
+                                contentColor = skin.primaryButtonText
+                            )) {
+                                Text(
+                                    text = if (scheduledTime != null) mainTranslation["schedule"] else context.translation["button.send"] ?: "Send",
+                                    color = skin.primaryButtonText,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                )
                             }
                         }
                     }

@@ -135,7 +135,7 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                             max = LocalConfiguration.current.screenHeightDp * 0.8f.dp
                         )
                         .clip(shape)
-                        .background(skin.cardOverlay, shape)
+                        .background(skin.cardOverlayColor, shape)
                         .border(
                             1.dp,
                             Brush.linearGradient(
@@ -168,8 +168,8 @@ class ConversationToolbox : Feature("Conversation Toolbox") {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(itemShape)
-                                .background(skin.textPrimary.copy(alpha = 0.06f), itemShape)
-                                .border(1.dp, skin.textPrimary.copy(alpha = 0.10f), itemShape)
+                                .background(skin.textPrimary.copy(alpha = 0.08f), itemShape)
+                                .border(1.dp, skin.textPrimary.copy(alpha = 0.15f), itemShape)
                         ) {
                             Row(
                                 modifier = Modifier

@@ -45,12 +45,19 @@ object ChimaeraDiscovery {
         }
 
     val transmissionMessage: String
-        get() = when (attemptCount) {
-            1    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: 05:00\nRESPOND IMMEDIATELY\n\n— Kal"
-            2    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: 10:00\nYOU WERE WARNED\n\n— Kal"
-            3    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: 20:00\nTHRAWN IS PATIENT. ARE YOU?\n\n— Kal"
-            4    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: 40:00\nFINAL WARNING\n\n— Kal"
-            else -> "CHIMAERA SIGNAL DETECTED\nWINDOW: 60:00\nTHE ADMIRAL AWAITS\n\n— Kal"
+        get() {
+            val totalSeconds = remainingSeconds
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            val timer = "%02d:%02d".format(minutes, seconds)
+            
+            return when (attemptCount) {
+                1    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: $timer\nRESPOND IMMEDIATELY\n\n— Kal"
+                2    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: $timer\nYOU WERE WARNED\n\n— Kal"
+                3    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: $timer\nTHRAWN IS PATIENT. ARE YOU?\n\n— Kal"
+                4    -> "CHIMAERA SIGNAL DETECTED\nWINDOW: $timer\nFINAL WARNING\n\n— Kal"
+                else -> "CHIMAERA SIGNAL DETECTED\nWINDOW: $timer\nTHE ADMIRAL AWAITS\n\n— Kal"
+            }
         }
 
     val unlockMessage = "ACCESS GRANTED\nWELCOME ABOARD, COMMANDER\n\n— Kal\n  I.S.D. CHIMAERA"

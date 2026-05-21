@@ -119,7 +119,8 @@ class HomeLogs : Routes.Route() {
         val themeId by produceState(initialValue = context.config.root.global.uiSettings.managerTheme.get()) {
             while (true) { delay(300); value = context.config.root.global.uiSettings.managerTheme.get() }
         }
-        key(themeId) { with(ManagerTheme.fromId(themeId).theme) { this@HomeLogs.LogsScreen(nav) } }
+        val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
+        key(themeId, skin.id) { with(ManagerTheme.fromId(themeId).theme) { this@HomeLogs.LogsScreen(nav) } }
     }
 
     override val floatingActionButton: @Composable () -> Unit = {

@@ -300,8 +300,9 @@ class ManageScriptReposSection : Routes.Route() {
     }
 
     override val content: @Composable (androidx.navigation.NavBackStackEntry) -> Unit = {
-        val repositories by remember(refreshTrigger.value) {
-            mutableStateOf<List<String>>(runBlocking { context.database.getRepositories("script") })
+        var repositories by remember { mutableStateOf<List<String>>(emptyList()) }
+        LaunchedEffect(refreshTrigger.value) {
+            repositories = context.database.getRepositories("script")
         }
         val density = LocalDensity.current
         val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()

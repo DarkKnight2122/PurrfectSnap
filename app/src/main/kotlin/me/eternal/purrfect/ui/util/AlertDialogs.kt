@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -79,6 +80,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.util.purrfectSwitchColors
 import me.eternal.purrfect.ui.util.Dialog as StandardDialog
 
@@ -107,6 +109,7 @@ class AlertDialogs(
         property: PropertyPair<String>,
         onDismiss: () -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
         val windowParts = (property.value.get() as String).split("-")
         val startTime = windowParts.getOrNull(0)?.split(":") ?: listOf("23", "00")
         val endTime = windowParts.getOrNull(1)?.split(":") ?: listOf("07", "00")
@@ -134,18 +137,18 @@ class AlertDialogs(
                     text = translation["auto_open_snaps.auto_open_schedule.title"] ?: "Auto Open Scheduler",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = skin.textPrimary
                 )
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.05f))
+                        .background(skin.textPrimary.copy(alpha = 0.05f))
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    val activeColor = PurrfectPalette.glowPrimary.copy(alpha = 0.25f)
+                    val activeColor = skin.glowPrimary.copy(alpha = 0.25f)
                     val inactiveColor = Color.Transparent
                     
                     Box(
@@ -159,7 +162,7 @@ class AlertDialogs(
                     ) {
                         Text(
                             text = "${translation["auto_open_snaps.auto_open_schedule.start"] ?: "Start"}: ${String.format("%02d:%02d", startState.hour, startState.minute)}",
-                            color = if (!isEditingEnd) Color.White else Color.White.copy(alpha = 0.6f),
+                            color = if (!isEditingEnd) skin.textPrimary else skin.textPrimary.copy(alpha = 0.6f),
                             fontWeight = if (!isEditingEnd) FontWeight.Bold else FontWeight.Normal
                         )
                     }
@@ -175,7 +178,7 @@ class AlertDialogs(
                     ) {
                         Text(
                             text = "${translation["auto_open_snaps.auto_open_schedule.end"] ?: "End"}: ${String.format("%02d:%02d", endState.hour, endState.minute)}",
-                            color = if (isEditingEnd) Color.White else Color.White.copy(alpha = 0.6f),
+                            color = if (isEditingEnd) skin.textPrimary else skin.textPrimary.copy(alpha = 0.6f),
                             fontWeight = if (isEditingEnd) FontWeight.Bold else FontWeight.Normal
                         )
                     }
@@ -184,19 +187,19 @@ class AlertDialogs(
                 TimePicker(
                     state = if (isEditingEnd) endState else startState,
                     colors = TimePickerDefaults.colors(
-                        clockDialColor = Color.White.copy(alpha = 0.05f),
-                        clockDialSelectedContentColor = Color.White,
-                        clockDialUnselectedContentColor = Color.White.copy(alpha = 0.7f),
-                        selectorColor = PurrfectPalette.glowPrimary,
-                        periodSelectorBorderColor = PurrfectPalette.glowPrimary,
-                        periodSelectorSelectedContainerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.2f),
+                        clockDialColor = skin.textPrimary.copy(alpha = 0.05f),
+                        clockDialSelectedContentColor = skin.textPrimary,
+                        clockDialUnselectedContentColor = skin.textPrimary.copy(alpha = 0.7f),
+                        selectorColor = skin.glowPrimary,
+                        periodSelectorBorderColor = skin.glowPrimary,
+                        periodSelectorSelectedContainerColor = skin.glowPrimary.copy(alpha = 0.2f),
                         periodSelectorUnselectedContainerColor = Color.Transparent,
-                        periodSelectorSelectedContentColor = Color.White,
-                        periodSelectorUnselectedContentColor = Color.White.copy(alpha = 0.7f),
-                        timeSelectorSelectedContainerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.2f),
-                        timeSelectorUnselectedContainerColor = Color.White.copy(alpha = 0.05f),
-                        timeSelectorSelectedContentColor = Color.White,
-                        timeSelectorUnselectedContentColor = Color.White.copy(alpha = 0.7f)
+                        periodSelectorSelectedContentColor = skin.textPrimary,
+                        periodSelectorUnselectedContentColor = skin.textPrimary.copy(alpha = 0.7f),
+                        timeSelectorSelectedContainerColor = skin.glowPrimary.copy(alpha = 0.2f),
+                        timeSelectorUnselectedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
+                        timeSelectorSelectedContentColor = skin.textPrimary,
+                        timeSelectorUnselectedContentColor = skin.textPrimary.copy(alpha = 0.7f)
                     )
                 )
 
@@ -205,7 +208,7 @@ class AlertDialogs(
                     horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(text = translation["button.negative"], color = Color.White)
+                        Text(text = translation["button.negative"], color = skin.textPrimary)
                     }
                     Button(
                         onClick = {
@@ -215,8 +218,8 @@ class AlertDialogs(
                             onDismiss()
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                            contentColor = Color.White
+                            containerColor = skin.glowPrimary.copy(alpha = 0.35f),
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Text(text = translation["button.positive"])
@@ -228,28 +231,28 @@ class AlertDialogs(
 
     @Composable
     fun DefaultDialogCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+        val skin = LocalPurrfectSkin.current
         val scrollState = rememberScrollState()
         Surface(
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .padding(horizontal = 18.dp, vertical = 12.dp)
                 .then(modifier),
-            color = Color.White.copy(alpha = 0.06f),
+            color = skin.cardOverlayColor,
             tonalElevation = 0.dp,
             shadowElevation = 16.dp,
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                        skin.glowPrimary.copy(alpha = 0.55f),
+                        skin.glowSecondary.copy(alpha = 0.45f)
                     )
                 )
             ),
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay)
                     .fillMaxWidth()
             ) {
                 Column(
@@ -270,19 +273,20 @@ class AlertDialogs(
         onConfirm: () -> Unit,
         onDismiss: () -> Unit,
     ) {
+        val skin = LocalPurrfectSkin.current
         DefaultDialogCard {
             Text(
                 text = title,
                 fontSize = 21.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.padding(bottom = 6.dp),
-                color = PurrfectPalette.textPrimary
+                color = skin.textPrimary
             )
             if (message != null) {
                 Text(
                     text = message,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = PurrfectPalette.textSecondary,
+                    color = skin.textSecondary,
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
             }
@@ -293,8 +297,8 @@ class AlertDialogs(
                 Button(
                     onClick = { onDismiss() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        contentColor = Color.White
+                        containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.cancel"])
@@ -302,8 +306,8 @@ class AlertDialogs(
                 Button(
                     onClick = { onConfirm() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                        contentColor = Color.White
+                        containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.ok"])
@@ -318,19 +322,20 @@ class AlertDialogs(
         message: String? = null,
         onDismiss: () -> Unit,
     ) {
+        val skin = LocalPurrfectSkin.current
         DefaultDialogCard {
             Text(
                 text = title,
                 fontSize = 21.sp,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.padding(bottom = 6.dp),
-                color = PurrfectPalette.textPrimary
+                color = skin.textPrimary
             )
             if (message != null) {
                 Text(
                     text = message,
                     style = MaterialTheme.typography.bodySmall,
-                    color = PurrfectPalette.textSecondary,
+                    color = skin.textSecondary,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
             }
@@ -341,8 +346,8 @@ class AlertDialogs(
                 Button(
                     onClick = { onDismiss() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.28f),
-                        contentColor = Color.White
+                        containerColor = skin.glowPrimary.copy(alpha = 0.28f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.ok"])
@@ -353,8 +358,10 @@ class AlertDialogs(
 
     @Composable
     fun TranslatedText(property: PropertyPair<*>, key: String, modifier: Modifier = Modifier) {
+        val skin = LocalPurrfectSkin.current
         Text(
             text = property.key.propertyOption(translation, key),
+            color = skin.textPrimary,
             modifier = Modifier
                 .padding(10.dp, 10.dp, 10.dp, 10.dp)
                 .then(modifier)
@@ -364,6 +371,7 @@ class AlertDialogs(
     @Composable
     @Suppress("UNCHECKED_CAST")
     fun UniqueSelectionDialog(property: PropertyPair<*>) {
+        val skin = LocalPurrfectSkin.current
         val disabledKey = property.key.params.disabledKey
         val noDisable = property.key.params.flags.contains(ConfigFlag.NO_DISABLE_KEY)
         val keys = (property.value.defaultValues as List<String>).toMutableList().apply {
@@ -414,8 +422,8 @@ class AlertDialogs(
                         selected = selectedValue == item,
                         onClick = { select() },
                         colors = RadioButtonDefaults.colors(
-                            selectedColor = PurrfectPalette.glowSecondary,
-                            unselectedColor = Color.White.copy(alpha = 0.6f)
+                            selectedColor = skin.glowSecondary,
+                            unselectedColor = skin.textPrimary.copy(alpha = 0.6f)
                         )
                     )
                 }
@@ -425,6 +433,7 @@ class AlertDialogs(
 
     @Composable
     fun KeyboardInputDialog(property: PropertyPair<*>, dismiss: () -> Unit = {}) {
+        val skin = LocalPurrfectSkin.current
         val focusRequester = remember { FocusRequester() }
         val context = LocalContext.current
 
@@ -468,11 +477,13 @@ class AlertDialogs(
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                    focusedContainerColor = skin.textPrimary.copy(alpha = 0.08f),
+                    unfocusedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = PurrfectPalette.glowSecondary
+                    cursorColor = skin.glowSecondary,
+                    focusedTextColor = skin.textPrimary,
+                    unfocusedTextColor = skin.textPrimary
                 )
             )
 
@@ -485,8 +496,8 @@ class AlertDialogs(
                 Button(
                     onClick = { dismiss() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        contentColor = Color.White
+                        containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.cancel"])
@@ -518,8 +529,8 @@ class AlertDialogs(
                     dismiss()
                 },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                        contentColor = Color.White
+                        containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.ok"])
@@ -531,6 +542,7 @@ class AlertDialogs(
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun DatePickerPropertyDialog(property: PropertyPair<*>, dismiss: () -> Unit = {}) {
+        val skin = LocalPurrfectSkin.current
         val context = LocalContext.current
         val zoneId = remember { ZoneId.systemDefault() }
         val initialSelectedDateMillis = remember(property.value.get()) {
@@ -547,7 +559,21 @@ class AlertDialogs(
         DefaultDialogCard {
             DatePicker(
                 state = datePickerState,
-                showModeToggle = true
+                showModeToggle = true,
+                colors = DatePickerDefaults.colors(
+                    titleContentColor = skin.textPrimary,
+                    headlineContentColor = skin.textPrimary,
+                    weekdayContentColor = skin.textPrimary.copy(alpha = 0.6f),
+                    subheadContentColor = skin.textPrimary.copy(alpha = 0.6f),
+                    yearContentColor = skin.textPrimary,
+                    selectedYearContentColor = skin.cardOverlayColor,
+                    selectedYearContainerColor = skin.glowPrimary,
+                    dayContentColor = skin.textPrimary,
+                    selectedDayContentColor = skin.cardOverlayColor,
+                    selectedDayContainerColor = skin.glowPrimary,
+                    todayContentColor = skin.glowSecondary,
+                    containerColor = Color.Transparent
+                )
             )
 
             Row(
@@ -559,8 +585,8 @@ class AlertDialogs(
                 Button(
                     onClick = { dismiss() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        contentColor = Color.White
+                        containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.cancel"])
@@ -580,8 +606,8 @@ class AlertDialogs(
                         dismiss()
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                        contentColor = Color.White
+                        containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.ok"])
@@ -592,6 +618,7 @@ class AlertDialogs(
 
     @Composable
     fun RawInputDialog(onDismiss: () -> Unit, onConfirm: (value: String) -> Unit) {
+        val skin = LocalPurrfectSkin.current
         val focusRequester = remember { FocusRequester() }
 
         DefaultDialogCard {
@@ -614,11 +641,13 @@ class AlertDialogs(
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.White.copy(alpha = 0.08f),
-                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                    focusedContainerColor = skin.textPrimary.copy(alpha = 0.08f),
+                    unfocusedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = PurrfectPalette.glowSecondary
+                    cursorColor = skin.glowSecondary,
+                    focusedTextColor = skin.textPrimary,
+                    unfocusedTextColor = skin.textPrimary
                 )
             )
 
@@ -631,8 +660,8 @@ class AlertDialogs(
                 Button(
                     onClick = { onDismiss() },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White.copy(alpha = 0.08f),
-                        contentColor = Color.White
+                        containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.cancel"])
@@ -642,8 +671,8 @@ class AlertDialogs(
                     onConfirm(fieldValue.value.text)
                 },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                        contentColor = Color.White
+                        containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                        contentColor = skin.textPrimary
                     )
                 ) {
                     Text(text = translation["button.ok"])
@@ -655,6 +684,7 @@ class AlertDialogs(
     @Composable
     @Suppress("UNCHECKED_CAST")
     fun MultipleSelectionDialog(property: PropertyPair<*>) {
+        val skin = LocalPurrfectSkin.current
         val defaultItems = property.value.defaultValues as List<String>
         val toggledStates = property.value.get() as MutableList<String>
         DefaultDialogCard {
@@ -698,6 +728,7 @@ class AlertDialogs(
         setProperty: (Color?) -> Unit,
         dismiss: () -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
         var currentColor by remember { mutableStateOf(initialColor) }
 
         DefaultDialogCard {
@@ -727,72 +758,88 @@ class AlertDialogs(
                             currentColor = null
                         }
                     },
-                    label = { Text(text = translation["dialogs.hex_color_label"]) },
+                    label = { Text(text = translation["dialogs.hex_color_label"], color = skin.textPrimary.copy(alpha = 0.6f)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(10.dp),
                     singleLine = true,
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.05f),
+                        focusedContainerColor = (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.08f),
+                        focusedTextColor = skin.textPrimary,
+                        unfocusedTextColor = skin.textPrimary,
+                        cursorColor = skin.glowPrimary,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
                     )
-                )
-            }
-            HsvColorPicker(
-                modifier = Modifier
+                    )
+                    }
+                    HsvColorPicker(
+                    modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
                     .padding(10.dp),
-                initialColor = remember { currentColor },
-                controller = controller,
-                onColorChanged = {
+                    initialColor = remember { currentColor },
+                    controller = controller,
+                    onColorChanged = {
                     if (!it.fromUser) return@HsvColorPicker
                     currentColor = it.color
                     colorHexValue = Integer.toHexString(it.color.toArgb())
                     setProperty(it.color)
-                }
-            )
-            AlphaSlider(
-                modifier = Modifier
+                    }
+                    )
+                    AlphaSlider(
+                    modifier = Modifier
                     .fillMaxWidth()
                     .padding(10.dp)
                     .height(35.dp),
-                initialColor = remember { currentColor },
-                controller = controller,
-            )
-            BrightnessSlider(
-                modifier = Modifier
+                    initialColor = remember { currentColor },
+                    controller = controller,
+                    )
+                    BrightnessSlider(
+                    modifier = Modifier
                     .fillMaxWidth()
                     .padding(10.dp)
                     .height(35.dp),
-                initialColor = remember { currentColor },
-                controller = controller,
-            )
-            Row(
-                modifier = Modifier
+                    initialColor = remember { currentColor },
+                    controller = controller,
+                    )
+                    Row(
+                    modifier = Modifier
                     .fillMaxWidth()
                     .padding(5.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                AlphaTile(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                    AlphaTile(
                     modifier = Modifier
                         .size(80.dp)
-                        .clip(RoundedCornerShape(6.dp)),
+                        .clip(RoundedCornerShape(6.dp))
+                        .border(2.dp, (if (skin.isDark) skin.textPrimary else Color.Black).copy(alpha = 0.25f), RoundedCornerShape(6.dp)),
                     controller = controller
-                )
-                IconButton(onClick = {
+                    )
+                    IconButton(onClick = {
                     setProperty(null)
                     dismiss()
-                }) {
+                    }) {
                     Icon(
                         modifier = Modifier.size(60.dp),
                         imageVector = Icons.Filled.DeleteOutline,
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = (if (skin.isDark) skin.textPrimary else Color.Black)
                     )
-                }
-            }
-        }
+                    }
+                    Button(
+                    onClick = { dismiss() },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = skin.glowPrimary,
+                        contentColor = skin.primaryButtonText
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                    ) {
+                    Text(text = translation["button.ok"], fontWeight = FontWeight.Bold)
+                    }
+                    }        }
     }
 
     @Composable
@@ -827,6 +874,7 @@ class AlertDialogs(
         saveCoordinates: (() -> Unit)? = null,
         dismiss: () -> Unit = {}
     ) {
+        val skin = LocalPurrfectSkin.current
         val betterLocationTranslation = remember { translation.getCategory("manager.sections.better_location") }
         val coordinates = remember {
             (property.value.get() as Pair<*, *>).let {
@@ -930,13 +978,13 @@ class AlertDialogs(
                 .clipToBounds()
                 .fillMaxHeight(fraction = 0.9f),
             shape = RoundedCornerShape(26.dp),
-            color = Color.White.copy(alpha = 0.04f),
+            color = skin.textPrimary.copy(alpha = if (skin.isDark) 0.04f else 0.08f),
             border = BorderStroke(
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                        skin.glowPrimary.copy(alpha = 0.5f),
+                        skin.glowSecondary.copy(alpha = 0.45f)
                     )
                 )
             )
@@ -944,7 +992,7 @@ class AlertDialogs(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(26.dp))
-                    .background(PurrfectPalette.cardOverlay)
+                    .background(skin.cardOverlay)
             ) {
                 AndroidView(
                     factory = { mapView.value!! },
@@ -1031,15 +1079,15 @@ class AlertDialogs(
 
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = Color(0xFF0F1024).copy(alpha = 0.9f),
+                        color = skin.cardOverlayColor,
                         tonalElevation = 0.dp,
                         shadowElevation = 12.dp,
                         border = BorderStroke(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.45f)
+                                    skin.glowPrimary.copy(alpha = 0.55f),
+                                    skin.glowSecondary.copy(alpha = 0.45f)
                                 )
                             )
                         ),
@@ -1048,14 +1096,7 @@ class AlertDialogs(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(18.dp))
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            Color(0xFF2A2452).copy(alpha = 0.9f),
-                                            Color(0xFF1A143A).copy(alpha = 0.7f)
-                                        )
-                                    )
-                                )
+                                .background(skin.cardOverlay)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -1072,13 +1113,13 @@ class AlertDialogs(
                                         modifier = Modifier
                                             .size(38.dp)
                                             .clip(RoundedCornerShape(12.dp))
-                                            .background(Color.White.copy(alpha = 0.08f)),
+                                            .background(skin.textPrimary.copy(alpha = 0.08f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Filled.Explore,
                                             contentDescription = null,
-                                            tint = PurrfectPalette.glowSecondary
+                                            tint = skin.glowSecondary
                                         )
                                     }
                                     Column {
@@ -1086,20 +1127,20 @@ class AlertDialogs(
                                             text = betterLocationTranslation["choose_location_button"],
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = Color.White
+                                            color = skin.textPrimary
                                         )
                                         Text(
                                             text = betterLocationTranslation["search_or_tap_map_hint"],
                                             fontSize = 12.sp,
-                                            color = PurrfectPalette.textSecondary
+                                            color = skin.textSecondary
                                         )
                                     }
                                 }
                                 FilledIconButton(
                                     onClick = dismiss,
                                     colors = IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = Color.White.copy(alpha = 0.12f),
-                                        contentColor = Color.White
+                                        containerColor = skin.textPrimary.copy(alpha = 0.12f),
+                                        contentColor = skin.textPrimary
                                     )
                                 ) {
                                     Icon(
@@ -1113,13 +1154,13 @@ class AlertDialogs(
 
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = Color(0xFF0F1024).copy(alpha = 0.92f),
+                        color = skin.cardOverlayColor.copy(alpha = 0.92f),
                         border = BorderStroke(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                    skin.glowPrimary.copy(alpha = 0.4f),
+                                    skin.glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
                         ),
@@ -1148,7 +1189,7 @@ class AlertDialogs(
                                 Icon(
                                     imageVector = Icons.Filled.Search,
                                     contentDescription = betterLocationTranslation["search_icon_description"],
-                                    tint = Color.White
+                                    tint = skin.textPrimary
                                 )
                             },
                             trailingIcon = {
@@ -1162,7 +1203,7 @@ class AlertDialogs(
                                         Icon(
                                             imageVector = Icons.Filled.Clear,
                                             contentDescription = "Clear",
-                                            tint = Color.White
+                                            tint = skin.textPrimary
                                         )
                                     }
                                 }
@@ -1171,15 +1212,15 @@ class AlertDialogs(
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color(0xFF0F1024).copy(alpha = 0.96f),
-                                unfocusedContainerColor = Color(0xFF0F1024).copy(alpha = 0.88f),
-                                focusedBorderColor = PurrfectPalette.glowSecondary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.35f),
-                                cursorColor = PurrfectPalette.glowSecondary,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White,
-                                focusedPlaceholderColor = PurrfectPalette.textSecondary,
-                                unfocusedPlaceholderColor = PurrfectPalette.textSecondary
+                                focusedContainerColor = skin.cardOverlayColor.copy(alpha = 0.96f),
+                                unfocusedContainerColor = skin.cardOverlayColor.copy(alpha = 0.88f),
+                                focusedBorderColor = skin.glowSecondary,
+                                unfocusedBorderColor = skin.textPrimary.copy(alpha = 0.35f),
+                                cursorColor = skin.glowSecondary,
+                                focusedTextColor = skin.textPrimary,
+                                unfocusedTextColor = skin.textPrimary,
+                                focusedPlaceholderColor = skin.textSecondary,
+                                unfocusedPlaceholderColor = skin.textSecondary
                             )
                         )
                     }
@@ -1200,8 +1241,8 @@ class AlertDialogs(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                    skin.glowPrimary.copy(alpha = 0.4f),
+                                    skin.glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
                         )
@@ -1210,7 +1251,7 @@ class AlertDialogs(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(PurrfectPalette.cardOverlay)
+                                .background(skin.cardOverlay)
                                 .verticalScroll(resultsScrollState),
                         ) {
                             if (addressResults.isNotEmpty()) {
@@ -1233,7 +1274,7 @@ class AlertDialogs(
                                         Icon(
                                             imageVector = Icons.Filled.LocationOn,
                                             contentDescription = "Location",
-                                            tint = PurrfectPalette.glowSecondary,
+                                            tint = skin.glowSecondary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                         Text(
@@ -1242,12 +1283,12 @@ class AlertDialogs(
                                             modifier = Modifier.weight(1f),
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis,
-                                            color = Color.White
+                                            color = skin.textPrimary
                                         )
                                     }
                                     if (index < addressResults.size - 1) {
                                         HorizontalDivider(
-                                            color = Color.White.copy(alpha = 0.2f),
+                                            color = skin.textPrimary.copy(alpha = 0.2f),
                                             thickness = 0.5.dp,
                                             modifier = Modifier.padding(horizontal = 16.dp)
                                         )
@@ -1264,13 +1305,13 @@ class AlertDialogs(
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(20.dp),
                                         strokeWidth = 2.dp,
-                                        color = PurrfectPalette.glowSecondary
+                                        color = skin.glowSecondary
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         text = betterLocationTranslation["searching_label"],
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = Color.White
+                                        color = skin.textPrimary
                                     )
                                 }
                             }
@@ -1292,8 +1333,8 @@ class AlertDialogs(
                     1.dp,
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.38f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.32f)
+                            skin.glowPrimary.copy(alpha = 0.38f),
+                            skin.glowSecondary.copy(alpha = 0.32f)
                         )
                     )
                 )
@@ -1301,14 +1342,7 @@ class AlertDialogs(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFF241E46).copy(alpha = 0.92f),
-                                    Color(0xFF1B1638).copy(alpha = 0.8f)
-                                )
-                            )
-                        )
+                        .background(skin.cardOverlay)
                         .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -1321,8 +1355,8 @@ class AlertDialogs(
                             dismiss()
                         },
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = PurrfectPalette.glowSecondary.copy(alpha = 0.24f),
-                            contentColor = Color.White
+                            containerColor = skin.glowSecondary.copy(alpha = 0.24f),
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Icon(
@@ -1335,8 +1369,8 @@ class AlertDialogs(
                         FilledIconButton(
                             onClick = { it() },
                             colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = Color.White.copy(alpha = 0.14f),
-                                contentColor = Color.White
+                                containerColor = skin.textPrimary.copy(alpha = 0.14f),
+                                contentColor = skin.textPrimary
                             )
                         ) {
                             Icon(
@@ -1350,8 +1384,8 @@ class AlertDialogs(
                     FilledIconButton(
                         onClick = { customCoordinatesDialog = true },
                         colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.24f),
-                            contentColor = Color.White
+                            containerColor = skin.glowPrimary.copy(alpha = 0.24f),
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Icon(
@@ -1387,13 +1421,13 @@ class AlertDialogs(
                                 modifier = Modifier
                                     .size(42.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Color.White.copy(alpha = 0.08f)),
+                                    .background(skin.textPrimary.copy(alpha = 0.08f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.EditLocationAlt,
                                     contentDescription = null,
-                                    tint = PurrfectPalette.glowSecondary
+                                    tint = skin.glowSecondary
                                 )
                             }
                             Column {
@@ -1401,12 +1435,12 @@ class AlertDialogs(
                                     text = betterLocationTranslation["save_coordinates_dialog_title"],
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White
+                                    color = skin.textPrimary
                                 )
                                 Text(
                                     text = betterLocationTranslation["manual_coordinates_hint"],
                                     fontSize = 12.sp,
-                                    color = PurrfectPalette.textSecondary
+                                    color = skin.textSecondary
                                 )
                             }
                         }
@@ -1421,13 +1455,13 @@ class AlertDialogs(
                             singleLine = true,
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White.copy(alpha = 0.12f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
-                                focusedBorderColor = PurrfectPalette.glowSecondary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
-                                cursorColor = PurrfectPalette.glowSecondary,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedContainerColor = skin.textPrimary.copy(alpha = 0.12f),
+                                unfocusedContainerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                focusedBorderColor = skin.glowSecondary,
+                                unfocusedBorderColor = skin.textPrimary.copy(alpha = 0.25f),
+                                cursorColor = skin.glowSecondary,
+                                focusedTextColor = skin.textPrimary,
+                                unfocusedTextColor = skin.textPrimary
                             )
                         )
                         OutlinedTextField(
@@ -1441,13 +1475,13 @@ class AlertDialogs(
                             singleLine = true,
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White.copy(alpha = 0.12f),
-                                unfocusedContainerColor = Color.White.copy(alpha = 0.08f),
-                                focusedBorderColor = PurrfectPalette.glowSecondary,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
-                                cursorColor = PurrfectPalette.glowSecondary,
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
+                                focusedContainerColor = skin.textPrimary.copy(alpha = 0.12f),
+                                unfocusedContainerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                focusedBorderColor = skin.glowSecondary,
+                                unfocusedBorderColor = skin.textPrimary.copy(alpha = 0.25f),
+                                cursorColor = skin.glowSecondary,
+                                focusedTextColor = skin.textPrimary,
+                                unfocusedTextColor = skin.textPrimary
                             )
                         )
                         Row(
@@ -1457,8 +1491,8 @@ class AlertDialogs(
                             Button(
                                 onClick = { customCoordinatesDialog = false },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White.copy(alpha = 0.08f),
-                                    contentColor = Color.White
+                                    containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                                    contentColor = skin.textPrimary
                                 )
                             ) { Text(text = translation["button.cancel"]) }
 
@@ -1470,8 +1504,8 @@ class AlertDialogs(
                                     customCoordinatesDialog = false
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                    contentColor = Color.White
+                                    containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                                    contentColor = skin.textPrimary
                                 )
                             ) { Text(text = translation["button.ok"]) }
                         }
@@ -1489,6 +1523,7 @@ class AlertDialogs(
         onSave: (String) -> Unit,
         onDismiss: () -> Unit,
     ) {
+        val skin = LocalPurrfectSkin.current
         var messageList by remember { 
             mutableStateOf(
                 try {
@@ -1511,6 +1546,7 @@ class AlertDialogs(
                     text = title,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
+                    color = skin.textPrimary,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
@@ -1522,7 +1558,8 @@ class AlertDialogs(
                         .fillMaxWidth()
                         .heightIn(min = 200.dp, max = 400.dp)
                         .padding(8.dp),
-                    shape = MaterialTheme.shapes.medium
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(containerColor = skin.cardOverlayColor)
                 ) {
                     if (messageList.isEmpty()) {
                         Box(
@@ -1535,7 +1572,7 @@ class AlertDialogs(
                                 text = translation["bulk_messaging_action.no_messages_found"] ?: "No messages",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = skin.textSecondary
                             )
                         }
                     } else {
@@ -1548,7 +1585,8 @@ class AlertDialogs(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp),
-                                    shape = MaterialTheme.shapes.small
+                                    shape = MaterialTheme.shapes.small,
+                                    colors = CardDefaults.cardColors(containerColor = skin.textPrimary.copy(alpha = 0.05f))
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -1560,6 +1598,7 @@ class AlertDialogs(
                                             text = messageList[index],
                                             modifier = Modifier.weight(1f),
                                             style = MaterialTheme.typography.bodyMedium,
+                                            color = skin.textPrimary,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -1574,14 +1613,14 @@ class AlertDialogs(
                                                     showAddDialog = true
                                                 }
                                             ) {
-                                                Icon(Icons.Default.Edit, contentDescription = translation["common.edit"] ?: "Edit", tint = MaterialTheme.colorScheme.primary)
+                                                Icon(Icons.Default.Edit, contentDescription = translation["common.edit"] ?: "Edit", tint = skin.glowPrimary)
                                             }
                                             IconButton(
                                                 onClick = { 
                                                     messageList = messageList.toMutableList().apply { removeAt(index) }
                                                 }
                                             ) {
-                                                Icon(Icons.Default.Delete, contentDescription = translation["common.delete"] ?: "Delete", tint = MaterialTheme.colorScheme.error)
+                                                Icon(Icons.Default.Delete, contentDescription = translation["common.delete"] ?: "Delete", tint = Color(0xFFFF8585))
                                             }
                                         }
                                     }
@@ -1600,7 +1639,7 @@ class AlertDialogs(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.buttonColors(containerColor = skin.glowPrimary.copy(alpha = 0.28f), contentColor = skin.textPrimary)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1615,7 +1654,7 @@ class AlertDialogs(
                 ) {
                     Button(
                         onClick = { onDismiss() },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary.copy(alpha = 0.08f), contentColor = skin.textPrimary)
                     ) {
                         Text(text = translation["button.cancel"])
                     }
@@ -1624,7 +1663,8 @@ class AlertDialogs(
                             val gson = com.google.gson.Gson()
                             onSave(gson.toJson(messageList))
                             onDismiss()
-                        }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = skin.glowPrimary.copy(alpha = 0.32f), contentColor = skin.textPrimary)
                     ) {
                         Text(text = translation["button.save"])
                     }
@@ -1644,6 +1684,7 @@ class AlertDialogs(
                         text = if (editingIndex == -1) translation["common.add"] ?: "Add Message" else translation["common.edit"] ?: "Edit Message",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
+                        color = skin.textPrimary,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
@@ -1653,13 +1694,20 @@ class AlertDialogs(
                     TextField(
                         value = editingText,
                         onValueChange = { editingText = it },
-                        label = { Text(translation["common.message"] ?: "Message") },
+                        label = { Text(translation["common.message"] ?: "Message", color = skin.textPrimary.copy(alpha = 0.6f)) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp),
                         minLines = 2,
                         maxLines = 4,
-                        placeholder = { Text(translation["common.type_message"] ?: "Type message...") }
+                        placeholder = { Text(translation["common.type_message"] ?: "Type message...", color = skin.textPrimary.copy(alpha = 0.4f)) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedTextColor = skin.textPrimary,
+                            unfocusedTextColor = skin.textPrimary,
+                            cursorColor = skin.glowPrimary
+                        )
                     )
                     
                     Row(
@@ -1670,7 +1718,7 @@ class AlertDialogs(
                     ) {
                         Button(
                             onClick = { showAddDialog = false },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary.copy(alpha = 0.08f), contentColor = skin.textPrimary)
                         ) {
                             Text(text = translation["button.cancel"])
                         }
@@ -1683,7 +1731,8 @@ class AlertDialogs(
                                 }
                                 showAddDialog = false
                             },
-                            enabled = editingText.isNotBlank()
+                            enabled = editingText.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(containerColor = skin.glowPrimary.copy(alpha = 0.32f), contentColor = skin.textPrimary)
                         ) {
                             Text(text = if (editingIndex == -1) translation["common.add"] ?: "Add" else translation["button.save"])
                         }

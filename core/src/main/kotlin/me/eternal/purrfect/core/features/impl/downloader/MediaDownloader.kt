@@ -60,6 +60,9 @@ import me.eternal.purrfect.core.features.impl.messaging.Messaging
 import me.eternal.purrfect.core.features.impl.spying.MessageLogger
 import me.eternal.purrfect.core.features.impl.ui.OperaStoryOverlay
 import me.eternal.purrfect.core.ui.PurrfectGlassCard
+import androidx.compose.ui.text.font.FontWeight
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.theme.PurrfectSkins
 import me.eternal.purrfect.core.ui.PurrfectOverlayPalette
 import me.eternal.purrfect.core.ui.PurrfectOverlayTheme
 import me.eternal.purrfect.core.ui.ViewAppearanceHelper
@@ -75,6 +78,7 @@ import me.eternal.purrfect.core.wrapper.impl.media.MediaInfo
 import me.eternal.purrfect.core.wrapper.impl.media.opera.Layer
 import me.eternal.purrfect.core.wrapper.impl.media.opera.ParamMap
 import me.eternal.purrfect.core.wrapper.impl.media.toKeyPair
+import me.eternal.purrfect.core.util.ktx.vibrateLongPress
 import me.eternal.purrfect.mapper.impl.OperaPageViewControllerMapper
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
@@ -284,8 +288,30 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                                 Text(tr["select_all"] ?: "Select All", style = MaterialTheme.typography.bodyMedium, color = PurrfectOverlayPalette.textPrimary)
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
+                                val composeContext = androidx.compose.ui.platform.LocalContext.current
                                 OutlinedButton(onClick = { alertDialog.dismiss() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp)) { Text(cancelStr) }
-                                Button(onClick = { if (selected.isNotEmpty()) { startBatchDownload(selected.sorted().toMutableList(), allowDuplicate); alertDialog.dismiss() } }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = PurrfectOverlayPalette.glowPrimary)) { Text(downloadStr) }
+                                Button(
+                                    onClick = { 
+                                        if (selected.isNotEmpty()) { 
+                                            composeContext.vibrateLongPress()
+                                            startBatchDownload(selected.sorted().toMutableList(), allowDuplicate)
+                                            alertDialog.dismiss() 
+                                        } 
+                                    }, 
+                                    modifier = Modifier.weight(1f), 
+                                    shape = RoundedCornerShape(14.dp), 
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = skin.glowPrimary, 
+                                        contentColor = skin.primaryButtonText
+                                    )
+                                ) { 
+                                    Text(
+                                        text = downloadStr, 
+                                        color = skin.primaryButtonText,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold 
+                                    ) 
+                                }
                             }
                         }
                     }

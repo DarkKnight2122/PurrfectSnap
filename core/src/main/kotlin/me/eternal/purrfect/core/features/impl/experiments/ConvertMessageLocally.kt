@@ -170,26 +170,28 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
         }
 
         createComposeAlertDialog(context.mainActivity!!) { alertDialog ->
-            ConvertMessageDialog(
-                title = context.translation["chat_action_menu.convert_message"],
-                subtitle = context.translation["convert_message_dialog.subtitle"],
-                closeLabel = context.translation["button.cancel"],
-                actions = actions.map { (label, _) ->
-                    ConvertMessageAction(
-                        label = label,
-                        icon = when {
-                            label == context.translation["button.restore_original"] -> Icons.Default.Restore
-                            label == "View Media" || label == context.translation["button.view_media"] -> Icons.Default.Visibility
-                            else -> Icons.Default.Cached
-                        }
-                    )
-                },
-                onSelect = { index ->
-                    actions.getOrNull(index)?.second?.invoke(messageInstance)
-                    alertDialog.dismiss()
-                },
-                onDismiss = { alertDialog.dismiss() }
-            )
+            me.eternal.purrfect.core.ui.PurrfectOverlayTheme(context) {
+                ConvertMessageDialog(
+                    title = context.translation["chat_action_menu.convert_message"],
+                    subtitle = context.translation["convert_message_dialog.subtitle"],
+                    closeLabel = context.translation["button.cancel"],
+                    actions = actions.map { (label, _) ->
+                        ConvertMessageAction(
+                            label = label,
+                            icon = when {
+                                label == context.translation["button.restore_original"] -> Icons.Default.Restore
+                                label == "View Media" || label == context.translation["button.view_media"] -> Icons.Default.Visibility
+                                else -> Icons.Default.Cached
+                            }
+                        )
+                    },
+                    onSelect = { index ->
+                        actions.getOrNull(index)?.second?.invoke(messageInstance)
+                        alertDialog.dismiss()
+                    },
+                    onDismiss = { alertDialog.dismiss() }
+                )
+            }
         }.show()
     }
 
@@ -374,20 +376,13 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
         onSelect: (Int) -> Unit,
         onDismiss: () -> Unit
     ) {
+        val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
         val shape = remember { RoundedCornerShape(24.dp) }
-        val overlayBrush = remember {
+        val accentBrush = remember(skin) {
             Brush.linearGradient(
                 listOf(
-                    Color(0xFF2A2452).copy(alpha = 0.95f),
-                    Color(0xFF1A143A).copy(alpha = 0.92f)
-                )
-            )
-        }
-        val accentBrush = remember {
-            Brush.linearGradient(
-                listOf(
-                    Color(0xFF8C7BFF).copy(alpha = 0.42f),
-                    Color(0xFF5FD8FF).copy(alpha = 0.34f)
+                    skin.glowPrimary.copy(alpha = 0.42f),
+                    skin.glowSecondary.copy(alpha = 0.34f)
                 )
             )
         }
@@ -397,12 +392,11 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
                 .fillMaxWidth()
                 .padding(8.dp),
             shape = shape,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2452).copy(alpha = 0.95f))
+            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f)),
+            colors = CardDefaults.cardColors(containerColor = skin.cardOverlayColor)
         ) {
             Box(
                 modifier = Modifier
-                    .background(overlayBrush, shape)
                     .padding(20.dp)
             ) {
                 Column(
@@ -419,7 +413,7 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
                         Icon(
                             imageVector = Icons.Default.EditNote,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = skin.textPrimary,
                             modifier = Modifier.size(30.dp)
                         )
                     }
@@ -431,13 +425,13 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
                         Text(
                             text = title,
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
-                            color = Color.White,
+                            color = skin.textPrimary,
                             textAlign = TextAlign.Center
                         )
                         Text(
                             text = subtitle,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFFD9D3FF),
+                            color = skin.textSecondary,
                             textAlign = TextAlign.Center
                         )
                     }
@@ -459,8 +453,8 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
                         onClick = onDismiss,
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF8C7BFF).copy(alpha = 0.34f),
-                            contentColor = Color.White
+                            containerColor = skin.textPrimary.copy(alpha = 0.08f),
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Text(
@@ -479,14 +473,15 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
         icon: ImageVector,
         onClick: () -> Unit
     ) {
+        val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            Color(0xFF8C7BFF).copy(alpha = 0.18f),
-                            Color(0xFF5FD8FF).copy(alpha = 0.1f)
+                            skin.glowPrimary.copy(alpha = 0.18f),
+                            skin.glowSecondary.copy(alpha = 0.1f)
                         )
                     ),
                     RoundedCornerShape(18.dp)
@@ -499,20 +494,20 @@ class ConvertMessageLocally : Feature("Convert Message Edit") {
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .background(Color.White.copy(alpha = 0.1f), CircleShape),
+                    .background(skin.textPrimary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = skin.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
             Text(
                 text = label,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
+                color = skin.textPrimary,
                 fontWeight = FontWeight.SemiBold
             )
         }

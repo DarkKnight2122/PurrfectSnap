@@ -562,8 +562,8 @@ class ManageScope: Routes.Route() {
                                     icon = Icons.Filled.Lock,
                                     accent = Brush.horizontalGradient(
                                         listOf(
-                                            Color(0xFF7DD3FC),
-                                            Color(0xFF818CF8)
+                                            ManageScopeSkinPalette.glowPrimary.copy(alpha = 0.6f),
+                                            ManageScopeSkinPalette.glowSecondary.copy(alpha = 0.55f)
                                         )
                                     ),
                                     onClick = { importDialog = true }

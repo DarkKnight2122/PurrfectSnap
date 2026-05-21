@@ -12,17 +12,16 @@ import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 @Composable
 fun purrfectSwitchColors(): SwitchColors {
     val skin = LocalPurrfectSkin.current
-    val context = LocalContext.current
-    val isAphelion = remember(context) { 
-        SharedContextHolder.remote(context).config.root.global.uiSettings.managerTheme.get() == "APHELION"
-    }
+    
+    val trackAlpha = if (skin.isDark) 0.55f else 0.85f
+    val borderAlpha = if (skin.isDark) 0.5f else 0.9f
     
     val secondary = skin.glowSecondary
 
     return SwitchDefaults.colors(
         checkedThumbColor = skin.textPrimary,
-        checkedTrackColor = secondary.copy(alpha = 0.55f),
-        checkedBorderColor = secondary.copy(alpha = 0.5f),
+        checkedTrackColor = secondary.copy(alpha = trackAlpha),
+        checkedBorderColor = skin.textPrimary.copy(alpha = borderAlpha),
         uncheckedThumbColor = skin.textPrimary.copy(alpha = 0.7f),
         uncheckedTrackColor = skin.textPrimary.copy(alpha = 0.25f),
         uncheckedBorderColor = skin.textPrimary.copy(alpha = 0.3f),

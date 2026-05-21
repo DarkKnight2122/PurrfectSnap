@@ -273,21 +273,21 @@ class NewChatActionMenu : AbstractMenu() {
                     ) {
                         Icon(
                             modifier = Modifier
-                                .padding(start = 16.dp),
+                                .padding(start = 16.dp).size(22.dp),
                             imageVector = icon,
                             tint = skin.textPrimary,
                             contentDescription = text
                         )
-                        Text(text, color = skin.textPrimary, fontFamily = avenirNextMediumFont, fontSize = 16.sp)
+                        Text(text, color = skin.textPrimary, fontWeight = FontWeight.Medium, fontSize = 16.sp)
                     }
                     Spacer(modifier = Modifier
                         .height(1.dp)
                         .fillMaxWidth()
-                        .background(skin.textPrimary.copy(alpha = 0.05f)))
+                        .background(skin.textPrimary.copy(alpha = 0.12f)))
                 }
 
                 Column(
-                    modifier = Modifier.fillMaxWidth().background(skin.cardOverlayColor),
+                    modifier = Modifier.fillMaxWidth().background(Color.Transparent),
                 ) {
                     if (context.config.downloader.downloadContextMenu.get()) {
                         ListButton(icon = Icons.Outlined.RemoveRedEye, text = context.translation["chat_action_menu.preview_button"], modifier = Modifier.clickable {

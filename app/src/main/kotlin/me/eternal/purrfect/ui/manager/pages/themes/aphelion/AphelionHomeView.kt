@@ -1,6 +1,7 @@
 package me.eternal.purrfect.ui.manager.pages.themes.aphelion
 
 import android.content.SharedPreferences
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -412,6 +413,10 @@ fun HomeRootSection.AphelionHomeView(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val titleTapSource = remember { MutableInteractionSource() }
+                    val titleTapCount = remember { mutableIntStateOf(0) }
+                    val lastTitleTapTime = remember { mutableLongStateOf(0L) }
+                    
                     Text(
                         text = buildAnnotatedString {
                             append("Purrfect")
@@ -422,7 +427,35 @@ fun HomeRootSection.AphelionHomeView(
                         color = skin.textPrimary,
                         fontSize = 34.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        fontFamily = avenirNext
+                        fontFamily = avenirNext,
+                        modifier = Modifier.clickable(
+                            interactionSource = titleTapSource,
+                            indication = null,
+                            onClick = {
+                                val now = SystemClock.elapsedRealtime()
+                                if (now - lastTitleTapTime.longValue > 1500L) {
+                                    titleTapCount.intValue = 0
+                                }
+                                titleTapCount.intValue += 1
+                                lastTitleTapTime.longValue = now
+                                if (titleTapCount.intValue >= 5) {
+                                    titleTapCount.intValue = 0
+                                    val discovery = me.eternal.purrfect.ui.manager.chimaera.ChimaeraDiscovery
+                                    discovery.load(context.sharedPreferences)
+                                    
+                                    if (discovery.isWindowActive) {
+                                        discovery.completeStage2(context.sharedPreferences)
+                                        routes.navigation?.isFirstUnlock = true
+                                        routes.navigation?.pendingTransmission = discovery.unlockMessage
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    } else if (discovery.unlocked) {
+                                        routes.navigation?.isFirstUnlock = false
+                                        routes.navigation?.showCinematic = true
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                }
+                            }
+                        )
                     )
                     Text(
                         text = "By ΞTΞRNAL",

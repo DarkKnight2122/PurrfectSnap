@@ -855,7 +855,8 @@ class HomeRootSection : Routes.Route() {
                 value = context.config.root.global.uiSettings.managerTheme.get()
             }
         }
-        key(themeId) {
+        val skin = LocalPurrfectSkin.current
+        key(themeId, skin.id) {
             with(ManagerTheme.fromId(themeId).theme) {
                 this@HomeRootSection.HomeScreen(nav)
             }
