@@ -8,6 +8,7 @@ import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.callbacks.XC_LoadPackage
 import me.eternal.purrfect.common.BuildConfig
 import me.eternal.purrfect.common.Constants
+import me.eternal.purrfect.core.instagram.InstagramRuntime
 import me.eternal.purrfect.core.reddit.RedditRuntime
 import me.eternal.purrfect.core.util.hook.HookStage
 import me.eternal.purrfect.core.util.hook.hook
@@ -50,6 +51,7 @@ class XposedLoader : IXposedHookLoadPackage {
                 when (param.packageName) {
                     Constants.REDDIT_PACKAGE_NAME -> RedditRuntime().init(context, param.classLoader)
                     Constants.WHATSAPP_PACKAGE_NAME -> WhatsAppRuntime().init(context, param.classLoader)
+                    in Constants.INSTAGRAM_PACKAGE_NAMES -> InstagramRuntime(param.appInfo.sourceDir).init(context, param.classLoader)
                 }
             }.onFailure { throwable ->
                 initialized.set(false)

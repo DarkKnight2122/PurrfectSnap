@@ -108,6 +108,8 @@ class RemoteSideContext(
         get() = activeTargetApp == TargetApp.REDDIT
     val isWhatsAppMode: Boolean
         get() = activeTargetApp == TargetApp.WHATSAPP
+    val isInstagramMode: Boolean
+        get() = activeTargetApp == TargetApp.INSTAGRAM
     val isLimitedTargetMode: Boolean
         get() = activeTargetApp != TargetApp.SNAPCHAT
     val fileHandleManager = RemoteFileHandleManager(this)
@@ -164,6 +166,7 @@ class RemoteSideContext(
                 config.root.reddit.migrateLegacyFlags()
                 mirrorRedditFeaturePrefs()
                 mirrorWhatsAppFeaturePrefs()
+                mirrorInstagramFeaturePrefs()
                 ensureAutoUpdateCheckOnUpgrade()
                 launch {
                     mappings.apply {
@@ -327,6 +330,7 @@ class RemoteSideContext(
         val action = when (packageName) {
             Constants.REDDIT_PACKAGE_NAME -> Constants.REDDIT_FORCE_STOP_ACTION
             Constants.WHATSAPP_PACKAGE_NAME -> Constants.WHATSAPP_FORCE_STOP_ACTION
+            in Constants.INSTAGRAM_PACKAGE_NAMES -> Constants.INSTAGRAM_FORCE_STOP_ACTION
             else -> null
         }
         if (action == null) {
@@ -355,6 +359,7 @@ class RemoteSideContext(
             TargetApp.SNAPCHAT -> Constants.SNAPCHAT_PACKAGE_NAME
             TargetApp.REDDIT -> Constants.REDDIT_PACKAGE_NAME
             TargetApp.WHATSAPP -> Constants.WHATSAPP_PACKAGE_NAME
+            TargetApp.INSTAGRAM -> Constants.INSTAGRAM_PACKAGE_NAME
         }
     }
 
@@ -451,6 +456,7 @@ class RemoteSideContext(
             File(androidContext.filesDir, WHATSAPP_FEATURE_CONFIG_FILE).apply {
                 parentFile?.mkdirs()
                 writeText(whatsAppJson, Charsets.UTF_8)
+                setReadable(true, false)
             }
             whatsAppFeatureExternalFiles().forEach { file ->
                 runCatching {
@@ -466,13 +472,22 @@ class RemoteSideContext(
             androidContext.getSharedPreferences(WHATSAPP_FEATURE_PREFS, Context.MODE_PRIVATE)
                 .edit()
                 .apply {
-                    whatsAppFeatures.forEach { (key, value) -> putBoolean(key, value) }
+                    whatsAppFeatures.forEach { (key, value) ->
+                        when (value) {
+                            is Boolean -> putBoolean(key, value)
+                            is String -> putString(key, value)
+                        }
+                    }
                 }
                 .commit()
 
             val prefsFile = File(androidContext.applicationInfo.dataDir, "shared_prefs/$WHATSAPP_FEATURE_PREFS.xml")
+            val configFile = File(androidContext.filesDir, "config.json")
             File(androidContext.applicationInfo.dataDir).setExecutable(true, false)
             File(androidContext.applicationInfo.dataDir).setReadable(true, false)
+            androidContext.filesDir.setExecutable(true, false)
+            androidContext.filesDir.setReadable(true, false)
+            configFile.takeIf { it.exists() }?.setReadable(true, false)
             prefsFile.parentFile?.setExecutable(true, false)
             prefsFile.parentFile?.setReadable(true, false)
             prefsFile.setReadable(true, false)
@@ -480,6 +495,72 @@ class RemoteSideContext(
             log.verbose("Mirrored WhatsApp feature config JSON")
         }.onFailure {
             log.error("Failed to mirror WhatsApp feature prefs", it)
+        }
+    }
+
+    fun mirrorInstagramFeaturePrefs() {
+        runCatching {
+            val instagramFeatures = getInstagramFeaturesMap()
+            val instagramJson = Gson().toJson(instagramFeatures)
+            File(androidContext.filesDir, INSTAGRAM_FEATURE_CONFIG_FILE).apply {
+                parentFile?.mkdirs()
+                writeText(instagramJson, Charsets.UTF_8)
+                setReadable(true, false)
+            }
+            instagramFeatureExternalFiles().forEach { file ->
+                runCatching {
+                    file.parentFile?.mkdirs()
+                    file.writeText(instagramJson, Charsets.UTF_8)
+                    file.parentFile?.setReadable(true, false)
+                    file.setReadable(true, false)
+                }.onFailure {
+                    log.warn("Failed to mirror Instagram feature config to ${file.absolutePath}: ${it.message}")
+                }
+            }
+
+            androidContext.getSharedPreferences(INSTAGRAM_FEATURE_PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .apply {
+                    instagramFeatures.forEach { (key, value) ->
+                        when (value) {
+                            is Boolean -> putBoolean(key, value)
+                            is String -> putString(key, value)
+                        }
+                    }
+                    putBoolean("keepUnsentMessagesInitialized", true)
+                    putBoolean("quickToggleUnsendInitialized", true)
+                    putBoolean("enableDmContextMenuOptionsInitialized", true)
+                }
+                .commit()
+
+            val prefsFile = File(androidContext.applicationInfo.dataDir, "shared_prefs/$INSTAGRAM_FEATURE_PREFS.xml")
+            val configFile = File(androidContext.filesDir, "config.json")
+            File(androidContext.applicationInfo.dataDir).setExecutable(true, false)
+            File(androidContext.applicationInfo.dataDir).setReadable(true, false)
+            androidContext.filesDir.setExecutable(true, false)
+            androidContext.filesDir.setReadable(true, false)
+            configFile.takeIf { it.exists() }?.setReadable(true, false)
+            prefsFile.parentFile?.setExecutable(true, false)
+            prefsFile.parentFile?.setReadable(true, false)
+            prefsFile.setReadable(true, false)
+            broadcastInstagramFeaturePrefs(instagramJson)
+            log.verbose("Mirrored Instagram feature config JSON")
+        }.onFailure {
+            log.error("Failed to mirror Instagram feature prefs", it)
+        }
+    }
+
+    private fun broadcastInstagramFeaturePrefs(json: String) {
+        Constants.INSTAGRAM_PACKAGE_NAMES.forEach { packageName ->
+            runCatching {
+                androidContext.sendBroadcast(
+                    Intent(Constants.INSTAGRAM_CONFIG_UPDATE_ACTION)
+                        .setPackage(packageName)
+                        .putExtra(Constants.INSTAGRAM_CONFIG_JSON_EXTRA, json)
+                )
+            }.onFailure {
+                log.warn("Failed to broadcast Instagram feature config to $packageName: ${it.message}")
+            }
         }
     }
 
@@ -529,20 +610,35 @@ class RemoteSideContext(
         return Gson().toJson(getWhatsAppFeaturesMap())
     }
 
-    private fun getWhatsAppFeaturesMap(): Map<String, Boolean> {
+    fun getInstagramFeaturesJson(): String {
+        return Gson().toJson(getInstagramFeaturesMap())
+    }
+
+    private fun getWhatsAppFeaturesMap(): Map<String, Any> {
         val whatsApp = config.root.whatsapp
         return mapOf(
+            "hide_channels" to whatsApp.hideChannelsEnabled(),
             "hide_channel_recommendations" to whatsApp.hideChannelRecommendationsEnabled(),
+            "hide_communities_tab" to whatsApp.hideCommunitiesTabEnabled(),
             "hide_typing_indicators" to whatsApp.hideTypingIndicatorsEnabled(),
             "hide_recording_audio" to whatsApp.hideRecordingAudioEnabled(),
-            "hide_view_once_seen" to whatsApp.hideViewOnceSeenEnabled(),
             "hide_delivered" to whatsApp.hideDeliveredEnabled(),
             "hide_audio_seen" to whatsApp.hideAudioSeenEnabled(),
+            "hide_status_view" to whatsApp.hideStatusViewEnabled(),
+            "hide_start_chatting" to whatsApp.hideStartChattingEnabled(),
             "unlimited_view_once" to whatsApp.unlimitedViewOnceEnabled(),
-            "hide_blue_ticks_groups" to whatsApp.hideBlueTicksGroupsEnabled(),
             "hide_blue_ticks" to whatsApp.hideBlueTicksEnabled(),
-            "show_deleted_messages" to whatsApp.showDeletedMessagesEnabled()
+            "show_deleted_messages" to whatsApp.showDeletedMessagesEnabled(),
+            "hide_ui_elements" to whatsApp.hideUiElementsEnabled(),
+            "capture_ui_elements" to whatsApp.captureUiElementsEnabled(),
+            "liquid_class" to whatsApp.liquidClassEnabled(),
+            "hidden_ui_element_ids" to whatsApp.hiddenUiElementIds(),
+            "hidden_ui_element_selectors" to whatsApp.hiddenUiElementSelectors()
         )
+    }
+
+    private fun getInstagramFeaturesMap(): Map<String, Any> {
+        return config.root.instagram.featureMap()
     }
 
     fun resetActiveTargetConfig() {
@@ -550,18 +646,22 @@ class RemoteSideContext(
         when (activeTargetApp) {
             TargetApp.REDDIT -> config.root.reddit.fromJson(defaults.reddit.toJson())
             TargetApp.WHATSAPP -> config.root.whatsapp.fromJson(defaults.whatsapp.toJson())
+            TargetApp.INSTAGRAM -> config.root.instagram.fromJson(defaults.instagram.toJson())
             TargetApp.SNAPCHAT -> {
                 val redditConfig = config.root.reddit.toJson()
                 val whatsAppConfig = config.root.whatsapp.toJson()
+                val instagramConfig = config.root.instagram.toJson()
                 config.reset()
                 config.root.reddit.fromJson(redditConfig)
                 config.root.whatsapp.fromJson(whatsAppConfig)
+                config.root.instagram.fromJson(instagramConfig)
             }
         }
         config.root.reddit.migrateLegacyFlags()
         config.writeConfig()
         mirrorRedditFeaturePrefs()
         mirrorWhatsAppFeaturePrefs()
+        mirrorInstagramFeaturePrefs()
     }
 
     private fun redditFeatureExternalFiles(): List<File> {
@@ -575,6 +675,13 @@ class RemoteSideContext(
         return listOf(
             File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$WHATSAPP_FEATURE_CONFIG_FILE"),
             File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$WHATSAPP_FEATURE_CONFIG_FILE")
+        ).distinctBy { it.absolutePath }
+    }
+
+    private fun instagramFeatureExternalFiles(): List<File> {
+        return listOf(
+            File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$INSTAGRAM_FEATURE_CONFIG_FILE"),
+            File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$INSTAGRAM_FEATURE_CONFIG_FILE")
         ).distinctBy { it.absolutePath }
     }
 
@@ -683,5 +790,7 @@ class RemoteSideContext(
         const val REDDIT_FEATURE_CONFIG_FILE = "reddit_features.json"
         const val WHATSAPP_FEATURE_PREFS = "whatsapp_features"
         const val WHATSAPP_FEATURE_CONFIG_FILE = "whatsapp_features.json"
+        const val INSTAGRAM_FEATURE_PREFS = "instagram_features"
+        const val INSTAGRAM_FEATURE_CONFIG_FILE = "instagram_features.json"
     }
 }

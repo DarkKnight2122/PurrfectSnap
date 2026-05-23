@@ -262,16 +262,19 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
             TargetApp.SNAPCHAT -> Color(0xFFFFE100)
             TargetApp.REDDIT -> Color(0xFFFF4500)
             TargetApp.WHATSAPP -> Color(0xFF25D366)
+            TargetApp.INSTAGRAM -> Color(0xFFE4405F)
         }
         val targetSuffix = when (activeTarget) {
             TargetApp.SNAPCHAT -> "Snap"
             TargetApp.REDDIT -> "Reddit"
             TargetApp.WHATSAPP -> "WA"
+            TargetApp.INSTAGRAM -> "Insta"
         }
         val targetName = when (activeTarget) {
             TargetApp.SNAPCHAT -> "Snapchat"
             TargetApp.REDDIT -> "Reddit"
             TargetApp.WHATSAPP -> "WhatsApp"
+            TargetApp.INSTAGRAM -> "Instagram"
         }
         Box(
             modifier = Modifier
@@ -300,14 +303,6 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - ((scrollOffset() - 250f) / 120f)).coerceIn(0f, 1f)
                             translationY = (-scrollOffset() * 0.06f)
-                        }
-                    )
-                    Text(
-                        text = "By \u039eT\u039eRNAL",
-                        color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = (1f - ((scrollOffset() - 300f) / 120f)).coerceIn(0f, 1f)
-                            translationY = (-scrollOffset() * 0.04f)
                         }
                     )
                     Text(
@@ -504,6 +499,7 @@ fun HomeRootSection.AphelionHomeScreen(nav: NavBackStackEntry) {
     val activeCards = when (activeTarget) {
         TargetApp.REDDIT -> redditCards
         TargetApp.WHATSAPP -> whatsAppCards
+        TargetApp.INSTAGRAM -> instagramCards
         TargetApp.SNAPCHAT -> cards
     }
     val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }

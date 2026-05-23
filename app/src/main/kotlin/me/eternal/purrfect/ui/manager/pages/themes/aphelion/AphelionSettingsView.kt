@@ -1236,6 +1236,7 @@ private fun HomeSettings.TargetAppSwitchRow() {
         TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
         TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
         TargetApp.WHATSAPP -> translation["target_app_whatsapp_summary"] ?: "Current: WhatsApp"
+        TargetApp.INSTAGRAM -> translation["target_app_instagram_summary"] ?: "Current: Instagram"
     }
     val buttonLabel = translation["switch_target_button"] ?: "Switch"
 

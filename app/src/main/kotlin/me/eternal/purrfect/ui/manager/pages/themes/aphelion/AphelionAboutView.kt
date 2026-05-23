@@ -165,16 +165,15 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                DeveloperCard(name = "Eternal", subtitle = "", imageRes = R.drawable.pfp_external, avenirNext = avenirNext, modifier = Modifier.weight(1f))
                                 DeveloperCard(name = "Kaladin", subtitle = "", imageRes = R.drawable.pfp_kaladin, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "schrodingerspet", subtitle = "", imageRes = R.drawable.pfp_schrodingerspet, avenirNext = avenirNext, modifier = Modifier.weight(1f))
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                DeveloperCard(name = "schrodingerspet", subtitle = "", imageRes = R.drawable.pfp_schrodingerspet, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                                DeveloperCard(name = "RSR", subtitle = "", imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                                DeveloperCard(name = "RSR", subtitle = "", imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.fillMaxWidth(0.5f))
                             }
                         }
                     }

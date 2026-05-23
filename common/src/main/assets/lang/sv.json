@@ -197,7 +197,7 @@
         },
         "sections": {
             "home": {
-                "version_title": "v{versionName} \u00b7 av ΞTΞRNAL",
+                "version_title": "v{versionName}",
                 "update_title": "Purrfect Uppdatering",
                 "update_content": "Version {version} är tillgänglig!",
                 "update_button": "Ladda ner",
@@ -247,7 +247,7 @@
                 "about_tagline": "En Xposed-modul avsedd att förbättra din Snapchat-upplevelse!",
                 "about_lead_developers_title": "Huvudutvecklare",
                 "about_story_title": "Vår historia",
-                "about_story": "Purrfect grundades den 2 oktober 2025 som en fork av SnapEnhance av ΞTΞRNAL med visionen att ge användare den Snapchat-upplevelse av kvalitet de förtjänar. Denna app var bara tänkt att vara en mindre uppdatering i SnapEnhance-repositoriet, men blev snart en separat app där bidragsgivarna fortsatte lägga till funktioner. Sedan gick utvecklaren <RSR/> med i teamet, och denna app blev snart en stor framgång. Vi fick mycket kärlek och stöd och nådde 1000+ nedladdningar på bara två dagar! Vi tackar alla användare och bidragsgivare; utan ert stöd hade vi inte nått hit. Vi vill också rikta ett stort tack till rhunk, huvudutvecklaren av SnapEnhance, för utan honom skulle denna app inte ens existera. Vi är oerhört tacksamma mot honom. Slutligen vill vi tacka alla våra admins, särskilt: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, som var med oss från allra första början. Vi vill också tacka alla testare, särskilt Leo & Toxic, som testade och rapporterade buggar kontinuerligt. Vi är oerhört tacksamma för ert bidrag.",
+                "about_story": "Purrfect grundades den 2 oktober 2025 som en fork av SnapEnhance med visionen att ge användare den Snapchat-upplevelse av kvalitet de förtjänar. Denna app var bara tänkt att vara en mindre uppdatering i SnapEnhance-repositoriet, men blev snart en separat app där bidragsgivarna fortsatte lägga till funktioner. Sedan gick utvecklaren <RSR/> med i teamet, och denna app blev snart en stor framgång. Vi fick mycket kärlek och stöd och nådde 1000+ nedladdningar på bara två dagar! Vi tackar alla användare och bidragsgivare; utan ert stöd hade vi inte nått hit. Vi vill också rikta ett stort tack till rhunk, huvudutvecklaren av SnapEnhance, för utan honom skulle denna app inte ens existera. Vi är oerhört tacksamma mot honom. Slutligen vill vi tacka alla våra admins, särskilt: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, som var med oss från allra första början. Vi vill också tacka alla testare, särskilt Leo & Toxic, som testade och rapporterade buggar kontinuerligt. Vi är oerhört tacksamma för ert bidrag.",
                 "about_thanks_title": "Med kärlek, Purrfect Team",
                 "about_magic_toast": "Tryck 5 gånger på denna skärm för att se lite magi 😉!",
                 "github_button": "GitHub",

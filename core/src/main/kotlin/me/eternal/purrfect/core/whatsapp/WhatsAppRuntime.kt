@@ -25,6 +25,8 @@ class WhatsAppRuntime {
         WhatsAppFeatureState.loadAsync(androidContext)
         WhatsAppChannelHooks(androidContext, appClassLoader).init()
         WhatsAppPrivacyHooks(androidContext, appClassLoader).init()
+        WhatsAppLiquidGlassHooks(androidContext, appClassLoader).init()
+        WhatsAppUiElementHooks(androidContext, appClassLoader).init()
     }
 
     private fun registerConfigBroadcastReceiver(androidContext: Context, appClassLoader: ClassLoader) {
@@ -38,11 +40,16 @@ class WhatsAppRuntime {
                 }
                 runCatching {
                     val state = WhatsAppFeatureState.fromJson(json, "broadcast")
+                    WhatsAppFeatureState.cacheInWhatsAppProcess(androidContext, json)
                     WhatsAppFeatureStateStore.update(state)
                     log(
                         androidContext,
                         "WhatsApp feature state loaded from broadcast: ${describe(state)}"
                     )
+                    WhatsAppChannelHooks.refreshActiveHooks("broadcast")
+                    WhatsAppPrivacyHooks.refreshActiveHooks("broadcast")
+                    WhatsAppLiquidGlassHooks.refreshActiveHooks("broadcast")
+                    WhatsAppUiElementHooks.refreshActiveHooks("broadcast")
                     WhatsAppDetectionHooks.installRuntime(appClassLoader)
                 }.onFailure { throwable ->
                     log(androidContext, "Failed to parse WhatsApp feature config broadcast: ${throwable.stackTraceToString()}")
@@ -109,15 +116,22 @@ class WhatsAppRuntime {
     }
 
     private fun describe(state: WhatsAppFeatureState): String {
-        return "hideChannelRecommendations=${state.hideChannelRecommendations}, " +
+        return "hideChannels=${state.hideChannels}, " +
+            "hideChannelRecommendations=${state.hideChannelRecommendations}, " +
+            "hideCommunitiesTab=${state.hideCommunitiesTab}, " +
             "hideTypingIndicators=${state.hideTypingIndicators}, " +
             "hideRecordingAudio=${state.hideRecordingAudio}, " +
-            "hideViewOnceSeen=${state.hideViewOnceSeen}, " +
             "hideDelivered=${state.hideDelivered}, " +
             "hideAudioSeen=${state.hideAudioSeen}, " +
+            "hideStatusView=${state.hideStatusView}, " +
+            "hideStartChatting=${state.hideStartChatting}, " +
             "unlimitedViewOnce=${state.unlimitedViewOnce}, " +
-            "hideBlueTicksGroups=${state.hideBlueTicksGroups}, " +
             "hideBlueTicks=${state.hideBlueTicks}, " +
-            "showDeletedMessages=${state.showDeletedMessages}"
+            "showDeletedMessages=${state.showDeletedMessages}, " +
+            "hideUiElements=${state.hideUiElements}, " +
+            "captureUiElements=${state.captureUiElements}, " +
+            "liquidClass=${state.liquidClass}, " +
+            "hiddenUiElementIds=${state.hiddenUiElementIds.lineSequence().count { it.isNotBlank() }}, " +
+            "hiddenUiElementSelectors=${state.hiddenUiElementSelectors.lineSequence().count { it.isNotBlank() }}"
     }
 }

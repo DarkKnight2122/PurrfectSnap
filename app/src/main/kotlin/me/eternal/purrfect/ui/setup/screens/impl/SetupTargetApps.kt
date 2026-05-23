@@ -9,7 +9,7 @@ internal data class SetupInstallTarget(
     val packageName: String
 )
 
-internal val setupTargetOrder = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT)
+internal val setupTargetOrder = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.WHATSAPP, TargetApp.INSTAGRAM)
 
 internal fun TargetApp.toSetupInstallTarget(): SetupInstallTarget {
     return when (this) {
@@ -29,6 +29,12 @@ internal fun TargetApp.toSetupInstallTarget(): SetupInstallTarget {
             targetApp = this,
             displayName = "WhatsApp",
             packageName = Constants.WHATSAPP_PACKAGE_NAME
+        )
+
+        TargetApp.INSTAGRAM -> SetupInstallTarget(
+            targetApp = this,
+            displayName = "Instagram",
+            packageName = Constants.INSTAGRAM_PACKAGE_NAME
         )
     }
 }

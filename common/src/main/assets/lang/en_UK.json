@@ -197,7 +197,7 @@
         },
         "sections": {
             "home": {
-                "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
+                "version_title": "v{versionName}",
                 "update_title": "Purrfect Update",
                 "reddit_update_title": "Update Reddit",
                 "update_content": "Version {version} is available!",
@@ -249,7 +249,7 @@
                 "about_tagline": "An Xposed Module meant to enhance your Snapchat experience!",
                 "about_lead_developers_title": "Lead Developers",
                 "about_story_title": "Our Story",
-                "about_story": "Purrfect was founded on 2nd of October, 2025, as a fork of SnapEnhance by ΞTΞRNAL with a vision to provide users the quality Snapchat experience they deserve. This app was just meant to be a minor update in the SnapEnhance repository, but it soon became a separate app wherein the contributors kept adding features. Then the developer <RSR/> joined the team, and this app soon became a huge success. We received much love and support and gained 1K+ downloads in just two days! We thank all users and contributors; without your support, we wouldn't have reached this place. We would also like to convey our huge thanks to rhunk, the lead developer of SnapEnhance, as without him, this app wouldn't even exist. We are immensely grateful to him. Lastly, we would like to thank all our admins, notably: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, who were right there with us from the very beginning. We would also like to thank all testers, notably Leo & Toxic, who tested and reported bugs continuously. We are immensely grateful for your contribution.",
+                "about_story": "Purrfect was founded on 2nd of October, 2025, as a fork of SnapEnhance with a vision to provide users the quality Snapchat experience they deserve. This app was just meant to be a minor update in the SnapEnhance repository, but it soon became a separate app wherein the contributors kept adding features. Then the developer <RSR/> joined the team, and this app soon became a huge success. We received much love and support and gained 1K+ downloads in just two days! We thank all users and contributors; without your support, we wouldn't have reached this place. We would also like to convey our huge thanks to rhunk, the lead developer of SnapEnhance, as without him, this app wouldn't even exist. We are immensely grateful to him. Lastly, we would like to thank all our admins, notably: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, who were right there with us from the very beginning. We would also like to thank all testers, notably Leo & Toxic, who tested and reported bugs continuously. We are immensely grateful for your contribution.",
                 "about_thanks_title": "With love, Purrfect Team",
                 "about_magic_toast": "Tap 5 times in this screen to see some magic 😉!",
                 "github_button": "GitHub",
@@ -273,16 +273,20 @@
                 "target_app_snapchat_summary": "Current: Snapchat",
                 "target_app_reddit_summary": "Current: Reddit",
                 "target_app_whatsapp_summary": "Current: WhatsApp",
+                "target_app_instagram_summary": "Current: Instagram",
                 "switch_target_button": "Switch",
                 "switch_target_dialog_title": "Switch Target App",
                 "switch_to_reddit_button": "Switch to Reddit",
                 "install_reddit_button": "Reddit Available: Install!",
                 "reddit_settings_title": "Reddit Mode",
                 "whatsapp_settings_title": "WhatsApp Mode",
+                "instagram_settings_title": "Instagram Mode",
                 "switch_to_snapchat_button": "Switch to Snapchat",
                 "install_snapchat_button": "Snapchat Available: Install!",
                 "switch_to_whatsapp_button": "Switch to WhatsApp",
                 "install_whatsapp_button": "Install WhatsApp",
+                "switch_to_instagram_button": "Switch to Instagram",
+                "install_instagram_button": "Install Instagram",
                 "success_toast": "Done!",
                 "message_logger_summary": "{messageCount} messages\n{storyCount} stories",
                 "export_button": "Export",
@@ -367,8 +371,8 @@
             "tasks": {
                 "no_tasks": "No tasks",
                 "merge_button": "Merge",
-                "summary_active": "{active} active \u00b7 {recent} recent",
-                "summary_idle": "Idle \u00b7 {recent} recent",
+                "summary_active": "{active} active · {recent} recent",
+                "summary_idle": "Idle · {recent} recent",
                 "running_count": "{count} running",
                 "clear_button_description": "Clear tasks",
                 "failed_to_open_file": "Failed to open file",
@@ -381,17 +385,17 @@
                 "remove_all_tasks_confirm": "Remove all tasks?"
             },
             "features": {
-            "disabled": "Disabled",
-            "export_option": "Export",
-            "import_option": "Import",
-            "reset_option": "Reset",
-            "config_export_success_toast": "Config exported successfully",
-            "config_import_success_toast": "Config imported successfully",
-            "config_import_failure_toast": "Failed to import config {error}",
-            "config_export_failure_toast": "Failed to export config {error}",
-            "saved_config_snackbar": "Config saved",
-            "older_required": "This feature requires Snapchat v{version} or older to work correctly",
-            "newer_required": "This feature requires Snapchat v{version} or newer to work correctly",
+                "disabled": "Disabled",
+                "export_option": "Export",
+                "import_option": "Import",
+                "reset_option": "Reset",
+                "config_export_success_toast": "Config exported successfully",
+                "config_import_success_toast": "Config imported successfully",
+                "config_import_failure_toast": "Failed to import config {error}",
+                "config_export_failure_toast": "Failed to export config {error}",
+                "saved_config_snackbar": "Config saved",
+                "older_required": "This feature requires Snapchat v{version} or older to work correctly",
+                "newer_required": "This feature requires Snapchat v{version} or newer to work correctly",
                 "search_button": "Search",
                 "search_results_count": "{count} messages",
                 "clear_history": "Clear search history",
@@ -964,9 +968,9 @@
     },
     "features": {
         "notices": {
-            "unstable": "\u26a0 Unstable",
-            "ban_risk": "\u26a0 This feature may cause bans",
-            "internal_behavior": "\u26a0 This may break Snapchat internal behaviour",
+            "unstable": "⚠ Unstable",
+            "ban_risk": "⚠ This feature may cause bans",
+            "internal_behavior": "⚠ This may break Snapchat internal behaviour",
             "randomize_device_profile_override": "Controlled by Randomized Device Profile"
         },
         "properties": {
@@ -978,9 +982,17 @@
                         "name": "Channels",
                         "description": "Control WhatsApp channel surfaces",
                         "properties": {
+                            "hide_channels": {
+                                "name": "Hide Channels",
+                                "description": "Remove the Channels section from WhatsApp Updates"
+                            },
                             "hide_channel_recommendations": {
                                 "name": "Hide Channel Recommendations",
                                 "description": "Hide recommended channel blocks in WhatsApp Updates"
+                            },
+                            "hide_communities_tab": {
+                                "name": "Hide Communities Tab",
+                                "description": "Remove the Communities tab from WhatsApp's bottom navigation bar"
                             }
                         }
                     },
@@ -996,10 +1008,6 @@
                                 "name": "Hide Recording Audio",
                                 "description": "Stop WhatsApp from sending audio recording chatstate stanzas"
                             },
-                            "hide_view_once_seen": {
-                                "name": "Hide View Once Seen",
-                                "description": "Avoid sending view-once seen markers"
-                            },
                             "hide_delivered": {
                                 "name": "Hide Delivered",
                                 "description": "Avoid sending delivered receipt markers"
@@ -1008,13 +1016,13 @@
                                 "name": "Hide Audio Seen",
                                 "description": "Avoid sending played receipts for audio messages"
                             },
-                            "hide_blue_ticks_groups": {
-                                "name": "Hide Blue Ticks in Groups",
-                                "description": "Avoid sending read receipts in group conversations"
-                            },
                             "hide_blue_ticks": {
                                 "name": "Hide Blue Ticks",
-                                "description": "Avoid sending read receipts in one-to-one conversations"
+                                "description": "Avoid sending read receipts in one-to-one and group conversations"
+                            },
+                            "hide_status_view": {
+                                "name": "Hide Status View",
+                                "description": "Avoid sending view receipts when you watch someone else's status"
                             }
                         }
                     },
@@ -1022,6 +1030,10 @@
                         "name": "Messages",
                         "description": "Control message preservation behaviour",
                         "properties": {
+                            "hide_start_chatting": {
+                                "name": "Hide Start Chatting",
+                                "description": "Hide the Start chatting suggestions section on the WhatsApp Chats screen"
+                            },
                             "unlimited_view_once": {
                                 "name": "Unlimited View Once",
                                 "description": "Keep view-once messages available after opening"
@@ -1029,6 +1041,37 @@
                             "show_deleted_messages": {
                                 "name": "Show Deleted Messages",
                                 "description": "Keep incoming messages visible after sender revokes them"
+                            }
+                        }
+                    },
+                    "ui_elements": {
+                        "name": "UI Elements",
+                        "description": "Hide selected WhatsApp interface elements",
+                        "hidden_elements_title": "Hidden Elements",
+                        "hidden_elements_empty": "No hidden elements yet",
+                        "unhide_all": "Unhide All",
+                        "resource_id_label": "Resource ID",
+                        "selector_label": "Exact selector",
+                        "properties": {
+                            "hide_ui_elements": {
+                                "name": "Hide UI Elements",
+                                "description": "Hide WhatsApp views saved by the UI element picker"
+                            },
+                            "capture_ui_elements": {
+                                "name": "Select UI Element To Hide",
+                                "description": "Show a draggable ID button in WhatsApp that can select any visible element and hide it"
+                            },
+                            "liquid_class": {
+                                "name": "Liquid Class",
+                                "description": "Replace WhatsApp's bottom navigation with a liquid glass bar"
+                            },
+                            "hidden_ui_element_ids": {
+                                "name": "Hidden UI Element IDs",
+                                "description": "Resource IDs hidden by the picker, one per line"
+                            },
+                            "hidden_ui_element_selectors": {
+                                "name": "Hidden UI Element Selectors",
+                                "description": "Exact selectors for hidden views that do not have stable resource IDs"
                             }
                         }
                     },
@@ -1110,9 +1153,21 @@
                             }
                         }
                     },
+                    "hide_channels": {
+                        "name": "Hide Channels",
+                        "description": "Remove the Channels section from WhatsApp Updates"
+                    },
                     "hide_channel_recommendations": {
                         "name": "Hide Channel Recommendations",
                         "description": "Hide recommended channel blocks in WhatsApp Updates"
+                    },
+                    "hide_communities_tab": {
+                        "name": "Hide Communities Tab",
+                        "description": "Remove the Communities tab from WhatsApp's bottom navigation bar"
+                    },
+                    "hide_start_chatting": {
+                        "name": "Hide Start Chatting",
+                        "description": "Hide the Start chatting suggestions section on the WhatsApp Chats screen"
                     }
                 }
             },
@@ -1349,7 +1404,7 @@
                     },
                     "stealth_mode_indicator": {
                         "name": "Stealth Mode Indicator",
-                        "description": "Adds a \ud83d\udc7b emoji next to conversations in stealth mode"
+                        "description": "Adds a 👻 emoji next to conversations in stealth mode"
                     },
                     "edit_text_override": {
                         "name": "Edit Text Override",
@@ -2392,7 +2447,7 @@
                         "properties": {
                             "encrypted_message_indicator": {
                                 "name": "Encrypted Message Indicator",
-                                "description": "Adds a \ud83d\udd12 emoji next to encrypted messages"
+                                "description": "Adds a 🔒 emoji next to encrypted messages"
                             },
                             "force_message_encryption": {
                                 "name": "Force Message Encryption",
@@ -2469,6 +2524,606 @@
                         "description": "Automatically deletes cached events that are older than the specified amount of time"
                     }
                 }
+            },
+            "instagram": {
+                "name": "PurrfectInsta",
+                "description": "Instagram privacy, cleanup, media, and interface hooks",
+                "properties": {
+                    "developer": {
+                        "name": "Developer Options",
+                        "description": "Developer and build lockout controls",
+                        "properties": {
+                            "isDevEnabled": {
+                                "name": "Enable Developer Mode",
+                                "description": "Enable Instagram developer and employee gates where possible"
+                            },
+                            "removeBuildExpiredPopup": {
+                                "name": "Remove Build Expired Popup",
+                                "description": "Suppress Instagram build-expired and lockout dialogs"
+                            }
+                        },
+                        "tools_title": "Config",
+                        "tools_description": "Open Instagram's internal panel and move mc_overrides.json in or out of Instagram.",
+                        "openInstagramDevOptions": {
+                            "name": "Open Instagram Dev Options",
+                            "description": "Open Instagram's internal developer options screen"
+                        },
+                        "importDevConfig": {
+                            "name": "Import Dev Config",
+                            "description": "Import a mobile config override JSON into Instagram"
+                        },
+                        "exportDevConfig": {
+                            "name": "Export Dev Config",
+                            "description": "Export Instagram's current mobile config override JSON"
+                        }
+                    },
+                    "privacy": {
+                        "name": "Ghost Mode Settings",
+                        "description": "Seen receipts, typing indicators, screenshots, and replay controls",
+                        "core_master_title": "Enable/Disable All",
+                        "core_master_description": "Enable or disable all Ghost Mode Settings features together.",
+                        "mark_seen_control_title": "DM mark-as-seen control",
+                        "mark_seen_control_description": "Choose the manual seen control shown in Direct messages.",
+                        "mark_seen_eye": "Eye icon",
+                        "mark_seen_gallery_hold": "Tap and hold gallery icon",
+                        "properties": {
+                            "isGhostModeEnabled": {
+                                "name": "Ghost Mode Master Switch",
+                                "description": "Keep compatibility with InstaEclipse's Ghost Mode master setting"
+                            },
+                            "isGhostSeen": {
+                                "name": "Hide DM Seen",
+                                "description": "Prevent direct messages from being marked as seen"
+                            },
+                            "markTextsSeenAfterReply": {
+                                "name": "Mark texts as seen after reply",
+                                "description": "Allow text messages to be marked seen after you reply"
+                            },
+                            "isGhostTyping": {
+                                "name": "Hide Typing Indicator",
+                                "description": "Prevent Instagram from sending typing indicators"
+                            },
+                            "isGhostStory": {
+                                "name": "Hide Story Views",
+                                "description": "Prevent stories from being marked as viewed"
+                            },
+                            "storyInteractionSendsSeen": {
+                                "name": "Send story seen when liking/replying/commenting",
+                                "description": "Allow story replies, reactions, and shares to send story seen status"
+                            },
+                            "isGhostLive": {
+                                "name": "Hide Live Presence",
+                                "description": "Hide live viewing and presence signals where possible"
+                            },
+                            "hideVoiceMessageSeen": {
+                                "name": "Hide Voice Message Listens",
+                                "description": "Prevent voice messages from being marked as played or seen"
+                            },
+                            "allowScreenshots": {
+                                "name": "Allow Screenshots in DMs",
+                                "description": "Remove screenshot and secure-window restrictions"
+                            },
+                            "isGhostScreenshot": {
+                                "name": "Bypass Screenshot Detection",
+                                "description": "Block screenshot capture reports from being sent"
+                            },
+                            "isGhostViewOnce": {
+                                "name": "Hide View Once Opened",
+                                "description": "Prevent view-once media from being consumed where possible"
+                            },
+                            "enableUnlimitedReplays": {
+                                "name": "Unlimited View-Once Replays",
+                                "description": "Allow replayable media to be opened more than Instagram normally allows"
+                            },
+                            "permanentViewMode": {
+                                "name": "Permanent View Once Media",
+                                "description": "Treat temporary media as reusable media where possible"
+                            },
+                            "keepEphemeralMessages": {
+                                "name": "Keep Disappearing Messages",
+                                "description": "Try to keep temporary messages visible after Instagram would remove them"
+                            },
+                            "keepUnsentMessages": {
+                                "name": "Keep Unsent Messages",
+                                "description": "Keep messages visible locally after the sender unsends them"
+                            },
+                            "dmMarkSeenControlMode": {
+                                "name": "DM Mark-Seen Control",
+                                "description": "Choose how direct messages can be manually marked as seen"
+                            }
+                        }
+                    },
+                    "quick_toggle": {
+                        "name": "Quick Toggle",
+                        "description": "Floating controls for switching Instagram privacy features on and off",
+                        "core_master_title": "Enable/Disable All",
+                        "core_master_description": "Enable or disable all Quick Toggle controls together.",
+                        "properties": {
+                            "quickToggleSeen": {
+                                "name": "Include Hide DM Seen",
+                                "description": "Show a quick toggle for direct message seen receipts"
+                            },
+                            "quickToggleTyping": {
+                                "name": "Include Hide Typing Indicator",
+                                "description": "Show a quick toggle for typing indicators"
+                            },
+                            "quickToggleScreenshot": {
+                                "name": "Include Bypass Screenshot Detection",
+                                "description": "Show a quick toggle for screenshot detection"
+                            },
+                            "quickToggleViewOnce": {
+                                "name": "Include Hide View Once Opened",
+                                "description": "Show a quick toggle for view-once protection"
+                            },
+                            "quickToggleStory": {
+                                "name": "Include Hide Story Views",
+                                "description": "Show a quick toggle for story seen receipts"
+                            },
+                            "quickToggleLive": {
+                                "name": "Include Hide Live Presence",
+                                "description": "Show a quick toggle for live presence protection"
+                            },
+                            "quickToggleEphemeral": {
+                                "name": "Include Keep Disappearing Messages",
+                                "description": "Show a quick toggle for keeping ephemeral messages"
+                            },
+                            "quickToggleUnsend": {
+                                "name": "Include Keep Unsent Messages",
+                                "description": "Show a quick toggle for keeping unsent messages"
+                            },
+                            "quickToggleReplays": {
+                                "name": "Include Unlimited View-Once Replays",
+                                "description": "Show a quick toggle for unlimited replays"
+                            },
+                            "quickTogglePermanentView": {
+                                "name": "Include Permanent View Once Media",
+                                "description": "Show a quick toggle for permanent view mode"
+                            },
+                            "quickToggleAllowScreenshots": {
+                                "name": "Include Allow Screenshots in DMs",
+                                "description": "Show a quick toggle for screenshot restrictions"
+                            }
+                        }
+                    },
+                    "distraction_free": {
+                        "name": "Distraction-Free Instagram",
+                        "description": "Hide Instagram surfaces that pull attention away from messages",
+                        "core_master_title": "Enable/Disable All",
+                        "core_master_description": "Enable or disable all Distraction-Free feature toggles together.",
+                        "extreme_title": "Activate Extreme Mode?",
+                        "extreme_message": "Once activated, you cannot disable Distraction-Free Mode until you reinstall the app. Continue?",
+                        "properties": {
+                            "isExtremeMode": {
+                                "name": "Extreme Mode (Irreversible until reinstall)",
+                                "description": "Aggressively hide distracting Instagram surfaces"
+                            },
+                            "isDistractionFree": {
+                                "name": "Distraction-Free Mode",
+                                "description": "Enable the main distraction-free cleanup set"
+                            },
+                            "disableStories": {
+                                "name": "Disable Stories",
+                                "description": "Hide story trays and story entry points"
+                            },
+                            "disableFeed": {
+                                "name": "Disable Feed",
+                                "description": "Hide or block the main home feed"
+                            },
+                            "disableReels": {
+                                "name": "Disable Reels",
+                                "description": "Hide or block Reels entry points"
+                            },
+                            "disableReelsExceptDM": {
+                                "name": "Disable Reels Except in DMs",
+                                "description": "Block Reels broadly while still allowing Reel messages in Direct"
+                            },
+                            "disableExplore": {
+                                "name": "Disable Explore",
+                                "description": "Hide or block Explore and search discovery surfaces"
+                            },
+                            "disableComments": {
+                                "name": "Disable Comments",
+                                "description": "Hide comments and comment entry points where possible"
+                            },
+                            "disableRepost": {
+                                "name": "Disable Repost",
+                                "description": "Block Instagram repost and note-create requests"
+                            }
+                        }
+                    },
+                    "ads_and_links": {
+                        "name": "Ad/Analytics Block",
+                        "description": "Ad blocking, analytics blocking, and tracking-link cleanup",
+                        "core_master_title": "Enable/Disable All",
+                        "core_master_description": "Block Ads, Block Analytics, and Disable Tracking Links together.",
+                        "properties": {
+                            "isAdBlockEnabled": {
+                                "name": "Block Ads",
+                                "description": "Hide sponsored content and block known ad requests"
+                            },
+                            "isAnalyticsBlocked": {
+                                "name": "Block Analytics",
+                                "description": "Block known Instagram analytics and telemetry requests"
+                            },
+                            "disableTrackingLinks": {
+                                "name": "Disable Tracking Links",
+                                "description": "Remove tracking parameters from Instagram links"
+                            },
+                            "stripShareTrackingParameters": {
+                                "name": "Strip tracing parameters when sharing links",
+                                "description": "Clean tracking parameters from links before sharing or copying them"
+                            },
+                            "openLinksExternally": {
+                                "name": "Open links in external browser",
+                                "description": "Open supported links in the system browser instead of Instagram's in-app browser"
+                            },
+                            "replaceShareLinkDomain": {
+                                "name": "Replace domain in shared links",
+                                "description": "Replace instagram.com share links with a compatible alternate domain"
+                            },
+                            "shareLinkReplacementDomain": {
+                                "name": "Share Link Replacement Domain",
+                                "description": "Domain to use when replacing Instagram share links"
+                            }
+                        }
+                    },
+                    "feed_and_search": {
+                        "name": "Clean Feed",
+                        "description": "Feed suggestion cleanup",
+                        "properties": {
+                            "hideSuggestionsInFeed": {
+                                "name": "Hide Suggestions in Feed",
+                                "description": "Hide suggested posts, suggested users, and similar feed recommendations"
+                            },
+                            "doNotSaveRecentSearches": {
+                                "name": "Do Not Save Recent Searches",
+                                "description": "Prevent Instagram from saving recent searches locally where possible"
+                            },
+                            "blockDmReelNotifications": {
+                                "name": "Block DM Reel Notifications",
+                                "description": "Suppress direct-message notifications for Reels"
+                            },
+                            "blockDmPostNotifications": {
+                                "name": "Block DM Post Notifications",
+                                "description": "Suppress direct-message notifications for shared posts"
+                            }
+                        }
+                    },
+                    "downloader": {
+                        "name": "Downloader",
+                        "description": "Download and save Instagram media from posts, stories, reels, profiles, and DMs",
+                        "core_master_title": "Enable/Disable All",
+                        "core_master_description": "Enable or disable all Downloader features together.",
+                        "download_folder_reset_toast": "Download folder reset to Default",
+                        "properties": {
+                            "enablePostDownload": {
+                                "name": "Download Posts",
+                                "description": "Add download support for Instagram posts"
+                            },
+                            "enableStoryDownload": {
+                                "name": "Download Stories",
+                                "description": "Add download support for stories"
+                            },
+                            "enableReelDownload": {
+                                "name": "Download Reels",
+                                "description": "Add download support for Reels"
+                            },
+                            "enableProfileDownload": {
+                                "name": "Download Profile Pictures",
+                                "description": "Add download support for profile pictures"
+                            },
+                            "enableDmContextMenuOptions": {
+                                "name": "DM Context Menu Options",
+                                "description": "Add media actions to supported Direct message context menus"
+                            },
+                            "enableReelThumbnailDownload": {
+                                "name": "Download Reel Thumbnails",
+                                "description": "Allow Reel thumbnails to be downloaded"
+                            },
+                            "enableStoryMarkSeenButton": {
+                                "name": "Story \"Mark as Seen\" Button",
+                                "description": "Add a manual mark-seen action for stories"
+                            },
+                            "enableStoryRepostButton": {
+                                "name": "Story Repost Button",
+                                "description": "Add a repost action for supported stories"
+                            },
+                            "enableCopyBio": {
+                                "name": "Copy Profile Bio",
+                                "description": "Add an option to copy profile biographies"
+                            },
+                            "enableHighQualityStoryUpload": {
+                                "name": "High Quality Story Upload",
+                                "description": "Prefer higher quality settings for story uploads"
+                            },
+                            "enableHighQualityDmUpload": {
+                                "name": "High Quality DM Photos",
+                                "description": "Prefer higher quality settings for Direct uploads"
+                            },
+                            "enableDmAnyFileUpload": {
+                                "name": "DM any-file upload picker",
+                                "description": "Allow more file types to be shared through Direct where possible"
+                            },
+                            "enableGifCommentDownload": {
+                                "name": "Download GIF comments",
+                                "description": "Add download support for GIFs shown in comments"
+                            },
+                            "downloaderUsernameFolder": {
+                                "name": "Save in Username Subfolder",
+                                "description": "Save downloaded media inside per-username folders"
+                            },
+                            "downloaderAddTimestamp": {
+                                "name": "Add Timestamp to Filename",
+                                "description": "Add a timestamp to downloaded media filenames"
+                            },
+                            "downloaderCustomPath": {
+                                "name": "Custom Download Path",
+                                "description": "Folder where Instagram downloads should be saved"
+                            },
+                            "downloaderCustomUri": {
+                                "name": "Custom Download URI",
+                                "description": "Stored system URI for the selected Instagram download folder"
+                            },
+                            "media_quality": {
+                                "name": "Media Quality",
+                                "description": "Story and Direct upload quality controls"
+                            },
+                            "options": {
+                                "name": "Options",
+                                "description": "Download filename and folder options"
+                            },
+                            "download_folder": {
+                                "name": "Download Folder",
+                                "description": "Choose where Instagram downloads are saved"
+                            }
+                        }
+                    },
+                    "playback_and_gestures": {
+                        "name": "Playback and Gestures",
+                        "description": "Story, video, refresh, and gesture behavior",
+                        "properties": {
+                            "isMiscEnabled": {
+                                "name": "Misc Master Switch",
+                                "description": "Keep compatibility with InstaEclipse's miscellaneous feature master setting"
+                            },
+                            "disableStoryFlipping": {
+                                "name": "Disable Story Auto-Skip / Auto-Swipe",
+                                "description": "Prevent accidental story navigation by swipe or tap behavior where possible"
+                            },
+                            "disableVideoAutoPlay": {
+                                "name": "Disable Video Autoplay",
+                                "description": "Stop videos from playing automatically where possible"
+                            },
+                            "feedVideosStartWithSound": {
+                                "name": "Start Feed Videos With Sound",
+                                "description": "Start feed videos with sound enabled where possible"
+                            },
+                            "storiesStartWithSound": {
+                                "name": "Play Stories With Sound",
+                                "description": "Start stories with sound enabled where possible"
+                            },
+                            "disableDoubleTapLike": {
+                                "name": "Disable Double Tap to Like",
+                                "description": "Block accidental likes from double-tapping media"
+                            },
+                            "enableConfirmRefresh": {
+                                "name": "Confirm before refreshing Feed/Reels",
+                                "description": "Ask for confirmation before actions that refresh the current feed"
+                            }
+                        }
+                    },
+                    "interface": {
+                        "name": "Interface",
+                        "description": "Theme, emoji, navigation, app icon, and UI element controls",
+                        "properties": {
+                            "enableMonetTheme": {
+                                "name": "Monet Theme",
+                                "description": "Use Material You dynamic colors where supported"
+                            },
+                            "customEmojiFontEnabled": {
+                                "name": "Custom Emoji Font",
+                                "description": "Use a custom emoji font inside Instagram where possible"
+                            },
+                            "customEmojiFontPath": {
+                                "name": "Custom Emoji Font Path",
+                                "description": "Local path to the selected custom emoji font"
+                            },
+                            "customEmojiFontName": {
+                                "name": "Custom Emoji Font Name",
+                                "description": "Display name for the selected custom emoji font"
+                            },
+                            "customEmojiFontUri": {
+                                "name": "Custom Emoji Font URI",
+                                "description": "Stored system URI for the selected custom emoji font"
+                            },
+                            "enableShareSheetEmojiShortcuts": {
+                                "name": "Share Sheet Emoji Shortcuts",
+                                "description": "Add emoji shortcut actions to supported share sheets"
+                            },
+                            "enableNavigationTabCustomization": {
+                                "name": "Navigation Tab Customizer",
+                                "description": "Customize the order, visibility, and default Instagram navigation tab"
+                            },
+                            "navigationTabOrder": {
+                                "name": "Navigation Tab Order",
+                                "description": "Comma-separated navigation tab order"
+                            },
+                            "navigationTabHidden": {
+                                "name": "Hidden Navigation Tabs",
+                                "description": "Comma-separated navigation tabs to hide"
+                            },
+                            "navigationDefaultTab": {
+                                "name": "Default Navigation Tab",
+                                "description": "Navigation tab Instagram should open by default where possible"
+                            },
+                            "storyRingSize": {
+                                "name": "Story Ring Size",
+                                "description": "Adjust story ring size where supported"
+                            },
+                            "enableTeenAppIcons": {
+                                "name": "Teen app icons",
+                                "description": "Unlock alternate Instagram app icons where possible"
+                            },
+                            "enableStoryTrayLongPressActions": {
+                                "name": "Story tray long-press actions",
+                                "description": "Add extra actions when long-pressing story tray items"
+                            },
+                            "captureUiElementIdsEnabled": {
+                                "name": "Capture UI Element ID Overlay",
+                                "description": "Show a draggable ID button in Instagram that can select visible elements and hide them"
+                            },
+                            "hiddenUiElementIds": {
+                                "name": "Hidden UI Element IDs",
+                                "description": "Comma-separated Android view IDs to hide"
+                            },
+                            "hiddenUiElementSelectors": {
+                                "name": "Hidden UI Element Selectors",
+                                "description": "Comma-separated text or content-description selectors to hide"
+                            }
+                        }
+                    },
+                    "hidden_ui_elements": {
+                        "name": "Hide UI Elements",
+                        "description": "Capture and hide selected Instagram interface elements",
+                        "hidden_elements_title": "Hide UI Elements",
+                        "unhide_all": "Unhide All UI Elements",
+                        "resource_id_label": "Resource ID",
+                        "selector_label": "Exact selector",
+                        "search_hint": "Search Instagram resource IDs",
+                        "no_results": "No matching IDs",
+                        "catalog_empty": "Instagram resource ID catalog is unavailable.",
+                        "ids_count": "%1$d hidden / %2$d IDs",
+                        "ids_filtered_count": "%1$d results / %2$d IDs"
+                    },
+                    "misc": {
+                        "name": "Miscellaneous",
+                        "description": "Instagram behavior, interface, link, notification, and text controls",
+                        "core_master_title": "Enable/Disable All",
+                        "core_master_description": "Enable or disable all Misc features together.",
+                        "properties": {
+                            "custom_date_format": {
+                                "name": "Custom Date Format",
+                                "description": "Pattern and surface controls for custom Instagram timestamps"
+                            },
+                            "share_link_domain": {
+                                "name": "Share Link Domain",
+                                "description": "Replacement domain for shared Instagram links"
+                            },
+                            "notification_filters": {
+                                "name": "Notification Filters",
+                                "description": "Direct-message notification cleanup controls"
+                            },
+                            "notes_location": {
+                                "name": "Notes Location",
+                                "description": "Location values used for Notes spoofing"
+                            },
+                            "hidden_chats": {
+                                "name": "Hidden Chats",
+                                "description": "Direct chat hide lists"
+                            },
+                            "navigation_ui": {
+                                "name": "Navigation UI",
+                                "description": "Navigation tab order, visibility, and default tab"
+                            },
+                            "story_ui": {
+                                "name": "Story UI",
+                                "description": "Story interface controls"
+                            },
+                            "custom_emoji_font": {
+                                "name": "Custom Emoji Font",
+                                "description": "Selected emoji font details",
+                                "import": "Import Custom Emoji Font",
+                                "selected": "Selected: %1$s",
+                                "reset": "Reset Custom Emoji Font",
+                                "imported_toast": "Custom emoji font imported.",
+                                "failed_toast": "Custom emoji font import failed",
+                                "reset_toast": "Custom emoji font reset."
+                            }
+                        }
+                    },
+                    "social_and_text": {
+                        "name": "Social and Text",
+                        "description": "Follower notices, profile cleanup, chat hiding, copy actions, dates, and Notes location",
+                        "properties": {
+                            "showFollowerToast": {
+                                "name": "Show Follower Toast",
+                                "description": "Show a toast when follower-related events are detected"
+                            },
+                            "showFeatureToasts": {
+                                "name": "Show Feature Toasts",
+                                "description": "Show short status toasts when PurrfectInsta actions run"
+                            },
+                            "enableStoryMentions": {
+                                "name": "View Story Mentions",
+                                "description": "Enable extra story mention controls where possible"
+                            },
+                            "disableDiscoverPeople": {
+                                "name": "Disable Discover People",
+                                "description": "Hide Discover People suggestions on profiles and related screens"
+                            },
+                            "enableHideChats": {
+                                "name": "Hide conversations",
+                                "description": "Hide selected Direct chats from the inbox"
+                            },
+                            "hiddenChatNames": {
+                                "name": "Hidden Chat Names",
+                                "description": "Comma-separated Direct chat names to hide"
+                            },
+                            "knownChatNames": {
+                                "name": "Known Chat Names",
+                                "description": "Cached Direct chat names detected by PurrfectInsta"
+                            },
+                            "enableActivityHistory": {
+                                "name": "Activity History Logging",
+                                "description": "Enable local activity history hooks where supported"
+                            },
+                            "enableCopyComment": {
+                                "name": "Copy Comment",
+                                "description": "Add copy support for comment text"
+                            },
+                            "enableCustomDateFormat": {
+                                "name": "Custom date format",
+                                "description": "Replace supported Instagram timestamps with your own date format"
+                            },
+                            "customDateFormatFeed": {
+                                "name": "Custom Dates in Feed",
+                                "description": "Apply custom date formatting to feed timestamps"
+                            },
+                            "customDateFormatComments": {
+                                "name": "Custom Dates in Comments",
+                                "description": "Apply custom date formatting to comment timestamps"
+                            },
+                            "customDateFormatReels": {
+                                "name": "Custom Dates in Reels",
+                                "description": "Apply custom date formatting to Reel timestamps"
+                            },
+                            "customDateFormatStories": {
+                                "name": "Custom Dates in Stories",
+                                "description": "Apply custom date formatting to story timestamps"
+                            },
+                            "customDateFormatDirect": {
+                                "name": "Custom Dates in Direct",
+                                "description": "Apply custom date formatting to Direct message timestamps"
+                            },
+                            "customDateFormat": {
+                                "name": "Date Format Pattern",
+                                "description": "Pattern used for custom Instagram date formatting"
+                            },
+                            "enableNotesLocationSpoof": {
+                                "name": "Location spoof for Notes tray",
+                                "description": "Spoof the location used by Instagram Notes where possible"
+                            },
+                            "notesSpoofLatitude": {
+                                "name": "Notes Latitude",
+                                "description": "Latitude to use for Notes location spoofing"
+                            },
+                            "notesSpoofLongitude": {
+                                "name": "Notes Longitude",
+                                "description": "Longitude to use for Notes location spoofing"
+                            }
+                        }
+                    }
+                }
             }
         },
         "options": {
@@ -2499,22 +3154,22 @@
                 "null": "Use real battery level"
             },
             "friend_feed_menu_buttons": {
-                "auto_download": "\u2b07\ufe0f Auto Download",
-                "auto_save": "\ud83d\udcac Auto Save Messages",
-                "unsaveable_messages": "\u2b07\ufe0f Unsaveable Messages",
-                "auto_open_snaps": "\ud83d\udcf7 Auto Open Snaps",
-                "stealth": "\ud83d\udc7b Full Stealth Mode",
-                "snap_stealth": "\ud83d\udcf7 Snap Stealth Mode",
-                "chat_stealth": "\ud83d\udcac Chat Stealth Mode",
-                "auto_reply": "\ud83d\udce8 Auto Reply",
-                "auto_delete_sent_messages": "\ud83d\uddd1\ufe0f Auto Delete Sent Messages",
-                "mark_snaps_as_seen": "\ud83d\udc40 Mark Snaps as seen",
-                "mark_stories_as_seen_locally": "\ud83d\udc40 Mark Stories as seen locally",
-                "conversation_info": "\ud83d\udc64 Conversation Info",
-                "e2e_encryption": "\ud83d\udd12 Use E2E Encryption",
-                "message_logger": "\ud83d\udcdd Message Logger",
-                "auto_read": "\u2705 Auto Read",
-                "hide_typing_indicator": "\ud83d\ude48 Hide Typing Indicator"
+                "auto_download": "⬇️ Auto Download",
+                "auto_save": "💬 Auto Save Messages",
+                "unsaveable_messages": "⬇️ Unsaveable Messages",
+                "auto_open_snaps": "📷 Auto Open Snaps",
+                "stealth": "👻 Full Stealth Mode",
+                "snap_stealth": "📷 Snap Stealth Mode",
+                "chat_stealth": "💬 Chat Stealth Mode",
+                "auto_reply": "📨 Auto Reply",
+                "auto_delete_sent_messages": "🗑️ Auto Delete Sent Messages",
+                "mark_snaps_as_seen": "👀 Mark Snaps as seen",
+                "mark_stories_as_seen_locally": "👀 Mark Stories as seen locally",
+                "conversation_info": "👤 Conversation Info",
+                "e2e_encryption": "🔒 Use E2E Encryption",
+                "message_logger": "📝 Message Logger",
+                "auto_read": "✅ Auto Read",
+                "hide_typing_indicator": "🙈 Hide Typing Indicator"
             },
             "schedule_scheduled_for": "Scheduled for {name} in {time}",
             "schedule_sending_in": "Sending in {time}",
@@ -2631,15 +3286,15 @@
                 "system_default": "System Default"
             },
             "add_friend_source_spoof": {
-	                "added_by_username": "By Username",
-	                "added_by_mention": "By Mention",
-	                "added_by_group_chat": "By Group Chat",
-	                "added_by_qr_code": "By QR Code",
-	                "added_by_community": "By Community",
-	                "added_by_quick_add": "By Quick Add (high risk of being banned)",
-	                "added_by_spotlight": "By Spotlight",
-	                "null": "Don't spoof source"
-	            },
+                "added_by_username": "By Username",
+                "added_by_mention": "By Mention",
+                "added_by_group_chat": "By Group Chat",
+                "added_by_qr_code": "By QR Code",
+                "added_by_community": "By Community",
+                "added_by_quick_add": "By Quick Add (high risk of being banned)",
+                "added_by_spotlight": "By Spotlight",
+                "null": "Don't spoof source"
+            },
             "custom_streaks_expiration_format": {
                 "null": "System Default"
             },
@@ -2745,8 +3400,8 @@
             },
             "spotlight_comments_username_icon": {
                 "user": "Username Icon",
-                "\ud83d\udc64": "Username Icon",
-                "[\ud83d\udc64]": "Username Icon",
+                "👤": "Username Icon",
+                "[👤]": "Username Icon",
                 "default": "Username Icon",
                 "no_icon": "No icon"
             },
@@ -2829,14 +3484,14 @@
                 "phone_calls": "Phone Calls"
             },
             "message_indicators": {
-                "encryption_indicator": "Adds a \ud83d\udd12 icon next to messages that have been sent only to you",
+                "encryption_indicator": "Adds a 🔒 icon next to messages that have been sent only to you",
                 "platform_indicator": "Adds the platform icon from which a media was sent (e.g. Android, iOS, Web)",
-                "location_indicator": "Adds a \ud83d\udccd icon to snaps when they have been sent with location enabled",
+                "location_indicator": "Adds a 📍 icon to snaps when they have been sent with location enabled",
                 "ovf_editor_indicator": "Indicates if a snap has been sent using OVF Editor",
-                "director_mode_indicator": "Adds a \u270f\ufe0f icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps",
-                "memories_indicator": "Adds a \ud83d\udcd6 icon to snaps that were re-sent from Memories instead of being captured with the live camera",
-                "skip_own_indicators": "Hides indicator icons on your own sent snaps (Self-Snaps) \ud83d\udc64",
-                "disable_indicators_in_groups": "Disables all indicator icons in group conversations to reduce UI clutter \ud83d\udc65"
+                "director_mode_indicator": "Adds a ✏️ icon to snaps when they have been sent using Director Mode, which can be used to send gallery images as snaps",
+                "memories_indicator": "Adds a 📖 icon to snaps that were re-sent from Memories instead of being captured with the live camera",
+                "skip_own_indicators": "Hides indicator icons on your own sent snaps (Self-Snaps) 👤",
+                "disable_indicators_in_groups": "Disables all indicator icons in group conversations to reduce UI clutter 👥"
             },
             "auto_mark_as_read": {
                 "conversation_read": "Mark conversation as read when sending a message",
@@ -3060,7 +3715,6 @@
         "show_chat_edit_history": "Show Chat Edit History",
         "convert_message": "Convert Message"
     },
-
     "chat_wallpaper_downloader": {
         "download_button": "Download Chat Wallpaper"
     },
@@ -3407,7 +4061,7 @@
         "queue_cleared": "Queue cleared and statistics reset",
         "queue_cleared_title": "Queue cleared",
         "queue_cleared_reset": "Queue Cleared & Reset",
-        "queue_cleared_feedback": "Cleared {count} queued snaps \u2022 Reset {processed} processed count",
+        "queue_cleared_feedback": "Cleared {count} queued snaps • Reset {processed} processed count",
         "queue_cleared_feedback_simple": "Reset {processed} processed count",
         "unknown_sender": "Unknown",
         "unknown_user": "Unknown User",

@@ -107,9 +107,11 @@ object SetupPreferences {
         return when {
             TargetApp.REDDIT in knownTargets && TargetApp.SNAPCHAT !in knownTargets -> TargetApp.REDDIT
             TargetApp.WHATSAPP in knownTargets && TargetApp.SNAPCHAT !in knownTargets && TargetApp.REDDIT !in knownTargets -> TargetApp.WHATSAPP
+            TargetApp.INSTAGRAM in knownTargets && TargetApp.SNAPCHAT !in knownTargets && TargetApp.REDDIT !in knownTargets && TargetApp.WHATSAPP !in knownTargets -> TargetApp.INSTAGRAM
             TargetApp.SNAPCHAT in knownTargets -> TargetApp.SNAPCHAT
             TargetApp.REDDIT in knownTargets -> TargetApp.REDDIT
             TargetApp.WHATSAPP in knownTargets -> TargetApp.WHATSAPP
+            TargetApp.INSTAGRAM in knownTargets -> TargetApp.INSTAGRAM
             else -> TargetApp.SNAPCHAT
         }
     }

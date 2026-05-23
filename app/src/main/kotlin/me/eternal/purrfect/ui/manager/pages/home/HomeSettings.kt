@@ -146,20 +146,22 @@ class HomeSettings : Routes.Route() {
 
     internal fun launchTargetInstallSetup(targetApp: TargetApp) {
         val currentContext = context.activity ?: context.androidContext
-        if (targetApp == TargetApp.WHATSAPP) {
+        if (targetApp == TargetApp.WHATSAPP || targetApp == TargetApp.INSTAGRAM) {
+            val packageName = context.packageNameForTargetApp(targetApp)
+            val label = targetDisplayName(targetApp)
             val marketIntent = Intent(
                 Intent.ACTION_VIEW,
-                Uri.parse("market://details?id=${Constants.WHATSAPP_PACKAGE_NAME}")
+                Uri.parse("market://details?id=$packageName")
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             val webIntent = Intent(
                 Intent.ACTION_VIEW,
-                Uri.parse("https://play.google.com/store/apps/details?id=${Constants.WHATSAPP_PACKAGE_NAME}")
+                Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             runCatching {
                 currentContext.startActivity(marketIntent)
             }.onFailure {
                 runCatching { currentContext.startActivity(webIntent) }
-                    .onFailure { context.shortToast("WhatsApp is not installed") }
+                    .onFailure { context.shortToast("$label is not installed") }
             }
             return
         }
@@ -167,6 +169,7 @@ class HomeSettings : Routes.Route() {
             TargetApp.SNAPCHAT -> Requirements.INSTALL_SNAPCHAT
             TargetApp.REDDIT -> Requirements.INSTALL_REDDIT
             TargetApp.WHATSAPP -> Requirements.INSTALL_SNAPCHAT
+            TargetApp.INSTAGRAM -> Requirements.INSTALL_SNAPCHAT
         }
         Intent(currentContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java).apply {
             putExtra("requirements", requirement)
@@ -196,6 +199,7 @@ class HomeSettings : Routes.Route() {
             TargetApp.SNAPCHAT -> "Snapchat"
             TargetApp.REDDIT -> "Reddit"
             TargetApp.WHATSAPP -> "WhatsApp"
+            TargetApp.INSTAGRAM -> "Instagram"
         }
     }
 
@@ -205,12 +209,14 @@ class HomeSettings : Routes.Route() {
                 TargetApp.SNAPCHAT -> translation["switch_to_snapchat_button"] ?: "Switch to Snapchat"
                 TargetApp.REDDIT -> translation["switch_to_reddit_button"] ?: "Switch to Reddit"
                 TargetApp.WHATSAPP -> translation["switch_to_whatsapp_button"] ?: "Switch to WhatsApp"
+                TargetApp.INSTAGRAM -> translation["switch_to_instagram_button"] ?: "Switch to Instagram"
             }
         }
         return when (targetApp) {
             TargetApp.SNAPCHAT -> translation["install_snapchat_button"] ?: "Snapchat Available: Install!"
             TargetApp.REDDIT -> translation["install_reddit_button"] ?: "Reddit Available: Install!"
             TargetApp.WHATSAPP -> translation["install_whatsapp_button"] ?: "Install WhatsApp"
+            TargetApp.INSTAGRAM -> translation["install_instagram_button"] ?: "Install Instagram"
         }
     }
 
@@ -231,6 +237,7 @@ class HomeSettings : Routes.Route() {
         val title = when (currentTarget) {
             TargetApp.REDDIT -> translation["reddit_settings_title"]
             TargetApp.WHATSAPP -> translation["whatsapp_settings_title"] ?: "WhatsApp Mode"
+            TargetApp.INSTAGRAM -> translation["instagram_settings_title"] ?: "Instagram Mode"
             TargetApp.SNAPCHAT -> translation["target_app_title"]
         }
         val icon = Icons.Filled.Forum
@@ -261,7 +268,11 @@ class HomeSettings : Routes.Route() {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (currentTarget == TargetApp.WHATSAPP) Color(0xFF25D366) else Color.White,
+                    tint = when (currentTarget) {
+                        TargetApp.WHATSAPP -> Color(0xFF25D366)
+                        TargetApp.INSTAGRAM -> Color(0xFFE4405F)
+                        else -> Color.White
+                    },
                     modifier = Modifier.size(48.dp)
                 )
                 Text(
@@ -320,7 +331,11 @@ class HomeSettings : Routes.Route() {
                                     handleTargetSwitch(targetApp)
                                 },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (targetApp == TargetApp.WHATSAPP) Color(0xFF25D366) else Color.White,
+                                    containerColor = when (targetApp) {
+                                        TargetApp.WHATSAPP -> Color(0xFF25D366)
+                                        TargetApp.INSTAGRAM -> Color(0xFFE4405F)
+                                        else -> Color.White
+                                    },
                                     contentColor = Color(0xFF1B152E)
                                 )
                             ) {

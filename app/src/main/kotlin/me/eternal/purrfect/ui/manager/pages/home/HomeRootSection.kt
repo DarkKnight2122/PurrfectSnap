@@ -291,6 +291,16 @@ class HomeRootSection : Routes.Route() {
             }
         )
     }
+    internal val instagramCards by lazy {
+        mutableMapOf<Pair<String, ImageVector>, Routes.() -> Unit>(
+            ("Force Stop Instagram" to Icons.Default.StopCircle) to {
+                context.forceStopTargetPackage(Constants.INSTAGRAM_PACKAGE_NAME, "Instagram")
+            },
+            ("Open Instagram" to Icons.Default.OpenInNew) to {
+                context.openTargetPackage(Constants.INSTAGRAM_PACKAGE_NAME, "Instagram")
+            }
+        )
+    }
 
     @Composable
     internal fun rememberPreferenceBool(key: String, default: Boolean = false): State<Boolean> {
@@ -529,7 +539,6 @@ class HomeRootSection : Routes.Route() {
         onWebsiteClick: () -> Unit,
         onTelegramClick: () -> Unit,
         onGithubClick: () -> Unit,
-        authorName: String,
         onManageClick: () -> Unit,
         avenirNext: FontFamily
     ) {
@@ -562,12 +571,6 @@ class HomeRootSection : Routes.Route() {
                         color = Color.White,
                         fontSize = 34.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        fontFamily = avenirNext
-                    )
-                    Text(
-                        text = "By ΞTΞRNAL",
-                        color = Color.White.copy(alpha = 0.75f),
-                        fontSize = 14.sp,
                         fontFamily = avenirNext
                     )
                     Text(

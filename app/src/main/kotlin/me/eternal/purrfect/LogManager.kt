@@ -260,10 +260,12 @@ class LogManager(
     fun isLogForTarget(line: LogLine, targetApp: TargetApp): Boolean {
         val isReddit = isRedditLog(line)
         val isWhatsApp = isWhatsAppLog(line)
+        val isInstagram = isInstagramLog(line)
         return when (targetApp) {
             TargetApp.REDDIT -> isReddit
             TargetApp.WHATSAPP -> isWhatsApp
-            TargetApp.SNAPCHAT -> !isReddit && !isWhatsApp
+            TargetApp.INSTAGRAM -> isInstagram
+            TargetApp.SNAPCHAT -> !isReddit && !isWhatsApp && !isInstagram
         }
     }
 
@@ -279,6 +281,14 @@ class LogManager(
                 line.message.contains("[whatsapp]", ignoreCase = true) ||
                 line.message.contains("whatsapp:", ignoreCase = true) ||
                 line.message.contains("purrfectwa", ignoreCase = true)
+    }
+
+    private fun isInstagramLog(line: LogLine): Boolean {
+        return line.tag.contains("instagram", ignoreCase = true) ||
+                line.tag.contains("purrfectinsta", ignoreCase = true) ||
+                line.message.contains("[instagram]", ignoreCase = true) ||
+                line.message.contains("instagram:", ignoreCase = true) ||
+                line.message.contains("purrfectinsta", ignoreCase = true)
     }
 
     private fun markExternalTargetLogs(text: String, markerTag: String, isTargetLog: (LogLine) -> Boolean): String {

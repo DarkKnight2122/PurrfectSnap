@@ -111,5 +111,7 @@ interface BridgeInterface {
 
     String getWhatsAppFeaturesJson();
 
+    String getInstagramFeaturesJson();
+
     CallDownloadSession startCallDownload(long startTimestamp, String author);
 }

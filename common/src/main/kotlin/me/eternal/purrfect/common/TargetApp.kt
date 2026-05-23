@@ -3,7 +3,8 @@ package me.eternal.purrfect.common
 enum class TargetApp(val key: String) {
     SNAPCHAT("snapchat"),
     REDDIT("reddit"),
-    WHATSAPP("whatsapp");
+    WHATSAPP("whatsapp"),
+    INSTAGRAM("instagram");
 
     companion object {
         const val PREF_KEY = "active_target_app"

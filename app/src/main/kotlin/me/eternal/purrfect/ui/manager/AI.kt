@@ -592,7 +592,7 @@ private class ManagerAssistantEngine(
     private fun developerReply(normalized: String): AssistantResult? {
         val relevant = normalized.contains("who develops") || normalized.contains("who made") || normalized.contains("who created purrfect")
         if (!relevant) return null
-        return AssistantResult("Eternal and his team founded the mod back in October 2025. Now, it's maintained by Kaladin, schrodingerspet, and their team.")
+        return AssistantResult("The mod was founded back in October 2025. Now, it's maintained by Kaladin, schrodingerspet, and their team.")
     }
 
     private fun featureCountReply(normalized: String): AssistantResult? {

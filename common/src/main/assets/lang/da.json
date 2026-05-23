@@ -172,7 +172,7 @@
             "home_settings": "Indstillinger",
             "home_logs": "Logs",
             "logger_history": "Logger-historik",
-            "logged_stories":ig "Loggede Stories",
+            "logged_stories": "Loggede Stories",
             "friend_tracker": "Ven-tracker",
             "friend_tracker_catalog": "Ven-tracker katalog",
             "manage_friend_tracker_repos": "Administrer Ven-tracker Repositorier",
@@ -197,7 +197,7 @@
         },
         "sections": {
             "home": {
-                "version_title": "v{versionName} \u00b7 af ΞTΞRNAL",
+                "version_title": "v{versionName}",
                 "update_title": "Purrfect-opdatering",
                 "update_content": "Version {version} er tilgængelig!",
                 "update_button": "Download",
@@ -247,7 +247,7 @@
                 "about_tagline": "Et Xposed-modul beregnet til at forbedre din Snapchat-oplevelse!",
                 "about_lead_developers_title": "Ledende udviklere",
                 "about_story_title": "Vores historie",
-                "about_story": "Purrfect blev grundlagt den 2. oktober 2025 som en fork af SnapEnhance af ΞTΞRNAL med en vision om at give brugerne den kvalitetsoplevelse af Snapchat, de fortjener. Denne app var blot ment som en mindre opdatering i SnapEnhance-repositoryet, men den blev hurtigt til en separat app, hvor bidragyderne blev ved med at tilføje funktioner. Så sluttede udvikleren <RSR/> sig til teamet, og denne app blev hurtigt en kæmpe succes. Vi modtog meget kærlighed og støtte og opnåede 1K+ downloads på bare to dage! Vi takker alle brugere og bidragydere; uden jeres støtte ville vi ikke have nået hertil. Vi vil også gerne udtrykke vores store tak til rhunk, den ledende udvikler af SnapEnhance, da denne app uden ham ikke engang ville eksistere. Vi er ham utroligt taknemmelige. Til sidst vil vi gerne takke alle vores administratorer, især: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, som var med os helt fra begyndelsen. Vi vil også gerne takke alle testere, især Leo & Toxic, der kontinuerligt testede og rapporterede fejl. Vi er utroligt taknemmelige for jeres bidrag.",
+                "about_story": "Purrfect blev grundlagt den 2. oktober 2025 som en fork af SnapEnhance med en vision om at give brugerne den kvalitetsoplevelse af Snapchat, de fortjener. Denne app var blot ment som en mindre opdatering i SnapEnhance-repositoryet, men den blev hurtigt til en separat app, hvor bidragyderne blev ved med at tilføje funktioner. Så sluttede udvikleren <RSR/> sig til teamet, og denne app blev hurtigt en kæmpe succes. Vi modtog meget kærlighed og støtte og opnåede 1K+ downloads på bare to dage! Vi takker alle brugere og bidragydere; uden jeres støtte ville vi ikke have nået hertil. Vi vil også gerne udtrykke vores store tak til rhunk, den ledende udvikler af SnapEnhance, da denne app uden ham ikke engang ville eksistere. Vi er ham utroligt taknemmelige. Til sidst vil vi gerne takke alle vores administratorer, især: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, som var med os helt fra begyndelsen. Vi vil også gerne takke alle testere, især Leo & Toxic, der kontinuerligt testede og rapporterede fejl. Vi er utroligt taknemmelige for jeres bidrag.",
                 "about_thanks_title": "Med kærlighed, Purrfect Team",
                 "about_magic_toast": "Tryk 5 gange på denne skærm for at se noget magi 😉!",
                 "github_button": "GitHub",

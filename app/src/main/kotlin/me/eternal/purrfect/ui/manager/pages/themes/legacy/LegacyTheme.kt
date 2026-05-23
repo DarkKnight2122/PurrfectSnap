@@ -217,7 +217,6 @@ object LegacyTheme : ThemeContract {
             onWebsiteClick: () -> Unit,
             onTelegramClick: () -> Unit,
             onGithubClick: () -> Unit,
-            authorName: String,
             onManageClick: () -> Unit,
             avenirNext: FontFamily
         ) {
@@ -228,16 +227,19 @@ object LegacyTheme : ThemeContract {
                 TargetApp.SNAPCHAT -> Color(0xFFFFE100)
                 TargetApp.REDDIT -> Color(0xFFFF4500)
                 TargetApp.WHATSAPP -> Color(0xFF25D366)
+                TargetApp.INSTAGRAM -> Color(0xFFE4405F)
             }
             val targetSuffix = when (activeTarget) {
                 TargetApp.SNAPCHAT -> "Snap"
                 TargetApp.REDDIT -> "Reddit"
                 TargetApp.WHATSAPP -> "WA"
+                TargetApp.INSTAGRAM -> "Insta"
             }
             val targetName = when (activeTarget) {
                 TargetApp.SNAPCHAT -> "Snapchat"
                 TargetApp.REDDIT -> "Reddit"
                 TargetApp.WHATSAPP -> "WhatsApp"
+                TargetApp.INSTAGRAM -> "Instagram"
             }
             Box(
                 modifier = Modifier
@@ -264,7 +266,6 @@ object LegacyTheme : ThemeContract {
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = avenirNext
                         )
-                        Text("By ΞTΞRNAL", color = Color.White.copy(alpha = 0.75f), fontSize = 14.sp, fontFamily = avenirNext)
                         Text(text = (translation["hero_tagline"] ?: "").replace("Snapchat", targetName), color = Color.White.copy(alpha = 0.9f), fontSize = 15.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
                     }
                     FlowRow(
@@ -403,6 +404,7 @@ object LegacyTheme : ThemeContract {
         val activeCards = when (activeTarget) {
             TargetApp.REDDIT -> redditCards
             TargetApp.WHATSAPP -> whatsAppCards
+            TargetApp.INSTAGRAM -> instagramCards
             TargetApp.SNAPCHAT -> cards
         }
         val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
@@ -599,7 +601,6 @@ object LegacyTheme : ThemeContract {
                     onWebsiteClick = { context.androidContext.openLink("https://purrfectsnap.vercel.app", context.translation["toast_open_link_failed"]) },
                     onTelegramClick = { context.androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"]) },
                     onGithubClick = { openPurrfectRepository(coroutineScope) },
-                    authorName = "ETERNAL",
                     onManageClick = { routes.settings.navigate() },
                     avenirNext = avenirNext
                 )
@@ -867,6 +868,7 @@ object LegacyTheme : ThemeContract {
                                 TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
                                 TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
                                 TargetApp.WHATSAPP -> translation["target_app_whatsapp_summary"] ?: "Current: WhatsApp"
+                                TargetApp.INSTAGRAM -> translation["target_app_instagram_summary"] ?: "Current: Instagram"
                             }
                             RowTitle(title = translation["target_app_title"] ?: "Target App")
                             ShiftedRow {
@@ -1070,6 +1072,7 @@ object LegacyTheme : ThemeContract {
                                 TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
                                 TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
                                 TargetApp.WHATSAPP -> translation["target_app_whatsapp_summary"] ?: "Current: WhatsApp"
+                                TargetApp.INSTAGRAM -> translation["target_app_instagram_summary"] ?: "Current: Instagram"
                             }
                             RowTitle(title = translation["target_app_title"] ?: "Target App")
                             ShiftedRow {
@@ -1995,16 +1998,19 @@ object LegacyTheme : ThemeContract {
             TargetApp.SNAPCHAT -> Color(0xFFFFE100)
             TargetApp.REDDIT -> Color(0xFFFF4500)
             TargetApp.WHATSAPP -> Color(0xFF25D366)
+            TargetApp.INSTAGRAM -> Color(0xFFE4405F)
         }
         val targetSuffix = when (activeTarget) {
             TargetApp.SNAPCHAT -> "Snap"
             TargetApp.REDDIT -> "Reddit"
             TargetApp.WHATSAPP -> "WA"
+            TargetApp.INSTAGRAM -> "Insta"
         }
         val targetName = when (activeTarget) {
             TargetApp.SNAPCHAT -> "Snapchat"
             TargetApp.REDDIT -> "Reddit"
             TargetApp.WHATSAPP -> "WhatsApp"
+            TargetApp.INSTAGRAM -> "Instagram"
         }
         val aboutTagline = remember(activeTarget) {
             (translation["about_tagline"] ?: "").replace("Snapchat", targetName)
@@ -2086,12 +2092,11 @@ object LegacyTheme : ThemeContract {
                         Text(text = translation["about_lead_developers_title"] ?: "Lead Developers", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White, modifier = Modifier.padding(top = 10.dp))
                         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                                DeveloperCard(name = "Eternal", subtitle = "", imageRes = R.drawable.pfp_external, avenirNext = avenirNext, modifier = Modifier.weight(1f))
                                 DeveloperCard(name = "Kaladin", subtitle = "", imageRes = R.drawable.pfp_kaladin, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                            }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                                 DeveloperCard(name = "schrodingerspet", subtitle = "", imageRes = R.drawable.pfp_schrodingerspet, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                                DeveloperCard(name = "RSR", subtitle = "", imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.weight(1f))
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                DeveloperCard(name = "RSR", subtitle = "", imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.fillMaxWidth(0.5f))
                             }
                         }
                     }

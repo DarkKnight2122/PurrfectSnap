@@ -197,7 +197,7 @@
         },
         "sections": {
             "home": {
-                "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
+                "version_title": "v{versionName}",
                 "update_title": "Purrfect Frissítés",
                 "update_content": "A(z) {version} verzió elérhető!",
                 "update_button": "Letöltés",
@@ -247,7 +247,7 @@
                 "about_tagline": "Egy Xposed modul a Snapchat élményed fokozására!",
                 "about_lead_developers_title": "Vezető fejlesztők",
                 "about_story_title": "Történetünk",
-                "about_story": "A Purrfect 2025. október 2-án alakult a SnapEnhance elágazásaként ΞTΞRNAL által, azzal a vízióval, hogy a felhasználóknak azt a minőségi Snapchat élményt nyújtsa, amit megérdemelnek. Ez az alkalmazás csak egy kisebb frissítésnek indult a SnapEnhance repository-ban, de hamarosan önálló alkalmazássá vált, ahol a közreműködők folyamatosan új funkciókat adtak hozzá. Aztán csatlakozott a csapathoz <RSR/> fejlesztő, és az alkalmazás hamarosan hatalmas siker lett. Sok szeretetet és támogatást kaptunk, és mindössze két nap alatt elértük az 1000+ letöltést! Köszönjük minden felhasználónak és közreműködőnek; a támogatásotok nélkül nem jutottunk volna el idáig. Szeretnénk továbbá hatalmas köszönetet mondani rhunknak, a SnapEnhance vezető fejlesztőjének, mivel nélküle ez az alkalmazás nem is létezne. Végtelenül hálásak vagyunk neki. Végül szeretnénk köszönetet mondani minden adminunknak, különösen: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, akik a kezdetektől fogva velünk voltak. Szeretnénk köszönetet mondani minden tesztelőnek is, különösen Leonak és Toxicnak, akik folyamatosan teszteltek és jelentették a hibákat. Végtelenül hálásak vagyunk a hozzájárulásotokért.",
+                "about_story": "A Purrfect 2025. október 2-án alakult a SnapEnhance elágazásaként, azzal a vízióval, hogy a felhasználóknak azt a minőségi Snapchat élményt nyújtsa, amit megérdemelnek. Ez az alkalmazás csak egy kisebb frissítésnek indult a SnapEnhance repository-ban, de hamarosan önálló alkalmazássá vált, ahol a közreműködők folyamatosan új funkciókat adtak hozzá. Aztán csatlakozott a csapathoz <RSR/> fejlesztő, és az alkalmazás hamarosan hatalmas siker lett. Sok szeretetet és támogatást kaptunk, és mindössze két nap alatt elértük az 1000+ letöltést! Köszönjük minden felhasználónak és közreműködőnek; a támogatásotok nélkül nem jutottunk volna el idáig. Szeretnénk továbbá hatalmas köszönetet mondani rhunknak, a SnapEnhance vezető fejlesztőjének, mivel nélküle ez az alkalmazás nem is létezne. Végtelenül hálásak vagyunk neki. Végül szeretnénk köszönetet mondani minden adminunknak, különösen: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, akik a kezdetektől fogva velünk voltak. Szeretnénk köszönetet mondani minden tesztelőnek is, különösen Leonak és Toxicnak, akik folyamatosan teszteltek és jelentették a hibákat. Végtelenül hálásak vagyunk a hozzájárulásotokért.",
                 "about_thanks_title": "Szeretettel, Purrfect Csapat",
                 "about_magic_toast": "Koppints 5-ször ezen a képernyőn, hogy láss egy kis varázslatot 😉!",
                 "github_button": "GitHub",

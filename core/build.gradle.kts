@@ -31,6 +31,7 @@ dependencies {
     implementation(libs.coroutines)
     implementation(libs.recyclerview)
     implementation(libs.gson)
+    implementation(libs.dexkit)
     implementation(libs.okhttp)
     implementation(libs.androidx.documentfile)
     implementation(libs.rhino)
@@ -43,6 +44,8 @@ dependencies {
     implementation(project(":valdi"))
 
     implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.lifecycle.runtime)
+    implementation(libs.androidx.savedstate)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.core)
@@ -53,4 +56,5 @@ dependencies {
     implementation(libs.androidx.constraintlayout.compose)
     implementation(libs.hiddenapibypass)
     implementation(libs.colorpicker.compose)
+    implementation(libs.android.liquid.glass)
 }

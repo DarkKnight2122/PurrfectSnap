@@ -20,9 +20,14 @@ internal object ScopedConfigJson {
                     .put("whatsapp", full.optJSONObject("whatsapp") ?: JSONObject(context.getWhatsAppFeaturesJson()))
                     .put("_target_app", "whatsapp")
                     .toString(2)
+            context.isInstagramMode -> JSONObject()
+                    .put("instagram", full.optJSONObject("instagram") ?: JSONObject(context.getInstagramFeaturesJson()))
+                    .put("_target_app", "instagram")
+                    .toString(2)
             else -> {
                 full.remove("reddit")
                 full.remove("whatsapp")
+                full.remove("instagram")
                 full.put("_target_app", "snapchat")
                 full.toString(2)
             }
@@ -60,9 +65,24 @@ internal object ScopedConfigJson {
                     .put("_target_app", "whatsapp")
                     .toString()
             }
+            context.isInstagramMode -> {
+                val instagram = input.optJSONObject("instagram") ?: input
+                val instagramContainer = if (instagram.has("properties")) {
+                    instagram
+                } else {
+                    JSONObject()
+                        .put("state", JSONObject.NULL)
+                        .put("properties", instagram)
+                }
+                JSONObject()
+                    .put("instagram", instagramContainer)
+                    .put("_target_app", "instagram")
+                    .toString()
+            }
             else -> {
                 input.remove("reddit")
                 input.remove("whatsapp")
+                input.remove("instagram")
                 input.put("_target_app", "snapchat")
                 input.toString()
             }

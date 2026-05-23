@@ -197,7 +197,7 @@
         },
         "sections": {
             "home": {
-                "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
+                "version_title": "v{versionName}",
                 "update_title": "Purrfect-päivitys",
                 "update_content": "Versio {version} on saatavilla!",
                 "update_button": "Lataa",
@@ -247,7 +247,7 @@
                 "about_tagline": "Xposed-moduuli, joka on tarkoitettu parantamaan Snapchat-kokemustasi!",
                 "about_lead_developers_title": "Pääkehittäjät",
                 "about_story_title": "Tarinamme",
-                "about_story": "Purrfect perustettiin 2. lokakuuta 2025, kun ΞTΞRNAL teki forkkausversion SnapEnhancesta visionaan tarjota käyttäjille laadukas Snapchat-kokemus. Tämän sovelluksen piti olla vain pieni päivitys SnapEnhance-repositoriossa, mutta siitä tuli pian erillinen sovellus, johon avustajat lisäsivät ominaisuuksia. Sitten kehittäjä <RSR/> liittyi tiimiin, ja sovelluksesta tuli suuri menestys. Saimme paljon rakkautta ja tukea, saavuttaen yli 1000 latausta vain kahdessa päivässä! Kiitämme kaikkia käyttäjiä ja avustajia; ilman tukeanne emme olisi päässeet tähän pisteeseen. Haluamme myös välittää suuret kiitokset rhunkille, SnapEnhancen pääkehittäjälle, sillä ilman häntä tätä sovellusta ei olisi edes olemassa. Olemme hänelle erittäin kiitollisia. Lopuksi haluamme kiittää kaikkia ylläpitäjiämme, erityisesti: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, jotka olivat mukana alusta alkaen. Haluamme myös kiittää kaikkia testaajia, erityisesti Leo & Toxic, jotka testasivat ja raportoivat bugeja jatkuvasti. Olemme erittäin kiitollisia panoksestanne.",
+                "about_story": "Purrfect perustettiin 2. lokakuuta 2025, SnapEnhancen forkkausversiona visionaan tarjota käyttäjille laadukas Snapchat-kokemus. Tämän sovelluksen piti olla vain pieni päivitys SnapEnhance-repositoriossa, mutta siitä tuli pian erillinen sovellus, johon avustajat lisäsivät ominaisuuksia. Sitten kehittäjä <RSR/> liittyi tiimiin, ja sovelluksesta tuli suuri menestys. Saimme paljon rakkautta ja tukea, saavuttaen yli 1000 latausta vain kahdessa päivässä! Kiitämme kaikkia käyttäjiä ja avustajia; ilman tukeanne emme olisi päässeet tähän pisteeseen. Haluamme myös välittää suuret kiitokset rhunkille, SnapEnhancen pääkehittäjälle, sillä ilman häntä tätä sovellusta ei olisi edes olemassa. Olemme hänelle erittäin kiitollisia. Lopuksi haluamme kiittää kaikkia ylläpitäjiämme, erityisesti: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, jotka olivat mukana alusta alkaen. Haluamme myös kiittää kaikkia testaajia, erityisesti Leo & Toxic, jotka testasivat ja raportoivat bugeja jatkuvasti. Olemme erittäin kiitollisia panoksestanne.",
                 "about_thanks_title": "Rakkaudella, Purrfect-tiimi",
                 "about_magic_toast": "Napauta 5 kertaa tässä näytössä nähdäksesi taikaa 😉!",
                 "github_button": "GitHub",

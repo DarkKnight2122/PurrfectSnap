@@ -26,6 +26,9 @@ class WhatsAppConfigProvider : ContentProvider() {
             FEATURE_KEYS.forEach { key ->
                 putBoolean(key, json.optBoolean(key, false))
             }
+            STRING_FEATURE_KEYS.forEach { key ->
+                putString(key, json.optString(key, ""))
+            }
             putBoolean("json_file_exists", jsonFile.exists())
             putString("source", if (jsonFile.exists()) jsonFile.absolutePath else "config.json fallback")
             putString("json", json.toString())
@@ -41,6 +44,9 @@ class WhatsAppConfigProvider : ContentProvider() {
                 FEATURE_KEYS.forEach { key ->
                     put(key, readBoolean(properties, key))
                 }
+                STRING_FEATURE_KEYS.forEach { key ->
+                    put(key, readString(properties, key))
+                }
             }
         }.getOrDefault(JSONObject())
     }
@@ -55,6 +61,18 @@ class WhatsAppConfigProvider : ContentProvider() {
             if (nested != null) return nested
         }
         return false
+    }
+
+    private fun readString(properties: JSONObject, key: String): String {
+        if (properties.has(key)) return properties.optString(key, "")
+        FEATURE_GROUPS.forEach { group ->
+            val nested = properties.optJSONObject(group)
+                ?.optJSONObject("properties")
+                ?.takeIf { it.has(key) }
+                ?.optString(key, "")
+            if (nested != null) return nested
+        }
+        return ""
     }
 
     override fun query(
@@ -78,19 +96,29 @@ class WhatsAppConfigProvider : ContentProvider() {
     companion object {
         const val AUTHORITY = "me.eternal.purrfect.whatsapp.config"
         const val METHOD_GET_FEATURES = "getWhatsAppFeatures"
+        const val KEY_HIDE_CHANNELS = "hide_channels"
         const val KEY_HIDE_CHANNEL_RECOMMENDATIONS = "hide_channel_recommendations"
         private val FEATURE_KEYS = listOf(
+            KEY_HIDE_CHANNELS,
             KEY_HIDE_CHANNEL_RECOMMENDATIONS,
+            "hide_communities_tab",
             "hide_typing_indicators",
             "hide_recording_audio",
-            "hide_view_once_seen",
             "hide_delivered",
             "hide_audio_seen",
+            "hide_status_view",
+            "hide_start_chatting",
             "unlimited_view_once",
-            "hide_blue_ticks_groups",
             "hide_blue_ticks",
-            "show_deleted_messages"
+            "show_deleted_messages",
+            "hide_ui_elements",
+            "capture_ui_elements",
+            "liquid_class"
         )
-        private val FEATURE_GROUPS = listOf("channels", "privacy", "messages")
+        private val STRING_FEATURE_KEYS = listOf(
+            "hidden_ui_element_ids",
+            "hidden_ui_element_selectors"
+        )
+        private val FEATURE_GROUPS = listOf("channels", "privacy", "messages", "ui_elements")
     }
 }

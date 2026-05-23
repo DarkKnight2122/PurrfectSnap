@@ -88,6 +88,7 @@ class AutoPatchServer(
 
             TargetApp.REDDIT -> apkAssets.first()
             TargetApp.WHATSAPP -> null
+            TargetApp.INSTAGRAM -> null
         }
     }
 
@@ -109,6 +110,7 @@ class AutoPatchServer(
             )
 
             TargetApp.WHATSAPP -> emptyList()
+            TargetApp.INSTAGRAM -> emptyList()
         }
     }
 }

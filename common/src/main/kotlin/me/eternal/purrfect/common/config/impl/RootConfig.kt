@@ -21,4 +21,5 @@ class RootConfig : ConfigContainer() {
     val friendTracker = container("friend_tracker", FriendTrackerConfig()) { icon = Icons.Default.PersonSearch }
     val reddit = container("reddit", RedditConfig()) { icon = Icons.Default.Forum }
     val whatsapp = container("whatsapp", WhatsAppConfig()) { icon = Icons.Default.Forum }
+    val instagram = container("instagram", InstagramConfig()) { icon = Icons.Default.PhotoCamera }
 }
