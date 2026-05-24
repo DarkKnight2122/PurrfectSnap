@@ -15,7 +15,8 @@ import java.io.File
 import kotlin.system.exitProcess
 
 class InstagramRuntime(
-    private val sourceApkPath: String? = null
+    private val sourceApkPath: String? = null,
+    private val moduleSourcePath: String? = null
 ) {
     fun init(androidContext: Context, appClassLoader: ClassLoader = androidContext.classLoader) {
         InstagramAppLogWriter.bind(androidContext)
@@ -27,7 +28,7 @@ class InstagramRuntime(
         registerForceStopReceiver(androidContext)
         requestConfigBroadcast(androidContext)
         InstagramFeatureState.loadAsync(androidContext)
-        InstagramHooks(androidContext, appClassLoader, sourceApkPath).init()
+        InstagramHooks(androidContext, appClassLoader, sourceApkPath, moduleSourcePath).init()
     }
 
     private fun registerConfigBroadcastReceiver(androidContext: Context) {

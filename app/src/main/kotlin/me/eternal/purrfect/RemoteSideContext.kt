@@ -359,8 +359,18 @@ class RemoteSideContext(
             TargetApp.SNAPCHAT -> Constants.SNAPCHAT_PACKAGE_NAME
             TargetApp.REDDIT -> Constants.REDDIT_PACKAGE_NAME
             TargetApp.WHATSAPP -> Constants.WHATSAPP_PACKAGE_NAME
-            TargetApp.INSTAGRAM -> Constants.INSTAGRAM_PACKAGE_NAME
+            TargetApp.INSTAGRAM -> installedInstagramPackageName()
         }
+    }
+
+    private fun installedInstagramPackageName(): String {
+        return Constants.INSTAGRAM_PACKAGE_NAMES.firstOrNull { packageName ->
+            runCatching {
+                @Suppress("DEPRECATION")
+                androidContext.packageManager.getPackageInfo(packageName, 0)
+                true
+            }.getOrDefault(false)
+        } ?: Constants.INSTAGRAM_PACKAGE_NAME
     }
 
     private fun inferInstalledTargetApp(): TargetApp? {

@@ -6,8 +6,12 @@ import me.eternal.purrfect.common.TargetApp
 internal data class SetupInstallTarget(
     val targetApp: TargetApp,
     val displayName: String,
-    val packageName: String
-)
+    val packageName: String,
+    val alternatePackageNames: Set<String> = emptySet()
+) {
+    val packageNames: Set<String>
+        get() = linkedSetOf(packageName).apply { addAll(alternatePackageNames) }
+}
 
 internal val setupTargetOrder = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.WHATSAPP, TargetApp.INSTAGRAM)
 
@@ -34,7 +38,8 @@ internal fun TargetApp.toSetupInstallTarget(): SetupInstallTarget {
         TargetApp.INSTAGRAM -> SetupInstallTarget(
             targetApp = this,
             displayName = "Instagram",
-            packageName = Constants.INSTAGRAM_PACKAGE_NAME
+            packageName = Constants.INSTAGRAM_PACKAGE_NAME,
+            alternatePackageNames = Constants.INSTAGRAM_PACKAGE_NAMES - Constants.INSTAGRAM_PACKAGE_NAME
         )
     }
 }

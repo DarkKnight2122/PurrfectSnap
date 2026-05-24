@@ -3,6 +3,7 @@ package me.eternal.purrfect.core
 import android.app.Application
 import android.content.Context
 import de.robv.android.xposed.IXposedHookLoadPackage
+import de.robv.android.xposed.IXposedHookZygoteInit
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
 import de.robv.android.xposed.callbacks.XC_LoadPackage
@@ -16,7 +17,16 @@ import me.eternal.purrfect.core.whatsapp.WhatsAppDetectionHooks
 import me.eternal.purrfect.core.whatsapp.WhatsAppRuntime
 import java.util.concurrent.atomic.AtomicBoolean
 
-class XposedLoader : IXposedHookLoadPackage {
+class XposedLoader : IXposedHookLoadPackage, IXposedHookZygoteInit {
+    companion object {
+        @Volatile
+        private var moduleSourcePath: String? = null
+    }
+
+    override fun initZygote(startupParam: IXposedHookZygoteInit.StartupParam) {
+        moduleSourcePath = startupParam.modulePath
+    }
+
     override fun handleLoadPackage(param: XC_LoadPackage.LoadPackageParam) {
         if (param.packageName !in Constants.HOOK_TARGET_PACKAGES) return
         if (param.processName.contains(":")) return
@@ -51,7 +61,7 @@ class XposedLoader : IXposedHookLoadPackage {
                 when (param.packageName) {
                     Constants.REDDIT_PACKAGE_NAME -> RedditRuntime().init(context, param.classLoader)
                     Constants.WHATSAPP_PACKAGE_NAME -> WhatsAppRuntime().init(context, param.classLoader)
-                    in Constants.INSTAGRAM_PACKAGE_NAMES -> InstagramRuntime(param.appInfo.sourceDir).init(context, param.classLoader)
+                    in Constants.INSTAGRAM_PACKAGE_NAMES -> InstagramRuntime(param.appInfo.sourceDir, moduleSourcePath).init(context, param.classLoader)
                 }
             }.onFailure { throwable ->
                 initialized.set(false)

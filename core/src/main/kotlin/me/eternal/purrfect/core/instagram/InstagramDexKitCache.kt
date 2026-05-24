@@ -6,10 +6,10 @@ import de.robv.android.xposed.XposedBridge
 import java.lang.reflect.Method
 
 internal object InstagramDexKitCache {
-    private const val PREF_NAME = "instaeclipse_dexkit_cache"
+    private const val PREF_NAME = "purrfect_insta_dexkit_cache"
     private const val KEY_VERSION = "_v"
     private const val KEY_SCHEMA = "_schema"
-    private const val SCHEMA_VERSION = "2"
+    private const val SCHEMA_VERSION = "3"
     private const val SEP = '\u0000'
 
     private var prefs: android.content.SharedPreferences? = null

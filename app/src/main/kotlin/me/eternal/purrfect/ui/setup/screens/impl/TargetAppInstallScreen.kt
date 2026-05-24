@@ -183,16 +183,20 @@ open class TargetAppInstallScreen(
 
         fun isTargetInstalledAfter(target: SetupInstallTarget, timestamp: Long): Boolean {
             if (timestamp == 0L) return false
-            val info = runCatching {
-                context.androidContext.packageManager.getPackageInfo(target.packageName, 0)
-            }.getOrNull() ?: return false
-            return info.lastUpdateTime >= timestamp
+            return target.packageNames.any { packageName ->
+                val info = runCatching {
+                    context.androidContext.packageManager.getPackageInfo(packageName, 0)
+                }.getOrNull()
+                info?.lastUpdateTime?.let { it >= timestamp } == true
+            }
         }
 
         fun isTargetInstalled(target: SetupInstallTarget): Boolean {
-            return runCatching {
-                context.androidContext.packageManager.getPackageInfo(target.packageName, 0)
-            }.isSuccess
+            return target.packageNames.any { packageName ->
+                runCatching {
+                    context.androidContext.packageManager.getPackageInfo(packageName, 0)
+                }.isSuccess
+            }
         }
 
         fun resetTargetState() {

@@ -5,7 +5,25 @@ object Constants {
     val REDDIT_PACKAGE_NAME get() = "com.reddit.frontpage"
     val WHATSAPP_PACKAGE_NAME get() = "com.whatsapp"
     val INSTAGRAM_PACKAGE_NAME get() = "com.instagram.android"
-    val INSTAGRAM_PACKAGE_NAMES get() = setOf(INSTAGRAM_PACKAGE_NAME)
+    val INSTAGRAM_PACKAGE_NAMES get() = linkedSetOf(
+        INSTAGRAM_PACKAGE_NAME,
+        "com.instagold.android",
+        "com.instaflux.app",
+        "com.myinsta.android",
+        "cc.honista.app",
+        "com.instaprime.android",
+        "com.instafel.android",
+        "com.instadm.android",
+        "com.dfistagram.android",
+        "com.Instander.android",
+        "com.aero.instagram",
+        "com.instapro.android",
+        "com.instaflow.android",
+        "com.instagram1.android",
+        "com.instagram2.android",
+        "com.instagramclone.android",
+        "com.instaclone.android",
+    )
     val HOOK_TARGET_PACKAGES get() = setOf(SNAPCHAT_PACKAGE_NAME, REDDIT_PACKAGE_NAME, WHATSAPP_PACKAGE_NAME) + INSTAGRAM_PACKAGE_NAMES
     val MODULE_PACKAGE_NAME get() = BuildConfig.APPLICATION_ID
     val REDDIT_CONFIG_REQUEST_ACTION get() = "$MODULE_PACKAGE_NAME.action.REDDIT_CONFIG_REQUEST"

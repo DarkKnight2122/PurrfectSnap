@@ -1,13 +1,23 @@
 package me.eternal.purrfect.core.instagram
 
+import android.os.Build
 import de.robv.android.xposed.XposedBridge
 import java.io.Closeable
+import java.io.File
 import java.lang.reflect.Method
+import java.util.Locale
 
 internal class InstagramDexKitBridge(
     private val apkPath: String?,
-    private val classLoader: ClassLoader
+    private val classLoader: ClassLoader,
+    private val moduleSourcePath: String? = null
 ) : Closeable {
+    companion object {
+        @Volatile
+        private var dexKitNativeLoaded = false
+        private val dexKitNativeLoadLock = Any()
+    }
+
     data class MethodRef(
         val className: String,
         val name: String,
@@ -20,12 +30,120 @@ internal class InstagramDexKitBridge(
     private val bridge: Any? by lazy {
         runCatching {
             if (apkPath.isNullOrBlank()) return@runCatching null
-            runCatching { System.loadLibrary("dexkit") }
+            ensureDexKitNativeLoaded()
             val bridgeClass = Class.forName("org.luckypray.dexkit.DexKitBridge")
-            bridgeClass.getMethod("create", String::class.java).invoke(null, apkPath)
+            createDexKitBridge(bridgeClass)
         }.onFailure { throwable ->
             XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit unavailable: ${throwable.message}")
         }.getOrNull()
+    }
+
+    private fun createDexKitBridge(bridgeClass: Class<*>): Any {
+        runCatching {
+            bridgeClass.declaredMethods
+                .firstOrNull { method ->
+                    method.name == "create" &&
+                        method.parameterTypes.contentEquals(arrayOf<Class<*>>(String::class.java))
+                }
+                ?.let { method ->
+                    method.isAccessible = true
+                    return method.invoke(null, apkPath)
+                }
+        }.onFailure { XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit static create(String) failed: ${it.message}") }
+
+        runCatching {
+            val companion = bridgeClass.getDeclaredField("Companion").apply { isAccessible = true }.get(null)
+            companion.javaClass.declaredMethods
+                .firstOrNull { method ->
+                    method.name == "create" &&
+                        method.parameterTypes.contentEquals(arrayOf<Class<*>>(String::class.java))
+                }
+                ?.let { method ->
+                    method.isAccessible = true
+                    return method.invoke(companion, apkPath)
+                }
+        }.onFailure { XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit companion create(String) failed: ${it.message}") }
+
+        runCatching {
+            bridgeClass.declaredMethods
+                .firstOrNull { method ->
+                    method.name == "create" &&
+                        method.parameterTypes.size == 2 &&
+                        ClassLoader::class.java.isAssignableFrom(method.parameterTypes[0]) &&
+                        method.parameterTypes[1] == java.lang.Boolean.TYPE
+                }
+                ?.let { method ->
+                    method.isAccessible = true
+                    return method.invoke(null, classLoader, false)
+                }
+        }.onFailure { XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit static create(ClassLoader, boolean) failed: ${it.message}") }
+
+        runCatching {
+            val companion = bridgeClass.getDeclaredField("Companion").apply { isAccessible = true }.get(null)
+            companion.javaClass.declaredMethods
+                .firstOrNull { method ->
+                    method.name == "create" &&
+                        method.parameterTypes.size == 2 &&
+                        ClassLoader::class.java.isAssignableFrom(method.parameterTypes[0]) &&
+                        method.parameterTypes[1] == java.lang.Boolean.TYPE
+                }
+                ?.let { method ->
+                    method.isAccessible = true
+                    return method.invoke(companion, classLoader, false)
+                }
+        }.onFailure { XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit companion create(ClassLoader, boolean) failed: ${it.message}") }
+
+        val methods = bridgeClass.declaredMethods.joinToString { method ->
+            "${method.name}(${method.parameterTypes.joinToString { it.name }})"
+        }
+        error("No compatible DexKitBridge.create entry point found. Methods=$methods")
+    }
+
+    private fun ensureDexKitNativeLoaded() {
+        if (dexKitNativeLoaded) return
+        synchronized(dexKitNativeLoadLock) {
+            if (dexKitNativeLoaded) return
+            var firstError: Throwable? = null
+
+            dexKitNativeLibraryCandidates().forEach { candidate ->
+                if (!candidate.exists()) return@forEach
+                val result = runCatching { System.load(candidate.absolutePath) }
+                if (result.isSuccess) {
+                    dexKitNativeLoaded = true
+                    XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit native loaded from ${candidate.absolutePath}")
+                    return
+                }
+                firstError = firstError ?: result.exceptionOrNull()
+            }
+
+            val fallback = runCatching { System.loadLibrary("dexkit") }
+            if (fallback.isSuccess) {
+                dexKitNativeLoaded = true
+                XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit native loaded through loadLibrary")
+                return
+            }
+
+            throw firstError ?: fallback.exceptionOrNull() ?: UnsatisfiedLinkError("libdexkit.so not found")
+        }
+    }
+
+    private fun dexKitNativeLibraryCandidates(): List<File> {
+        val modulePath = moduleSourcePath?.takeIf { it.isNotBlank() } ?: return emptyList()
+        val moduleDir = File(modulePath).parentFile ?: return emptyList()
+        return Build.SUPPORTED_ABIS
+            .flatMap { abi -> dexKitAbiFolders(abi) }
+            .distinct()
+            .map { abiFolder -> File(moduleDir, "lib/$abiFolder/libdexkit.so") }
+    }
+
+    private fun dexKitAbiFolders(abi: String): List<String> {
+        val normalized = abi.lowercase(Locale.US)
+        return when (normalized) {
+            "arm64-v8a" -> listOf("arm64", abi)
+            "armeabi-v7a", "armeabi", "armv8i" -> listOf("arm", abi)
+            "x86", "x86_64" -> listOf(abi)
+            else -> listOf(abi)
+        }
     }
 
     fun findMethodsUsingStrings(vararg strings: String): List<Method> {

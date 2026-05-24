@@ -209,6 +209,21 @@ class HomeRootSection : Routes.Route() {
         }
     }
 
+    internal fun installedInstagramPackages(): List<String> {
+        val packageManager = context.androidContext.packageManager
+        return Constants.INSTAGRAM_PACKAGE_NAMES.filter { packageName ->
+            runCatching {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+                true
+            }.getOrDefault(false)
+        }
+    }
+
+    internal fun primaryInstagramPackage(): String {
+        return installedInstagramPackages().firstOrNull() ?: Constants.INSTAGRAM_PACKAGE_NAME
+    }
+
     private fun isUrlReachable(url: String): Boolean {
         return runCatching {
             changelogClient.newCall(Request.Builder().url(url).head().build()).execute().use { response ->
@@ -294,10 +309,10 @@ class HomeRootSection : Routes.Route() {
     internal val instagramCards by lazy {
         mutableMapOf<Pair<String, ImageVector>, Routes.() -> Unit>(
             ("Force Stop Instagram" to Icons.Default.StopCircle) to {
-                context.forceStopTargetPackage(Constants.INSTAGRAM_PACKAGE_NAME, "Instagram")
+                context.forceStopTargetPackage(primaryInstagramPackage(), "Instagram")
             },
             ("Open Instagram" to Icons.Default.OpenInNew) to {
-                context.openTargetPackage(Constants.INSTAGRAM_PACKAGE_NAME, "Instagram")
+                context.openTargetPackage(primaryInstagramPackage(), "Instagram")
             }
         )
     }

@@ -109,7 +109,8 @@ import kotlin.math.roundToInt
 class InstagramHooks(
     private val androidContext: Context,
     private val appClassLoader: ClassLoader = androidContext.classLoader,
-    private val sourceApkPath: String? = null
+    private val sourceApkPath: String? = null,
+    private val moduleSourcePath: String? = null
 ) {
     companion object {
         private val activeHooks = Collections.synchronizedSet(
@@ -278,7 +279,7 @@ class InstagramHooks(
     private val knownChatNames = Collections.synchronizedSet(LinkedHashSet<String>())
     private val voiceSeenRequests = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<Any, Boolean>()))
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val dexBridge by lazy { InstagramDexKitBridge(sourceApkPath, appClassLoader) }
+    private val dexBridge by lazy { InstagramDexKitBridge(sourceApkPath, appClassLoader, moduleSourcePath) }
     private val devOptionsMetaConfig by lazy {
         InstagramDevOptionsMetaConfig(androidContext, appClassLoader, dexBridge) { state.isDevEnabled }
     }
@@ -1769,46 +1770,44 @@ class InstagramHooks(
     }
 
     private fun installDexKitHooks() {
-        Thread {
-            runSafe("DexKit Instagram hooks") {
-                installDevOptionsStableHooks()
-                installBottomSheetNavigatorHook()
-                InstagramActivityHistoryHooks.installDexKitHooks(dexBridge, appClassLoader)
-                installCopyBioModelHooks()
-                installCommentCopyLongPressHooks()
-                installSponsoredModelHooks()
-                installHideSuggestedFeedItemsHook()
-                installGhostDmSeenHook()
-                installGhostStorySeenHook()
-                installGhostReplayLimitHooks()
-                installGhostPermanentViewHook()
-                installGhostEphemeralKeepHooks()
-                installKeepUnsentMessagesHooks()
-                installStoryOverflowHooks()
-                installGhostTypingHook()
-                installGhostViewOnceHook()
-                installGhostVoiceSeenHooks()
-                installBuildExpiredPopupHook()
-                installVideoAutoPlayDexHook()
-                installGhostScreenshotDetectionHook()
-                installDoubleTapLikeDexHooks()
-                installStoryFlippingDexHook()
-                hookDexVoidOrFalse("NotesLocation", listOf("location_note_create_info", "longitude")) { state.enableNotesLocationSpoof }
-                installNotesLocationFallbackHook()
-                installPostVideoUrlCaptureHook()
-                installPostDownloadMenuHook()
-                installReelDownloadMenuHook()
-                installDirectMessageContextMenuHook()
-                installStoryMentionHook()
-                installNavigationNativeTabFactoryHook()
-                installStoryRingTrayConstructorHook()
-                installConfirmRefreshDexListenerHooks()
-            }
-        }.apply {
-            name = "PurrfectInstaDexKit"
-            isDaemon = true
-            start()
+        installDexKitStep("DevOptions") { installDevOptionsStableHooks() }
+        installDexKitStep("BottomSheet") { installBottomSheetNavigatorHook() }
+        installDexKitStep("ActivityHistory") { InstagramActivityHistoryHooks.installDexKitHooks(dexBridge, appClassLoader) }
+        installDexKitStep("CopyBio") { installCopyBioModelHooks() }
+        installDexKitStep("CommentCopy") { installCommentCopyLongPressHooks() }
+        installDexKitStep("SponsoredModels") { installSponsoredModelHooks() }
+        installDexKitStep("HideSuggestedFeed") { installHideSuggestedFeedItemsHook() }
+        installDexKitStep("GhostDmSeen") { installGhostDmSeenHook() }
+        installDexKitStep("GhostStorySeen") { installGhostStorySeenHook() }
+        installDexKitStep("GhostReplayLimit") { installGhostReplayLimitHooks() }
+        installDexKitStep("GhostPermanentView") { installGhostPermanentViewHook() }
+        installDexKitStep("GhostEphemeralKeep") { installGhostEphemeralKeepHooks() }
+        installDexKitStep("KeepUnsentMessages") { installKeepUnsentMessagesHooks() }
+        installDexKitStep("StoryOverflow") { installStoryOverflowHooks() }
+        installDexKitStep("GhostTyping") { installGhostTypingHook() }
+        installDexKitStep("GhostViewOnce") { installGhostViewOnceHook() }
+        installDexKitStep("GhostVoiceSeen") { installGhostVoiceSeenHooks() }
+        installDexKitStep("BuildExpiredPopup") { installBuildExpiredPopupHook() }
+        installDexKitStep("VideoAutoPlay") { installVideoAutoPlayDexHook() }
+        installDexKitStep("GhostScreenshot") { installGhostScreenshotDetectionHook() }
+        installDexKitStep("DoubleTapLike") { installDoubleTapLikeDexHooks() }
+        installDexKitStep("StoryFlipping") { installStoryFlippingDexHook() }
+        installDexKitStep("NotesLocation") {
+            hookDexVoidOrFalse("NotesLocation", listOf("location_note_create_info", "longitude")) { state.enableNotesLocationSpoof }
+            installNotesLocationFallbackHook()
         }
+        installDexKitStep("PostVideoUrlCapture") { installPostVideoUrlCaptureHook() }
+        installDexKitStep("PostDownload") { installPostDownloadMenuHook() }
+        installDexKitStep("ReelDownload") { installReelDownloadMenuHook() }
+        installDexKitStep("DirectMessageContextMenu") { installDirectMessageContextMenuHook() }
+        installDexKitStep("StoryMention") { installStoryMentionHook() }
+        installDexKitStep("NavigationTabs") { installNavigationNativeTabFactoryHook() }
+        installDexKitStep("StoryRingSize") { installStoryRingTrayConstructorHook() }
+        installDexKitStep("ConfirmRefresh") { installConfirmRefreshDexListenerHooks() }
+    }
+
+    private fun installDexKitStep(name: String, block: () -> Unit) {
+        runSafe("DexKit $name", block)
     }
 
     private fun installBottomSheetNavigatorHook() {
@@ -8926,7 +8925,6 @@ class InstagramHooks(
         applyDirectGhostSeenControls(view)
         applyDmAnyFileUploadButton(view)
         applyProfilePictureDownload(view)
-        applyFeedPostDownloadControls(view)
         if (!enforceHiddenUiState(view) && hasAnyViewHideRule(current) && shouldHideView(view)) hideView(view, reason)
         if (current.enableMonetTheme) applyMonetThemeToView(view)
         if (current.storyRingSize != "default") applyStoryRingScale(view)
@@ -9009,7 +9007,6 @@ class InstagramHooks(
         applyDirectGhostSeenControls(view)
         applyDmAnyFileUploadButton(view)
         applyProfilePictureDownload(view)
-        applyFeedPostDownloadControls(view)
         if (!enforceHiddenUiState(view) && hasAnyViewHideRule(current) && shouldHideView(view)) hideView(view, reason)
         if (current.enableMonetTheme) applyMonetThemeToView(view)
         if (current.enableNavigationTabCustomization) applyNavigationTabRules(view)
@@ -10909,7 +10906,10 @@ class InstagramHooks(
     }
 
     private fun isSupportedInstagramPackage(packageName: String?): Boolean {
-        return packageName == Constants.INSTAGRAM_PACKAGE_NAME
+        packageName ?: return false
+        if (packageName in Constants.INSTAGRAM_PACKAGE_NAMES) return true
+        val lower = packageName.lowercase(Locale.US)
+        return lower.contains("insta") || lower == "cc.honista.app"
     }
 
     private fun resourceEntryName(resources: Resources, resId: Int): String? {
