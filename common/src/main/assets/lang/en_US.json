@@ -1514,8 +1514,16 @@
                         "description": "Shows an icon indicating whether the snap was taken from the camera or uploaded from the gallery\nOnly works with friend stories"
                     },
                     "story_snap_jump": {
-                        "name": "Auto Skip",
-                        "description": "Adds a skip button to jump to any snap in a story. Tap the skip icon or counter to open the jump dialog"
+                        "name": "Story Snap Jump",
+                        "description": "Adds navigation arrows and a jump slider to the story counter, allowing you to skip directly to a specific snap in a story"
+                    },
+                    "story_caption_text": {
+                        "name": "Story Caption Text",
+                        "description": "Shows a T icon when a story snap contains text. Tap to copy the caption text to clipboard"
+                    },
+                    "collapsible_story_overlay": {
+                        "name": "Collapsible Story Overlay",
+                        "description": "Shows one icon while viewing stories; tap it to reveal the story counter, source indicator, snap jump, caption, and download controls that you have enabled"
                     },
                     "old_bitmoji_selfie": {
                         "name": "Old Bitmoji Selfie",

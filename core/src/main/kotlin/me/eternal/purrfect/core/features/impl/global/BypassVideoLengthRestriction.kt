@@ -21,7 +21,6 @@ class BypassVideoLengthRestriction :
             val mode = context.config.global.bypassVideoLengthRestriction.getNullable()
 
             if (mode == "single") {
-                //fix black videos when story is posted
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     val postedStorySnapFolder =
                         File(context.androidContext.filesDir, "file_manager/posted_story_snap")
@@ -61,10 +60,29 @@ class BypassVideoLengthRestriction :
                 }
 
                 context.mappings.useMapper(DefaultMediaItemMapper::class) {
-                    defaultMediaItemClass.getAsClass()?.hookConstructor(HookStage.AFTER) { param ->
-                        //set the video length argument
-                        param.thisObject<Any>().dataBuilder {
-                            set(defaultMediaItemDurationMsField.getAsString()!!, -1L)
+                    listOf(
+                        defaultMediaItemClass to defaultMediaItemDurationMsField,
+                        defaultMediaItemClass2 to defaultMediaItemDurationMsField2
+                    ).forEach { (classRef, fieldRef) ->
+                        classRef.getAsClass()?.hookConstructor(HookStage.AFTER) { param ->
+                            param.thisObject<Any>().dataBuilder {
+                                set(fieldRef.getAsString()!!, 10000L)
+                            }
+                        }
+                    }
+                }
+            }
+
+            arrayOf(
+                "com.snap.composer.memories.MemoriesPickerVideoDurationConfig",
+                "com.snap.modules.memories_v2.MemoriesTwoPickerVideoDurationConfig"
+            ).forEach { className ->
+                runCatching {
+                    findClass(className).hookConstructor(HookStage.AFTER) { param ->
+                        param.thisObject<Any>().apply {
+                            setObjectField("_maxSingleItemDurationMs", null)
+                            setObjectField("_maxTotalDurationMs", null)
+                            setObjectField("_maxSnapLengthMs", null)
                         }
                     }
                 }
@@ -75,18 +93,6 @@ class BypassVideoLengthRestriction :
                     cameraRollMediaId.getAsClass()?.hookConstructor(HookStage.AFTER) { param ->
                         param.thisObject<Any>()
                             .setObjectField(durationMsField.get()!!, -1L)
-                    }
-                }
-
-                findClass("com.snap.impala.common.media.MediaLibraryItem").hookConstructor(HookStage.AFTER) { param ->
-                    param.thisObject<Any>().setObjectField("_durationMs", -1.0)
-                }
-
-                findClass("com.snap.composer.memories.MemoriesPickerVideoDurationConfig").hookConstructor(HookStage.AFTER) { param ->
-                    param.thisObject<Any>().apply {
-                        setObjectField("_maxSingleItemDurationMs", null)
-                        setObjectField("_maxTotalDurationMs", null)
-                        setObjectField("_maxSnapLengthMs", null)
                     }
                 }
             }

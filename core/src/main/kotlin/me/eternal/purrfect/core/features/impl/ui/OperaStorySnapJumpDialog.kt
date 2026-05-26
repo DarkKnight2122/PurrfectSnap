@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -26,14 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import me.eternal.purrfect.common.ui.PurrfectOverlayPalette
 import kotlin.math.roundToInt
-
-/**
- * Composable dialog for jumping to a specific snap in the story (Auto Skip).
- * Matches SnapEnhance dialog size (75% width), transparency (0.88), and layout.
- * Styled with Purrfect colors.
- */
 @Composable
 fun OperaStorySnapJumpDialog(
     currentIndex: Int,
@@ -45,11 +39,13 @@ fun OperaStorySnapJumpDialog(
     val selectedSnap = sliderValue.roundToInt()
 
     Dialog(onDismissRequest = onDismiss) {
+        val colorScheme = MaterialTheme.colorScheme
+
         Box(
             modifier = Modifier
                 .fillMaxWidth(0.75f)
                 .background(
-                    color = PurrfectOverlayPalette.cardOverlayColor.copy(alpha = 0.88f),
+                    color = colorScheme.surface.copy(alpha = 0.88f),
                     shape = RoundedCornerShape(24.dp)
                 )
                 .padding(20.dp)
@@ -65,12 +61,12 @@ fun OperaStorySnapJumpDialog(
                         text = "$selectedSnap",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = PurrfectOverlayPalette.textPrimary
+                        color = colorScheme.onSurface
                     )
                     Text(
                         text = " / $totalCount",
                         fontSize = 14.sp,
-                        color = PurrfectOverlayPalette.textSecondary,
+                        color = colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 5.dp)
                     )
                 }
@@ -83,10 +79,10 @@ fun OperaStorySnapJumpDialog(
                     valueRange = 1f..totalCount.toFloat(),
                     steps = if (totalCount > 2) totalCount - 2 else 0,
                     colors = SliderDefaults.colors(
-                        thumbColor = PurrfectOverlayPalette.glowPrimary,
-                        activeTrackColor = PurrfectOverlayPalette.glowPrimary,
+                        thumbColor = colorScheme.primary,
+                        activeTrackColor = colorScheme.primary,
                         activeTickColor = Color.Transparent,
-                        inactiveTrackColor = PurrfectOverlayPalette.textPrimary.copy(alpha = 0.12f),
+                        inactiveTrackColor = colorScheme.onSurface.copy(alpha = 0.12f),
                         inactiveTickColor = Color.Transparent
                     ),
                     modifier = Modifier.fillMaxWidth()
@@ -102,7 +98,7 @@ fun OperaStorySnapJumpDialog(
                         modifier = Modifier
                             .weight(1f)
                             .background(
-                                color = Color.White.copy(alpha = 0.12f),
+                                color = colorScheme.surfaceVariant,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable { onDismiss() }
@@ -112,14 +108,14 @@ fun OperaStorySnapJumpDialog(
                         Text(
                             text = "Cancel",
                             fontSize = 13.sp,
-                            color = PurrfectOverlayPalette.textSecondary
+                            color = colorScheme.onSurfaceVariant
                         )
                     }
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .background(
-                                color = PurrfectOverlayPalette.glowPrimary.copy(alpha = 0.9f),
+                                color = colorScheme.primary,
                                 shape = RoundedCornerShape(12.dp)
                             )
                             .clickable {
@@ -133,7 +129,7 @@ fun OperaStorySnapJumpDialog(
                             text = "Go",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = colorScheme.onPrimary
                         )
                     }
                 }

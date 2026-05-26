@@ -54,6 +54,8 @@ class UserInterfaceTweaks : ConfigContainer() {
     val storyCounter = boolean("story_counter") { requireRestart() }
     val storySourceIndicator = boolean("story_source_indicator") { requireRestart() }
     val storySnapJump = boolean("story_snap_jump") { requireRestart() }
+    val storyCaptionText = boolean("story_caption_text") { requireRestart() }
+    val collapsibleStoryOverlay = boolean("collapsible_story_overlay") { requireRestart() }
     val oldBitmojiSelfie = unique("old_bitmoji_selfie", "2d", "3d") { requireCleanCache() }
     val disableSpotlight = boolean("disable_spotlight") { requireRestart() }
     val verticalStoryViewer = boolean("vertical_story_viewer") { requireRestart() }

@@ -12,6 +12,9 @@ class DefaultMediaItemMapper : AbstractClassMapper("DefaultMediaItem") {
     val defaultMediaItemClass = classReference("defaultMediaItemClass")
     val defaultMediaItemDurationMsField = string("defaultMediaItemDurationMsField")
 
+    val defaultMediaItemClass2 = classReference("defaultMediaItemClass2")
+    val defaultMediaItemDurationMsField2 = string("defaultMediaItemDurationMsField2")
+
     init {
         mapper {
             for (clazz in classes) {
@@ -26,19 +29,30 @@ class DefaultMediaItemMapper : AbstractClassMapper("DefaultMediaItem") {
             }
         }
 
-        mapper {
-            for (clazz in classes) {
-                val superClass = getClass(clazz.superclass) ?: continue
+        arrayOf(
+            "metadata" to { classRef: String, fieldName: String ->
+                defaultMediaItemClass.set(classRef)
+                defaultMediaItemDurationMsField.set(fieldName)
+            },
+            "location" to { classRef: String, fieldName: String ->
+                defaultMediaItemClass2.set(classRef)
+                defaultMediaItemDurationMsField2.set(fieldName)
+            }
+        ).forEach { (keyword, setter) ->
+            mapper {
+                for (clazz in classes) {
+                    val superClass = getClass(clazz.superclass) ?: continue
 
-                if (!superClass.isAbstract() || superClass.interfaces.isEmpty() || superClass.interfaces[0] != "Ljava/lang/Comparable;") continue
-                if (clazz.methods.none { it.returnType == "Landroid/net/Uri;" }) continue
+                    if (!superClass.isAbstract() || superClass.interfaces.isEmpty() || superClass.interfaces[0] != "Ljava/lang/Comparable;") continue
+                    if (clazz.methods.none { it.returnType == "Landroid/net/Uri;" }) continue
 
-                val durationInMillisDexField = clazz.methods.firstOrNull { it.name == "toString" }?.implementation?.takeIf {
-                    it.findConstString("metadata", contains = true)
-                }?.searchNextFieldReference("durationInMillis", contains = true) ?: continue
-                defaultMediaItemClass.set(clazz.getClassName())
-                defaultMediaItemDurationMsField.set(durationInMillisDexField.name)
-                return@mapper
+                    val durationInMillisDexField = clazz.methods.firstOrNull { it.name == "toString" }?.implementation?.takeIf {
+                        it.findConstString(keyword, contains = true)
+                    }?.searchNextFieldReference("durationInMillis", contains = true) ?: continue
+
+                    setter(clazz.getClassName(), durationInMillisDexField.name)
+                    return@mapper
+                }
             }
         }
     }

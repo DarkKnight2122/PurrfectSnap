@@ -42,11 +42,12 @@ class OperaStoryCounter : Feature("OperaStoryCounter") {
         val showCounter = this@OperaStoryCounter.context.config.userInterface.storyCounter.get()
         val showSourceIndicator = this@OperaStoryCounter.context.config.userInterface.storySourceIndicator.get()
         val storySnapJump = this@OperaStoryCounter.context.config.userInterface.storySnapJump.get()
+        val showCaptionText = this@OperaStoryCounter.context.config.userInterface.storyCaptionText.get()
+        val collapsibleStoryOverlay = this@OperaStoryCounter.context.config.userInterface.collapsibleStoryOverlay.get()
         val storySnapListDownload = this@OperaStoryCounter.context.config.downloader.storySnapListDownload.get()
         val operaDownloadButton = this@OperaStoryCounter.context.config.downloader.operaDownloadButton.get()
 
-        // OperaStoryOverlay handles counter/source/jump when any of these are enabled
-        if (showCounter || showSourceIndicator || storySnapJump || storySnapListDownload || operaDownloadButton) return
+        if (showCounter || showSourceIndicator || storySnapJump || showCaptionText || collapsibleStoryOverlay || storySnapListDownload || operaDownloadButton) return
 
         this@OperaStoryCounter.context.event.subscribe(AddViewEvent::class) { event ->
             if (event.view is FrameLayout && event.parent.javaClass.superclass?.name?.endsWith("OpenLayout") == true) {
