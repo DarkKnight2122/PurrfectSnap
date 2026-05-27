@@ -105,14 +105,13 @@ class InstagramConfigProvider : ContentProvider() {
             "quickToggleReplays", "quickTogglePermanentView", "quickToggleAllowScreenshots",
             "isExtremeMode", "isDistractionFree", "disableStories", "disableFeed",
             "disableReels", "disableReelsExceptDM", "disableExplore", "disableComments",
-            "disableRepost",
             "isAdBlockEnabled", "isAnalyticsBlocked", "disableTrackingLinks",
             "stripShareTrackingParameters", "openLinksExternally", "replaceShareLinkDomain",
             "hideSuggestionsInFeed", "doNotSaveRecentSearches", "blockDmReelNotifications",
             "blockDmPostNotifications", "enablePostDownload", "enableStoryDownload",
-            "enableReelDownload", "enableProfileDownload", "enableDmContextMenuOptions",
+            "enableReelDownload", "enableProfileDownload",
             "enableReelThumbnailDownload", "enableStoryMarkSeenButton", "enableStoryRepostButton",
-            "enableCopyBio", "enableHighQualityStoryUpload", "enableHighQualityDmUpload",
+            "enableCopyBio", "enableHighQualityStoryUpload",
             "enableDmAnyFileUpload", "enableGifCommentDownload", "downloaderUsernameFolder",
             "downloaderAddTimestamp", "isMiscEnabled", "disableStoryFlipping", "disableVideoAutoPlay",
             "feedVideosStartWithSound", "storiesStartWithSound", "disableDoubleTapLike",
@@ -120,7 +119,7 @@ class InstagramConfigProvider : ContentProvider() {
             "enableShareSheetEmojiShortcuts", "enableNavigationTabCustomization",
             "enableTeenAppIcons", "enableStoryTrayLongPressActions", "captureUiElementIdsEnabled",
             "showFollowerToast", "showFeatureToasts", "enableStoryMentions",
-            "disableDiscoverPeople", "enableHideChats", "enableActivityHistory",
+            "enableHideChats", "enableActivityHistory",
             "enableCopyComment", "enableCustomDateFormat", "customDateFormatFeed",
             "customDateFormatComments", "customDateFormatReels", "customDateFormatStories",
             "customDateFormatDirect", "enableNotesLocationSpoof"
@@ -132,13 +131,12 @@ class InstagramConfigProvider : ContentProvider() {
             "customEmojiFontUri", "navigationTabOrder", "navigationTabHidden",
             "navigationDefaultTab", "storyRingSize", "hiddenUiElementIds",
             "hiddenUiElementSelectors", "hiddenChatNames", "knownChatNames",
-            "customDateFormat", "notesSpoofLatitude", "notesSpoofLongitude"
+            "customDateFormat", "notesSpoofLatitude", "notesSpoofLongitude", "notesSpoofMapLocation"
         )
 
         fun defaultBoolean(key: String): Boolean {
             return key == "keepUnsentMessages" ||
                 key == "quickToggleUnsend" ||
-                key == "enableDmContextMenuOptions" ||
                 key == "customDateFormatFeed" ||
                 key == "customDateFormatComments" ||
                 key == "customDateFormatReels" ||
@@ -149,7 +147,7 @@ class InstagramConfigProvider : ContentProvider() {
         fun defaultString(key: String): String {
             return when (key) {
                 "dmMarkSeenControlMode" -> "eye"
-                "shareLinkReplacementDomain" -> "ddinstagram.com"
+                "shareLinkReplacementDomain" -> "kkinstagram.com"
                 "navigationTabOrder" -> "home,search,reels,create,direct,shop,profile"
                 "navigationDefaultTab" -> "home"
                 "storyRingSize" -> "default"

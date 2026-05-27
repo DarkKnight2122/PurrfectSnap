@@ -140,7 +140,7 @@ class InstagramConfig : ConfigContainer() {
     }
 
     inner class MiscShareLinkDomain : ConfigContainer() {
-        val shareLinkReplacementDomain = string("shareLinkReplacementDomain", defaultValue = "ddinstagram.com") {
+        val shareLinkReplacementDomain = string("shareLinkReplacementDomain", defaultValue = "kkinstagram.com") {
             keepTranslationFrom("ads_and_links", "shareLinkReplacementDomain")
             inputCheck = { raw ->
                 var value = raw.trim().lowercase()
@@ -172,6 +172,9 @@ class InstagramConfig : ConfigContainer() {
         val notesSpoofLongitude = string("notesSpoofLongitude") {
             keepTranslationFrom("social_and_text", "notesSpoofLongitude")
             inputCheck = { it.isBlank() || it.toDoubleOrNull() != null }
+        }
+        val notesSpoofMapLocation = string("notesSpoofMapLocation", defaultValue = "Open map") {
+            keepTranslationFrom("social_and_text", "notesSpoofMapLocation")
         }
     }
 
@@ -239,10 +242,6 @@ class InstagramConfig : ConfigContainer() {
             requireRestart()
             keepTranslationFrom("playback_and_gestures", "storiesStartWithSound")
         }
-        val disableRepost = boolean("disableRepost") {
-            requireRestart()
-            keepTranslationFrom("distraction_free", "disableRepost")
-        }
         val showFollowerToast = boolean("showFollowerToast") {
             requireRestart()
             keepTranslationFrom("social_and_text", "showFollowerToast")
@@ -253,10 +252,6 @@ class InstagramConfig : ConfigContainer() {
         val enableStoryMentions = boolean("enableStoryMentions") {
             requireRestart()
             keepTranslationFrom("social_and_text", "enableStoryMentions")
-        }
-        val disableDiscoverPeople = boolean("disableDiscoverPeople") {
-            requireRestart()
-            keepTranslationFrom("social_and_text", "disableDiscoverPeople")
         }
         val enableCopyComment = boolean("enableCopyComment") {
             requireRestart()
@@ -340,10 +335,6 @@ class InstagramConfig : ConfigContainer() {
             requireRestart()
             keepTranslationFrom("downloader", "enableHighQualityStoryUpload")
         }
-        val enableHighQualityDmUpload = boolean("enableHighQualityDmUpload") {
-            requireRestart()
-            keepTranslationFrom("downloader", "enableHighQualityDmUpload")
-        }
         val enableDmAnyFileUpload = boolean("enableDmAnyFileUpload") {
             requireRestart()
             keepTranslationFrom("downloader", "enableDmAnyFileUpload")
@@ -375,7 +366,6 @@ class InstagramConfig : ConfigContainer() {
         val enableStoryDownload = boolean("enableStoryDownload") { requireRestart() }
         val enableReelDownload = boolean("enableReelDownload") { requireRestart() }
         val enableProfileDownload = boolean("enableProfileDownload") { requireRestart() }
-        val enableDmContextMenuOptions = boolean("enableDmContextMenuOptions", defaultValue = true) { requireRestart() }
         val enableReelThumbnailDownload = boolean("enableReelThumbnailDownload") { requireRestart() }
         val enableStoryMarkSeenButton = boolean("enableStoryMarkSeenButton") { requireRestart() }
         val enableStoryRepostButton = boolean("enableStoryRepostButton") { requireRestart() }
@@ -386,7 +376,6 @@ class InstagramConfig : ConfigContainer() {
         val downloadFolder = container("download_folder", DownloaderFolder())
 
         val enableHighQualityStoryUpload get() = mediaQuality.enableHighQualityStoryUpload
-        val enableHighQualityDmUpload get() = mediaQuality.enableHighQualityDmUpload
         val enableDmAnyFileUpload get() = mediaQuality.enableDmAnyFileUpload
         val downloaderUsernameFolder get() = options.downloaderUsernameFolder
         val downloaderAddTimestamp get() = options.downloaderAddTimestamp
@@ -455,11 +444,9 @@ class InstagramConfig : ConfigContainer() {
         "disableVideoAutoPlay" to misc.disableVideoAutoPlay.get(),
         "feedVideosStartWithSound" to misc.feedVideosStartWithSound.get(),
         "storiesStartWithSound" to misc.storiesStartWithSound.get(),
-        "disableRepost" to misc.disableRepost.get(),
         "showFollowerToast" to misc.showFollowerToast.get(),
         "showFeatureToasts" to misc.showFeatureToasts.get(),
         "enableStoryMentions" to misc.enableStoryMentions.get(),
-        "disableDiscoverPeople" to misc.disableDiscoverPeople.get(),
         "enableCopyComment" to misc.enableCopyComment.get(),
         "enableCopyBio" to misc.enableCopyBio.get(),
         "disableDoubleTapLike" to misc.disableDoubleTapLike.get(),
@@ -489,6 +476,7 @@ class InstagramConfig : ConfigContainer() {
         "blockDmPostNotifications" to misc.notificationFilters.blockDmPostNotifications.get(),
         "notesSpoofLatitude" to misc.notesLocation.notesSpoofLatitude.getNullable().orEmpty(),
         "notesSpoofLongitude" to misc.notesLocation.notesSpoofLongitude.getNullable().orEmpty(),
+        "notesSpoofMapLocation" to misc.notesLocation.notesSpoofMapLocation.getNullable().orEmpty(),
         "hiddenChatNames" to misc.hiddenChats.hiddenChatNames.getNullable().orEmpty(),
         "knownChatNames" to misc.hiddenChats.knownChatNames.getNullable().orEmpty(),
         "navigationTabHidden" to misc.navigationUi.navigationTabHidden.getNullable().orEmpty(),
@@ -502,13 +490,11 @@ class InstagramConfig : ConfigContainer() {
         "enableStoryDownload" to downloader.enableStoryDownload.get(),
         "enableReelDownload" to downloader.enableReelDownload.get(),
         "enableProfileDownload" to downloader.enableProfileDownload.get(),
-        "enableDmContextMenuOptions" to downloader.enableDmContextMenuOptions.get(),
         "enableReelThumbnailDownload" to downloader.enableReelThumbnailDownload.get(),
         "enableStoryMarkSeenButton" to downloader.enableStoryMarkSeenButton.get(),
         "enableStoryRepostButton" to downloader.enableStoryRepostButton.get(),
         "enableGifCommentDownload" to downloader.enableGifCommentDownload.get(),
         "enableHighQualityStoryUpload" to downloader.enableHighQualityStoryUpload.get(),
-        "enableHighQualityDmUpload" to downloader.enableHighQualityDmUpload.get(),
         "enableDmAnyFileUpload" to downloader.enableDmAnyFileUpload.get(),
         "downloaderUsernameFolder" to downloader.downloaderUsernameFolder.get(),
         "downloaderAddTimestamp" to downloader.downloaderAddTimestamp.get(),

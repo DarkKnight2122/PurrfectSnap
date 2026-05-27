@@ -8,6 +8,7 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.ArrayDeque
+import java.util.concurrent.Executors
 
 internal object InstagramAppLogWriter {
     private const val MAX_LOG_BYTES = 1024 * 1024L
@@ -17,6 +18,9 @@ internal object InstagramAppLogWriter {
 
     private data class PendingBroadcast(val level: LogLevel, val tag: String, val message: String)
 
+    private val executor = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "PurrfectInstaLog").apply { isDaemon = true }
+    }
     private val pendingBroadcasts = ArrayDeque<PendingBroadcast>()
 
     @Volatile
@@ -40,21 +44,24 @@ internal object InstagramAppLogWriter {
     }
 
     private fun write(context: Context?, level: LogLevel, tag: String, message: String) {
-        broadcast(context ?: broadcastContext, level, tag, message)
-        runCatching {
-            val logDir = File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/logs")
-            if (!logDir.exists() && !logDir.mkdirs()) return
-            val logFile = File(logDir, "instagram_xposed.log")
-            if (logFile.length() > MAX_LOG_BYTES) logFile.delete()
-            val sanitized = message
-                .replace('\n', ' ')
-                .replace('\r', ' ')
-                .replace('/', '\u2215')
-                .take(4096)
-            logFile.appendText(
-                "|${level.letter}/${LocalDateTime.now().format(dateFormatter)}/$tag/$sanitized\n",
-                Charsets.UTF_8
-            )
+        val targetContext = context ?: broadcastContext
+        val clipped = message.take(4096)
+        executor.execute {
+            broadcast(targetContext, level, tag, clipped)
+            runCatching {
+                val logDir = File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/logs")
+                if (!logDir.exists() && !logDir.mkdirs()) return@runCatching
+                val logFile = File(logDir, "instagram_xposed.log")
+                if (logFile.length() > MAX_LOG_BYTES) logFile.delete()
+                val sanitized = clipped
+                    .replace('\n', ' ')
+                    .replace('\r', ' ')
+                    .replace('/', '\u2215')
+                logFile.appendText(
+                    "|${level.letter}/${LocalDateTime.now().format(dateFormatter)}/$tag/$sanitized\n",
+                    Charsets.UTF_8
+                )
+            }
         }
     }
 

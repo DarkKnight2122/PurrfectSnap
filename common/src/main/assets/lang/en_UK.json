@@ -2834,11 +2834,7 @@
                             },
                             "enableHighQualityStoryUpload": {
                                 "name": "High Quality Story Upload",
-                                "description": "Prefer higher quality settings for story uploads"
-                            },
-                            "enableHighQualityDmUpload": {
-                                "name": "High Quality DM Photos",
-                                "description": "Prefer higher quality settings for Direct uploads"
+                                "description": "Prefer maximum quality settings for story uploads"
                             },
                             "enableDmAnyFileUpload": {
                                 "name": "DM any-file upload picker",
@@ -2866,7 +2862,7 @@
                             },
                             "media_quality": {
                                 "name": "Media Quality",
-                                "description": "Story and Direct upload quality controls"
+                                "description": "Story upload quality controls"
                             },
                             "options": {
                                 "name": "Options",

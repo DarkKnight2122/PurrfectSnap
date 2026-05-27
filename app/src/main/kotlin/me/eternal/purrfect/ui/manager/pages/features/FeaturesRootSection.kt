@@ -101,9 +101,11 @@ import me.eternal.purrfect.ui.util.DialogProperties
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 class FeaturesRootSection : Routes.Route() {
     override val title: @Composable (() -> Unit)? = @Composable {
@@ -619,11 +621,9 @@ class FeaturesRootSection : Routes.Route() {
         "disableVideoAutoPlay",
         "feedVideosStartWithSound",
         "storiesStartWithSound",
-        "disableRepost",
         "showFollowerToast",
         "showFeatureToasts",
         "enableStoryMentions",
-        "disableDiscoverPeople",
         "enableCopyComment",
         "enableCopyBio",
         "disableDoubleTapLike",
@@ -651,12 +651,10 @@ class FeaturesRootSection : Routes.Route() {
         "enableStoryDownload",
         "enableReelDownload",
         "enableProfileDownload",
-        "enableDmContextMenuOptions",
         "enableReelThumbnailDownload",
         "enableStoryMarkSeenButton",
         "enableStoryRepostButton",
         "enableHighQualityStoryUpload",
-        "enableHighQualityDmUpload",
         "enableGifCommentDownload",
         "enableDmAnyFileUpload"
     )
@@ -665,7 +663,9 @@ class FeaturesRootSection : Routes.Route() {
         "navigationTabHidden",
         "navigationTabOrder",
         "navigationDefaultTab",
-        "storyRingSize"
+        "storyRingSize",
+        "notesSpoofMapLocation",
+        "hiddenChatNames"
     )
 
     internal val instagramNavigationTabs = listOf(
@@ -732,11 +732,9 @@ class FeaturesRootSection : Routes.Route() {
             "disableVideoAutoPlay" -> instagram.misc.disableVideoAutoPlay.get()
             "feedVideosStartWithSound" -> instagram.misc.feedVideosStartWithSound.get()
             "storiesStartWithSound" -> instagram.misc.storiesStartWithSound.get()
-            "disableRepost" -> instagram.misc.disableRepost.get()
             "showFollowerToast" -> instagram.misc.showFollowerToast.get()
             "showFeatureToasts" -> instagram.misc.showFeatureToasts.get()
             "enableStoryMentions" -> instagram.misc.enableStoryMentions.get()
-            "disableDiscoverPeople" -> instagram.misc.disableDiscoverPeople.get()
             "enableCopyComment" -> instagram.misc.enableCopyComment.get()
             "enableCopyBio" -> instagram.misc.enableCopyBio.get()
             "disableDoubleTapLike" -> instagram.misc.disableDoubleTapLike.get()
@@ -761,12 +759,10 @@ class FeaturesRootSection : Routes.Route() {
             "enableStoryDownload" -> instagram.downloader.enableStoryDownload.get()
             "enableReelDownload" -> instagram.downloader.enableReelDownload.get()
             "enableProfileDownload" -> instagram.downloader.enableProfileDownload.get()
-            "enableDmContextMenuOptions" -> instagram.downloader.enableDmContextMenuOptions.get()
             "enableReelThumbnailDownload" -> instagram.downloader.enableReelThumbnailDownload.get()
             "enableStoryMarkSeenButton" -> instagram.downloader.enableStoryMarkSeenButton.get()
             "enableStoryRepostButton" -> instagram.downloader.enableStoryRepostButton.get()
             "enableHighQualityStoryUpload" -> instagram.downloader.enableHighQualityStoryUpload.get()
-            "enableHighQualityDmUpload" -> instagram.downloader.enableHighQualityDmUpload.get()
             "enableGifCommentDownload" -> instagram.downloader.enableGifCommentDownload.get()
             "enableDmAnyFileUpload" -> instagram.downloader.enableDmAnyFileUpload.get()
             else -> false
@@ -786,11 +782,9 @@ class FeaturesRootSection : Routes.Route() {
             "disableVideoAutoPlay" -> instagram.misc.disableVideoAutoPlay.set(enabled)
             "feedVideosStartWithSound" -> instagram.misc.feedVideosStartWithSound.set(enabled)
             "storiesStartWithSound" -> instagram.misc.storiesStartWithSound.set(enabled)
-            "disableRepost" -> instagram.misc.disableRepost.set(enabled)
             "showFollowerToast" -> instagram.misc.showFollowerToast.set(enabled)
             "showFeatureToasts" -> instagram.misc.showFeatureToasts.set(enabled)
             "enableStoryMentions" -> instagram.misc.enableStoryMentions.set(enabled)
-            "disableDiscoverPeople" -> instagram.misc.disableDiscoverPeople.set(enabled)
             "enableCopyComment" -> instagram.misc.enableCopyComment.set(enabled)
             "enableCopyBio" -> instagram.misc.enableCopyBio.set(enabled)
             "disableDoubleTapLike" -> instagram.misc.disableDoubleTapLike.set(enabled)
@@ -815,12 +809,10 @@ class FeaturesRootSection : Routes.Route() {
             "enableStoryDownload" -> instagram.downloader.enableStoryDownload.set(enabled)
             "enableReelDownload" -> instagram.downloader.enableReelDownload.set(enabled)
             "enableProfileDownload" -> instagram.downloader.enableProfileDownload.set(enabled)
-            "enableDmContextMenuOptions" -> instagram.downloader.enableDmContextMenuOptions.set(enabled)
             "enableReelThumbnailDownload" -> instagram.downloader.enableReelThumbnailDownload.set(enabled)
             "enableStoryMarkSeenButton" -> instagram.downloader.enableStoryMarkSeenButton.set(enabled)
             "enableStoryRepostButton" -> instagram.downloader.enableStoryRepostButton.set(enabled)
             "enableHighQualityStoryUpload" -> instagram.downloader.enableHighQualityStoryUpload.set(enabled)
-            "enableHighQualityDmUpload" -> instagram.downloader.enableHighQualityDmUpload.set(enabled)
             "enableGifCommentDownload" -> instagram.downloader.enableGifCommentDownload.set(enabled)
             "enableDmAnyFileUpload" -> instagram.downloader.enableDmAnyFileUpload.set(enabled)
         }
@@ -3487,8 +3479,168 @@ class FeaturesRootSection : Routes.Route() {
             "navigationTabOrder" -> InstagramNavigationOrderDialog(property, onDismiss, onPersist)
             "navigationDefaultTab" -> InstagramNavigationDefaultTabDialog(property, onDismiss, onPersist)
             "storyRingSize" -> InstagramStoryRingSizeDialog(property, onDismiss, onPersist)
+            "notesSpoofMapLocation" -> InstagramNotesLocationMapDialog(onDismiss, onPersist)
+            "hiddenChatNames" -> InstagramHiddenChatsDialog(property, onDismiss, onPersist)
             else -> {}
         }
+    }
+
+    private fun parseInstagramChatNames(raw: String): List<String> {
+        return raw.lineSequence()
+            .map { it.trim() }
+            .filter { isPlausibleInstagramChatName(it) }
+            .distinctBy { it.lowercase(Locale.US) }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
+            .toList()
+    }
+
+    private fun isPlausibleInstagramChatName(value: String): Boolean {
+        val clean = value.trim()
+        if (clean.length !in 2..80) return false
+        val lower = clean.lowercase(Locale.US).trim('\u200e', '\u200f', ' ')
+        if (Regex("^\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{1,2}:\\d{2})?$").matches(lower)) return false
+        if (Regex("^\\d{1,2}:\\d{2}.*").matches(lower)) return false
+        if (lower.contains(" ·") || lower.contains("·")) return false
+        if (lower.endsWith("...") || lower.endsWith("…")) return false
+        val blocked = setOf(
+            "notes", "note", "your note", "add note", "map", "play", "requests", "messages",
+            "just curious", "inspo needed", "start your first note", "try sharing a song",
+            "make this space yours", "ask friends anything", "your thoughts go here",
+            "can't decide", "obsessed with", "ready for", "today's vibe", "unpopular opinion",
+            "central park", "civic center", "rabindra sarovar"
+        )
+        if (lower in blocked) return false
+        if (lower == "reply?" || lower == "reply") return false
+        if (lower.contains("turned on disappearing messages") || lower.contains("turned off disappearing messages")) return false
+        return true
+    }
+
+    @Composable
+    private fun InstagramHiddenChatsDialog(
+        property: PropertyPair<String>,
+        onDismiss: () -> Unit,
+        onPersist: () -> Unit
+    ) {
+        val known = remember {
+            val fromKnown = parseInstagramChatNames(context.config.root.instagram.misc.hiddenChats.knownChatNames.getNullable()?.toString().orEmpty())
+            val fromHidden = parseInstagramChatNames(property.value.getNullable()?.toString().orEmpty())
+            (fromKnown + fromHidden)
+                .distinctBy { it.lowercase(Locale.US) }
+                .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
+        }
+        val selected = remember {
+            mutableStateListOf<String>().apply { addAll(parseInstagramChatNames(property.value.getNullable()?.toString().orEmpty())) }
+        }
+        var query by remember { mutableStateOf("") }
+        val visible = remember(query, known) {
+            val needle = query.trim().lowercase(Locale.US)
+            if (needle.isBlank()) known else known.filter { it.lowercase(Locale.US).contains(needle) }
+        }
+        AestheticDialog(
+            onDismissRequest = onDismiss,
+            title = "Hide conversations",
+            text = "",
+            icon = Icons.Filled.VisibilityOff,
+            dismissButtonText = context.translation["button.negative"] ?: "Cancel",
+            onDismiss = onDismiss,
+            confirmButtonText = context.translation["ig_dialog_save"] ?: "Save",
+            onConfirm = {
+                property.value.setAny(selected.distinctBy { it.lowercase(Locale.US) }.joinToString("\n"))
+                onPersist()
+                context.shortToast("Hidden conversations updated")
+            },
+            customContent = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Search conversations") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = PurrfectPalette.glowSecondary,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                            focusedLabelColor = PurrfectPalette.glowSecondary,
+                            unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                            cursorColor = PurrfectPalette.glowSecondary
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                visible.forEach { name -> if (selected.none { it.equals(name, ignoreCase = true) }) selected.add(name) }
+                            },
+                            enabled = visible.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.10f), contentColor = Color.White)
+                        ) { Text("Select visible") }
+                        Button(
+                            onClick = { selected.clear() },
+                            enabled = selected.isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.10f), contentColor = Color.White)
+                        ) { Text("Clear") }
+                    }
+                    if (known.isEmpty()) {
+                        Text(
+                            text = "Open Instagram Direct once so Purrfect can collect conversation names.",
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 14.sp
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 430.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(visible, key = { it.lowercase(Locale.US) }) { name ->
+                                val checked = selected.any { it.equals(name, ignoreCase = true) }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .clickable {
+                                            if (checked) {
+                                                selected.removeAll { it.equals(name, ignoreCase = true) }
+                                            } else {
+                                                selected.add(name)
+                                            }
+                                        }
+                                        .background(Color.White.copy(alpha = if (checked) 0.12f else 0.06f))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = checked,
+                                        onCheckedChange = { isChecked ->
+                                            if (isChecked) {
+                                                if (selected.none { it.equals(name, ignoreCase = true) }) selected.add(name)
+                                            } else {
+                                                selected.removeAll { it.equals(name, ignoreCase = true) }
+                                            }
+                                        }
+                                    )
+                                    Text(
+                                        name,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(start = 8.dp).weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        )
     }
 
     @Composable
@@ -3690,48 +3842,94 @@ class FeaturesRootSection : Routes.Route() {
         onDismiss: () -> Unit,
         onPersist: () -> Unit
     ) {
-        val options = listOf(
-            "default" to "Default",
-            "small" to "Small",
-            "large" to "Large",
-            "huge" to "Huge"
-        )
-        var selected by remember { mutableStateOf(property.value.get().takeIf { value -> options.any { it.first == value } } ?: "default") }
+        fun percentFrom(value: String): Float {
+            value.trim().removeSuffix("%").toFloatOrNull()?.let { return it.coerceIn(60f, 160f) }
+            return when (value.lowercase(Locale.US)) {
+                "small" -> 85f
+                "large" -> 115f
+                "huge" -> 130f
+                else -> 100f
+            }
+        }
+        fun valueFrom(percent: Float): String {
+            val rounded = ((percent / 5f).roundToInt() * 5).coerceIn(60, 160)
+            return if (rounded == 100) "default" else rounded.toString()
+        }
+        var selected by remember { mutableFloatStateOf(percentFrom(property.value.get().toString())) }
         AestheticDialog(
             onDismissRequest = onDismiss,
-            title = "Story Ring Size",
-            text = "",
+            title = "Home story ring size",
+            text = "Adjusts only the top story tray on the home feed.",
             icon = Icons.Filled.Tune,
             dismissButtonText = context.translation["button.negative"] ?: "Cancel",
             onDismiss = onDismiss,
             confirmButtonText = context.translation["ig_dialog_save"] ?: "Save",
             onConfirm = {
-                property.value.setAny(selected)
+                property.value.setAny(valueFrom(selected))
                 onPersist()
                 context.shortToast("Story ring size updated")
             },
             customContent = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    options.forEach { (value, label) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { selected = value }
-                                .background(Color.White.copy(alpha = 0.06f))
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = selected == value, onClick = { selected = value })
-                            Text(label, color = Color.White, modifier = Modifier.padding(start = 8.dp))
-                        }
+                    Text(
+                        text = "${selected.roundToInt()}%",
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center
+                    )
+                    Slider(
+                        value = selected,
+                        onValueChange = { selected = ((it / 5f).roundToInt() * 5).coerceIn(60, 160).toFloat() },
+                        valueRange = 60f..160f,
+                        steps = 19
+                    )
+                    Button(
+                        onClick = { selected = 100f },
+                        modifier = Modifier.align(Alignment.End),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White.copy(alpha = 0.10f),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text("Reset to default")
                     }
                 }
             }
         )
+    }
+
+    @Composable
+    private fun InstagramNotesLocationMapDialog(
+        onDismiss: () -> Unit,
+        onPersist: () -> Unit
+    ) {
+        val notes = context.config.root.instagram.misc.notesLocation
+        val initialLat = notes.notesSpoofLatitude.getNullable()?.toDoubleOrNull()?.takeIf { it in -90.0..90.0 } ?: 40.7128
+        val initialLon = notes.notesSpoofLongitude.getNullable()?.toDoubleOrNull()?.takeIf { it in -180.0..180.0 } ?: -74.0060
+        val tempValue = remember { PropertyValue(initialLat to initialLon) }
+        val tempProperty = remember {
+            PropertyPair(
+                PropertyKey({ null }, "notesSpoofCoordinates", DataProcessors.MAP_COORDINATES),
+                tempValue
+            )
+        }
+        alertDialogs.ChooseLocationDialog(
+            property = tempProperty,
+            locationSearchProvider = context.config.root.global.betterLocation.locationSearchProvider.getNullable() ?: "osm",
+            googleMapsApiKey = context.config.root.global.betterLocation.googleMapsApiKey.getNullable() ?: ""
+        ) {
+            val selected = tempValue.get()
+            notes.notesSpoofLatitude.set(selected.first.toString())
+            notes.notesSpoofLongitude.set(selected.second.toString())
+            onPersist()
+            context.shortToast("Instagram spoof location updated")
+            onDismiss()
+        }
     }
 
     @Composable

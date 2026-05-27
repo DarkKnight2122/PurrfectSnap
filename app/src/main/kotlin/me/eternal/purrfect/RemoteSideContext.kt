@@ -539,7 +539,6 @@ class RemoteSideContext(
                     }
                     putBoolean("keepUnsentMessagesInitialized", true)
                     putBoolean("quickToggleUnsendInitialized", true)
-                    putBoolean("enableDmContextMenuOptionsInitialized", true)
                 }
                 .commit()
 

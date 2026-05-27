@@ -54,6 +54,7 @@ object Constants {
     const val INSTAGRAM_FEATURE_PREF_BOOLEAN_EXTRA = "instagram_feature_pref_boolean"
     const val INSTAGRAM_FEATURE_PREF_STRING_EXTRA = "instagram_feature_pref_string"
     const val INSTAGRAM_FEATURE_PREF_IS_STRING_EXTRA = "instagram_feature_pref_is_string"
+    const val INSTAGRAM_FEATURE_PREF_BATCH_JSON_EXTRA = "instagram_feature_pref_batch_json"
     const val INSTAGRAM_DOWNLOAD_URL_EXTRA = "instagram_download_url"
     const val INSTAGRAM_DOWNLOAD_AUDIO_URL_EXTRA = "instagram_download_audio_url"
     const val INSTAGRAM_DOWNLOAD_FILENAME_EXTRA = "instagram_download_filename"

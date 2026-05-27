@@ -72,13 +72,12 @@ data class InstagramFeatureState(
     val enableStoryDownload: Boolean = false,
     val enableReelDownload: Boolean = false,
     val enableProfileDownload: Boolean = false,
-    val enableDmContextMenuOptions: Boolean = true,
+    val enableDmContextMenuOptions: Boolean = false,
     val enableReelThumbnailDownload: Boolean = false,
     val enableStoryMarkSeenButton: Boolean = false,
     val enableStoryRepostButton: Boolean = false,
     val enableCopyBio: Boolean = false,
     val enableHighQualityStoryUpload: Boolean = false,
-    val enableHighQualityDmUpload: Boolean = false,
     val enableDmAnyFileUpload: Boolean = false,
     val enableGifCommentDownload: Boolean = false,
     val downloaderUsernameFolder: Boolean = false,
@@ -112,7 +111,7 @@ data class InstagramFeatureState(
     val customDateFormatDirect: Boolean = true,
     val enableNotesLocationSpoof: Boolean = false,
     val dmMarkSeenControlMode: String = "eye",
-    val shareLinkReplacementDomain: String = "ddinstagram.com",
+    val shareLinkReplacementDomain: String = "kkinstagram.com",
     val downloaderCustomPath: String = "",
     val downloaderCustomUri: String = "",
     val customEmojiFontPath: String = "",
@@ -143,7 +142,7 @@ data class InstagramFeatureState(
     fun hasAnyFeedSuppression(): Boolean {
         return isExtremeMode || isDistractionFree || disableStories || disableFeed ||
             disableReels || disableExplore || disableComments || hideSuggestionsInFeed ||
-            disableDiscoverPeople || hiddenUiElementIdSet.isNotEmpty() || hiddenUiElementSelectorSet.isNotEmpty()
+            hiddenUiElementIdSet.isNotEmpty() || hiddenUiElementSelectorSet.isNotEmpty()
     }
 
     fun shouldRewriteShareDomain(): Boolean {
@@ -170,20 +169,20 @@ data class InstagramFeatureState(
             "quickToggleUnsend", "quickToggleReplays", "quickTogglePermanentView",
             "quickToggleAllowScreenshots", "isExtremeMode", "isDistractionFree", "disableStories",
             "disableFeed", "disableReels", "disableReelsExceptDM", "disableExplore",
-            "disableComments", "disableRepost", "isAdBlockEnabled", "isAnalyticsBlocked", "disableTrackingLinks",
+            "disableComments", "isAdBlockEnabled", "isAnalyticsBlocked", "disableTrackingLinks",
             "stripShareTrackingParameters", "openLinksExternally", "replaceShareLinkDomain",
             "hideSuggestionsInFeed", "doNotSaveRecentSearches", "blockDmReelNotifications",
             "blockDmPostNotifications", "enablePostDownload", "enableStoryDownload",
-            "enableReelDownload", "enableProfileDownload", "enableDmContextMenuOptions",
+            "enableReelDownload", "enableProfileDownload",
             "enableReelThumbnailDownload", "enableStoryMarkSeenButton", "enableStoryRepostButton",
-            "enableCopyBio", "enableHighQualityStoryUpload", "enableHighQualityDmUpload",
+            "enableCopyBio", "enableHighQualityStoryUpload",
             "enableDmAnyFileUpload", "enableGifCommentDownload", "downloaderUsernameFolder",
             "downloaderAddTimestamp", "isMiscEnabled", "disableStoryFlipping", "disableVideoAutoPlay",
             "feedVideosStartWithSound", "storiesStartWithSound", "disableDoubleTapLike",
             "enableConfirmRefresh", "enableMonetTheme", "customEmojiFontEnabled",
             "enableShareSheetEmojiShortcuts", "enableNavigationTabCustomization",
             "enableTeenAppIcons", "enableStoryTrayLongPressActions", "captureUiElementIdsEnabled",
-            "showFollowerToast", "showFeatureToasts", "enableStoryMentions", "disableDiscoverPeople",
+            "showFollowerToast", "showFeatureToasts", "enableStoryMentions",
             "enableHideChats", "enableActivityHistory", "enableCopyComment", "enableCustomDateFormat",
             "customDateFormatFeed", "customDateFormatComments", "customDateFormatReels",
             "customDateFormatStories", "customDateFormatDirect", "enableNotesLocationSpoof"
@@ -194,7 +193,7 @@ data class InstagramFeatureState(
             "downloaderCustomUri", "customEmojiFontPath", "customEmojiFontName", "customEmojiFontUri",
             "navigationTabOrder", "navigationTabHidden", "navigationDefaultTab", "storyRingSize",
             "hiddenUiElementIds", "hiddenUiElementSelectors", "hiddenChatNames", "knownChatNames",
-            "customDateFormat", "notesSpoofLatitude", "notesSpoofLongitude"
+            "customDateFormat", "notesSpoofLatitude", "notesSpoofLongitude", "notesSpoofMapLocation"
         )
 
         fun load(androidContext: Context): InstagramFeatureState {
@@ -237,6 +236,7 @@ data class InstagramFeatureState(
                     }
                     if (state != null && state.source != "unavailable") {
                         val previous = InstagramFeatureStateStore.current
+                        if (state.copy(source = previous.source) == previous) return@Thread
                         InstagramFeatureStateStore.update(state)
                         InstagramCustomEmojiFontHooks.syncAfterStateUpdate(androidContext, previous, state)
                         InstagramHooks.refreshActiveHooks("async-load")
@@ -579,13 +579,12 @@ data class InstagramFeatureState(
                 enableStoryDownload = getBoolean("enableStoryDownload", false),
                 enableReelDownload = getBoolean("enableReelDownload", false),
                 enableProfileDownload = getBoolean("enableProfileDownload", false),
-                enableDmContextMenuOptions = getBoolean("enableDmContextMenuOptions", true),
+                enableDmContextMenuOptions = false,
                 enableReelThumbnailDownload = getBoolean("enableReelThumbnailDownload", false),
                 enableStoryMarkSeenButton = getBoolean("enableStoryMarkSeenButton", false),
                 enableStoryRepostButton = getBoolean("enableStoryRepostButton", false),
                 enableCopyBio = getBoolean("enableCopyBio", false),
                 enableHighQualityStoryUpload = getBoolean("enableHighQualityStoryUpload", false),
-                enableHighQualityDmUpload = getBoolean("enableHighQualityDmUpload", false),
                 enableDmAnyFileUpload = getBoolean("enableDmAnyFileUpload", false),
                 enableGifCommentDownload = getBoolean("enableGifCommentDownload", false),
                 downloaderUsernameFolder = getBoolean("downloaderUsernameFolder", false),
@@ -619,7 +618,7 @@ data class InstagramFeatureState(
                 customDateFormatDirect = getBoolean("customDateFormatDirect", true),
                 enableNotesLocationSpoof = getBoolean("enableNotesLocationSpoof", false),
                 dmMarkSeenControlMode = getString("dmMarkSeenControlMode", "eye"),
-                shareLinkReplacementDomain = getString("shareLinkReplacementDomain", "ddinstagram.com"),
+                shareLinkReplacementDomain = getString("shareLinkReplacementDomain", "kkinstagram.com"),
                 downloaderCustomPath = getString("downloaderCustomPath", ""),
                 downloaderCustomUri = getString("downloaderCustomUri", ""),
                 customEmojiFontPath = getString("customEmojiFontPath", ""),

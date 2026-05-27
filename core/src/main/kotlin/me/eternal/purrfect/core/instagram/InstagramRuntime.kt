@@ -44,6 +44,7 @@ class InstagramRuntime(
                     val previous = InstagramFeatureStateStore.current
                     val state = InstagramFeatureState.fromJson(json, "broadcast")
                     InstagramFeatureState.cacheInInstagramProcess(androidContext, json)
+                    if (state.copy(source = previous.source) == previous) return
                     InstagramFeatureStateStore.update(state)
                     InstagramCustomEmojiFontHooks.syncAfterStateUpdate(androidContext, previous, state)
                     log(androidContext, "Instagram feature state loaded from broadcast")

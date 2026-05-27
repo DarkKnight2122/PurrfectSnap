@@ -6,22 +6,34 @@ import android.content.Intent
 import me.eternal.purrfect.SharedContextHolder
 import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.common.config.ConfigContainer
+import org.json.JSONObject
 
 class InstagramFeatureUpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Constants.INSTAGRAM_FEATURE_PREF_UPDATE_ACTION) return
-        val key = intent.getStringExtra(Constants.INSTAGRAM_FEATURE_PREF_KEY_EXTRA)?.takeIf { it.isNotBlank() } ?: return
-        val isString = intent.getBooleanExtra(Constants.INSTAGRAM_FEATURE_PREF_IS_STRING_EXTRA, false)
 
         runCatching {
             val remoteContext = SharedContextHolder.remote(context)
-            val value: Any = if (isString) {
-                intent.getStringExtra(Constants.INSTAGRAM_FEATURE_PREF_STRING_EXTRA).orEmpty()
+            val container = remoteContext.config.root.instagram
+            val batchJson = intent.getStringExtra(Constants.INSTAGRAM_FEATURE_PREF_BATCH_JSON_EXTRA)
+            val changed = if (!batchJson.isNullOrBlank()) {
+                val batch = JSONObject(batchJson)
+                batch.keys().asSequence().fold(false) { anyChanged, key ->
+                    val value = batch.opt(key)
+                    setProperty(container, key, value) || anyChanged
+                }
             } else {
-                intent.getBooleanExtra(Constants.INSTAGRAM_FEATURE_PREF_BOOLEAN_EXTRA, false)
+                val key = intent.getStringExtra(Constants.INSTAGRAM_FEATURE_PREF_KEY_EXTRA)?.takeIf { it.isNotBlank() } ?: return
+                val isString = intent.getBooleanExtra(Constants.INSTAGRAM_FEATURE_PREF_IS_STRING_EXTRA, false)
+                val value: Any = if (isString) {
+                    intent.getStringExtra(Constants.INSTAGRAM_FEATURE_PREF_STRING_EXTRA).orEmpty()
+                } else {
+                    intent.getBooleanExtra(Constants.INSTAGRAM_FEATURE_PREF_BOOLEAN_EXTRA, false)
+                }
+                setProperty(container, key, value)
             }
 
-            if (setProperty(remoteContext.config.root.instagram, key, value)) {
+            if (changed) {
                 remoteContext.config.writeConfig()
                 remoteContext.mirrorInstagramFeaturePrefs()
             }

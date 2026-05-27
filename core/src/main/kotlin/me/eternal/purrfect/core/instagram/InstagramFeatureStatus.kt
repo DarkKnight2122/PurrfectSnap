@@ -52,19 +52,16 @@ internal object InstagramFeatureStatus {
         Entry("DM Notification Filters") { it.blockDmReelNotifications || it.blockDmPostNotifications },
         Entry("Show Follower Toast") { it.showFollowerToast },
         Entry("View Story Mentions") { it.enableStoryMentions },
-        Entry("Disable Discover People") { it.disableDiscoverPeople },
         Entry("Remove Build Expired Popup") { it.removeBuildExpiredPopup },
         Entry("Download Posts") { it.enablePostDownload },
         Entry("Download Stories") { it.enableStoryDownload },
         Entry("Download Reels") { it.enableReelDownload },
         Entry("Download Profile Pictures") { it.enableProfileDownload },
-        Entry("DM visual message context menu") { it.enableDmContextMenuOptions },
         Entry("Download Reel Thumbnails") { it.enableReelThumbnailDownload },
         Entry("Story \"Mark as Seen\" Button") { it.enableStoryMarkSeenButton },
         Entry("Story Repost Button") { it.enableStoryRepostButton },
         Entry("Copy Profile Bio") { it.enableCopyBio },
         Entry("High Quality Story Upload") { it.enableHighQualityStoryUpload },
-        Entry("High Quality DM Photos") { it.enableHighQualityDmUpload },
         Entry("Disable Double Tap to Like") { it.disableDoubleTapLike },
         Entry("Monet theme") { it.enableMonetTheme },
         Entry("Custom Emoji Font") { it.customEmojiFontEnabled },
@@ -154,7 +151,6 @@ internal object InstagramSettingsBackup {
     private fun defaultBoolean(key: String): Boolean {
         return key == "keepUnsentMessages" ||
             key == "quickToggleUnsend" ||
-            key == "enableDmContextMenuOptions" ||
             key == "customDateFormatFeed" ||
             key == "customDateFormatComments" ||
             key == "customDateFormatReels" ||
@@ -165,7 +161,7 @@ internal object InstagramSettingsBackup {
     private fun defaultString(key: String): String {
         return when (key) {
             "dmMarkSeenControlMode" -> "eye"
-            "shareLinkReplacementDomain" -> "ddinstagram.com"
+            "shareLinkReplacementDomain" -> "kkinstagram.com"
             "navigationTabOrder" -> "home,search,reels,create,direct,shop,profile"
             "navigationDefaultTab" -> "home"
             "storyRingSize" -> "default"
