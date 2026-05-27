@@ -1762,14 +1762,6 @@
                             "doNotSaveRecentSearches": {
                                 "name": "Do Not Save Recent Searches",
                                 "description": "Prevent Instagram from saving recent searches locally where possible"
-                            },
-                            "blockDmReelNotifications": {
-                                "name": "Block DM Reel Notifications",
-                                "description": "Suppress direct-message notifications for Reels"
-                            },
-                            "blockDmPostNotifications": {
-                                "name": "Block DM Post Notifications",
-                                "description": "Suppress direct-message notifications for shared posts"
                             }
                         }
                     },
@@ -1940,10 +1932,6 @@
                                 "name": "Story Ring Size",
                                 "description": "Adjust story ring size where supported"
                             },
-                            "enableTeenAppIcons": {
-                                "name": "Teen app icons",
-                                "description": "Unlock alternate Instagram app icons where possible"
-                            },
                             "enableStoryTrayLongPressActions": {
                                 "name": "Story tray long-press actions",
                                 "description": "Add extra actions when long-pressing story tray items"
@@ -1993,23 +1981,19 @@
                         "properties": {
                             "custom_date_format": {
                                 "name": "Custom Date Format",
-                                "description": "Pattern and surface controls for custom Instagram timestamps"
+                                "description": "Enable custom Instagram timestamps and configure their pattern and surfaces"
                             },
                             "share_link_domain": {
                                 "name": "Share Link Domain",
-                                "description": "Replacement domain for shared Instagram links"
-                            },
-                            "notification_filters": {
-                                "name": "Notification Filters",
-                                "description": "Direct-message notification cleanup controls"
+                                "description": "Enable and configure replacement domains for shared Instagram links"
                             },
                             "notes_location": {
                                 "name": "Notes Location",
-                                "description": "Location values used for Notes spoofing"
+                                "description": "Enable Notes location spoofing and configure its coordinates"
                             },
                             "hidden_chats": {
                                 "name": "Hidden Chats",
-                                "description": "Direct chat hide lists"
+                                "description": "Enable Direct chat hiding and choose conversations"
                             },
                             "navigation_ui": {
                                 "name": "Navigation UI",

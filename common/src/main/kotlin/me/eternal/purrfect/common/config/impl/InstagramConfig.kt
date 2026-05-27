@@ -118,7 +118,7 @@ class InstagramConfig : ConfigContainer() {
         }
     }
 
-    inner class MiscDateFormat : ConfigContainer() {
+    inner class MiscDateFormat : ConfigContainer(true) {
         val customDateFormat = string("customDateFormat", defaultValue = "yyyy-MM-dd HH:mm") {
             keepTranslationFrom("social_and_text", "customDateFormat")
         }
@@ -139,7 +139,7 @@ class InstagramConfig : ConfigContainer() {
         }
     }
 
-    inner class MiscShareLinkDomain : ConfigContainer() {
+    inner class MiscShareLinkDomain : ConfigContainer(true) {
         val shareLinkReplacementDomain = string("shareLinkReplacementDomain", defaultValue = "kkinstagram.com") {
             keepTranslationFrom("ads_and_links", "shareLinkReplacementDomain")
             inputCheck = { raw ->
@@ -153,18 +153,7 @@ class InstagramConfig : ConfigContainer() {
         }
     }
 
-    inner class MiscNotificationFilters : ConfigContainer() {
-        val blockDmReelNotifications = boolean("blockDmReelNotifications") {
-            requireRestart()
-            keepTranslationFrom("feed_and_search", "blockDmReelNotifications")
-        }
-        val blockDmPostNotifications = boolean("blockDmPostNotifications") {
-            requireRestart()
-            keepTranslationFrom("feed_and_search", "blockDmPostNotifications")
-        }
-    }
-
-    inner class MiscNotesLocation : ConfigContainer() {
+    inner class MiscNotesLocation : ConfigContainer(true) {
         val notesSpoofLatitude = string("notesSpoofLatitude") {
             keepTranslationFrom("social_and_text", "notesSpoofLatitude")
             inputCheck = { it.isBlank() || it.toDoubleOrNull() != null }
@@ -178,7 +167,7 @@ class InstagramConfig : ConfigContainer() {
         }
     }
 
-    inner class MiscHiddenChats : ConfigContainer() {
+    inner class MiscHiddenChats : ConfigContainer(true) {
         val hiddenChatNames = string("hiddenChatNames") {
             keepTranslationFrom("social_and_text", "hiddenChatNames")
         }
@@ -213,6 +202,7 @@ class InstagramConfig : ConfigContainer() {
         }
         val customEmojiFontName = string("customEmojiFontName") {
             keepTranslationFrom("interface", "customEmojiFontName")
+            addFlags(ConfigFlag.HIDDEN)
         }
         val customEmojiFontUri = string("customEmojiFontUri") {
             keepTranslationFrom("interface", "customEmojiFontUri")
@@ -271,6 +261,7 @@ class InstagramConfig : ConfigContainer() {
         val customEmojiFontEnabled = boolean("customEmojiFontEnabled") {
             requireRestart()
             keepTranslationFrom("interface", "customEmojiFontEnabled")
+            addFlags(ConfigFlag.HIDDEN)
         }
         val enableShareSheetEmojiShortcuts = boolean("enableShareSheetEmojiShortcuts") {
             requireRestart()
@@ -291,9 +282,11 @@ class InstagramConfig : ConfigContainer() {
         val enableNotesLocationSpoof = boolean("enableNotesLocationSpoof") {
             requireRestart()
             keepTranslationFrom("social_and_text", "enableNotesLocationSpoof")
+            addFlags(ConfigFlag.HIDDEN)
         }
         val enableHideChats = boolean("enableHideChats") {
             keepTranslationFrom("social_and_text", "enableHideChats")
+            addFlags(ConfigFlag.HIDDEN)
         }
         val stripShareTrackingParameters = boolean("stripShareTrackingParameters") {
             keepTranslationFrom("ads_and_links", "stripShareTrackingParameters")
@@ -304,16 +297,14 @@ class InstagramConfig : ConfigContainer() {
         }
         val enableCustomDateFormat = boolean("enableCustomDateFormat") {
             keepTranslationFrom("social_and_text", "enableCustomDateFormat")
+            addFlags(ConfigFlag.HIDDEN)
         }
         val openLinksExternally = boolean("openLinksExternally") {
             keepTranslationFrom("ads_and_links", "openLinksExternally")
         }
         val replaceShareLinkDomain = boolean("replaceShareLinkDomain") {
             keepTranslationFrom("ads_and_links", "replaceShareLinkDomain")
-        }
-        val enableTeenAppIcons = boolean("enableTeenAppIcons") {
-            requireRestart()
-            keepTranslationFrom("interface", "enableTeenAppIcons")
+            addFlags(ConfigFlag.HIDDEN)
         }
         val enableStoryTrayLongPressActions = boolean("enableStoryTrayLongPressActions") {
             requireRestart()
@@ -322,12 +313,13 @@ class InstagramConfig : ConfigContainer() {
 
         val customDateFormat = container("custom_date_format", MiscDateFormat())
         val shareLinkDomain = container("share_link_domain", MiscShareLinkDomain())
-        val notificationFilters = container("notification_filters", MiscNotificationFilters())
         val notesLocation = container("notes_location", MiscNotesLocation())
         val hiddenChats = container("hidden_chats", MiscHiddenChats())
         val navigationUi = container("navigation_ui", MiscNavigationUi())
         val storyUi = container("story_ui", MiscStoryUi())
-        val customEmojiFont = container("custom_emoji_font", MiscEmojiFont())
+        val customEmojiFont = container("custom_emoji_font", MiscEmojiFont()) {
+            addFlags(ConfigFlag.HIDDEN)
+        }
     }
 
     inner class DownloaderMediaQuality : ConfigContainer() {
@@ -394,6 +386,10 @@ class InstagramConfig : ConfigContainer() {
 
     val quickToggle get() = privacy.quickToggle
 
+    private fun enabledContainerState(container: ConfigContainer, legacyValue: Boolean): Boolean {
+        return container.globalState ?: legacyValue
+    }
+
     fun featureMap(): Map<String, Any> = linkedMapOf(
         "isDevEnabled" to developer.isDevEnabled.get(),
         "removeBuildExpiredPopup" to developer.removeBuildExpiredPopup.get(),
@@ -456,14 +452,13 @@ class InstagramConfig : ConfigContainer() {
         "enableActivityHistory" to misc.enableActivityHistory.get(),
         "enableNavigationTabCustomization" to misc.enableNavigationTabCustomization.get(),
         "enableConfirmRefresh" to misc.enableConfirmRefresh.get(),
-        "enableNotesLocationSpoof" to misc.enableNotesLocationSpoof.get(),
-        "enableHideChats" to misc.enableHideChats.get(),
+        "enableNotesLocationSpoof" to enabledContainerState(misc.notesLocation, misc.enableNotesLocationSpoof.get()),
+        "enableHideChats" to enabledContainerState(misc.hiddenChats, misc.enableHideChats.get()),
         "stripShareTrackingParameters" to misc.stripShareTrackingParameters.get(),
         "doNotSaveRecentSearches" to misc.doNotSaveRecentSearches.get(),
-        "enableCustomDateFormat" to misc.enableCustomDateFormat.get(),
+        "enableCustomDateFormat" to enabledContainerState(misc.customDateFormat, misc.enableCustomDateFormat.get()),
         "openLinksExternally" to misc.openLinksExternally.get(),
-        "replaceShareLinkDomain" to misc.replaceShareLinkDomain.get(),
-        "enableTeenAppIcons" to misc.enableTeenAppIcons.get(),
+        "replaceShareLinkDomain" to enabledContainerState(misc.shareLinkDomain, misc.replaceShareLinkDomain.get()),
         "enableStoryTrayLongPressActions" to misc.enableStoryTrayLongPressActions.get(),
         "customDateFormat" to misc.customDateFormat.customDateFormat.get(),
         "customDateFormatFeed" to misc.customDateFormat.customDateFormatFeed.get(),
@@ -472,8 +467,6 @@ class InstagramConfig : ConfigContainer() {
         "customDateFormatStories" to misc.customDateFormat.customDateFormatStories.get(),
         "customDateFormatDirect" to misc.customDateFormat.customDateFormatDirect.get(),
         "shareLinkReplacementDomain" to misc.shareLinkDomain.shareLinkReplacementDomain.get(),
-        "blockDmReelNotifications" to misc.notificationFilters.blockDmReelNotifications.get(),
-        "blockDmPostNotifications" to misc.notificationFilters.blockDmPostNotifications.get(),
         "notesSpoofLatitude" to misc.notesLocation.notesSpoofLatitude.getNullable().orEmpty(),
         "notesSpoofLongitude" to misc.notesLocation.notesSpoofLongitude.getNullable().orEmpty(),
         "notesSpoofMapLocation" to misc.notesLocation.notesSpoofMapLocation.getNullable().orEmpty(),

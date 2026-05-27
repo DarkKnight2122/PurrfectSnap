@@ -628,22 +628,14 @@ class FeaturesRootSection : Routes.Route() {
         "enableCopyBio",
         "disableDoubleTapLike",
         "enableMonetTheme",
-        "customEmojiFontEnabled",
         "enableShareSheetEmojiShortcuts",
         "enableActivityHistory",
         "enableNavigationTabCustomization",
         "enableConfirmRefresh",
-        "enableNotesLocationSpoof",
-        "enableHideChats",
         "stripShareTrackingParameters",
         "doNotSaveRecentSearches",
-        "enableCustomDateFormat",
         "openLinksExternally",
-        "replaceShareLinkDomain",
-        "enableTeenAppIcons",
-        "enableStoryTrayLongPressActions",
-        "blockDmReelNotifications",
-        "blockDmPostNotifications"
+        "enableStoryTrayLongPressActions"
     )
 
     internal val instagramDownloaderMasterKeys = listOf(
@@ -744,17 +736,14 @@ class FeaturesRootSection : Routes.Route() {
             "enableActivityHistory" -> instagram.misc.enableActivityHistory.get()
             "enableNavigationTabCustomization" -> instagram.misc.enableNavigationTabCustomization.get()
             "enableConfirmRefresh" -> instagram.misc.enableConfirmRefresh.get()
-            "enableNotesLocationSpoof" -> instagram.misc.enableNotesLocationSpoof.get()
-            "enableHideChats" -> instagram.misc.enableHideChats.get()
+            "enableNotesLocationSpoof" -> instagram.misc.notesLocation.globalState ?: instagram.misc.enableNotesLocationSpoof.get()
+            "enableHideChats" -> instagram.misc.hiddenChats.globalState ?: instagram.misc.enableHideChats.get()
             "stripShareTrackingParameters" -> instagram.misc.stripShareTrackingParameters.get()
             "doNotSaveRecentSearches" -> instagram.misc.doNotSaveRecentSearches.get()
-            "enableCustomDateFormat" -> instagram.misc.enableCustomDateFormat.get()
+            "enableCustomDateFormat" -> instagram.misc.customDateFormat.globalState ?: instagram.misc.enableCustomDateFormat.get()
             "openLinksExternally" -> instagram.misc.openLinksExternally.get()
-            "replaceShareLinkDomain" -> instagram.misc.replaceShareLinkDomain.get()
-            "enableTeenAppIcons" -> instagram.misc.enableTeenAppIcons.get()
+            "replaceShareLinkDomain" -> instagram.misc.shareLinkDomain.globalState ?: instagram.misc.replaceShareLinkDomain.get()
             "enableStoryTrayLongPressActions" -> instagram.misc.enableStoryTrayLongPressActions.get()
-            "blockDmReelNotifications" -> instagram.misc.notificationFilters.blockDmReelNotifications.get()
-            "blockDmPostNotifications" -> instagram.misc.notificationFilters.blockDmPostNotifications.get()
             "enablePostDownload" -> instagram.downloader.enablePostDownload.get()
             "enableStoryDownload" -> instagram.downloader.enableStoryDownload.get()
             "enableReelDownload" -> instagram.downloader.enableReelDownload.get()
@@ -794,17 +783,26 @@ class FeaturesRootSection : Routes.Route() {
             "enableActivityHistory" -> instagram.misc.enableActivityHistory.set(enabled)
             "enableNavigationTabCustomization" -> instagram.misc.enableNavigationTabCustomization.set(enabled)
             "enableConfirmRefresh" -> instagram.misc.enableConfirmRefresh.set(enabled)
-            "enableNotesLocationSpoof" -> instagram.misc.enableNotesLocationSpoof.set(enabled)
-            "enableHideChats" -> instagram.misc.enableHideChats.set(enabled)
+            "enableNotesLocationSpoof" -> {
+                instagram.misc.notesLocation.globalState = enabled
+                instagram.misc.enableNotesLocationSpoof.set(enabled)
+            }
+            "enableHideChats" -> {
+                instagram.misc.hiddenChats.globalState = enabled
+                instagram.misc.enableHideChats.set(enabled)
+            }
             "stripShareTrackingParameters" -> instagram.misc.stripShareTrackingParameters.set(enabled)
             "doNotSaveRecentSearches" -> instagram.misc.doNotSaveRecentSearches.set(enabled)
-            "enableCustomDateFormat" -> instagram.misc.enableCustomDateFormat.set(enabled)
+            "enableCustomDateFormat" -> {
+                instagram.misc.customDateFormat.globalState = enabled
+                instagram.misc.enableCustomDateFormat.set(enabled)
+            }
             "openLinksExternally" -> instagram.misc.openLinksExternally.set(enabled)
-            "replaceShareLinkDomain" -> instagram.misc.replaceShareLinkDomain.set(enabled)
-            "enableTeenAppIcons" -> instagram.misc.enableTeenAppIcons.set(enabled)
+            "replaceShareLinkDomain" -> {
+                instagram.misc.shareLinkDomain.globalState = enabled
+                instagram.misc.replaceShareLinkDomain.set(enabled)
+            }
             "enableStoryTrayLongPressActions" -> instagram.misc.enableStoryTrayLongPressActions.set(enabled)
-            "blockDmReelNotifications" -> instagram.misc.notificationFilters.blockDmReelNotifications.set(enabled)
-            "blockDmPostNotifications" -> instagram.misc.notificationFilters.blockDmPostNotifications.set(enabled)
             "enablePostDownload" -> instagram.downloader.enablePostDownload.set(enabled)
             "enableStoryDownload" -> instagram.downloader.enableStoryDownload.set(enabled)
             "enableReelDownload" -> instagram.downloader.enableReelDownload.set(enabled)
@@ -815,6 +813,29 @@ class FeaturesRootSection : Routes.Route() {
             "enableHighQualityStoryUpload" -> instagram.downloader.enableHighQualityStoryUpload.set(enabled)
             "enableGifCommentDownload" -> instagram.downloader.enableGifCommentDownload.set(enabled)
             "enableDmAnyFileUpload" -> instagram.downloader.enableDmAnyFileUpload.set(enabled)
+        }
+    }
+
+    internal fun instagramContainerGlobalState(propertyName: String, container: ConfigContainer): Boolean {
+        if (!context.isInstagramMode) return container.globalState ?: false
+        val misc = context.config.root.instagram.misc
+        return when (propertyName) {
+            "notes_location" -> misc.notesLocation.globalState ?: misc.enableNotesLocationSpoof.get()
+            "hidden_chats" -> misc.hiddenChats.globalState ?: misc.enableHideChats.get()
+            "custom_date_format" -> misc.customDateFormat.globalState ?: misc.enableCustomDateFormat.get()
+            "share_link_domain" -> misc.shareLinkDomain.globalState ?: misc.replaceShareLinkDomain.get()
+            else -> container.globalState ?: false
+        }
+    }
+
+    internal fun syncInstagramContainerGlobalState(propertyName: String, enabled: Boolean) {
+        if (!context.isInstagramMode) return
+        val misc = context.config.root.instagram.misc
+        when (propertyName) {
+            "notes_location" -> misc.enableNotesLocationSpoof.set(enabled)
+            "hidden_chats" -> misc.enableHideChats.set(enabled)
+            "custom_date_format" -> misc.enableCustomDateFormat.set(enabled)
+            "share_link_domain" -> misc.replaceShareLinkDomain.set(enabled)
         }
     }
 
@@ -1748,7 +1769,7 @@ class FeaturesRootSection : Routes.Route() {
 
                 if (!container.hasGlobalState) return
 
-                var state by remember { mutableStateOf(container.globalState ?: false) }
+                var state by remember { mutableStateOf(instagramContainerGlobalState(property.name, container)) }
 
                 Box(
                     modifier = Modifier
@@ -1793,6 +1814,7 @@ class FeaturesRootSection : Routes.Route() {
                         }
                         state = requestedState
                         container.globalState = requestedState
+                        syncInstagramContainerGlobalState(property.name, requestedState)
                         if (!requestedState && isRandomizedProfileContainer) {
                             context.log.info("Disabled randomized device profile mode from manager UI")
                         }
@@ -3946,17 +3968,8 @@ class FeaturesRootSection : Routes.Route() {
                 )
             )
         }
-        val fontName = remember(refreshNonce) {
-            context.config.root.instagram.misc.customEmojiFont.customEmojiFontName.getNullable().orEmpty()
-        }
-        val title = if (fontName.isBlank()) {
-            context.translation["features.properties.instagram.properties.misc.custom_emoji_font.import"]
-                ?: "Import Custom Emoji Font"
-        } else {
-            context.translation["features.properties.instagram.properties.misc.custom_emoji_font.selected"]
-                ?.format(fontName)
-                ?: "Selected: $fontName"
-        }
+        val title = context.translation["features.properties.instagram.properties.misc.custom_emoji_font.import"]
+            ?: "Import Custom Emoji Font"
 
         Surface(
             modifier = Modifier
@@ -4308,7 +4321,7 @@ class FeaturesRootSection : Routes.Route() {
             showInstagramDownloaderTools = context.isInstagramMode &&
                 configContainer === context.config.root.instagram.downloader,
             showInstagramEmojiFontTools = context.isInstagramMode &&
-                configContainer === context.config.root.instagram.misc.customEmojiFont,
+                configContainer === context.config.root.instagram.misc,
             onBack = onBack
         )
     }

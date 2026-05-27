@@ -289,7 +289,6 @@ class InstagramHooks(
     private val storyRingScaledDimenPixels = Collections.synchronizedSet(mutableSetOf<Int>())
     private val storyRingCanonicalSlotLock = Any()
     private val storyRingTrayResolveDepth = ThreadLocal.withInitial { 0 }
-    private val teenIconPreparedViews = Collections.synchronizedMap(WeakHashMap<View, Boolean>())
     private val manualPlayDrawables = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<Drawable, Boolean>()))
     private val manualPlayDrawableStates = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<Drawable.ConstantState, Boolean>()))
     private val manualPlayDrawableViews = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
@@ -11581,8 +11580,7 @@ class InstagramHooks(
         return hasAnyViewHideRule(current) ||
             hasKnownHiddenUiState(view) ||
             current.enableMonetTheme ||
-            storyRingScaleFactor(current) != 1f ||
-            current.enableTeenAppIcons
+            storyRingScaleFactor(current) != 1f
     }
 
     private fun needsHiddenUiCallbackWork(view: View): Boolean {
@@ -11623,7 +11621,6 @@ class InstagramHooks(
         if (!fromLayout && current.enableGifCommentDownload && isCommentSurface(view)) {
             view.isLongClickable = true
         }
-        if (current.enableTeenAppIcons) applyTeenIconTweak(view)
         if (!fromLayout) scheduleScan(view, reason)
     }
 
@@ -15359,53 +15356,6 @@ class InstagramHooks(
         }
     }
 
-    private fun applyTeenIconTweak(view: View) {
-        if (teenIconPreparedViews.containsKey(view)) return
-        val name = resourceEntryName(view).orEmpty().lowercase(Locale.US)
-        val desc = view.contentDescription?.toString()?.lowercase(Locale.US).orEmpty()
-        val cls = view.javaClass.name.lowercase(Locale.US)
-        val looksLikeLogo = name.contains("instagram_logo") ||
-            name.contains("instagram_wordmark") ||
-            name.contains("ig_logo") ||
-            name.contains("logo_icon") ||
-            name.contains("action_bar_logo") ||
-            name.contains("nav_logo") ||
-            name.contains("brand_header") ||
-            desc == "instagram" ||
-            desc.contains("instagram logo") ||
-            (cls.contains("image") && desc.contains("instagram"))
-        if (!looksLikeLogo) return
-        teenIconPreparedViews[view] = true
-        view.isLongClickable = true
-        view.setOnLongClickListener {
-            openTeenAppIconPicker(it.context)
-        }
-    }
-
-    private fun openTeenAppIconPicker(context: Context): Boolean {
-        val launchContext = findActivity(context) ?: context
-        val routes = listOf(
-            "com.instagram.aura.appicon.ui.AuraAppIconPickerFragment",
-            "com.instagram.settings.common.AuraAppIconPickerFragment",
-            "AuraAppIconPickerFragment",
-            "aura_app_icon_picker"
-        )
-        routes.forEach { route ->
-            val launched = runCatching {
-                val intent = Intent()
-                    .setClassName(launchContext.packageName, "com.instagram.modal.ModalActivity")
-                    .putExtra("fragment_name", route)
-                    .putExtra("fragment_arguments", Bundle())
-                if (launchContext !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                launchContext.startActivity(intent)
-                true
-            }.getOrDefault(false)
-            if (launched) return true
-        }
-        Toast.makeText(launchContext, "Could not open Instagram app icon picker", Toast.LENGTH_SHORT).show()
-        return false
-    }
-
     private fun applyNavigationTabRules(view: View) {
         if (!isNavigationCustomizationActive()) return
         if (view is ViewGroup && isLikelyNavigationTabBarContainer(view)) applyNavigationTabBar(view)
@@ -17342,8 +17292,7 @@ class InstagramHooks(
         "enableShareSheetEmojiShortcuts", "enableActivityHistory", "enableNavigationTabCustomization",
         "enableConfirmRefresh", "enableNotesLocationSpoof", "enableHideChats",
         "stripShareTrackingParameters", "doNotSaveRecentSearches", "enableCustomDateFormat",
-        "openLinksExternally", "replaceShareLinkDomain", "enableTeenAppIcons",
-        "enableStoryTrayLongPressActions", "blockDmReelNotifications", "blockDmPostNotifications"
+        "openLinksExternally", "replaceShareLinkDomain", "enableStoryTrayLongPressActions"
     )
     private val hostDownloaderMasterKeys = listOf(
         "enablePostDownload", "enableStoryDownload", "enableReelDownload", "enableProfileDownload",
@@ -17589,8 +17538,7 @@ class InstagramHooks(
                             enableNotesLocationSpoof && enableHideChats &&
                             stripShareTrackingParameters && doNotSaveRecentSearches &&
                             enableCustomDateFormat && openLinksExternally && replaceShareLinkDomain &&
-                            enableTeenAppIcons && enableStoryTrayLongPressActions &&
-                            blockDmReelNotifications && blockDmPostNotifications
+                            enableStoryTrayLongPressActions
                     },
                     update = { activity, checked ->
                         updateHostFeatureGroup(activity, hostMiscMasterKeys, checked, "Misc Features")
@@ -17619,7 +17567,6 @@ class InstagramHooks(
                 HostFeature.BooleanFeature("enableCustomDateFormat", "Custom date format") { enableCustomDateFormat },
                 HostFeature.BooleanFeature("openLinksExternally", "Open links in external browser") { openLinksExternally },
                 HostFeature.BooleanFeature("replaceShareLinkDomain", "Replace domain in shared links") { replaceShareLinkDomain },
-                HostFeature.BooleanFeature("enableTeenAppIcons", "Teen app icons") { enableTeenAppIcons },
                 HostFeature.BooleanFeature("enableStoryTrayLongPressActions", "Story tray long-press actions") { enableStoryTrayLongPressActions },
                 HostFeature.StringFeature("customDateFormat", "Date format") { customDateFormat },
                 HostFeature.BooleanFeature("customDateFormatFeed", "Custom Dates in Feed") { customDateFormatFeed },
@@ -17628,8 +17575,6 @@ class InstagramHooks(
                 HostFeature.BooleanFeature("customDateFormatStories", "Custom Dates in Stories") { customDateFormatStories },
                 HostFeature.BooleanFeature("customDateFormatDirect", "Custom Dates in Direct") { customDateFormatDirect },
                 HostFeature.StringFeature("shareLinkReplacementDomain", "Embed-friendly domain") { shareLinkReplacementDomain },
-                HostFeature.BooleanFeature("blockDmReelNotifications", "Block DM reel notifications") { blockDmReelNotifications },
-                HostFeature.BooleanFeature("blockDmPostNotifications", "Block DM post notifications") { blockDmPostNotifications },
                 HostFeature.ActionFeature("chooseNotesSpoofLocation", "Choose Notes spoof location", Color.rgb(10, 132, 255)) { activity ->
                     showNotesLocationChooser(activity)
                 },
@@ -18824,41 +18769,7 @@ class InstagramHooks(
         }
     }
 
-    private fun shouldBlockNotification(notification: Notification): Boolean {
-        if (!state.blockDmReelNotifications && !state.blockDmPostNotifications) return false
-        val text = notificationText(notification).lowercase(Locale.US)
-        if (text.isBlank()) return false
-        val directShare = text.contains("sent you") ||
-            text.contains("sent a") ||
-            text.contains("shared") ||
-            text.contains("forwarded") ||
-            text.contains("replied with")
-        return (state.blockDmReelNotifications && directShare && (text.contains(" reel") || text.contains("reels") || text.contains("clip"))) ||
-            (state.blockDmPostNotifications && directShare &&
-                (text.contains(" post") || text.contains("photo") || text.contains("video") ||
-                    text.contains("media") || text.contains("publication")))
-    }
-
-    private fun notificationText(notification: Notification): String {
-        val out = StringBuilder()
-        notification.tickerText?.let { out.append(it).append(' ') }
-        val extras = notification.extras ?: return out.toString()
-        fun append(value: CharSequence?) {
-            if (value != null) out.append(value).append(' ')
-        }
-        append(extras.getCharSequence(Notification.EXTRA_TITLE))
-        append(extras.getCharSequence(Notification.EXTRA_TEXT))
-        append(extras.getCharSequence(Notification.EXTRA_SUB_TEXT))
-        append(extras.getCharSequence(Notification.EXTRA_BIG_TEXT))
-        extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)?.forEach { append(it) }
-        extras.keySet().forEach { key ->
-            when (val value = runCatching { extras.get(key) }.getOrNull()) {
-                is CharSequence -> append(value)
-                is Array<*> -> value.filterIsInstance<CharSequence>().forEach { append(it) }
-            }
-        }
-        return out.toString()
-    }
+    private fun shouldBlockNotification(@Suppress("UNUSED_PARAMETER") notification: Notification): Boolean = false
 
     private fun sanitizeIntent(intent: Intent): Boolean {
         if (intent.getBooleanExtra(EXTRA_INTERNAL_PROFILE_OPEN, false)) return false
