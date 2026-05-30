@@ -360,67 +360,77 @@ class LoggerWrapper(
     }
 
     override fun addMessage(bridgeLoggedMessage: BridgeLoggedMessage) {
-        val hasMessage = database.rawQuery("SELECT message_id FROM messages WHERE conversation_id = ? AND message_id = ?", arrayOf(bridgeLoggedMessage.conversationId, bridgeLoggedMessage.messageId.toString())).use {
-            it.moveToFirst()
-            it.count > 0
-        }
+        addMessages(listOf(bridgeLoggedMessage))
+    }
 
-        if (!hasMessage) {
-            runBlocking(coroutineScope.coroutineContext) {
-                database.insert("messages", null, ContentValues().apply {
-                    put("message_id", bridgeLoggedMessage.messageId)
-                    put("conversation_id", bridgeLoggedMessage.conversationId)
-                    put("user_id", bridgeLoggedMessage.userId)
-                    put("username", bridgeLoggedMessage.username)
-                    put("send_timestamp", bridgeLoggedMessage.sendTimestamp)
-                    put("added_timestamp", System.currentTimeMillis())
-                    put("group_title", bridgeLoggedMessage.groupTitle)
-                    put("message_data", bridgeLoggedMessage.messageData)
-                })
-            }
-        }
+    override fun addMessages(messages: List<BridgeLoggedMessage>) {
+        if (messages.isEmpty()) return
 
-        // handle message edits
-        runBlocking(coroutineScope.coroutineContext) {
-            runCatching {
-                val messageObject = gson.fromJson(
-                    bridgeLoggedMessage.messageData.toString(Charsets.UTF_8),
-                    JsonObject::class.java
-                )
-                if (messageObject.getAsJsonObject("mMessageContent")
-                        ?.getAsJsonPrimitive("mContentType")?.asString != "CHAT"
-                ) return@runBlocking
-
-                val metadata = messageObject.getAsJsonObject("mMetadata")
-                if (metadata.get("mIsEdited")?.asBoolean != true) return@runBlocking
-
-                val messageTextContent =
-                    messageObject.getAsJsonObject("mMessageContent")?.getAsJsonArray("mContent")
-                        ?.map { it.asByte }?.toByteArray()?.let {
-                            ProtoReader(it).getString(2, 1)
-                        } ?: return@runBlocking
-
-                database.rawQuery(
-                    "SELECT MAX(edit_number), message_text FROM chat_edits WHERE conversation_id = ? AND message_id = ?",
-                    arrayOf(bridgeLoggedMessage.conversationId, bridgeLoggedMessage.messageId.toString())
-                ).use {
+        database.beginTransaction()
+        try {
+            messages.forEach { bridgeLoggedMessage ->
+                val hasMessage = database.rawQuery("SELECT message_id FROM messages WHERE conversation_id = ? AND message_id = ?", arrayOf(bridgeLoggedMessage.conversationId, bridgeLoggedMessage.messageId.toString())).use {
                     it.moveToFirst()
-                    val editNumber = it.getInt(0)
-                    val lastEditedMessage = it.getString(1)
+                    it.count > 0
+                }
 
-                    if (lastEditedMessage == messageTextContent) return@runBlocking
-
-                    database.insert("chat_edits", null, ContentValues().apply {
-                        put("edit_number", editNumber + 1)
-                        put("added_timestamp", System.currentTimeMillis())
-                        put("conversation_id", bridgeLoggedMessage.conversationId)
+                if (!hasMessage) {
+                    database.insert("messages", null, ContentValues().apply {
                         put("message_id", bridgeLoggedMessage.messageId)
-                        put("message_text", messageTextContent)
+                        put("conversation_id", bridgeLoggedMessage.conversationId)
+                        put("user_id", bridgeLoggedMessage.userId)
+                        put("username", bridgeLoggedMessage.username)
+                        put("send_timestamp", bridgeLoggedMessage.sendTimestamp)
+                        put("added_timestamp", System.currentTimeMillis())
+                        put("group_title", bridgeLoggedMessage.groupTitle)
+                        put("message_data", bridgeLoggedMessage.messageData)
                     })
                 }
-            }.onFailure {
-                AbstractLogger.directDebug("Failed to handle message edit: ${it.message}")
+
+                // handle message edits
+                runCatching {
+                    val messageObject = gson.fromJson(
+                        bridgeLoggedMessage.messageData.toString(Charsets.UTF_8),
+                        JsonObject::class.java
+                    )
+                    if (messageObject.getAsJsonObject("mMessageContent")
+                            ?.getAsJsonPrimitive("mContentType")?.asString != "CHAT"
+                    ) return@forEach
+
+                    val metadata = messageObject.getAsJsonObject("mMetadata")
+                    if (metadata.get("mIsEdited")?.asBoolean != true) return@forEach
+
+                    val messageTextContent =
+                        messageObject.getAsJsonObject("mMessageContent")?.getAsJsonArray("mContent")
+                            ?.map { it.asByte }?.toByteArray()?.let {
+                                ProtoReader(it).getString(2, 1)
+                            } ?: return@forEach
+
+                    database.rawQuery(
+                        "SELECT MAX(edit_number), message_text FROM chat_edits WHERE conversation_id = ? AND message_id = ?",
+                        arrayOf(bridgeLoggedMessage.conversationId, bridgeLoggedMessage.messageId.toString())
+                    ).use {
+                        it.moveToFirst()
+                        val editNumber = it.getInt(0)
+                        val lastEditedMessage = it.getString(1)
+
+                        if (lastEditedMessage == messageTextContent) return@forEach
+
+                        database.insert("chat_edits", null, ContentValues().apply {
+                            put("edit_number", editNumber + 1)
+                            put("added_timestamp", System.currentTimeMillis())
+                            put("conversation_id", bridgeLoggedMessage.conversationId)
+                            put("message_id", bridgeLoggedMessage.messageId)
+                            put("message_text", messageTextContent)
+                        })
+                    }
+                }.onFailure {
+                    AbstractLogger.directDebug("Failed to handle message edit: ${it.message}")
+                }
             }
+            database.setTransactionSuccessful()
+        } finally {
+            database.endTransaction()
         }
     }
 

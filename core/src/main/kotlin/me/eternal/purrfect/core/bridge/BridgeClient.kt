@@ -7,9 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.*
 import android.util.Log
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
@@ -146,15 +144,15 @@ class BridgeClient(
         synchronized(onConnectedCallbacks) {
             onConnectedCallbacks.add(callback)
         }
-        initNow.takeIf { it && isServiceAlive() }?.let {
-            runBlocking {
+        if (initNow && isServiceAlive()) {
+            context.coroutineScope.launch(Dispatchers.IO) {
                 callback()
             }
         }
     }
 
     private fun resumeContinuation(state: Boolean) {
-        runBlocking {
+        context.coroutineScope.launch(Dispatchers.IO) {
             connectSemaphore.withPermit {
                 runCatching { continuation?.resume(state) }
                 continuation = null

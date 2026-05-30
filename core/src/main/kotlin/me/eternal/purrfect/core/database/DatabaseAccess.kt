@@ -30,6 +30,7 @@ class DatabaseAccess(
     private val context: ModContext
 ) {
     private val openedDatabases = mutableMapOf<DatabaseType, SQLiteDatabase>()
+    private val openedWriteDatabases = mutableMapOf<DatabaseType, SQLiteDatabase>()
 
     private val hasArroyoConversationTable by lazy {
         useDatabase(DatabaseType.ARROYO)?.performOperation {
@@ -56,9 +57,9 @@ class DatabaseAccess(
     }
 
     private fun useDatabase(database: DatabaseType, writeMode: Boolean = false): SQLiteDatabase? {
-        // only cache read-only databases
-        if (!writeMode && openedDatabases.containsKey(database) && openedDatabases[database]?.isOpen == true) {
-            return openedDatabases[database]
+        val cache = if (writeMode) openedWriteDatabases else openedDatabases
+        if (cache.containsKey(database) && cache[database]?.isOpen == true) {
+            return cache[database]
         }
 
         val dbPath = context.androidContext.getDatabasePath(database.fileName)
@@ -79,13 +80,13 @@ class DatabaseAccess(
         }.onFailure {
             context.log.error("Failed to open database ${database.fileName}!", it)
         }.getOrNull()?.also {
-            if (!writeMode) openedDatabases[database] = it
+            cache[database] = it
         }
     }
 
     private fun <T> SQLiteDatabase.performOperation(query: SQLiteDatabase.() -> T?): T? {
         return runCatching {
-            if (NativeLib.initialized && openedDatabases[DatabaseType.ARROYO] == this) {
+            if (NativeLib.initialized && openedWriteDatabases[DatabaseType.ARROYO] == this) {
                 var result: T? = null
                 context.native.lockNativeDatabase(DatabaseType.ARROYO.fileName) {
                     result = query()
@@ -125,7 +126,7 @@ class DatabaseAccess(
             .toMutableMap()
     }
 
-    private val dmOtherParticipantCache by lazy {
+    private val dmOtherParticipantCache by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         if (hasArroyoConversationTable) {
             return@lazy useDatabase(DatabaseType.ARROYO)?.performOperation {
                 safeRawQuery(
@@ -187,7 +188,16 @@ class DatabaseAccess(
     fun hasArroyo(): Boolean = useDatabase(DatabaseType.ARROYO)?.isOpen == true
 
     fun init() {
-        // perform integrity check on databases
+        val prefs = context.androidContext.getSharedPreferences("purrfect_db_health", 0)
+        val lastCheck = prefs.getLong("last_integrity_check", 0L)
+        val weekMs = 7 * 24 * 60 * 60 * 1000L
+
+        // Skip integrity check if performed within the last 7 days
+        if (System.currentTimeMillis() - lastCheck < weekMs) {
+            context.log.verbose("Skipping weekly database integrity checks")
+            return
+        }
+
         DatabaseType.entries.forEach { type ->
             useDatabase(type, writeMode = true)?.apply {
                 rawQuery("PRAGMA integrity_check", null).use { query ->
@@ -196,12 +206,14 @@ class DatabaseAccess(
                         context.androidContext.deleteDatabase(type.fileName)
                     }
                 }
-            }?.close()
+            }
         }
+        prefs.edit().putLong("last_integrity_check", System.currentTimeMillis()).apply()
     }
 
     fun finalize() {
         openedDatabases.values.forEach { it.close() }
+        openedWriteDatabases.values.forEach { it.close() }
     }
 
     private fun <T : DatabaseObject> SQLiteDatabase.readDatabaseObject(
@@ -221,7 +233,7 @@ class DatabaseAccess(
         obj
     }
 
-    val myUserId by lazy {
+    val myUserId by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         context.androidContext.getSharedPreferences("user_session_shared_pref", 0).getString("key_user_id", null) ?:
         useDatabase(DatabaseType.ARROYO)?.performOperation {
             safeRawQuery(buildString {

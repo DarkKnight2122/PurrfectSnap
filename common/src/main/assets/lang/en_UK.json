@@ -1028,6 +1028,14 @@
                                 "name": "UI Design",
                                 "description": "Select the design for the call recorder overlay"
                             },
+                            "echo_suppression": {
+                                "name": "Echo Suppression",
+                                "description": "Enable hardware echo cancellation (disable if music/voice feels choppy)"
+                            },
+                            "noise_suppression": {
+                                "name": "Noise Suppression",
+                                "description": "Enable hardware background noise filtering"
+                            },
                             "call_recording_saved_toast": "Saved"
                         }
                     },

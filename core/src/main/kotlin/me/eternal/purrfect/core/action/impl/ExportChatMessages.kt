@@ -99,6 +99,7 @@ class ExportChatMessages : AbstractAction() {
     private var dialogTitle by mutableStateOf("")
     private var dialogText by mutableStateOf("")
     private var currentActionDialog: AlertDialog? = null
+    private val activeExporters = java.util.concurrent.CopyOnWriteArrayList<ConversationExporter>()
 
     private fun logDialog(message: String) {
         context.runOnUiThread {
@@ -1094,6 +1095,7 @@ class ExportChatMessages : AbstractAction() {
                     runCatching {
                         exportFullConversation(conversation, exportParams)
                     }.onFailure {
+                        if (it is CancellationException) throw it
                         logDialog(translation.format("export_fail", "conversation" to conversation.key.toString()))
                         logDialog(it.stackTraceToString())
                         CoreLogger.xposedLog(it)
@@ -1111,6 +1113,8 @@ class ExportChatMessages : AbstractAction() {
                     onCancel = {
                         exportJob.cancel()
                         jobs.forEach { it.cancel() }
+                        activeExporters.forEach { it.cancel() }
+                        activeExporters.clear()
                         alertDialog.dismiss()
                     },
                     skin = skin
@@ -1141,113 +1145,217 @@ class ExportChatMessages : AbstractAction() {
         emptyList()
     }
 
-    private fun writeHtmlExport(writer: PrintWriter, entry: FriendFeedEntry, messages: List<Message>, params: ExportParams) {
-        writer.println("<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Export - ${entry.feedDisplayName}</title>")
-        writer.println("<style>body { font-family: sans-serif; background: #121212; color: #E0E0E0; padding: 20px; }")
-        writer.println(".msg { margin-bottom: 15px; padding: 10px; border-radius: 8px; background: #1E1E1E; border: 1px solid #333; }")
-        writer.println(".header { font-size: 0.8em; color: #888; margin-bottom: 5px; }")
-        writer.println(".user { font-weight: bold; color: ${params.colorOverrides?.get("default") ?: "#8C7BFF"}; }")
-        writer.println("</style></head><body>")
-        writer.println("<h1>Conversation: ${entry.feedDisplayName}</h1>")
-        
-        messages.forEach { msg ->
-            val date = DateFormat.getDateTimeInstance().format(Date(msg.orderKey!!))
-            val username = msg.senderId?.toString() ?: "Unknown"
-            val color = params.colorOverrides?.get(msg.senderId?.toString()) ?: "#8C7BFF"
-            
-            writer.println("<div class='msg'>")
-            writer.println("<div class='header'><span class='user' style='color: $color'>$username</span> &bull; $date</div>")
-            
-            val reader = me.eternal.purrfect.common.util.protobuf.ProtoReader(msg.messageContent!!.content!!)
-            val text = reader.getString(2, 1) ?: "[Media/Unknown]"
-            writer.println("<div>$text</div>")
-            writer.println("</div>")
+    private data class ExportTarget(
+        val outputFile: File,
+        val finalize: (File) -> String
+    )
+
+    private fun resolveExportTarget(fileName: String, mimeType: String): ExportTarget {
+        val configuredFolder = context.config.downloader.saveFolder.get()?.trim().orEmpty()
+        val defaultTarget = {
+            val publicFolder = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                "Purrfect"
+            ).also { if (!it.exists()) it.mkdirs() }
+            val outputFile = publicFolder.resolve(fileName).also { if (it.exists()) it.delete() }
+            ExportTarget(outputFile) { file -> file.absolutePath }
         }
-        writer.println("</body></html>")
+
+        if (configuredFolder.isBlank()) {
+            return defaultTarget()
+        }
+
+        val outputFolder = runCatching {
+            DocumentFile.fromTreeUri(context.androidContext, Uri.parse(configuredFolder))
+        }.getOrNull()
+
+        if (outputFolder == null || !outputFolder.canWrite()) {
+            return defaultTarget()
+        }
+
+        val tempFile = File(context.androidContext.cacheDir, fileName).also {
+            if (it.exists()) it.delete()
+        }
+        return ExportTarget(tempFile) { file ->
+            val outputFile = outputFolder.createFile(mimeType, fileName)
+                ?: throw IllegalStateException("Failed to create export file")
+            context.androidContext.contentResolver.openOutputStream(outputFile.uri)?.use { out ->
+                file.inputStream().use { it.copyTo(out) }
+            } ?: throw IllegalStateException("Failed to write export file")
+            outputFile.uri.toString()
+        }
     }
 
-    private fun writeJsonExport(writer: PrintWriter, entry: FriendFeedEntry, messages: List<Message>, params: ExportParams) {
-        // Implementation for JSON export
-        writer.println("[]") // Placeholder
+    private fun fetchLoggerMessages(conversationId: String): List<LoggedMessage> {
+        return runCatching {
+            val loggerWrapper = LoggerWrapper(context.androidContext)
+            val messages = mutableListOf<LoggedMessage>()
+            var fromTimestamp = Long.MAX_VALUE
+            while (true) {
+                val batch = loggerWrapper.fetchMessages(conversationId, fromTimestamp, 500, reverseOrder = true)
+                if (batch.isEmpty()) break
+                messages.addAll(batch)
+                fromTimestamp = batch.last().sendTimestamp
+            }
+            messages
+        }.getOrDefault(emptyList())
     }
 
-    private fun writeTxtExport(writer: PrintWriter, entry: FriendFeedEntry, messages: List<Message>, params: ExportParams) {
-        writer.println("Export - ${entry.feedDisplayName}")
-        writer.println("=".repeat(30))
-        messages.forEach { msg ->
-            val date = DateFormat.getDateTimeInstance().format(Date(msg.orderKey!!))
-            val reader = me.eternal.purrfect.common.util.protobuf.ProtoReader(msg.messageContent!!.content!!)
-            val text = reader.getString(2, 1) ?: "[Media/Unknown]"
-            writer.println("[$date] ${msg.senderId}: $text")
-        }
+    private fun messageSortKey(message: Message): Long {
+        return message.orderKey
+            ?: message.messageMetadata?.createdAt
+            ?: message.messageDescriptor?.messageId
+            ?: Long.MIN_VALUE
     }
 
     private suspend fun exportFullConversation(
-        entry: FriendFeedEntry,
-        params: ExportParams
+        feedEntry: FriendFeedEntry,
+        exportParams: ExportParams,
     ) = withContext(Dispatchers.IO) {
-        val conversationId = entry.key ?: return@withContext
-        val amount = params.amountOfMessages ?: Int.MAX_VALUE
-        val lastMessageId = if (params.sortOrder == ExportSortOrder.NEWEST_TO_OLDEST) Long.MAX_VALUE else Long.MIN_VALUE
-        
-        val messages = fetchMessagesPaginated(conversationId, lastMessageId, amount)
-        if (messages.isEmpty()) {
-            logDialog(translation.format("no_messages", "conversation" to entry.feedDisplayName.toString()))
-            return@withContext
-        }
+        val conversationId = feedEntry.key!!
+        val conversationParticipants = context.database.getConversationParticipants(feedEntry.key!!, useCache = false)
+            ?.mapNotNull {
+                context.database.getFriendInfo(it)
+            }?.associateBy { it.userId!! } ?: emptyMap()
 
-        val filteredMessages = params.messageTypeFilter?.let { filter ->
-            messages.filter { msg ->
-                val reader = me.eternal.purrfect.common.util.protobuf.ProtoReader(msg.messageContent!!.content!!)
-                val contentType = ContentType.fromMessageContainer(reader)
-                filter.contains(contentType)
-            }
-        } ?: messages
-
-        if (filteredMessages.isEmpty()) {
-            logDialog(translation.format("no_matching_messages", "conversation" to entry.feedDisplayName.toString()))
-            return@withContext
-        }
-
-        val fileName = "${entry.feedDisplayName ?: conversationId}_${System.currentTimeMillis()}.${params.exportFormat.extension}"
-        val configuredFolder = context.config.downloader.saveFolder.get()?.trim().orEmpty()
-        val outputFile: File
-        val exportedPath: String
-
-        if (configuredFolder.isEmpty()) {
-            val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-            val outputDir = File(documentsDir, "PurrfectExports").also { if (!it.exists()) it.mkdirs() }
-            outputFile = File(outputDir, fileName)
-            exportedPath = outputFile.absolutePath
-        } else {
-            val outputFolder = DocumentFile.fromTreeUri(context.androidContext, Uri.parse(configuredFolder))
-            if (outputFolder == null || !outputFolder.canWrite()) {
-                throw IllegalStateException("Configured folder is not writable")
-            }
-            outputFile = File(context.androidContext.cacheDir, fileName)
-            val documentFile = outputFolder.createFile("*/*", fileName) ?: throw IllegalStateException("Failed to create document")
-            exportedPath = documentFile.uri.toString()
-            
-            // We'll write to temp file first then copy to uri later
-        }
-
-        PrintWriter(outputFile).use { writer ->
-            when (params.exportFormat) {
-                ExportFormat.HTML -> writeHtmlExport(writer, entry, filteredMessages, params)
-                ExportFormat.JSON -> writeJsonExport(writer, entry, filteredMessages, params)
-                ExportFormat.TEXT -> writeTxtExport(writer, entry, filteredMessages, params)
-                else -> {}
+        val loggerMessages = fetchLoggerMessages(conversationId)
+        val participantMap = conversationParticipants.toMutableMap().apply {
+            loggerMessages.forEach { message ->
+                if (containsKey(message.userId)) return@forEach
+                this[message.userId] = FriendInfo(
+                    userId = message.userId,
+                    displayName = message.username,
+                    username = message.username,
+                    usernameForSorting = message.username
+                )
             }
         }
 
-        if (configuredFolder.isNotEmpty()) {
-            val uri = Uri.parse(exportedPath)
-            context.androidContext.contentResolver.openOutputStream(uri)?.use { out ->
-                outputFile.inputStream().use { it.copyTo(out) }
-            }
-            outputFile.delete()
-        }
+        val conversationName = feedEntry.feedDisplayName ?: conversationParticipants.values.take(3).joinToString("_") { it.mutableUsername ?: "" }
 
-        logDialog(translation.format("exported_to", "path" to exportedPath))
+        val outputName = "conversation_${conversationName}_${System.currentTimeMillis()}.${exportParams.exportFormat.extension}"
+        val mimeType = when (exportParams.exportFormat) {
+            ExportFormat.JSON -> "application/json"
+            ExportFormat.TEXT -> "text/plain"
+            ExportFormat.HTML -> "text/html"
+        }
+        val outputTarget = resolveExportTarget(outputName, mimeType)
+        val outputFile = outputTarget.outputFile
+
+        logDialog(translation.format("exporting_message", "conversation" to conversationName))
+
+        val conversationExporter = ConversationExporter(
+            context = context,
+            friendFeedEntry = feedEntry,
+            conversationParticipants = participantMap,
+            exportParams = exportParams,
+            cacheFolder = context.androidContext.cacheDir.resolve("chat_export").also { if (!it.exists()) it.mkdirs() },
+            outputFile = outputFile,
+        ).apply { init(); printLog = {
+            logDialog(it.toString())
+        } }
+
+        activeExporters.add(conversationExporter)
+        try {
+            ensureActive()
+            var foundMessageCount = 0
+            val exportedOrderKeys = mutableSetOf<Long>()
+            val fetchedMessages = mutableListOf<Message>()
+            val seenMessageKeys = mutableSetOf<String>()
+
+            var lastMessageId: Long? = null
+            fetchMessagesPaginated(conversationId, Long.MAX_VALUE, amount = 1).firstOrNull()?.also { message ->
+                val messageKey = message.orderKey?.toString() ?: message.messageDescriptor?.messageId?.toString()
+                if (messageKey != null && seenMessageKeys.add(messageKey)) {
+                    fetchedMessages.add(message)
+                }
+                lastMessageId = message.messageDescriptor?.messageId
+            }
+
+            if (lastMessageId == null && fetchedMessages.isEmpty()) {
+                logDialog(translation["no_messages_found"])
+            }
+
+            while (lastMessageId != null) {
+                ensureActive()
+                val pagedMessages = fetchMessagesPaginated(conversationId, lastMessageId, amount = 500)
+                if (pagedMessages.isEmpty()) break
+
+                pagedMessages.firstOrNull()?.let {
+                    lastMessageId = it.messageDescriptor!!.messageId!!
+                }
+
+                pagedMessages.forEach { message ->
+                    val messageKey = message.orderKey?.toString() ?: message.messageDescriptor?.messageId?.toString()
+                    if (messageKey != null && seenMessageKeys.add(messageKey)) {
+                        fetchedMessages.add(message)
+                    }
+                }
+            }
+
+            ensureActive()
+            val filteredMessages = exportParams.messageTypeFilter?.let { filter ->
+                fetchedMessages.filter { message ->
+                    val contentType = message.messageContent?.contentType ?: return@filter false
+                    filter.contains(contentType)
+                }
+            } ?: fetchedMessages
+
+            val sortedMessages = when (exportParams.sortOrder) {
+                ExportSortOrder.OLDEST_TO_NEWEST -> filteredMessages.sortedBy { messageSortKey(it) }
+                ExportSortOrder.NEWEST_TO_OLDEST -> filteredMessages.sortedByDescending { messageSortKey(it) }
+            }
+
+            val messagesToWrite = exportParams.amountOfMessages?.let { limit ->
+                sortedMessages.take(limit)
+            } ?: sortedMessages
+
+            messagesToWrite.forEach { message ->
+                ensureActive()
+                conversationExporter.readMessage(message)
+                foundMessageCount++
+                message.orderKey?.let { exportedOrderKeys.add(it) }
+                setStatus("Exporting (found ${foundMessageCount})")
+            }
+
+            if (loggerMessages.isNotEmpty() && (exportParams.amountOfMessages == null || foundMessageCount < exportParams.amountOfMessages)) {
+                ensureActive()
+                val parsedLoggerMessages = loggerMessages.mapNotNull { conversationExporter.parseLoggedMessage(it) }
+                val sortedLoggerMessages = when (exportParams.sortOrder) {
+                    ExportSortOrder.OLDEST_TO_NEWEST -> parsedLoggerMessages.sortedBy { it.orderKey }
+                    ExportSortOrder.NEWEST_TO_OLDEST -> parsedLoggerMessages.sortedByDescending { it.orderKey }
+                }
+                for (loggedMessage in sortedLoggerMessages) {
+                    ensureActive()
+                    if (exportedOrderKeys.contains(loggedMessage.orderKey)) continue
+                    val filter = exportParams.messageTypeFilter
+                    if (filter != null && !filter.contains(loggedMessage.contentType)) continue
+                    if (exportParams.amountOfMessages != null && foundMessageCount >= exportParams.amountOfMessages) break
+                    conversationExporter.readLoggedMessage(loggedMessage)
+                    foundMessageCount++
+                    setStatus("Exporting (found ${foundMessageCount})")
+                }
+            }
+
+            ensureActive()
+            if (exportParams.exportFormat == ExportFormat.HTML) conversationExporter.awaitDownload()
+            conversationExporter.close()
+            logDialog(translation["writing_output"])
+            dialogLogs.clear()
+            val exportedPath = runCatching { outputTarget.finalize(outputFile) }.getOrElse { error ->
+                logDialog("Failed to write export output")
+                logDialog(error.toString())
+                context.log.error("Failed to finalize chat export", error)
+                return@withContext
+            }
+            if (outputFile.parentFile == context.androidContext.cacheDir) {
+                outputFile.delete()
+            }
+            logDialog("\n" + translation.format("exported_to",
+                "path" to exportedPath
+            ) + "\n")
+        } finally {
+            activeExporters.remove(conversationExporter)
+        }
     }
 }

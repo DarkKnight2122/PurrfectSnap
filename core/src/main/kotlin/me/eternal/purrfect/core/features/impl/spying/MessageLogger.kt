@@ -26,6 +26,8 @@ import me.eternal.purrfect.core.ui.removeForegroundDrawable
 import me.eternal.purrfect.core.util.EvictingMap
 import me.eternal.purrfect.core.util.ktx.KavaRefFieldBridge
 import me.eternal.purrfect.core.util.ktx.setObjectField
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
 import kotlin.system.measureTimeMillis
 
@@ -47,6 +49,8 @@ class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.ME
     private val cachedIdLinks = EvictingMap<Long, Long>(500) // client id -> server id
     private val fetchedMessages = mutableListOf<Long>() // list of unique message ids
     private val deletedMessageCache = EvictingMap<Long, JsonObject>(200) // unique message id -> message json object
+
+    private val pendingMessages = mutableListOf<BridgeLoggedMessage>()
 
     fun isMessageDeleted(conversationId: String, clientMessageId: Long)
         = makeUniqueIdentifier(conversationId, clientMessageId)?.let { deletedMessageCache.containsKey(it) } ?: false
@@ -99,10 +103,37 @@ class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.ME
         return computeMessageIdentifier(conversationId, serverMessageId)
     }
 
+    private fun flushMessages() {
+        val list = synchronized(pendingMessages) {
+            if (pendingMessages.isEmpty()) return
+            val copy = pendingMessages.toList()
+            pendingMessages.clear()
+            copy
+        }
+
+        // Binder limit is 1MB. Chunk into groups of 20 to stay safely under the limit.
+        list.chunked(20).forEach { chunk ->
+            try {
+                loggerInterface.addMessages(chunk)
+            } catch (e: Exception) {
+                if (e !is DeadObjectException) {
+                    context.log.error("Failed to flush message log chunk", e)
+                }
+            }
+        }
+    }
+
     override fun init() {
         if (!isEnabled) return
         val keepMyOwnMessages = context.config.messaging.messageLogger.keepMyOwnMessages.get()
         val messageFilter by context.config.messaging.messageLogger.messageFilter
+
+        context.coroutineScope.launch {
+            while (true) {
+                delay(1000)
+                flushMessages()
+            }
+        }
 
         onNextActivityCreate(defer = true) {
             if (!context.database.hasArroyo()) return@onNextActivityCreate
@@ -117,12 +148,16 @@ class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.ME
             val messageInstance = event.message.instanceNonNull()
             if (event.message.messageState != MessageState.COMMITTED) return@subscribe
 
-            cachedIdLinks[event.message.messageDescriptor!!.messageId!!] = event.message.orderKey!!
+            val clientMessageId = event.message.messageDescriptor!!.messageId!!
+            val orderKey = event.message.orderKey!!
+            cachedIdLinks[clientMessageId] = orderKey
             val conversationId = event.message.messageDescriptor!!.conversationId.toString()
-            //exclude messages sent by me
-            if (!keepMyOwnMessages && event.message.senderId.toString() == context.database.myUserId) return@subscribe
+            val senderId = event.message.senderId.toString()
 
-            val uniqueMessageIdentifier = computeMessageIdentifier(conversationId, event.message.orderKey!!)
+            //exclude messages sent by me
+            if (!keepMyOwnMessages && senderId == context.database.myUserId) return@subscribe
+
+            val uniqueMessageIdentifier = computeMessageIdentifier(conversationId, orderKey)
             val messageContentType = event.message.messageContent!!.contentType
             val isMessageDeleted = messageContentType == ContentType.STATUS || event.message.messageContent!!.quotedMessage?.status?.let {
                 it == QuotedMessageContentStatus.DELETED || it == QuotedMessageContentStatus.STORYMEDIADELETEDBYPOSTER
@@ -135,32 +170,37 @@ class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.ME
                     fetchedMessages.add(uniqueMessageIdentifier)
                 }
 
+                val createdAt = event.message.messageMetadata?.createdAt ?: System.currentTimeMillis()
                 threadPool.execute {
-                    if (!canUseRule(conversationId)) {
-                        return@execute
-                    }
+                    runCatching {
+                        if (!canUseRule(conversationId)) {
+                            return@runCatching
+                        }
 
-                    try {
-                        loggerInterface.addMessage(
-                            BridgeLoggedMessage().also {
-                                it.messageId = uniqueMessageIdentifier
-                                it.conversationId = conversationId
-                                it.userId = event.message.senderId.toString()
-                                it.username = usernameCache[it.userId]
-                                    ?: context.database.getFriendInfo(it.userId)?.mutableUsername?.also { resolvedUsername ->
-                                        usernameCache[it.userId] = resolvedUsername
-                                    }
-                                    ?: it.userId
-                                it.sendTimestamp = event.message.messageMetadata?.createdAt ?: System.currentTimeMillis()
-                                it.groupTitle = groupTitleCache[conversationId]
-                                    ?: context.database.getFeedEntryByConversationId(conversationId)?.feedDisplayName?.also { resolvedGroupTitle ->
-                                        groupTitleCache[conversationId] = resolvedGroupTitle
-                                    }
-                                    ?: conversationId
-                                it.messageData = context.gson.toJson(messageInstance).toByteArray(Charsets.UTF_8)
-                            }
-                        )
-                    } catch (_: DeadObjectException) {}
+                        val loggedMsg = BridgeLoggedMessage().also {
+                            it.messageId = uniqueMessageIdentifier
+                            it.conversationId = conversationId
+                            it.userId = senderId
+                            it.username = usernameCache[senderId]
+                                ?: context.database.getFriendInfo(senderId)?.mutableUsername?.also { resolvedUsername ->
+                                    usernameCache[senderId] = resolvedUsername
+                                }
+                                ?: senderId
+                            it.sendTimestamp = createdAt
+                            it.groupTitle = groupTitleCache[conversationId]
+                                ?: context.database.getFeedEntryByConversationId(conversationId)?.feedDisplayName?.also { resolvedGroupTitle ->
+                                    groupTitleCache[conversationId] = resolvedGroupTitle
+                                }
+                                ?: conversationId
+                            it.messageData = context.gson.toJson(messageInstance).toByteArray(Charsets.UTF_8)
+                        }
+
+                        synchronized(pendingMessages) {
+                            pendingMessages.add(loggedMsg)
+                        }
+                    }.onFailure { e ->
+                        context.log.error("Failed to process background message logging", e)
+                    }
                 }
 
                 return@subscribe

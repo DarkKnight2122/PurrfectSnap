@@ -40,8 +40,17 @@ class BridgeService : Service() {
 
     private val isBridgeWarmed = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    private val syncCallbackDeathRecipient = IBinder.DeathRecipient {
+        synchronized(this) {
+            syncCallback = null
+        }
+    }
+
     private fun clearSyncCallback() {
-        syncCallback = null
+        synchronized(this) {
+            syncCallback?.asBinder()?.unlinkToDeath(syncCallbackDeathRecipient, 0)
+            syncCallback = null
+        }
     }
 
     fun requestEphemeralSocialSnapshot(callback: (List<MessagingFriendInfo>, List<MessagingGroupInfo>) -> Unit) {
@@ -59,6 +68,21 @@ class BridgeService : Service() {
         }
     }
 
+    private fun grantFolderUriPermission() {
+        runCatching {
+            val saveFolderUri = remoteSideContext.config.root.downloader.saveFolder.get()
+            if (saveFolderUri.isNotEmpty()) {
+                val uri = android.net.Uri.parse(saveFolderUri)
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                grantUriPermission("com.snapchat.android", uri, flags)
+                grantUriPermission("com.reddit.frontpage", uri, flags)
+                remoteSideContext.log.info("Successfully granted Tree URI permission to target apps: $uri", "BridgeService")
+            }
+        }.onFailure {
+            remoteSideContext.log.error("Failed to grant Tree URI permission to target apps", it, "BridgeService")
+        }
+    }
+
     override fun onBind(intent: Intent): IBinder? {
         remoteSideContext = SharedContextHolder.remote(this).apply {
             if (checkForRequirements()) return null
@@ -66,11 +90,12 @@ class BridgeService : Service() {
         remoteSideContext.apply {
             bridgeService = this@BridgeService
         }
+        grantFolderUriPermission()
         return BridgeBinder()
     }
 
     fun triggerScopeSync(scope: SocialScope, id: String, updateOnly: Boolean = false) {
-        val callback = syncCallback ?: return
+        val callback = synchronized(this) { syncCallback } ?: return
         runCatching {
             val database = remoteSideContext.database
             val syncedObject = when (scope) {
@@ -214,29 +239,35 @@ class BridgeService : Service() {
 
         override fun sync(callback: SyncCallback) {
             clearSyncCallback()
-            syncCallback = callback
+            synchronized(this@BridgeService) {
+                syncCallback = callback
+                callback.asBinder().linkToDeath(syncCallbackDeathRecipient, 0)
+            }
             remoteSideContext.coroutineScope.launch(Dispatchers.IO) {
                 delay(300) // 300ms Stabilizer: Ensures Binder connection is solid on cold starts
                 isBridgeWarmed.set(true) // Immediate Unblock: Allow UI features to start loading data from cache
                 
                 val time = measureTimeMillis {
-                    // Safety Net: Only sync the Top 50 most recently added friends and all groups
-                    val activeFriendIds: List<String> = remoteSideContext.database.getFriends(descOrder = true).take(50).map { it.userId }
+                    // Fetch all friends and groups without hard-coded limits
+                    val activeFriendIds: List<String> = remoteSideContext.database.getFriends(descOrder = true).map { it.userId }
                     val groupIds: List<String> = remoteSideContext.database.getGroups().map { it.conversationId }
 
-                    // Throttled Group Sync
-                    for (groupId in groupIds) {
-                        triggerScopeSync(SocialScope.GROUP, groupId, true)
+                    // Batched Synchronization: 10 items per batch with 50ms intervals to optimize IPC throughput
+                    val batchSize = 10
+
+                    // Sync Groups in batches
+                    for (batch in groupIds.chunked(batchSize)) {
+                        batch.forEach { groupId -> triggerScopeSync(SocialScope.GROUP, groupId, true) }
                         delay(50) // High-quality breather to keep IPC pipe clear
                     }
 
-                    // Throttled Friend Sync
-                    for (friendId in activeFriendIds) {
-                        triggerScopeSync(SocialScope.FRIEND, friendId, true)
+                    // Sync Friends in batches
+                    for (batch in activeFriendIds.chunked(batchSize)) {
+                        batch.forEach { friendId -> triggerScopeSync(SocialScope.FRIEND, friendId, true) }
                         delay(50)
                     }
                 }
-                remoteSideContext.log.verbose("Background 'Active 50' sync completed in ${time}ms")
+                remoteSideContext.log.verbose("Background metadata synchronization completed in ${time}ms")
             }
         }
 

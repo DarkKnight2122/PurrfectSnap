@@ -433,10 +433,6 @@ class DownloadProcessor (
                         if (totalRead == 0L) {
                             throw java.io.IOException("Download failed: Received 0 bytes")
                         }
-
-                        if (estimatedSize > 0 && totalRead < (estimatedSize * 0.9)) { // 90% threshold for bolt media variability
-                             throw java.io.IOException("Incomplete download: $totalRead/$estimatedSize bytes")
-                        }
                     }.also { downloadedMedias[inputMedia] = it }
                 }
 

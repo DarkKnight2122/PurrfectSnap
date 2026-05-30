@@ -228,14 +228,13 @@ class OperaContextActionMenu : AbstractMenu() {
                                 Slider(
                                     value = sliderValue,
                                     onValueChange = { newValue ->
-                                        val snapped = (Math.round(newValue * 4f) / 4f).coerceIn(0.1f, 4.0f)
-                                        if (snapped != sliderValue) {
+                                        if (newValue != sliderValue) {
                                             view.context.vibrateLongPress()
-                                            sliderValue = snapped
-                                            operaViewerParamsOverride.currentPlaybackRate = snapped
+                                            sliderValue = newValue
+                                            operaViewerParamsOverride.currentPlaybackRate = newValue
                                         }
                                     },
-                                    valueRange = 0.1f..4.0f,
+                                    valueRange = 0.25f..4.0f,
                                     steps = 14,
                                     colors = SliderDefaults.colors(
                                         thumbColor = skin.glowPrimary,

@@ -5,12 +5,23 @@ import me.eternal.purrfect.core.util.ktx.getObjectField
 import me.eternal.purrfect.core.wrapper.AbstractWrapper
 import java.lang.reflect.Field
 
+private fun Class<*>.getDeclaredFieldsRecursive(): List<Field> {
+    val list = mutableListOf<Field>()
+    var current: Class<*>? = this
+    while (current != null && current != Any::class.java && current != java.lang.Object::class.java) {
+        list.addAll(current.declaredFields)
+        current = current.superclass
+    }
+    return list
+}
 
 class MediaInfo(obj: Any?) : AbstractWrapper(obj) {
     val uri: String
         get() {
-            val firstStringUriField = instanceNonNull().javaClass.fields.first { f: Field -> f.type == String::class.java }
-            return instanceNonNull().getObjectField(firstStringUriField.name) as String
+            val firstStringUriField = instanceNonNull().javaClass.getDeclaredFieldsRecursive().first { f: Field ->
+                f.type == String::class.java
+            }.apply { isAccessible = true }
+            return firstStringUriField.get(instanceNonNull()) as String
         }
 
     init {
@@ -24,7 +35,7 @@ class MediaInfo(obj: Any?) : AbstractWrapper(obj) {
                 // Use explicit field name search to avoid relying on field order
                 instance = it.filterNotNull().maxByOrNull { mediaObj ->
                     runCatching {
-                        val fields = mediaObj.javaClass.fields
+                        val fields = mediaObj.javaClass.getDeclaredFieldsRecursive()
                         
                         // Search for width and height fields by name (case-insensitive)
                         // Common patterns: "width", "mWidth", "height", "mHeight"
@@ -55,9 +66,10 @@ class MediaInfo(obj: Any?) : AbstractWrapper(obj) {
 
     val encryption: EncryptionWrapper?
         get() {
-            val encryptionAlgorithmField = instanceNonNull().javaClass.fields.first { f: Field ->
+            val encryptionAlgorithmField = instanceNonNull().javaClass.getDeclaredFieldsRecursive().firstOrNull { f: Field ->
                 f.type.isInterface && Parcelable::class.java.isAssignableFrom(f.type)
-            }
-            return encryptionAlgorithmField[instance]?.let { EncryptionWrapper(it) }
+            }?.apply { isAccessible = true }
+            return encryptionAlgorithmField?.get(instance)?.let { EncryptionWrapper(it) }
         }
 }
+

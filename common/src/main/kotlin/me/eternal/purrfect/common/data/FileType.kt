@@ -88,11 +88,23 @@ enum class FileType(
 
         fun fromByteArray(array: ByteArray): FileType {
             val headerBytes = ByteArray(16)
-            System.arraycopy(array, 0, headerBytes, 0, 16)
+            val bytesToCopy = minOf(array.size, 16)
+            System.arraycopy(array, 0, headerBytes, 0, bytesToCopy)
             val hex = bytesToHex(headerBytes)
             
             // 1. Check strict signatures
             fileSignatures.entries.firstOrNull { hex.startsWith(it.key) }?.value?.let { return it }
+
+            // Check dynamic signatures for raw AAC (ADTS) / MP3
+            if (hex.length >= 4) {
+                val firstFour = hex.substring(0, 4)
+                if (firstFour in setOf("fff0", "fff1", "fff8", "fff9")) {
+                    return AAC
+                }
+                if (firstFour in setOf("fffa", "fffb", "fff2", "fff3") || hex.startsWith("ffe")) {
+                    return MP3
+                }
+            }
 
             // 2. Check ISO BMFF container type
             val majorBrand = if (headerBytes.size >= 12 && 

@@ -14,8 +14,8 @@ abstract class MessagingRuleFeature(name: String, val ruleType: MessagingRuleTyp
 
     open fun getRuleState() = context.config.rules.getRuleState(ruleType)
 
-    fun setState(conversationId: String, state: Boolean) {
-        val targetId = context.database.getDMOtherParticipant(conversationId) ?: conversationId
+    open fun setState(conversationId: String, state: Boolean) {
+        val targetId = if (ruleType == MessagingRuleType.PIN_CONVERSATION) conversationId else (context.database.getDMOtherParticipant(conversationId) ?: conversationId)
         context.bridgeClient.setRule(
             targetId,
             ruleType,
@@ -25,8 +25,8 @@ abstract class MessagingRuleFeature(name: String, val ruleType: MessagingRuleTyp
         listeners.forEach { it(conversationId, state) }
     }
 
-    fun getState(conversationId: String): Boolean {
-        val targetId = context.database.getDMOtherParticipant(conversationId) ?: conversationId
+    open fun getState(conversationId: String): Boolean {
+        val targetId = if (ruleType == MessagingRuleType.PIN_CONVERSATION) conversationId else (context.database.getDMOtherParticipant(conversationId) ?: conversationId)
         return ruleCache.getOrPut(targetId) {
             context.bridgeClient.getRules(targetId).contains(ruleType)
         } && getRuleState() != null

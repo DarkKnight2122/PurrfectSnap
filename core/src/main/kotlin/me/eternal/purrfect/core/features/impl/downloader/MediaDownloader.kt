@@ -191,14 +191,21 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                         }.onFailure { logError("Post-Processing Failed for $outputFile", it) }
 
                         if (isBatch) {
-                            batchSuccessCount.incrementAndGet()
+                            val successCount = batchSuccessCount.incrementAndGet()
+                            val completedCount = successCount + batchFailureCount.get()
+                            val total = batchTotalCount.get()
                             if (downloadLogging.contains("success")) {
                                 modCtx.runOnUiThread {
                                     modCtx.inAppOverlay.showStatusToast(
                                         icon = Icons.Outlined.DownloadDone,
-                                        text = translations.format("batch_progress_toast", "current" to (batchSuccessCount.get() + batchFailureCount.get()).toString(), "total" to batchTotalCount.get().toString()),
+                                        text = translations.format("batch_progress_toast", "current" to completedCount.toString(), "total" to total.toString()),
                                         durationMs = 1300
                                     )
+                                }
+                            }
+                            if (completedCount == total) {
+                                modCtx.runOnUiThread {
+                                    flushPendingMergeAndComplete()
                                 }
                             }
                             return@launch
@@ -215,7 +222,14 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                 }
 
                 override fun onProgress(message: String) {
-                    if (isBatch || !downloadLogging.contains("progress")) return
+                    if (isBatch) return
+                    val isStartedMessage = message == (translations["download_started_toast"] ?: "Download started")
+                    val shouldShow = if (isStartedMessage) {
+                        downloadLogging.contains("started") || downloadLogging.contains("progress")
+                    } else {
+                        downloadLogging.contains("progress")
+                    }
+                    if (!shouldShow) return
                     val toastText = message.ifBlank { translations["download_started_toast"] ?: "Started" }
                     modCtx.runOnUiThread {
                         if (modCtx.isMainActivityPaused) modCtx.shortToast(toastText)
@@ -224,12 +238,32 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                 }
 
                 override fun onFailure(message: String, throwable: String?) {
+                    if (isBatch) {
+                        val failureCount = batchFailureCount.incrementAndGet()
+                        val completedCount = batchSuccessCount.get() + failureCount
+                        val total = batchTotalCount.get()
+                        if (downloadLogging.contains("failure") || downloadLogging.contains("progress")) {
+                            modCtx.runOnUiThread {
+                                modCtx.inAppOverlay.showStatusToast(
+                                    icon = Icons.Outlined.ErrorOutline,
+                                    text = translations.format("batch_progress_toast", "current" to completedCount.toString(), "total" to total.toString()),
+                                    durationMs = 1300
+                                )
+                            }
+                        }
+                        if (completedCount == total) {
+                            modCtx.runOnUiThread {
+                                flushPendingMergeAndComplete()
+                            }
+                        }
+                        return
+                    }
                     if (!downloadLogging.contains("failure")) return
                     val errorText = translations[if (message == "Failed to download") "failed_generic_toast" else message] ?: message
-                    if (isBatch) { batchFailureCount.incrementAndGet(); return }
+                    val fullErrorText = errorText + throwable?.takeIf { it.isNotEmpty() }?.let { " ($it)" }.orEmpty()
                     modCtx.runOnUiThread {
-                        if (modCtx.isMainActivityPaused) modCtx.shortToast(errorText)
-                        modCtx.inAppOverlay.showStatusToast(Icons.Outlined.ErrorOutline, errorText, 1300)
+                        if (modCtx.isMainActivityPaused) modCtx.shortToast(fullErrorText)
+                        modCtx.inAppOverlay.showStatusToast(Icons.Outlined.ErrorOutline, fullErrorText, 1300)
                     }
                 }
             }
@@ -488,6 +522,7 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
     private suspend fun downloadOperaMedia(downloadManagerClient: DownloadManagerClient, mediaInfoMap: Map<SplitMediaAssetType, MediaInfo>, paramMap: ParamMap) {
         val modCtx = this@MediaDownloader.context
         if (mediaInfoMap.isEmpty()) return
+        /*
         paramMap["SNAP_ID"]?.toString()?.let { snapId ->
             modCtx.database.getStorySnapEntry(snapId)?.let { storySnapEntry ->
                 downloadManagerClient.downloadSingleMedia(
@@ -497,6 +532,7 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                 ); return
             }
         }
+        */
         val originalMediaRef = handleLocalReferences(mediaInfoMap[SplitMediaAssetType.ORIGINAL]!!.uri)
         mediaInfoMap[SplitMediaAssetType.OVERLAY]?.let { overlay ->
             val overlayRef = handleLocalReferences(overlay.uri)

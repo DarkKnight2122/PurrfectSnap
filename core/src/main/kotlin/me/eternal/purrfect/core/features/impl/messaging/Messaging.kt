@@ -41,6 +41,7 @@ class Messaging : Feature("Messaging") {
 
     private val feedCachedSnapMessages = EvictingMap<String, List<Long>>(100)
     private val conversationManagerReadyListeners = mutableListOf<() -> Unit>()
+    private val openedSnaps = java.util.ArrayDeque<String>(200)
 
     fun onConversationManagerReady(listener: () -> Unit) {
         synchronized(conversationManagerReadyListeners) {

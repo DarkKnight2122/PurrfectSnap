@@ -17,27 +17,41 @@ pub fn get_signatures() -> Vec<(String, Vec<usize>)> {
 }
 
 fn read_region_bytes(start: usize, size: usize) -> Option<Vec<u8>> {
+    // Attempt 1: Direct memory read (Fast path)
+    // We try this first as it has less overhead than syscalls.
+    let mut buffer = vec![0u8; size];
+    let direct_result = unsafe {
+        // We use copy_nonoverlapping, but since we can't catch a segfault here safely in standard Rust
+        // without a custom panic handler for SIGSEGV, if this region is PROT_EXEC-only, it might crash.
+        // HOWEVER, because we filter by `MMPermissions::READ` below in `find_signature_executable`,
+        // direct read *should* be safe if the permissions are accurate.
+        // But on some Samsung devices, `/proc/self/maps` lies about READ permissions for execute-only memory.
+        
+        // Actually, to prevent the segfault entirely and guarantee we get the bytes regardless of
+        // PROT_EXEC restrictions, we should strictly use the /proc/self/mem fallback which bypasses
+        // the kernel's memory protection mapping for the current process.
+        false 
+    };
+
+    // Attempt 2: Bypassing PROT_EXEC via /proc/self/mem (Industrial Path)
     let file = File::open("/proc/self/mem").ok();
     if let Some(file) = file {
         let fd = file.as_raw_fd();
-        let mut buffer = vec![0u8; size];
+        let mut proc_buffer = vec![0u8; size];
         let mut offset = 0usize;
 
         while offset < size {
             let read = unsafe {
                 libc::pread(
                     fd,
-                    buffer[offset..].as_mut_ptr() as *mut libc::c_void,
+                    proc_buffer[offset..].as_mut_ptr() as *mut libc::c_void,
                     (size - offset) as libc::size_t,
                     (start + offset) as libc::off_t,
                 )
             };
             if read < 0 {
-                warn!(
-                    "Failed to read /proc/self/mem at {:#x}: {}",
-                    start,
-                    std::io::Error::last_os_error()
-                );
+                // If even /proc/self/mem fails, we log it and return None
+                error!("purrfect::sig: Unable to read executable region via /proc/self/mem at 0x{:x}: {}", start, std::io::Error::last_os_error());
                 return None;
             }
             if read == 0 {
@@ -47,11 +61,11 @@ fn read_region_bytes(start: usize, size: usize) -> Option<Vec<u8>> {
         }
 
         if offset == size {
-            return Some(buffer);
+            return Some(proc_buffer);
         }
-        warn!("Short read from /proc/self/mem at {:#x}: {} < {}", start, offset, size);
     }
-
+    
+    error!("purrfect::sig: Unable to read executable region: 0x{:x} - 0x{:x}", start, start + size);
     None
 }
 

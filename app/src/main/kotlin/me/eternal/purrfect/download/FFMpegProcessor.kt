@@ -146,7 +146,7 @@ class FFMpegProcessor(
 
         val inputArguments = ArgumentList().apply {
             args.inputs.forEach { path ->
-                this += "-i" to path
+                this += "-i" to "\"$path\""
             }
         }
 
@@ -172,8 +172,26 @@ class FFMpegProcessor(
             }
             Action.MERGE_OVERLAY -> {
                 applyVideoArguments()
-                inputArguments += "-i" to args.overlay!!.absolutePath
-                outputArguments += "-filter_complex" to "\"[0]scale2ref[img][vid];[img]setsar=1[img];[vid]nullsink;[img][1]overlay=(W-w)/2:(H-h)/2,scale=2*trunc(iw*sar/2):2*trunc(ih/2)\""
+                inputArguments += "-i" to "\"${args.overlay!!.absolutePath}\""
+
+                val isVideo = runCatching {
+                    MediaMetadataRetriever().use { mmr ->
+                        val file = File(args.inputs[0])
+                        file.inputStream().use { fis -> mmr.setDataSource(fis.fd, 0, file.length()) }
+                        mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes"
+                    }
+                }.getOrElse {
+                    logManager.error("MediaMetadataRetriever failed to read inputs[0]: ${args.inputs[0]}", it)
+                    val ext = args.inputs[0].substringAfterLast('.').lowercase()
+                    ext == "mp4" || ext == "mkv" || ext == "mov" || ext == "avi" || ext == "webm" || ext == "gif"
+                }
+
+                if (isVideo) {
+                    // [1][0]scale2ref: scale overlay (1) to match source (0). format=rgba: preserve text transparency.
+                    outputArguments += "-filter_complex" to "\"[1][0]scale2ref[img][vid];[img]format=rgba,setsar=1[img];[vid][img]overlay=(W-w)/2:(H-h)/2,scale=2*trunc(iw*sar/2):2*trunc(ih/2)\""
+                } else {
+                    outputArguments += "-filter_complex" to "\"[1][0]scale2ref[img][src];[img]format=rgba,setsar=1[img];[src][img]overlay=(W-w)/2:(H-h)/2,scale=2*trunc(iw*sar/2):2*trunc(ih/2)\""
+                }
             }
             Action.CONVERSION -> {
                 if (ffmpegOptions.customAudioCodec.isEmpty()) {
@@ -196,7 +214,10 @@ class FFMpegProcessor(
                 inputArguments.clear()
                 val filesInfo = args.inputs.mapNotNull { file ->
                     runCatching {
-                        MediaMetadataRetriever().apply { setDataSource(file) }
+                        val f = File(file)
+                        MediaMetadataRetriever().apply { 
+                            f.inputStream().use { fis -> setDataSource(fis.fd, 0, f.length()) }
+                        }
                     }.getOrNull()?.let { file to it }
                 }
 
@@ -220,7 +241,7 @@ class FFMpegProcessor(
                             containsNoSound = true
                             filterSecondPart.append("[v$index][${filesInfo.size}:a]")
                         }
-                        inputArguments += "-i" to file
+                        inputArguments += "-i" to "\"$file\""
                     }
 
                     if (containsNoSound) {
@@ -259,7 +280,7 @@ class FFMpegProcessor(
                 outputArguments.clear()
                 val filterParts = StringBuilder()
                 args.inputs.forEachIndexed { index, input ->
-                    inputArguments += "-i" to input
+                    inputArguments += "-i" to "\"$input\""
                     val offset = args.inputDelayOffsets?.get(input) ?: 0L
                     if (offset > 0) {
                         filterParts.append("[$index:a]adelay=$offset|$offset[a$index];")

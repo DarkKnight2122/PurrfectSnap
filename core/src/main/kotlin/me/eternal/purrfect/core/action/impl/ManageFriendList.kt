@@ -68,7 +68,7 @@ class ManageFriendList : AbstractAction() {
     private val translation by lazy { context.translation.getCategory("friend_list") }
     
     private var pendingPickerAction: Pair<Int, (data: Uri) -> Unit>? = null
-    private val uuidRegex = Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{12}")
+    private val uuidRegex = Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}", RegexOption.IGNORE_CASE)
     
     private fun getUserIdBlacklist() = arrayOf(
         context.database.myUserId,
@@ -242,7 +242,10 @@ class ManageFriendList : AbstractAction() {
                     ) {
                         pendingPickerAction = Random.nextInt(0, 65535) to { data ->
                             runCatching {
-                                fetchedFriends = context.androidContext.contentResolver.openInputStream(data)?.bufferedReader()?.readLines()?.filter { it.matches(uuidRegex) }?.map { it.trim() }?.toMutableList() ?: mutableListOf()
+                                fetchedFriends = context.androidContext.contentResolver.openInputStream(data)?.bufferedReader()?.readLines()
+                                    ?.mapNotNull { line -> uuidRegex.find(line)?.value?.lowercase() }
+                                    ?.distinct()
+                                    ?.toMutableList() ?: mutableListOf()
                             }.onFailure {
                                 context.log.error("Failed to import friends", it)
                                 context.longToast(
@@ -469,7 +472,25 @@ class ManageFriendList : AbstractAction() {
                                                     skin = skin
                                                 ) {
                                                     if (!canAdd) return@PrimaryButton
+                                                    val prevLinkType = friendLinkType
                                                     addFriend(userId)
+                                                    pendingFriendRequests[userId] = coroutineScope.launch(Dispatchers.IO) {
+                                                        runCatching {
+                                                            withTimeout(10000) {
+                                                                while (true) {
+                                                                    context.database.getFriendInfo(userId)?.let { updated ->
+                                                                        val newType = FriendLinkType.fromValue(updated.friendLinkType)
+                                                                        if (newType != prevLinkType) {
+                                                                            friendInfo = updated
+                                                                            friendLinkType = newType
+                                                                            return@withTimeout
+                                                                        }
+                                                                    }
+                                                                    delay(500)
+                                                                }
+                                                            }
+                                                        }
+                                                    }.apply { invokeOnCompletion { pendingFriendRequests.remove(userId) } }
                                                 }
                                             }
                                         }

@@ -157,34 +157,46 @@ class ConversationExporter(
     private fun downloadMedia(attachments: List<DecodedAttachment>) {
         downloadThreadExecutor.execute {
             attachments.forEach decode@{ attachment ->
+                if (Thread.currentThread().isInterrupted) return@execute
                 if (attachment.mediaUniqueId in downloadedMediaIdCache || attachment.mediaUniqueId in pendingDownloadMediaIdCache) return@decode
                 pendingDownloadMediaIdCache.add(attachment.mediaUniqueId!!)
                 for (i in 0..5) {
+                    if (Thread.currentThread().isInterrupted) return@execute
                     printLog("downloading ${attachment.boltKey ?: attachment.directUrl}... (attempt ${i + 1}/5)")
                     runCatching {
                         runBlocking {
                             attachment.openStream { downloadedInputStream, _ ->
+                                if (Thread.currentThread().isInterrupted) return@openStream
                                 MediaDownloaderHelper.getSplitElements(downloadedInputStream!!) { type, splitInputStream ->
+                                    if (Thread.currentThread().isInterrupted) return@getSplitElements
+                                    val mediaBytes = splitInputStream.readBytes()
+                                    if (mediaBytes.isEmpty()) return@getSplitElements
+
+                                    val fileType = me.eternal.purrfect.common.data.FileType.fromByteArray(mediaBytes)
                                     val mediaKey = "${type}_${attachment.mediaUniqueId}"
-                                    val bufferedInputStream = BufferedInputStream(splitInputStream)
-                                    val fileType = MediaDownloaderHelper.getFileType(bufferedInputStream)
                                     val mediaFile = cacheFolder.resolve("$mediaKey.${fileType.fileExtension}")
 
-                                    mediaFile.outputStream().use { fos ->
-                                        bufferedInputStream.copyTo(fos)
-                                    }
+                                    mediaFile.writeBytes(mediaBytes)
 
                                     writeThreadExecutor.execute {
-                                        outputFileStream.write("<div class=\"media-$mediaKey\"><!-- ".toByteArray())
-                                        mediaFile.inputStream().use {
-                                            val deflateInputStream = DeflaterInputStream(it, Deflater(Deflater.BEST_SPEED, true))
-                                            (newBase64InputStream.newInstance(
-                                                deflateInputStream,
-                                                android.util.Base64.DEFAULT or android.util.Base64.NO_WRAP,
-                                                true
-                                            ) as InputStream).copyTo(outputFileStream)
-                                            outputFileStream.write(" --></div>\n".toByteArray())
-                                            outputFileStream.flush()
+                                        if (Thread.currentThread().isInterrupted) return@execute
+                                        runCatching {
+                                            outputFileStream.write("<div class=\"media-$mediaKey\"><!-- ".toByteArray())
+                                            mediaFile.inputStream().use { fis ->
+                                                val deflater = Deflater(Deflater.BEST_SPEED, true)
+                                                try {
+                                                    val deflateInputStream = DeflaterInputStream(fis, deflater)
+                                                    (newBase64InputStream.newInstance(
+                                                        deflateInputStream,
+                                                        android.util.Base64.DEFAULT or android.util.Base64.NO_WRAP,
+                                                        true
+                                                    ) as InputStream).copyTo(outputFileStream)
+                                                } finally {
+                                                    deflater.end()
+                                                }
+                                                outputFileStream.write(" --></div>\n".toByteArray())
+                                                outputFileStream.flush()
+                                            }
                                         }
                                     }
                                 }
@@ -203,6 +215,11 @@ class ConversationExporter(
                 pendingDownloadMediaIdCache.remove(attachment.mediaUniqueId!!)
             }
         }
+    }
+
+    fun cancel() {
+        runCatching { downloadThreadExecutor.shutdownNow() }
+        runCatching { writeThreadExecutor.shutdownNow() }
     }
 
     private fun writeJsonMessage(

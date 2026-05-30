@@ -58,6 +58,7 @@ class NativeLib {
                     val ok = runCatching {
                         System.load(file.absolutePath)
                         libraryLoaded = true
+                        Log.i("Purrfect", "Fallbacked to ${file.absolutePath} via directory scan, loading it now.")
                         true
                     }.getOrDefault(false)
                     if (ok) return true
@@ -78,6 +79,10 @@ class NativeLib {
             var lastError: Throwable? = null
             for (name in candidates) {
                 val ok = runCatching {
+                    if (name == "libpenguin") {
+                         Log.d("Purrfect", "Legacy load (libpenguin) skipped; searching for dynamic hash...")
+                         return@runCatching false
+                    }
                     System.loadLibrary(name)
                     libraryLoaded = true
                     true
@@ -111,7 +116,10 @@ class NativeLib {
             preInit()
             setChecksums(com.google.gson.Gson().toJson(Checksums.checksums))
             return@runCatching {
-                signatureCache = init(signatureCache) ?: throw IllegalStateException("NativeLib init failed. Check logcat for more info")
+                signatureCache = init(signatureCache) ?: run {
+                    Log.e("Purrfect", "Native initialization failed (Signature mismatch).")
+                    throw IllegalStateException("NativeLib init failed. Check logcat for more info")
+                }
             }
         }.onFailure {
             initialized = false

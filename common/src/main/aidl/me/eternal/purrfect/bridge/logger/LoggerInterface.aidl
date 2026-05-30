@@ -21,6 +21,11 @@ interface LoggerInterface {
     oneway void addMessage(in BridgeLoggedMessage message);
 
     /**
+     * Add a list of messages to the message logger database
+     */
+    oneway void addMessages(in List<BridgeLoggedMessage> messages);
+
+    /**
      * Delete a message from the message logger database
      */
     oneway void deleteMessage(String conversationId, long id);

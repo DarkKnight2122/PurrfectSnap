@@ -44,8 +44,10 @@ class SettingsGearInjector : AbstractMenu() {
                     val resources = this@SettingsGearInjector.context.resources
                     val theme = this@SettingsGearInjector.context.androidContext.theme
                     setImageDrawable(resources.getDrawable("svg_settings_32x32", theme))
-                    resources.getStyledAttributes("headerButtonOpaqueIconTint", theme).getColorStateList(0)?.let {
-                        imageTintList = it
+                    resources.getStyledAttributes("headerButtonOpaqueIconTint", theme)?.use {
+                        it.getColorStateList(0)?.let { tint ->
+                            imageTintList = tint
+                        }
                     }
                     setOnClickListener {
                         this@SettingsGearInjector.context.log.info("Gear icon clicked.", logTag)

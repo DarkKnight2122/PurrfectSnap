@@ -36,12 +36,18 @@ tasks.register<GetVersionTask>("getVersion") {
 rootProject.ext.set("appVersionName", providers.gradleProperty("APP_VERSION_NAME").orElse("1.7.6").get())
 rootProject.ext.set("appVersionCode", providers.gradleProperty("APP_VERSION_CODE").orElse("331").get().toInt())
 rootProject.ext.set("applicationId", "me.eternal.purrfect")
-// buildHash: when Purrfect or Snapchat is updated, mappings become outdated and auto-regenerate.
-// Include version code so each release has a different hash; use random for uniqueness within same version.
+// Retrieve the Git Commit SHA to use as a deterministic identifier for native linking
+val gitCommit = try {
+    val proc = java.lang.Runtime.getRuntime().exec(arrayOf("git", "rev-parse", "--short", "HEAD"))
+    proc.waitFor()
+    val text = proc.inputStream.bufferedReader().readText().trim()
+    if (text.isEmpty()) "static_baseline" else text
+} catch (e: Exception) {
+    "static_baseline"
+}
+
 rootProject.ext.set(
     "buildHash",
     (properties["debug_build_hash"] as String?)
-        ?: "${rootProject.ext["appVersionCode"]}_${java.security.SecureRandom()
-            .nextLong(Long.MAX_VALUE / 1000L, Long.MAX_VALUE)
-            .toString(16)}"
+        ?: "${rootProject.ext["appVersionCode"]}_$gitCommit"
 )

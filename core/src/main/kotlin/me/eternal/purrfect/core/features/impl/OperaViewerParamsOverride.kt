@@ -30,13 +30,23 @@ class OperaViewerParamsOverride : Feature("OperaViewerParamsOverride") {
 
         currentPlaybackRate = context.config.global.defaultVideoPlaybackRate.getNullable()?.takeIf { it > 0 } ?: 1.0F
 
-        if (context.config.global.videoPlaybackRateSlider.get() || currentPlaybackRate != 1.0F) {
-            overrideParam("video_playback_rate", { currentPlaybackRate != 1.0F }, { _, _ -> currentPlaybackRate.toDouble() })
+        val isSliderEnabled = context.config.global.videoPlaybackRateSlider.get()
+        if (isSliderEnabled || currentPlaybackRate != 1.0F) {
+            overrideParam(
+                "video_playback_rate", 
+                { isSliderEnabled || currentPlaybackRate != 1.0F }, 
+                { _, _ -> currentPlaybackRate.toDouble() }
+            )
         }
 
         if (context.config.messaging.loopMediaPlayback.get()) {
             //https://github.com/rodit/SnapMod/blob/master/app/src/main/java/xyz/rodit/snapmod/features/opera/SnapDurationModifier.kt
-            overrideParam("auto_advance_mode", { true }, { key, _ -> key.defaultValue })
+            overrideParam("auto_advance_mode", { true }, { _, value ->
+                val advanceMode = value ?: return@overrideParam null
+                advanceMode::class.java.enumConstants?.firstOrNull {
+                    it.toString() == "NO_AUTO_ADVANCE"
+                } ?: value
+            })
             overrideParam("auto_advance_max_loop_number", { true }, { _, _ -> Int.MAX_VALUE })
             overrideParam("media_playback_mode", { true }, { _, value ->
                 val playbackMode = value ?: return@overrideParam null
@@ -49,7 +59,8 @@ class OperaViewerParamsOverride : Feature("OperaViewerParamsOverride") {
         onNextActivityCreate {
             context.mappings.useMapper(OperaViewerParamsMapper::class) {
                 fun overrideParamResult(paramKey: Any, value: Any?): Any? {
-                    val fields = paramKey::class.java.fields
+                    val fields = paramKey::class.java.declaredFields
+                    fields.forEach { runCatching { it.isAccessible = true } }
                     val key = OverrideKey(
                         name = fields.firstOrNull {
                             it.type == String::class.java

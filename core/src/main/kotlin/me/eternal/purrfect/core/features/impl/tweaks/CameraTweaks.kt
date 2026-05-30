@@ -63,15 +63,23 @@ class CameraTweaks : Feature("Camera Tweaks") {
                 
                 // Only override video encoding formats
                 val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
-                if (mime.startsWith("video/")) {
-                    // Force 50Mbps Constant Bitrate (CBR) for absolute maximum quality
-                    format.setInteger(MediaFormat.KEY_BIT_RATE, 50_000_000)
-                    format.setInteger(MediaFormat.KEY_BITRATE_MODE, android.media.MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
-                    
-                    // Force hardware encoder to prioritize quality over speed
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        format.setInteger(MediaFormat.KEY_COMPLEXITY, 2) // Typically highest complexity for H264/HEVC
-                    }
+                if (!mime.startsWith("video/")) return@hook
+
+                // Only boost if the existing bitrate suggests this is a capture encoder
+                val existingBitrate = runCatching {
+                    format.getInteger(MediaFormat.KEY_BIT_RATE)
+                }.getOrNull() ?: return@hook
+
+                // Skip upload transcoders — they have bitrates < 15Mbps
+                if (existingBitrate < 15_000_000) return@hook
+
+                // Force 50Mbps Constant Bitrate (CBR) for absolute maximum quality
+                format.setInteger(MediaFormat.KEY_BIT_RATE, 50_000_000)
+                format.setInteger(MediaFormat.KEY_BITRATE_MODE, android.media.MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_CBR)
+                
+                // Force hardware encoder to prioritize quality over speed
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    format.setInteger(MediaFormat.KEY_COMPLEXITY, 2) // Typically highest complexity for H264/HEVC
                 }
             }
         }
@@ -85,6 +93,18 @@ class CameraTweaks : Feature("Camera Tweaks") {
                 param.setArg(0, 48_000)
             }
         }
+
+        val anyCameraFeatureEnabled = config.disableCameras.get().isNotEmpty() ||
+            config.startupDefaultCamera.getNullable() != null ||
+            config.customResolution.getNullable() != null ||
+            config.overrideFrontResolution.getNullable() != null ||
+            config.overrideBackResolution.getNullable() != null ||
+            config.unlockZoomLimit.get() ||
+            config.frontCustomFrameRate.getNullable() != null ||
+            config.backCustomFrameRate.getNullable() != null ||
+            config.blackPhotos.get()
+
+        if (!anyCameraFeatureEnabled) return
 
         val frontCameraId by lazy {
             runCatching { context.androidContext.getSystemService(CameraManager::class.java).run {

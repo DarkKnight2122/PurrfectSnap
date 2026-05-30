@@ -19,47 +19,70 @@ class PinConversations : MessagingRuleFeature("PinConversations", MessagingRuleT
         private const val STATIC_PIN_TIMESTAMP = 1893456000000L 
     }
 
+    private val conversationIdCache = java.util.WeakHashMap<Any, String>()
+
+    private fun getConversationId(entry: Any): String? {
+        synchronized(conversationIdCache) {
+            val cached = conversationIdCache[entry]
+            if (cached != null) return cached.takeIf { it.isNotEmpty() }
+            val conversationIdObject = entry.getObjectFieldOrNull("mConversationId") ?: return null
+            val idStr = SnapUUID(conversationIdObject).toString()
+            conversationIdCache[entry] = idStr
+            return idStr
+        }
+    }
+
+    private class SortingEntry(
+        val original: Any,
+        val pinnedTimestamp: Long,
+        val interactionTimestamp: Long,
+        val identity: String
+    )
+
     private fun forcePinsInFeed(entries: ArrayList<Any>) {
+        val sortingList = ArrayList<SortingEntry>(entries.size)
+
         entries.forEach { entry ->
-            val conversationIdObject = entry.getObjectFieldOrNull("mConversationId") ?: return@forEach
-            runCatching {
-                val conversationUUID = SnapUUID(conversationIdObject)
-                if (getState(conversationUUID.toString())) {
-                    // Apply identical STATIC timestamp lead to all pinned items
-                    entry.setObjectField("mPinnedTimestampMs", STATIC_PIN_TIMESTAMP)
+            val conversationId = getConversationId(entry)
+            var ts = entry.getObjectFieldOrNull("mPinnedTimestampMs") as? Long ?: 0L
+
+            if (conversationId != null) {
+                val isPinned = getState(conversationId)
+                if (isPinned) {
+                    if (ts != STATIC_PIN_TIMESTAMP) {
+                        ts = STATIC_PIN_TIMESTAMP
+                        entry.setObjectField("mPinnedTimestampMs", STATIC_PIN_TIMESTAMP)
+                    }
                 } else {
-                    // Reset timestamp if it was previously forced to our static baseline but shouldn't be pinned
-                    val currentTs = entry.getObjectFieldOrNull("mPinnedTimestampMs") as? Long ?: 0L
-                    if (currentTs == STATIC_PIN_TIMESTAMP) {
+                    if (ts == STATIC_PIN_TIMESTAMP) {
+                        ts = 0L
                         entry.setObjectField("mPinnedTimestampMs", 0L)
                     }
                 }
             }
+
+            val interaction = entry.getObjectFieldOrNull("mLastInteractionTimestamp") as? Long 
+                ?: entry.getObjectFieldOrNull("mLastMessageTimestamp") as? Long ?: 0L
+
+            sortingList.add(SortingEntry(entry, ts, interaction, entry.toString()))
         }
 
-        // Manual sort with stable tie-breaker to ensure UI consistency
-        runCatching {
-            Collections.sort(entries) { a, b ->
-                val tsA = a.getObjectFieldOrNull("mPinnedTimestampMs") as? Long ?: 0L
-                val tsB = b.getObjectFieldOrNull("mPinnedTimestampMs") as? Long ?: 0L
-                
-                if (tsA == tsB) {
-                    // Stable Tie-Breaker: Use interaction timestamp if available, otherwise fallback to ID
-                    val interactionA = a.getObjectFieldOrNull("mLastInteractionTimestamp") as? Long 
-                        ?: a.getObjectFieldOrNull("mLastMessageTimestamp") as? Long ?: 0L
-                    val interactionB = b.getObjectFieldOrNull("mLastInteractionTimestamp") as? Long 
-                        ?: b.getObjectFieldOrNull("mLastMessageTimestamp") as? Long ?: 0L
-                    
-                    if (interactionA == interactionB) {
-                        a.toString().compareTo(b.toString())
-                    } else {
-                        interactionB.compareTo(interactionA)
-                    }
+        // Stable sort
+        sortingList.sortWith { a, b ->
+            if (a.pinnedTimestamp == b.pinnedTimestamp) {
+                if (a.interactionTimestamp == b.interactionTimestamp) {
+                    a.identity.compareTo(b.identity)
                 } else {
-                    tsB.compareTo(tsA)
+                    b.interactionTimestamp.compareTo(a.interactionTimestamp)
                 }
+            } else {
+                b.pinnedTimestamp.compareTo(a.pinnedTimestamp)
             }
         }
+
+        // Reorder entries
+        entries.clear()
+        sortingList.forEach { entries.add(it.original) }
     }
 
     override fun init() {

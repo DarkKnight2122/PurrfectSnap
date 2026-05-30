@@ -38,6 +38,8 @@ class CallRecorder : Feature("Call Recorder") {
     private var pendingCallEndJob: Job? = null
     private var lastRemoteActivityTimestamp = 0L
     private var selfSideStreamOpened = false
+    @Volatile
+    private var constructingFallbackMic = false
 
     private val uiState get() = context.inAppOverlay.callRecorderState
     private val callRecorderConfig get() = context.config.downloader.callRecorder
@@ -272,6 +274,8 @@ class CallRecorder : Feature("Call Recorder") {
         val streamId = audioRecord.hashCode()
         streams[streamId]?.let { return it }
 
+        if (constructingFallbackMic || audioRecord === fallbackMicRecord) return null
+
         val audioSource = runCatching { audioRecord.audioSource }.getOrNull()
         val shouldCapture = isDirectVoiceCaptureSource(audioSource) ||
             (isCallContextActive() && isLikelyCallMicSource(audioSource))
@@ -333,12 +337,15 @@ class CallRecorder : Feature("Call Recorder") {
             .setEncoding(encoding)
             .build()
 
+        constructingFallbackMic = true
         val audioRecord = runCatching {
             AudioRecord.Builder()
                 .setAudioSource(MediaRecorder.AudioSource.MIC)
                 .setAudioFormat(audioFormat)
                 .setBufferSizeInBytes(minBufferSize * 2)
                 .build()
+        }.also {
+            constructingFallbackMic = false
         }.getOrElse {
             context.log.error("Failed to create fallback mic recorder", it)
             return
@@ -362,12 +369,16 @@ class CallRecorder : Feature("Call Recorder") {
                     selfSideStreamOpened = true
                 }
             )
-            val echoCanceler = AcousticEchoCanceler.create(audioRecord.audioSessionId)?.apply {
-                enabled = true
-            }
-            val noiseSuppressor = NoiseSuppressor.create(audioRecord.audioSessionId)?.apply {
-                enabled = true
-            }
+            val echoCanceler = if (callRecorderConfig.echoSuppression.get()) {
+                AcousticEchoCanceler.create(audioRecord.audioSessionId)?.apply {
+                    enabled = true
+                }
+            } else null
+            val noiseSuppressor = if (callRecorderConfig.noiseSuppression.get()) {
+                NoiseSuppressor.create(audioRecord.audioSessionId)?.apply {
+                    enabled = true
+                }
+            } else null
 
             try {
                 audioRecord.startRecording()
@@ -498,13 +509,16 @@ class CallRecorder : Feature("Call Recorder") {
         AudioRecord::class.java.apply {
             if (recorderConfig == "only_record_others") return@apply
             hookConstructor(HookStage.AFTER) { param ->
-                registerAudioRecordStream(param.thisObject<AudioRecord>(), "constructor")
+                val audioRecord = param.thisObject<AudioRecord>()
+                if (constructingFallbackMic || audioRecord === fallbackMicRecord) return@hookConstructor
+                registerAudioRecordStream(audioRecord, "constructor")
             }
 
             hook("read", HookStage.AFTER) { param ->
                 val result = param.getResult() as? Int ?: 0
                 if (result <= 0) return@hook
                 val audioRecord = param.thisObject<AudioRecord>()
+                if (constructingFallbackMic || audioRecord === fallbackMicRecord) return@hook
                 val wrapper = streams[param.thisObject<Any>().hashCode()]
                     ?: registerAudioRecordStream(audioRecord, "read")
                     ?: return@hook
@@ -533,7 +547,9 @@ class CallRecorder : Feature("Call Recorder") {
             }
 
             hook("startRecording", HookStage.AFTER) {
-                registerAudioRecordStream(it.thisObject<AudioRecord>(), "startRecording")
+                val audioRecord = it.thisObject<AudioRecord>()
+                if (constructingFallbackMic || audioRecord === fallbackMicRecord) return@hook
+                registerAudioRecordStream(audioRecord, "startRecording")
             }
 
             hook("stop", HookStage.BEFORE) { checkStreamsAndCleanup() }
@@ -551,10 +567,10 @@ class CallRecorder : Feature("Call Recorder") {
 
             hook("write", HookStage.BEFORE) { param ->
                 val streamId = param.thisObject<Any>().hashCode()
-                markRemoteStreamActive(streamId, "write")
                 val wrapper = streams[streamId]
                     ?: registerAudioTrackStream(param.thisObject<AudioTrack>(), "write")
                     ?: return@hook
+                markRemoteStreamActive(streamId, "write")
                 val data = param.arg<Any>(0)
 
                 val buffer = when (data) {
@@ -594,23 +610,38 @@ class CallRecorder : Feature("Call Recorder") {
 
             hook("play", HookStage.AFTER) {
                 val audioTrack = it.thisObject<AudioTrack>()
-                markRemoteStreamActive(audioTrack.hashCode(), "play")
-                registerAudioTrackStream(audioTrack, "play")
+                val streamId = audioTrack.hashCode()
+                val wrapper = streams[streamId]
+                    ?: registerAudioTrackStream(audioTrack, "play")
+                    ?: return@hook
+                markRemoteStreamActive(streamId, "play")
             }
 
             hook("stop", HookStage.AFTER) {
-                markRemoteStreamInactive(it.thisObject<Any>().hashCode(), "stop")
-                checkStreamsAndCleanup()
+                val streamId = it.thisObject<Any>().hashCode()
+                if (streams.containsKey(streamId)) {
+                    markRemoteStreamInactive(streamId, "stop")
+                    checkStreamsAndCleanup()
+                }
             }
             hook("pause", HookStage.AFTER) {
-                markRemoteStreamInactive(it.thisObject<Any>().hashCode(), "pause")
+                val streamId = it.thisObject<Any>().hashCode()
+                if (streams.containsKey(streamId)) {
+                    markRemoteStreamInactive(streamId, "pause")
+                }
             }
             hook("flush", HookStage.AFTER) {
-                markRemoteStreamInactive(it.thisObject<Any>().hashCode(), "flush")
+                val streamId = it.thisObject<Any>().hashCode()
+                if (streams.containsKey(streamId)) {
+                    markRemoteStreamInactive(streamId, "flush")
+                }
             }
             hook("release", HookStage.BEFORE) { 
-                markRemoteStreamInactive(it.thisObject<Any>().hashCode(), "release")
-                streams.remove(it.thisObject<Any>().hashCode())?.close()
+                val streamId = it.thisObject<Any>().hashCode()
+                if (streams.containsKey(streamId)) {
+                    markRemoteStreamInactive(streamId, "release")
+                }
+                streams.remove(streamId)?.close()
                 checkStreamsAndCleanup()
             }
         }

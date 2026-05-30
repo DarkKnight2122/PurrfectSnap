@@ -72,88 +72,20 @@ class UITweaks : Feature("UITweaks") {
 
     private fun findSpotlightNavTarget(
         event: AddViewEvent,
-        spotlightNavIds: Set<Int>,
-        spotlightNavNames: Set<String>
+        spotlightNavIds: Set<Int>
     ): View? {
-        data class ViewMetadata(
-            val view: View,
-            val resourceEntryName: String?,
-            val contentDescription: String?,
-            val text: String?,
-            val className: String
-        )
-
-        fun resourceEntryNameOrNull(view: View): String? {
-            val id = view.id
-            if (id == View.NO_ID || id == 0) return null
-            return runCatching { context.resources.getResourceEntryName(id) }.getOrNull()
-        }
-
-        val markerKeywords = setOf("spotlight", "following", "discover")
-
         val viewChain = buildList {
             var current: View? = event.view
             repeat(5) {
                 current ?: return@repeat
-                add(
-                    ViewMetadata(
-                        view = current!!,
-                        resourceEntryName = resourceEntryNameOrNull(current!!),
-                        contentDescription = current!!.contentDescription?.toString(),
-                        text = (current as? TextView)?.text?.toString(),
-                        className = current!!.javaClass.name
-                    )
-                )
+                add(current!!)
                 current = current?.parent as? View
             }
         }
 
-        fun isExactMatch(metadata: ViewMetadata): Boolean {
-            return metadata.view.id in spotlightNavIds ||
-                metadata.resourceEntryName in spotlightNavNames
-        }
-
-        fun hasMarker(metadata: ViewMetadata): Boolean {
-            return listOfNotNull(
-                metadata.resourceEntryName,
-                metadata.contentDescription,
-                metadata.text
-            ).any { value ->
-                markerKeywords.any { keyword ->
-                    value.contains(keyword, ignoreCase = true)
-                }
-            }
-        }
-
-        fun isNavigationLike(metadata: ViewMetadata): Boolean {
-            val resourceEntryName = metadata.resourceEntryName.orEmpty()
-            val className = metadata.className
-            return resourceEntryName.contains("hova_nav", ignoreCase = true) ||
-                resourceEntryName.contains("bottom_nav", ignoreCase = true) ||
-                resourceEntryName.contains("nav", ignoreCase = true) ||
-                resourceEntryName.contains("tab", ignoreCase = true) ||
-                className.contains("navigation", ignoreCase = true) ||
-                className.contains("bottom", ignoreCase = true) ||
-                className.contains("tab", ignoreCase = true) ||
-                className.contains("hova", ignoreCase = true)
-        }
-
-        if (viewChain.none(::isExactMatch) && viewChain.none(::hasMarker)) {
-            return null
-        }
-
-        var sawSpotlightMarker = false
-        viewChain.forEach { metadata ->
-            if (isExactMatch(metadata) || hasMarker(metadata)) {
-                sawSpotlightMarker = true
-            }
-
-            if (sawSpotlightMarker && isNavigationLike(metadata)) {
-                return metadata.view
-            }
-        }
-
-        return viewChain.firstOrNull(::isExactMatch)?.view
+        // Only check strictly numeric IDs to avoid expensive getResourceEntryName() calls
+        // which flood the system with 'Invalid resource ID' exceptions on obfuscated views.
+        return viewChain.firstOrNull { it.id in spotlightNavIds }
     }
 
     private fun findSpotlightHeaderTabsTarget(view: View): View? {
@@ -173,9 +105,8 @@ class UITweaks : Feature("UITweaks") {
         }
 
         fun isHeaderMarkerText(value: String): Boolean {
-            return value.contains("spotlight", ignoreCase = true) ||
-                value.contains("discover", ignoreCase = true) ||
-                value.contains("following", ignoreCase = true)
+            val lower = value.lowercase()
+            return lower.contains("spotlight") || lower.contains("discover") || lower.contains("following")
         }
 
         val candidateChain = buildList {
@@ -203,10 +134,10 @@ class UITweaks : Feature("UITweaks") {
                 .distinct()
 
             val hasSpotlightOrDiscover = texts.any {
-                it.contains("spotlight", ignoreCase = true) ||
-                    it.contains("discover", ignoreCase = true)
+                val lower = it.lowercase()
+                lower.contains("spotlight") || lower.contains("discover")
             }
-            val hasFollowing = texts.any { it.contains("following", ignoreCase = true) }
+            val hasFollowing = texts.any { it.lowercase().contains("following") }
 
             if (hasSpotlightOrDiscover && hasFollowing) {
                 return group
@@ -238,16 +169,6 @@ class UITweaks : Feature("UITweaks") {
             getId("hova_nav_discover_tab", "id"),
             getId("hova_nav_discover_button", "id")
         ).filter { it != 0 }.toSet()
-        val spotlightNavNames = setOf(
-            "hova_nav_spotlight",
-            "ngs_hova_nav_spotlight",
-            "hova_nav_spotlight_tab",
-            "hova_nav_spotlight_button",
-            "hova_nav_discover",
-            "ngs_hova_nav_discover",
-            "hova_nav_discover_tab",
-            "hova_nav_discover_button"
-        )
 
         Resources::class.java.methods.first { it.name == "getDimensionPixelSize" }.hook(
             HookStage.AFTER,
@@ -305,7 +226,9 @@ class UITweaks : Feature("UITweaks") {
             findSpotlightHeaderTabsTarget(event.view)?.hideViewCompletely()
         }
 
-        context.event.subscribe(AddViewEvent::class) { event ->
+        context.event.subscribe(AddViewEvent::class, {
+            blockAds || disableSpotlight || isImmersiveCamera || hiddenElements.contains("hide_unread_chat_hint")
+        }) { event ->
             val viewId = event.view.id
             val view = event.view
 
@@ -313,7 +236,7 @@ class UITweaks : Feature("UITweaks") {
                 hideStorySection(event)
             }
 
-            findSpotlightNavTarget(event, spotlightNavIds, spotlightNavNames)?.takeIf { disableSpotlight }?.let { targetView ->
+            findSpotlightNavTarget(event, spotlightNavIds)?.takeIf { disableSpotlight }?.let { targetView ->
                 targetView.hideViewCompletely()
                 if (targetView !== view) {
                     view.hideViewCompletely()
@@ -391,8 +314,9 @@ class UITweaks : Feature("UITweaks") {
                     chatInputBar?.onLayoutChange {
                         chatInputBar!!.children()
                             .lastOrNull {
-                                it.javaClass.name.endsWith("AppCompatImageButton") &&
-                                    runCatching { it.resources.getResourceName(it.id) }.getOrNull() == null
+                                // Only check for nameless AppCompatImageButton (typical of live location button)
+                                // This avoids the getResourceName() loop that causes lag.
+                                it.javaClass.name.endsWith("AppCompatImageButton") && it.id == View.NO_ID
                             }
                             ?.hideViewCompletely()
                     }

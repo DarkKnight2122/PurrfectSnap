@@ -59,6 +59,8 @@ class DownloaderConfig : ConfigContainer() {
         val callRecorderUiDesign = unique("call_recorder_ui_design", "default", "snapchat", "cyber", "frost") {
             addFlags(ConfigFlag.NO_DISABLE_KEY)
         }.apply { set("default") }
+        val echoSuppression = boolean("echo_suppression", true)
+        val noiseSuppression = boolean("noise_suppression", true)
     }
     val callRecorder = container("call_recorder", CallRecorderOptions()) { requireRestart() }
     val chatWallpaperDownloader = boolean("chat_wallpaper_downloader") { requireRestart() }
