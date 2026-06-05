@@ -30,16 +30,13 @@ private fun AphelionSkinProviderInternal(
     aetherMode: String = "AUTO",
     aetherAccent: String = "MAUVE",
     aetherAmoled: Boolean = false,
+    cyberwareStyle: String = "SYNTHWAVE",
     content: @Composable () -> Unit
 ) {
     val isSystemDark = (android.content.res.Resources.getSystem().configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
     
-    val colorScheme = if (skinId == "LUMINA" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        MaterialTheme.colorScheme
-    } else null
-
     val targetSkin = if (managerTheme == "APHELION") {
-        PurrfectSkins.fromId(skinId, colorScheme, isSystemDark, luminaMode, luminaAccent, aetherMode, aetherAccent, aetherAmoled)
+        PurrfectSkins.fromId(skinId, isSystemDark, luminaMode, luminaAccent, aetherMode, aetherAccent, aetherAmoled, cyberwareStyle)
     } else {
         PurrfectPalette
     }
@@ -129,6 +126,13 @@ fun AphelionSkinProvider(
             value = prefs.getBoolean("aether_amoled", false)
         }
     }
+    
+    val cyberwareStyle by produceState(initialValue = prefs.getString("cyberware_style", "SYNTHWAVE") ?: "SYNTHWAVE") {
+        while (true) {
+            delay(350)
+            value = prefs.getString("cyberware_style", "SYNTHWAVE") ?: "SYNTHWAVE"
+        }
+    }
 
     AphelionSkinProviderInternal(
         managerTheme = managerTheme,
@@ -138,6 +142,7 @@ fun AphelionSkinProvider(
         aetherMode = aetherMode,
         aetherAccent = aetherAccent,
         aetherAmoled = aetherAmoled,
+        cyberwareStyle = cyberwareStyle,
         content = content
     )
 }

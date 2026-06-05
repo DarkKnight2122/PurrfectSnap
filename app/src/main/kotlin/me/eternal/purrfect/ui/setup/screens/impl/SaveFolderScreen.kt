@@ -27,11 +27,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.util.G2RoundedRectangle
 import me.eternal.purrfect.ui.setup.screens.SetupScreen
 import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.util.chooseFolder
@@ -47,6 +49,7 @@ class SaveFolderScreen : SetupScreen() {
 
     @Composable
     override fun Content() {
+        val skin = LocalPurrfectSkin.current
         var currentFolder by remember {
             mutableStateOf(context.config.root.downloader.saveFolder.get().orEmpty())
         }
@@ -61,6 +64,7 @@ class SaveFolderScreen : SetupScreen() {
             }.getOrElse { currentFolder }
         }
         var showNoPickerDialog by remember { mutableStateOf(false) }
+        val contentColorAction = if (skin.glowPrimary.luminance() > 0.5f) Color.Black else Color.White
         SetupCard {
             StepTitle(
                 title = context.translation["setup.dialogs.save_folder"],
@@ -70,13 +74,13 @@ class SaveFolderScreen : SetupScreen() {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
-                color = Color.White.copy(alpha = 0.05f),
+                color = skin.textPrimary.copy(alpha = 0.05f),
                 border = BorderStroke(
                     1.dp,
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                            skin.glowPrimary.copy(alpha = 0.5f),
+                            skin.glowSecondary.copy(alpha = 0.35f)
                         )
                     )
                 )
@@ -90,14 +94,14 @@ class SaveFolderScreen : SetupScreen() {
                 ) {
                     Surface(
                         modifier = Modifier.size(42.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        color = PurrfectPalette.glowPrimary.copy(alpha = 0.18f)
+                        shape = if (skin.id == "AETHER") G2RoundedRectangle(14.dp) else RoundedCornerShape(14.dp),
+                        color = skin.glowPrimary.copy(alpha = 0.18f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Filled.FolderOpen,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = skin.textPrimary,
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
@@ -109,13 +113,13 @@ class SaveFolderScreen : SetupScreen() {
                         Text(
                             text = context.translation["setup.save_folder.destination_label"],
                             fontSize = 13.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                         Text(
                             text = readablePath ?: context.translation["setup.save_folder.system_default_label"],
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            color = skin.textPrimary,
                             maxLines = 2
                         )
                     }
@@ -143,8 +147,8 @@ class SaveFolderScreen : SetupScreen() {
                     .fillMaxWidth()
                     .scaleOnPress(src),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                    contentColor = Color.White
+                    containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                    contentColor = contentColorAction
                 )
             ) {
                 Text(text = context.translation["setup.dialogs.select_save_folder_button"])
@@ -164,9 +168,9 @@ class SaveFolderScreen : SetupScreen() {
                     .scaleOnPress(defaultSrc),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color.White
+                    contentColor = skin.textPrimary
                 ),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.18f))
             ) {
                 Text(text = context.translation["setup.save_folder.use_default_location_button"])
             }
@@ -174,7 +178,7 @@ class SaveFolderScreen : SetupScreen() {
             if (showNoPickerDialog) {
                 Dialog(onDismissRequest = { showNoPickerDialog = false }) {
                     Surface(
-                        shape = RoundedCornerShape(28.dp),
+                        shape = if (skin.id == "AETHER") G2RoundedRectangle(28.dp) else RoundedCornerShape(28.dp),
                         color = Color.Transparent,
                         tonalElevation = 0.dp,
                         shadowElevation = 18.dp,
@@ -182,29 +186,29 @@ class SaveFolderScreen : SetupScreen() {
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                    skin.glowPrimary.copy(alpha = 0.55f),
+                                    skin.glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
                         )
                     ) {
                         Column(
                             modifier = Modifier
-                                .background(PurrfectPalette.cardOverlay)
+                                .background(if (skin.id == "AETHER") skin.cardOverlayColor else skin.cardOverlayColor.copy(alpha = 0.28f))
                                 .padding(horizontal = 20.dp, vertical = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Surface(
                                 modifier = Modifier.size(62.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                color = PurrfectPalette.glowSecondary.copy(alpha = 0.18f)
+                                shape = if (skin.id == "AETHER") G2RoundedRectangle(20.dp) else RoundedCornerShape(20.dp),
+                                color = skin.glowSecondary.copy(alpha = 0.18f)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Filled.FolderOpen,
                                         contentDescription = null,
-                                        tint = Color.White,
+                                        tint = skin.textPrimary,
                                         modifier = Modifier.size(30.dp)
                                     )
                                 }
@@ -213,14 +217,14 @@ class SaveFolderScreen : SetupScreen() {
                                 text = context.translation["setup.save_folder.no_picker_title"],
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
+                                color = skin.textPrimary
                             )
                             Text(
                                 text = context.translation["setup.save_folder.no_picker_message"],
                                 fontSize = 14.sp,
                                 lineHeight = 18.sp,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                                color = PurrfectPalette.textSecondary
+                                color = skin.textSecondary
                             )
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -230,11 +234,11 @@ class SaveFolderScreen : SetupScreen() {
                                 OutlinedButton(
                                     onClick = { showNoPickerDialog = false },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(18.dp),
+                                    shape = if (skin.id == "AETHER") G2RoundedRectangle(18.dp) else RoundedCornerShape(18.dp),
                                     colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = Color.White
+                                        contentColor = skin.textPrimary
                                     ),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+                                    border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.14f))
                                 ) {
                                     Text(context.translation["button.cancel"])
                                 }
@@ -248,10 +252,10 @@ class SaveFolderScreen : SetupScreen() {
                                         goNext()
                                     },
                                     modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(18.dp),
+                                    shape = if (skin.id == "AETHER") G2RoundedRectangle(18.dp) else RoundedCornerShape(18.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.32f),
-                                        contentColor = Color.White
+                                        containerColor = skin.glowPrimary.copy(alpha = 0.32f),
+                                        contentColor = contentColorAction
                                     )
                                 ) {
                                     Text(context.translation["setup.save_folder.use_default_button"])

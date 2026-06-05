@@ -565,6 +565,7 @@ class RemoteSideContext(
                 .putString("aether_mode", uiSettings.aetherMode.get())
                 .putString("aether_accent", uiSettings.aetherAccent.get())
                 .putBoolean("aether_amoled", uiSettings.aetherAmoled.get())
+                .putString("cyberware_style", uiSettings.cyberwareStyle.get())
                 .apply()
         }
     }

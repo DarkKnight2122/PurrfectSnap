@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.eternal.purrfect.RemoteSideContext
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import kotlin.math.roundToInt
 
 internal val LocalSetupScrollState = compositionLocalOf<ScrollState?> { null }
@@ -44,16 +44,18 @@ abstract class SetupScreen {
     lateinit var context: RemoteSideContext
     lateinit var allowNext: (canGoNext: Boolean) -> Unit
     lateinit var goNext: () -> Unit
+    var showSkip: ((label: String?, onSkip: () -> Unit) -> Unit)? = null
     lateinit var route: String
     var isFirstRunFlow: Boolean = false
 
     @Composable
     fun DialogText(text: String, modifier: Modifier = Modifier) {
+        val skin = LocalPurrfectSkin.current
         Text(
             text = text,
             fontSize = 16.sp,
             fontWeight = FontWeight.Medium,
-            color = PurrfectPalette.textSecondary,
+            color = skin.textSecondary,
             lineHeight = 20.sp,
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp).then(modifier)
         )
@@ -66,6 +68,7 @@ abstract class SetupScreen {
         modifier: Modifier = Modifier,
         textAlign: TextAlign = TextAlign.Start
     ) {
+        val skin = LocalPurrfectSkin.current
         val horizontalAlignment = if (textAlign == TextAlign.Center) Alignment.CenterHorizontally else Alignment.Start
         androidx.compose.foundation.layout.Column(
             modifier = modifier.fillMaxWidth(),
@@ -76,7 +79,7 @@ abstract class SetupScreen {
                 text = title,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = PurrfectPalette.textPrimary,
+                color = skin.textPrimary,
                 textAlign = textAlign
             )
             if (!subtitle.isNullOrBlank()) {
@@ -84,7 +87,7 @@ abstract class SetupScreen {
                     text = subtitle,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = PurrfectPalette.textSecondary,
+                    color = skin.textSecondary,
                     lineHeight = 18.sp,
                     textAlign = textAlign
                 )
@@ -98,6 +101,7 @@ abstract class SetupScreen {
         setupScrollEnabled: Boolean = true,
         content: @Composable ColumnScope.() -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
         val scrollState = if (setupScrollEnabled) LocalSetupScrollState.current else null
         val viewportHeight = if (setupScrollEnabled) LocalSetupViewportHeight.current else null
         val hasScrollbar = (scrollState?.maxValue ?: 0) > 0
@@ -114,8 +118,8 @@ abstract class SetupScreen {
                 1.dp,
                 Brush.linearGradient(
                     listOf(
-                        PurrfectPalette.glowPrimary.copy(alpha = 0.42f),
-                        PurrfectPalette.glowSecondary.copy(alpha = 0.32f)
+                        skin.glowPrimary.copy(alpha = 0.42f),
+                        skin.glowSecondary.copy(alpha = 0.32f)
                     )
                 )
             )
@@ -123,7 +127,7 @@ abstract class SetupScreen {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(PurrfectPalette.cardOverlay)
+                    .background(skin.cardOverlay)
             ) {
                 androidx.compose.foundation.layout.Column(
                     modifier = Modifier
@@ -134,20 +138,6 @@ abstract class SetupScreen {
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        PurrfectPalette.glowSecondary.copy(alpha = 0.4f),
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.4f)
-                                    )
-                                ),
-                                shape = RoundedCornerShape(50)
-                            )
-                    )
                     content()
                 }
 
@@ -202,6 +192,7 @@ private fun SetupCardScrollbar(
                 .fillMaxHeight()
                 .background(Color.White.copy(alpha = 0.12f), CircleShape)
         )
+        val skin = LocalPurrfectSkin.current
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -211,8 +202,8 @@ private fun SetupCardScrollbar(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            PurrfectPalette.glowSecondary,
-                            PurrfectPalette.glowPrimary
+                            skin.glowSecondary,
+                            skin.glowPrimary
                         )
                     ),
                     CircleShape

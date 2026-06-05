@@ -46,8 +46,27 @@ fun AphelionSkinPicker(
     val skin = LocalPurrfectSkin.current
     val scrollState = rememberScrollState()
 
+    val showCyberware = false
+
     val skins = remember {
-        listOf(
+        listOfNotNull(
+            SkinOption(
+                id = "LUMINA",
+                name = "Lumina",
+                description = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                    "Adaptive Day/Night aesthetics. Automatically shifts from ivory white to charcoal black."
+                else
+                    "Requires Android 12+",
+                previewColors = listOf(Color(0xFFF8F3EC), Color(0xFF08080A), Color(0xFFF1D7D2)),
+                available = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            ),
+            SkinOption(
+                id = "AETHER",
+                name = "Aether",
+                description = "Functional minimalism with high-contrast solid surfaces.",
+                previewColors = listOf(Color(0xFFF8F3EC), Color(0xFF1A1B26), Color(0xFF8F63D8)),
+                available = true
+            ),
             SkinOption(
                 id = "LUX",
                 name = "Lux",
@@ -76,23 +95,13 @@ fun AphelionSkinPicker(
                 previewColors = listOf(Color(0xFF000000), Color(0xFF2D2D2D), Color(0xFFFFFFFF)),
                 available = true
             ),
-            SkinOption(
-                id = "LUMINA",
-                name = "Lumina",
-                description = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                    "Adaptive Day/Night aesthetics. Automatically shifts from ivory white to charcoal black."
-                else
-                    "Requires Android 12+",
-                previewColors = listOf(Color(0xFFF8F3EC), Color(0xFF08080A), Color(0xFFF1D7D2)),
-                available = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-            ),
-            SkinOption(
-                id = "AETHER",
-                name = "Aether",
-                description = "Functional minimalism with high-contrast solid surfaces.",
-                previewColors = listOf(Color(0xFFF8F3EC), Color(0xFF1A1B26), Color(0xFF8F63D8)),
+            if (showCyberware) SkinOption(
+                id = "CYBER",
+                name = "Cyber",
+                description = "Full Cyberpunk aesthetic. Choose between Synthwave and Night City styles. Dark theme.",
+                previewColors = listOf(Color(0xFF090713), Color(0xFF111111), Color(0xFF05D9E8)),
                 available = true
-            )
+            ) else null
         )
     }
 

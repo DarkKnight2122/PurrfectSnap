@@ -203,25 +203,89 @@ object PurrfectSkins {
         )
     }
 
+    // —— CYBER (Synthwave & Night City Tactical) —————————————————————————————————
+    fun cyber(style: String): PurrfectColorSet {
+        val isSynthwave = style.trim() == "SYNTHWAVE"
+        
+        // Synthwave Colors
+        val synthMidnight = Color(0xFF090713)
+        val synthDark = Color(0xFF141124)
+        val synthElevated = Color(0xFF221C38)
+        val synthCyan = Color(0xFF05D9E8)
+        val synthMagenta = Color(0xFF9D00FF)
+        val synthHolo = Color(0xFF00FFD1)
+        val synthWireframe = Color(0xFF332B4D)
+        val synthText = Color(0xFFF0F4F8)
+        val synthSubtext = Color(0xFF7A85A3)
+
+        // Night City Colors
+        val ncVoid = Color(0xFF050505)
+        val ncMatte = Color(0xFF111111)
+        val ncPolymer = Color(0xFF1D1D1D)
+        val ncYellow = Color(0xFFFCEE0A)
+        val ncMagenta = Color(0xFFFF0055)
+        val ncTeal = Color(0xFF00F0FF)
+        val ncWire = Color(0xFF2B2B2B)
+        val ncText = Color(0xFFF5F5F5)
+        val ncAsh = Color(0xFF888888)
+
+        val backgroundStart = if (isSynthwave) synthMidnight else ncVoid
+        val panelEnd = if (isSynthwave) synthDark else ncMatte
+        val cardColor = if (isSynthwave) synthElevated else ncPolymer
+        val primaryGlow = if (isSynthwave) synthCyan else ncYellow
+        val secondaryGlow = if (isSynthwave) synthMagenta else ncMagenta
+        val laserBorder = if (isSynthwave) synthHolo else ncTeal
+        val glassBorder = if (isSynthwave) synthWireframe else ncWire
+        val textPrimary = if (isSynthwave) synthText else ncText
+        val textSecondary = if (isSynthwave) synthSubtext else ncAsh
+        val buttonText = if (isSynthwave) synthMidnight else ncVoid
+        val glassTint = if (isSynthwave) synthHolo.copy(alpha = 0.05f) else ncYellow.copy(alpha = 0.03f)
+
+        return PurrfectColorSet(
+            id = "CYBER",
+            isDark = true, // Cyber is always dark
+            backgroundGradient = Brush.verticalGradient(listOf(backgroundStart, Color.Black)),
+            panelGradient = Brush.linearGradient(listOf(backgroundStart, panelEnd)),
+            cardOverlay = SolidColor(cardColor),
+            cardOverlayColor = cardColor,
+            glassSurface = glassTint,
+            glassBorder = glassBorder,
+            glassSpecular = Color.White.copy(alpha = 0.15f),
+            blurTint = backgroundStart.copy(alpha = 0.65f),
+            refractiveColor = backgroundStart,
+            vibrancyFactor = 1.35f,
+            refractionIntensity = 0.8f,
+            laserBorder = laserBorder.copy(alpha = 0.35f),
+            specularAlpha = 0.15f,
+            glowPrimary = primaryGlow,
+            glowSecondary = secondaryGlow,
+            textPrimary = textPrimary,
+            textSecondary = textSecondary,
+            primaryButtonText = buttonText, // Cutout Effect
+            iconTint = textPrimary
+        )
+    }
+
     /**
      * Returns the correct [PurrfectColorSet] for the given skin ID.
      * Modified to pass through user Lumina and Aether preferences.
      */
     fun fromId(
-        skinId: String,
-        colorScheme: ColorScheme? = null,
+        id: String,
         isSystemDark: Boolean = true,
         luminaMode: String = "AUTO",
-        luminaAccent: String = "MAUVE",
-        aetherMode: String = "AUTO",
-        aetherAccent: String = "MAUVE",
-        aetherAmoled: Boolean = false
-    ): PurrfectColorSet = when (skinId) {
-        "AMBER"  -> amber
-        "NOX"    -> nox
-        "LUX"    -> lux
-        "LUMINA" -> lumina(luminaMode, luminaAccent, isSystemDark)
-        "AETHER" -> aether(aetherMode, aetherAccent, aetherAmoled, isSystemDark)
-        else     -> umbra
+        luminaAccent: String = "LAVENDER",
+        aetherMode: String = "DARK",
+        aetherAccent: String = "PINK",
+        aetherAmoled: Boolean = false,
+        cyberwareStyle: String = "SYNTHWAVE"
+    ): PurrfectColorSet = when (id) {
+        "AMBER"     -> amber
+        "NOX"       -> nox
+        "LUX"       -> lux
+        "LUMINA"    -> lumina(luminaMode, luminaAccent, isSystemDark)
+        "AETHER"    -> aether(aetherMode, aetherAccent, aetherAmoled, isSystemDark)
+        "CYBER"     -> cyber(cyberwareStyle)
+        else        -> umbra
     }
 }

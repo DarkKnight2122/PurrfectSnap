@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,7 +55,8 @@ import androidx.lifecycle.Lifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfect.common.TargetApp
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
+import me.eternal.purrfect.common.ui.util.G2RoundedRectangle
 import me.eternal.purrfect.ui.setup.screens.SetupScreen
 import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.util.OnLifecycleEvent
@@ -96,15 +98,17 @@ class PermissionsScreen(
         redditOnly: Boolean,
         onRequest: () -> Unit
     ) {
-        val accent = if (granted) PurrfectPalette.glowSecondary else PurrfectPalette.glowPrimary
+        val skin = LocalPurrfectSkin.current
+        val accent = if (granted) skin.glowSecondary else skin.glowPrimary
+        val contentColor = if (skin.isDark) Color.White else Color.Black
         val buttonColors = ButtonDefaults.buttonColors(
             containerColor = accent.copy(alpha = 0.28f),
-            contentColor = Color.White
+            contentColor = contentColor
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
-            color = Color(0xFF0F1220),
+            color = skin.cardOverlayColor,
             border = BorderStroke(1.dp, accent.copy(alpha = 0.45f)),
             tonalElevation = if (granted) 8.dp else 0.dp,
             shadowElevation = 8.dp
@@ -132,7 +136,7 @@ class PermissionsScreen(
                                     else -> Icons.Filled.NotificationsActive
                                 },
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = accent,
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
@@ -144,7 +148,7 @@ class PermissionsScreen(
                         Text(
                             text = label,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            color = skin.textPrimary,
                             fontSize = 16.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -154,7 +158,7 @@ class PermissionsScreen(
                             Text(
                                 text = description,
                                 fontSize = 12.sp,
-                                color = PurrfectPalette.textSecondary,
+                                color = skin.textSecondary,
                                 lineHeight = 16.sp
                             )
                         }
@@ -172,9 +176,9 @@ class PermissionsScreen(
                     if (isGranted) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                            color = PurrfectPalette.glowSecondary.copy(alpha = 0.18f),
-                            border = BorderStroke(1.dp, PurrfectPalette.glowSecondary.copy(alpha = 0.5f))
+                            shape = if (skin.id == "AETHER") G2RoundedRectangle(14.dp) else RoundedCornerShape(14.dp),
+                            color = skin.glowSecondary.copy(alpha = 0.18f),
+                            border = BorderStroke(1.dp, skin.glowSecondary.copy(alpha = 0.5f))
                         ) {
                             Row(
                                 modifier = Modifier
@@ -186,12 +190,12 @@ class PermissionsScreen(
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = skin.glowSecondary,
                                     modifier = Modifier.padding(end = 6.dp)
                                 )
                                 Text(
                                     text = context.translation["setup.permissions.granted_label"],
-                                    color = Color.White,
+                                    color = skin.glowSecondary,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }

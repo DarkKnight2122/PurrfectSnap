@@ -49,7 +49,7 @@ class ChatActionMenu : AbstractMenu() {
                 ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
                 val skinId = this@ChatActionMenu.context.androidContext.getSharedPreferences("prefs", 0).getString("aphelion_skin", "UMBRA") ?: "UMBRA"
-                val skin = me.eternal.purrfect.common.ui.theme.PurrfectSkins.fromId(skinId, null, true)
+                val skin = me.eternal.purrfect.common.ui.theme.PurrfectSkins.fromId(skinId)
                 background = createRoundedBackground(skin.cardOverlayColor.value.toInt(), 16F, true)
                 setMargins(chatActionMenuItemMargin, 0, chatActionMenuItemMargin, defaultGap)
             }
@@ -75,7 +75,7 @@ class ChatActionMenu : AbstractMenu() {
         if (viewTagState[viewGroup]) return
         
         val skinId = context.androidContext.getSharedPreferences("prefs", 0).getString("aphelion_skin", "UMBRA") ?: "UMBRA"
-        val skin = me.eternal.purrfect.common.ui.theme.PurrfectSkins.fromId(skinId, null, true)
+        val skin = me.eternal.purrfect.common.ui.theme.PurrfectSkins.fromId(skinId)
 
         //close the action menu using a touch event
         val closeActionMenu = {

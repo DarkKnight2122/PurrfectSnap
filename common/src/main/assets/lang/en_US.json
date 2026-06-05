@@ -334,7 +334,7 @@
             },
             "home_settings": {
                 "ui_theme_title": "UI Theme",
-                "settings_ui_theme": "Aphelion Theme",
+                "settings_ui_theme": "Aphelion Theme Skins",
                 "actions_title": "Actions",
                 "message_logger_title": "Message Logger",
                 "debug_title": "Debug",
@@ -552,7 +552,13 @@
             "logged_stories": {
                 "story_failed_to_load": "Failed to load",
                 "no_stories": "No stories found",
-                "save_from_cache_button": "Save from Cache"
+                "save_from_cache_button": "Save from Cache",
+                "posted_at": "Posted at {date}",
+                "created_at": "Created at {date}",
+                "downloaded_to_path": "Downloaded to {path}",
+                "download_failed": "Download failed: {message}",
+                "failed_to_open_file": "Failed to open file",
+                "failed_to_get_file": "Failed to get file"
             },
             "messaging_preview": {
                 "bridge_connection_failed": "Failed to connect to bridge. Make sure Snapchat is running in the background",

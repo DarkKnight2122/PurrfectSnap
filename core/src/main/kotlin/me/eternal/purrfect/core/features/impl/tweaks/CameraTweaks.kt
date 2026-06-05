@@ -23,7 +23,11 @@ import me.eternal.purrfect.core.util.ktx.setObjectField
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 
+import java.util.concurrent.atomic.AtomicBoolean
+
 class CameraTweaks : Feature("Camera Tweaks") {
+    private val isRecording = AtomicBoolean(false)
+
     private fun parseResolution(resolution: String): IntArray? {
         return runCatching { resolution.split("x").map { it.toInt() }.toIntArray() }.getOrNull()
     }
@@ -45,6 +49,13 @@ class CameraTweaks : Feature("Camera Tweaks") {
                     CaptureRequest.HOT_PIXEL_MODE -> param.setArg(1, CaptureRequest.HOT_PIXEL_MODE_HIGH_QUALITY)
                     CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE -> param.setArg(1, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY)
                     CaptureRequest.CONTROL_AF_MODE -> param.setArg(1, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                    CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE -> {
+                        if (!isRecording.get()) return@hook
+                        val currentRange = param.arg<Range<Int>>(1)
+                        if (currentRange.upper < 60) {
+                            param.setArg(1, Range(30, 60))
+                        }
+                    }
                 }
             }
         }
@@ -58,6 +69,9 @@ class CameraTweaks : Feature("Camera Tweaks") {
             }
             
             // Modern Arroyo Video Pipeline Overdrive (Hardware Encoder)
+            MediaCodec::class.java.hook("start", HookStage.BEFORE) { isRecording.set(true) }
+            MediaCodec::class.java.hook("stop", HookStage.BEFORE) { isRecording.set(false) }
+
             MediaCodec::class.java.hook("configure", HookStage.BEFORE) { param ->
                 val format = param.argNullable<MediaFormat>(0) ?: return@hook
                 

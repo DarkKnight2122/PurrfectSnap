@@ -24,22 +24,25 @@ import me.eternal.purrfect.mapper.impl.CallbackMapper
 import me.eternal.purrfect.mapper.impl.ViewBinderMapper
 import java.nio.ByteBuffer
 
+import java.util.concurrent.ConcurrentHashMap
+
 class EventDispatcher(
     private val context: ModContext
 ) {
+    private val hookCache = ConcurrentHashMap<String, Boolean>()
+
     private fun hookViewBinder() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             context.log.warn("BindViewEvent hooks disabled on Android 9 and below")
             return
         }
         context.mappings.useMapper(ViewBinderMapper::class) {
-            val cachedHooks = mutableListOf<String>()
             fun cacheHook(clazz: Class<*>, block: Class<*>.() -> Unit) {
-                synchronized(cachedHooks) {
-                    if (!cachedHooks.contains(clazz.name)) {
-                        clazz.block()
-                        cachedHooks.add(clazz.name)
+                hookCache.computeIfAbsent(clazz.name) {
+                    runCatching { clazz.block() }.onFailure { 
+                        context.log.error("Failed to apply UI hook to ${clazz.name}", it) 
                     }
+                    true
                 }
             }
 

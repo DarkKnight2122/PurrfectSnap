@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
@@ -31,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,12 +43,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import kotlinx.coroutines.delay
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.setup.screens.SetupScreen
 import me.eternal.purrfect.ui.util.scaleOnPress
 
@@ -71,7 +75,8 @@ class InstallModeScreen(
 
     @Composable
     override fun Content() {
-        var choice by remember { mutableStateOf(selectedMode) }
+        val skin = LocalPurrfectSkin.current
+        var choice by rememberSaveable { mutableStateOf(selectedMode) }
         var skipSelected by remember { mutableStateOf(skipAutoSetup) }
         var showGuides by remember { mutableStateOf(true) }
         var timeout by remember { mutableIntStateOf(15) }
@@ -112,20 +117,20 @@ class InstallModeScreen(
                 showCloseButton = false,
                 customContent = {
                     val bodyStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = PurrfectPalette.textSecondary,
+                        color = skin.textSecondary,
                         lineHeight = 18.sp
                     )
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = PurrfectPalette.cardOverlayColor,
+                        color = skin.cardOverlayColor,
                         tonalElevation = 0.dp,
                         shadowElevation = 0.dp,
                         border = BorderStroke(
                             1.dp,
                             Brush.linearGradient(
                                 listOf(
-                                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                                    skin.glowPrimary.copy(alpha = 0.55f),
+                                    skin.glowSecondary.copy(alpha = 0.35f)
                                 )
                             )
                         )
@@ -148,7 +153,7 @@ class InstallModeScreen(
                             Text(
                                 text = context.translation["setup.install_mode.notice_non_root_title"],
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
+                                color = skin.textPrimary,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Start
                             )
@@ -161,7 +166,7 @@ class InstallModeScreen(
                             Text(
                                 text = context.translation["setup.install_mode.notice_root_title"],
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
+                                color = skin.textPrimary,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = TextAlign.Start
                             )
@@ -177,10 +182,33 @@ class InstallModeScreen(
                                 textAlign = TextAlign.Start,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            Text(
+                                text = androidx.compose.ui.text.buildAnnotatedString {
+                                    withStyle(androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = skin.textPrimary)) {
+                                        append(context.translation["setup.install_mode.notice_note_prefix"])
+                                    }
+                                    append(context.translation["setup.install_mode.notice_note_body"])
+                                },
+                                style = bodyStyle,
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
             )
+        }
+
+        // Allow skip if enabled
+        if (allowSkip) {
+            LaunchedEffect(Unit) {
+                showSkip?.invoke(context.translation["setup.install_mode.skip_auto_setup"]) {
+                    skipSelected = true
+                    choice = null
+                    onSkipAutoSetup()
+                    goNext()
+                }
+            }
         }
 
         SetupCard {
@@ -199,8 +227,8 @@ class InstallModeScreen(
                     icon = Icons.Filled.VerifiedUser,
                     accent = Brush.horizontalGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.45f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.55f)
+                            skin.glowPrimary.copy(alpha = 0.45f),
+                            skin.glowSecondary.copy(alpha = 0.55f)
                         )
                     ),
                     selected = choice == InstallMode.ROOT,
@@ -226,50 +254,6 @@ class InstallModeScreen(
                     }
                 )
             }
-            val interactionSource = remember { MutableInteractionSource() }
-            if (allowSkip) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .scaleOnPress(interactionSource)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null
-                        ) {
-                            skipSelected = true
-                            choice = null
-                            onSkipAutoSetup()
-                            goNext()
-                        },
-                    color = Color.White.copy(alpha = 0.04f),
-                    shape = RoundedCornerShape(16.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = context.translation["setup.install_mode.skip_auto_setup"],
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                            contentDescription = null,
-                            tint = PurrfectPalette.glowSecondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
         }
     }
 
@@ -282,16 +266,17 @@ class InstallModeScreen(
         selected: Boolean,
         onClick: () -> Unit
     ) {
+        val skin = LocalPurrfectSkin.current
         val interactionSource = remember { MutableInteractionSource() }
         val background = if (selected) {
-            Color.White.copy(alpha = 0.08f)
+            skin.textPrimary.copy(alpha = 0.08f)
         } else {
-            Color.White.copy(alpha = 0.04f)
+            skin.textPrimary.copy(alpha = 0.04f)
         }
         val borderColor = if (selected) {
-            Color.White.copy(alpha = 0.4f)
+            skin.textPrimary.copy(alpha = 0.4f)
         } else {
-            Color.White.copy(alpha = 0.18f)
+            skin.textPrimary.copy(alpha = 0.18f)
         }
         Surface(
             modifier = Modifier
@@ -316,8 +301,8 @@ class InstallModeScreen(
                 Surface(
                     modifier = Modifier.size(44.dp),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color.White.copy(alpha = 0.06f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+                    color = skin.textPrimary.copy(alpha = 0.06f),
+                    border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.18f))
                 ) {
                     Box(
                         modifier = Modifier
@@ -340,12 +325,12 @@ class InstallModeScreen(
                         text = title,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = skin.textPrimary
                     )
                     Text(
                         text = subtitle,
                         fontSize = 14.sp,
-                        color = PurrfectPalette.textSecondary,
+                        color = skin.textSecondary,
                         lineHeight = 18.sp
                     )
                 }
@@ -353,8 +338,8 @@ class InstallModeScreen(
                     Surface(
                         modifier = Modifier.size(22.dp),
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.14f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
+                        color = skin.textPrimary.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.5f))
                     ) {
                         Box(
                             modifier = Modifier
@@ -367,7 +352,7 @@ class InstallModeScreen(
                         modifier = Modifier.size(22.dp),
                         shape = CircleShape,
                         color = Color.Transparent,
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.2f))
                     ) {}
                 }
             }

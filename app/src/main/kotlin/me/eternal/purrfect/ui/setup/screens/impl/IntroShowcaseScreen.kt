@@ -36,7 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.eternal.purrfect.R
 import me.eternal.purrfect.common.TargetApp
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.setup.screens.SetupScreen
 import me.eternal.purrfect.ui.util.scaleOnPress
 
@@ -60,6 +62,7 @@ class IntroShowcaseScreen(
 
     @Composable
     override fun Content() {
+        val skin = LocalPurrfectSkin.current
         var selectedKeys by rememberSaveable {
             mutableStateOf(selectedAppsProvider().toSetupTargetPrefsValue())
         }
@@ -116,8 +119,8 @@ class IntroShowcaseScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                color = Color.White.copy(alpha = 0.05f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+                color = skin.textPrimary.copy(alpha = 0.05f),
+                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.14f))
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
@@ -125,13 +128,13 @@ class IntroShowcaseScreen(
                 ) {
                     Text(
                         text = "Current supported apps",
-                        color = Color.White,
+                        color = skin.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
                     Text(
                         text = "Choose the apps you need. Tap an app to preview the features included, then tick one or both before continuing.",
-                        color = PurrfectPalette.textSecondary,
+                        color = skin.textSecondary,
                         fontWeight = FontWeight.Medium,
                         fontSize = 14.sp,
                         lineHeight = 18.sp
@@ -168,10 +171,11 @@ private fun SupportedAppCard(
     selected: Boolean,
     onCheckedChange: () -> Unit
 ) {
+    val skin = LocalPurrfectSkin.current
     var expanded by rememberSaveable(app.targetApp.key) { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
-    val background = if (selected) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.04f)
-    val borderColor = if (selected) Color.White.copy(alpha = 0.38f) else Color.White.copy(alpha = 0.16f)
+    val background = if (selected) skin.textPrimary.copy(alpha = 0.08f) else skin.textPrimary.copy(alpha = 0.04f)
+    val borderColor = if (selected) skin.textPrimary.copy(alpha = 0.38f) else skin.textPrimary.copy(alpha = 0.16f)
 
     Surface(
         modifier = Modifier
@@ -190,7 +194,7 @@ private fun SupportedAppCard(
     ) {
         Column(
             modifier = Modifier
-                .background(PurrfectPalette.cardOverlay)
+                .background(skin.cardOverlayColor.copy(alpha = 0.28f))
                 .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -213,7 +217,7 @@ private fun SupportedAppCard(
                 ) {
                     Text(
                         text = app.name,
-                        color = Color.White,
+                        color = skin.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
@@ -222,9 +226,9 @@ private fun SupportedAppCard(
                     checked = selected,
                     onCheckedChange = { onCheckedChange() },
                     colors = CheckboxDefaults.colors(
-                        checkedColor = PurrfectPalette.glowSecondary,
-                        uncheckedColor = Color.White.copy(alpha = 0.7f),
-                        checkmarkColor = Color.White
+                        checkedColor = skin.glowSecondary,
+                        uncheckedColor = skin.textPrimary.copy(alpha = 0.5f),
+                        checkmarkColor = if (skin.isDark) Color.White else Color.Black
                     )
                 )
             }
@@ -241,12 +245,12 @@ private fun SupportedAppCard(
                     Icon(
                         imageVector = Icons.Filled.CheckCircle,
                         contentDescription = null,
-                        tint = Color(0xFF4ADE80),
+                        tint = if (skin.isDark) Color(0xFF4ADE80) else Color(0xFF16A34A),
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
                         text = "Available Features",
-                        color = Color.White,
+                        color = skin.textPrimary,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     )
@@ -254,7 +258,7 @@ private fun SupportedAppCard(
                 Icon(
                     imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.86f)
+                    tint = skin.textPrimary.copy(alpha = 0.86f)
                 )
             }
 
@@ -279,6 +283,11 @@ private fun FeatureBullet(
     text: String,
     emphasized: Boolean = false
 ) {
+    val skin = LocalPurrfectSkin.current
+    val contentColor = if (emphasized) {
+        if (skin.isDark) Color.White else Color.Black
+    } else skin.textPrimary
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top,
@@ -290,24 +299,24 @@ private fun FeatureBullet(
                 .size(20.dp),
             shape = CircleShape,
             color = if (emphasized) {
-                PurrfectPalette.glowPrimary.copy(alpha = 0.28f)
+                skin.glowPrimary.copy(alpha = 0.28f)
             } else {
-                Color.White.copy(alpha = 0.08f)
+                skin.textPrimary.copy(alpha = 0.08f)
             },
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+            border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.16f))
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Filled.Check,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (emphasized) contentColor else skin.textPrimary,
                     modifier = Modifier.size(13.dp)
                 )
             }
         }
         Text(
             text = text,
-            color = if (emphasized) Color.White else PurrfectPalette.textPrimary,
+            color = if (emphasized) (if (skin.isDark) Color.White else Color.Black) else skin.textPrimary,
             fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium,
             fontSize = 14.sp,
             lineHeight = 18.sp

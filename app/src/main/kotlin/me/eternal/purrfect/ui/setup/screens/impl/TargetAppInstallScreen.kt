@@ -54,6 +54,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -76,7 +78,11 @@ import me.eternal.purrfect.setup.patch.LSPatch
 import me.eternal.purrfect.ui.manager.ManagerAssistantDialog
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.data.Updater
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.util.G2RoundedRectangle
+import me.eternal.purrfect.ui.manager.theme.WavyCircularProgressIndicator
+import me.eternal.purrfect.ui.manager.theme.WavyProgress
 import me.eternal.purrfect.ui.setup.SetupPreferences
 import me.eternal.purrfect.ui.setup.screens.SetupScreen
 import me.eternal.purrfect.ui.util.scaleOnPress
@@ -518,11 +524,12 @@ open class TargetAppInstallScreen(
             }
         }
 
-        val accent = remember {
+        val skin = LocalPurrfectSkin.current
+        val accent = remember(skin) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowSecondary,
-                    PurrfectPalette.glowPrimary
+                    skin.glowSecondary,
+                    skin.glowPrimary
                 )
             )
         }
@@ -561,25 +568,26 @@ open class TargetAppInstallScreen(
             if (flow != SetupInstallFlow.ROOT) {
                 JingmatrixBadge(accent, translation)
             }
+            val innerShape = if (skin.id == "AETHER") G2RoundedRectangle(24.dp) else RoundedCornerShape(24.dp)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.03f),
+                shape = innerShape,
+                color = skin.textPrimary.copy(alpha = 0.03f),
                 tonalElevation = 0.dp,
                 border = BorderStroke(
                     1.dp,
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.4f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                            skin.glowPrimary.copy(alpha = 0.4f),
+                            skin.glowSecondary.copy(alpha = 0.35f)
                         )
                     )
                 )
             ) {
                 Column(
                     modifier = Modifier
-                        .background(PurrfectPalette.cardOverlay)
+                        .background(if (skin.id == "AETHER") skin.cardOverlayColor else skin.cardOverlayColor.copy(alpha = 0.28f))
                         .padding(horizontal = 18.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -611,28 +619,49 @@ open class TargetAppInstallScreen(
                                         "app" to currentTarget.displayName
                                     )
                                 },
-                                color = PurrfectPalette.textPrimary,
+                                color = skin.textPrimary,
                                 fontWeight = FontWeight.Medium
                             )
                             if (isDownloading) {
-                                LinearProgressIndicator(
-                                    progress = { progress.coerceIn(0f, 1f) },
-                                    color = PurrfectPalette.glowPrimary,
-                                    trackColor = Color.White.copy(alpha = 0.12f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                )
+                                if (skin.id == "AETHER") {
+                                    WavyProgress(
+                                        progress = progress.coerceIn(0f, 1f),
+                                        color = skin.glowPrimary,
+                                        height = 8.dp,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                } else {
+                                    LinearProgressIndicator(
+                                        progress = { progress.coerceIn(0f, 1f) },
+                                        color = skin.glowPrimary,
+                                        trackColor = skin.textPrimary.copy(alpha = 0.12f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                    )
+                                }
                             } else {
-                                LinearProgressIndicator(
-                                    color = PurrfectPalette.glowPrimary,
-                                    trackColor = Color.White.copy(alpha = 0.12f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                )
+                                if (skin.id == "AETHER") {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        WavyCircularProgressIndicator(
+                                            color = skin.glowPrimary,
+                                            strokeWidth = 6.dp
+                                        )
+                                    }
+                                } else {
+                                    LinearProgressIndicator(
+                                        color = skin.glowPrimary,
+                                        trackColor = Color.White.copy(alpha = 0.12f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(8.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                    )
+                                }
                             }
                         }
                     }
@@ -663,8 +692,8 @@ open class TargetAppInstallScreen(
                         if (allTargetsCompleted()) {
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
-                                color = Color.White.copy(alpha = 0.06f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
+                                color = skin.textPrimary.copy(alpha = 0.06f),
+                                border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.18f))
                             ) {
                                 Row(
                                     modifier = Modifier
@@ -676,14 +705,14 @@ open class TargetAppInstallScreen(
                                     Icon(
                                         imageVector = Icons.Filled.CheckCircle,
                                         contentDescription = null,
-                                        tint = Color.White
+                                        tint = skin.textPrimary
                                     )
                                     Text(
                                         text = translation.format(
                                             "setup.install_queue.all_success",
                                             "apps" to installTargets.joinToString(", ") { it.displayName }
                                         ),
-                                        color = Color.White,
+                                        color = skin.textPrimary,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                 }
@@ -718,8 +747,8 @@ open class TargetAppInstallScreen(
                                     val issuesInteraction = remember { MutableInteractionSource() }
                                     Surface(
                                         shape = RoundedCornerShape(14.dp),
-                                        color = Color.White.copy(alpha = 0.04f),
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                                        color = skin.textPrimary.copy(alpha = 0.04f),
+                                        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.14f)),
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .scaleOnPress(issuesInteraction)
@@ -736,11 +765,11 @@ open class TargetAppInstallScreen(
                                             Icon(
                                                 imageVector = Icons.Filled.Info,
                                                 contentDescription = null,
-                                                tint = Color.White.copy(alpha = 0.9f)
+                                                tint = skin.textPrimary.copy(alpha = 0.9f)
                                             )
                                             Text(
                                                 text = translation["setup.patch.issues_title"],
-                                                color = Color.White,
+                                                color = skin.textPrimary,
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         }
@@ -749,8 +778,8 @@ open class TargetAppInstallScreen(
                                 val manualInteraction = remember { MutableInteractionSource() }
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
-                                    color = Color.White.copy(alpha = 0.04f),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                                    color = skin.textPrimary.copy(alpha = 0.04f),
+                                    border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.14f)),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .scaleOnPress(manualInteraction)
@@ -767,11 +796,11 @@ open class TargetAppInstallScreen(
                                         Icon(
                                             imageVector = Icons.Filled.Info,
                                             contentDescription = null,
-                                            tint = Color.White.copy(alpha = 0.9f)
+                                            tint = skin.textPrimary.copy(alpha = 0.9f)
                                         )
                                         Text(
                                             text = translation["setup.install_queue.already_installed_button"],
-                                            color = Color.White,
+                                            color = skin.textPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                     }
@@ -790,10 +819,11 @@ private fun JingmatrixBadge(
     accent: Brush,
     translation: LocaleWrapper
 ) {
+    val skin = LocalPurrfectSkin.current
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.06f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f))
+        color = skin.textPrimary.copy(alpha = 0.06f),
+        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.22f))
     ) {
         Row(
             modifier = Modifier
@@ -810,13 +840,13 @@ private fun JingmatrixBadge(
                 Icon(
                     imageVector = Icons.Filled.Info,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = skin.textPrimary,
                     modifier = Modifier.align(Alignment.Center)
                 )
             }
             Text(
                 text = translation["setup.patch.powered_by_label"],
-                color = Color.White,
+                color = skin.textPrimary,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -831,12 +861,18 @@ private fun GradientActionButton(
     enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val skin = LocalPurrfectSkin.current
     val interaction = remember { MutableInteractionSource() }
-    val gradient = Brush.horizontalGradient(listOf(PurrfectPalette.glowSecondary, PurrfectPalette.glowPrimary))
+    val btnShape = if (skin.id == "AETHER") G2RoundedRectangle(16.dp) else RoundedCornerShape(16.dp)
+    val gradient = Brush.horizontalGradient(listOf(skin.glowSecondary, skin.glowPrimary))
+    val contentColor = if (enabled) {
+        if (skin.glowPrimary.luminance() > 0.5f) Color.Black else Color.White
+    } else skin.textPrimary
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(btnShape)
             .background(Color.Transparent)
             .scaleOnPress(interaction)
             .clickable(
@@ -847,11 +883,11 @@ private fun GradientActionButton(
             ),
         tonalElevation = 0.dp,
         color = Color.Transparent,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f))
+        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.14f))
     ) {
         Box(
             modifier = Modifier
-                .background(if (enabled) gradient else Brush.horizontalGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.08f))))
+                .background(if (enabled) gradient else androidx.compose.ui.graphics.SolidColor(skin.textPrimary.copy(alpha = 0.08f)))
                 .padding(vertical = 14.dp, horizontal = 16.dp)
                 .clip(RoundedCornerShape(16.dp))
         ) {
@@ -863,11 +899,11 @@ private fun GradientActionButton(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = contentColor
                 )
                 Text(
                     text = label,
-                    color = Color.White,
+                    color = contentColor,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp
                 )
@@ -884,6 +920,7 @@ private fun LogsPanel(
     translation: LocaleWrapper,
     onCopy: () -> Unit
 ) {
+    val skin = LocalPurrfectSkin.current
     var expanded by rememberSaveable { mutableStateOf(false) }
     val animatedBrush = Brush.linearGradient(
         colors = listOf(
@@ -896,15 +933,15 @@ private fun LogsPanel(
     )
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.03f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        shape = if (skin.id == "AETHER") G2RoundedRectangle(18.dp) else RoundedCornerShape(18.dp),
+        color = skin.textPrimary.copy(alpha = 0.03f),
+        border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.12f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(animatedBrush)
-                .background(Color.Black.copy(alpha = 0.25f))
+                .background(if (skin.isDark) Color.Black.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.25f))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
@@ -922,19 +959,19 @@ private fun LogsPanel(
                 ) {
                     Text(
                         text = translation["setup.install_queue.logs_title"],
-                        color = Color.White,
+                        color = skin.textPrimary,
                         fontWeight = FontWeight.Bold
                     )
                     Icon(
                         imageVector = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                         contentDescription = null,
-                        tint = Color.White
+                        tint = skin.textPrimary
                     )
                 }
                 Surface(
                     shape = RoundedCornerShape(10.dp),
-                    color = Color.White.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+                    color = skin.textPrimary.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.16f)),
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .clickable { onCopy() }
@@ -947,12 +984,12 @@ private fun LogsPanel(
                         Icon(
                             imageVector = Icons.Filled.ContentCopy,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = skin.textPrimary,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = translation["setup.install_queue.copy_button"],
-                            color = Color.White,
+                            color = skin.textPrimary,
                             fontWeight = FontWeight.Medium,
                             fontSize = 12.sp
                         )
@@ -975,7 +1012,7 @@ private fun LogsPanel(
                                 "setup.install_queue.log_line_prefix",
                                 "line" to line
                             ),
-                            color = PurrfectPalette.textPrimary,
+                            color = skin.textPrimary,
                             fontSize = 13.sp,
                             lineHeight = 16.sp
                         )

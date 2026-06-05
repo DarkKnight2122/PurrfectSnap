@@ -197,7 +197,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = translation["settings_ui_theme"] ?: "Aphelion Theme",
+                                    text = translation["settings_ui_theme"] ?: "Aphelion Theme Skins",
                                     fontSize = 14.sp,
                                     color = skin.textPrimary
                                 )
@@ -331,9 +331,10 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
 
                                     // Accent Ribbon
                                     val currentAccent = context.config.root.global.uiSettings.luminaAccent.get()
-                                    val accents = remember { 
+                                    val accents = remember(skin.isDark) { 
                                         me.eternal.purrfect.common.ui.theme.Catppuccin.mocha.accents
                                             .filter { it.first != "Espresso" && it.first != "Forest" }
+                                            .filter { (name, _) -> if (skin.isDark) name != "Black" else name != "White" }
                                     }
 
                                     Column(
@@ -490,9 +491,10 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
 
                                     // Accent Ribbon (Aether Specific)
                                     val currentAccent = context.config.root.global.uiSettings.aetherAccent.get()
-                                    val accents = remember { 
+                                    val accents = remember(skin.isDark) { 
                                         me.eternal.purrfect.common.ui.theme.Catppuccin.mocha.accents
                                             .filter { it.first != "Espresso" && it.first != "Forest" }
+                                            .filter { (name, _) -> if (skin.isDark) name != "Black" else name != "White" }
                                     }
 
                                     Column(
@@ -550,6 +552,63 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }                                }
+                            }
+
+                            // CYBER CUSTOMIZATION
+                            AnimatedVisibility(
+                                visible = currentSkinId == "CYBER",
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 14.dp),
+                                        color = skin.textPrimary.copy(alpha = 0.08f)
+                                    )
+
+                                    // Style Switcher
+                                    val currentStyle = context.config.root.global.uiSettings.cyberwareStyle.get()
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        listOf("SYNTHWAVE", "NIGHTCITY").forEach { style ->
+                                            val isSelected = currentStyle == style
+                                            Surface(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(38.dp)
+                                                    .clickable {
+                                                        context.config.root.global.uiSettings.cyberwareStyle.set(style)
+                                                        context.syncSkinSettings()
+                                                        context.config.writeConfig()
+                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                    },
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = if (isSelected) skin.glowPrimary.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.05f),
+                                                border = if (isSelected) BorderStroke(1.dp, skin.glowPrimary) else null
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        text = if (style == "SYNTHWAVE") "Synthwave" else "Night City",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1788,9 +1847,10 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
 
                                     // Accent Ribbon (Aether Specific)
                                     val currentAccent = context.config.root.global.uiSettings.aetherAccent.get()
-                                    val accents = remember { 
+                                    val accents = remember(skin.isDark) { 
                                         me.eternal.purrfect.common.ui.theme.Catppuccin.mocha.accents
                                             .filter { it.first != "Espresso" && it.first != "Forest" }
+                                            .filter { (name, _) -> if (skin.isDark) name != "Black" else name != "White" }
                                     }
 
                                     Column(
@@ -1848,6 +1908,63 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }                                }
+                            }
+
+                            // CYBER CUSTOMIZATION
+                            AnimatedVisibility(
+                                visible = currentSkinId == "CYBER",
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    HorizontalDivider(
+                                        modifier = Modifier.padding(horizontal = 14.dp),
+                                        color = skin.textPrimary.copy(alpha = 0.08f)
+                                    )
+
+                                    // Style Switcher
+                                    val currentStyle = context.config.root.global.uiSettings.cyberwareStyle.get()
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        listOf("SYNTHWAVE", "NIGHTCITY").forEach { style ->
+                                            val isSelected = currentStyle == style
+                                            Surface(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(38.dp)
+                                                    .clickable {
+                                                        context.config.root.global.uiSettings.cyberwareStyle.set(style)
+                                                        context.syncSkinSettings()
+                                                        context.config.writeConfig()
+                                                        AphelionHaptics.themeRevealTick(context, hapticFeedback)
+                                                    },
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = if (isSelected) skin.glowPrimary.copy(alpha = 0.25f) else skin.textPrimary.copy(alpha = 0.05f),
+                                                border = if (isSelected) BorderStroke(1.dp, skin.glowPrimary) else null
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Text(
+                                                        text = if (style == "SYNTHWAVE") "Synthwave" else "Night City",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                 }
             }

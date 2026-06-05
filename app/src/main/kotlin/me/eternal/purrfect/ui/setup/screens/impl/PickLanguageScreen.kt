@@ -37,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
@@ -45,7 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import java.util.Locale
 import me.eternal.purrfect.common.bridge.wrapper.LocaleWrapper
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
+import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.ui.setup.screens.SetupScreen
 import me.eternal.purrfect.ui.util.Motion
 import me.eternal.purrfect.ui.util.ObservableMutableState
@@ -95,6 +96,7 @@ class PickLanguageScreen : SetupScreen() {
 
     @Composable
     override fun Content() {
+        val skin = LocalPurrfectSkin.current
         LaunchedEffect(Unit) { allowNext(true) }
         val deviceLocale = remember { Locale.getDefault().toString() }
         var isDialog by remember { mutableStateOf(false) }
@@ -114,13 +116,13 @@ class PickLanguageScreen : SetupScreen() {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(22.dp),
-                color = Color.White.copy(alpha = 0.05f),
+                color = skin.textPrimary.copy(alpha = 0.05f),
                 border = BorderStroke(
                     1.dp,
                     Brush.linearGradient(
                         listOf(
-                            PurrfectPalette.glowPrimary.copy(alpha = 0.5f),
-                            PurrfectPalette.glowSecondary.copy(alpha = 0.4f)
+                            skin.glowPrimary.copy(alpha = 0.5f),
+                            skin.glowSecondary.copy(alpha = 0.4f)
                         )
                     )
                 )
@@ -135,13 +137,13 @@ class PickLanguageScreen : SetupScreen() {
                     Surface(
                         modifier = Modifier.size(38.dp),
                         shape = RoundedCornerShape(14.dp),
-                        color = PurrfectPalette.glowPrimary.copy(alpha = 0.16f)
+                        color = skin.glowPrimary.copy(alpha = 0.16f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             androidx.compose.material3.Icon(
                                 imageVector = Icons.Filled.Language,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = skin.textPrimary,
                                 modifier = Modifier.align(Alignment.Center)
                             )
                         }
@@ -153,13 +155,13 @@ class PickLanguageScreen : SetupScreen() {
                         Text(
                             text = context.translation["setup.pick_language.current_selection"],
                             fontSize = 14.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                         Text(
                             text = remember(selectedLocale.value) { getLocaleDisplayName(selectedLocale.value) },
                             fontSize = 20.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
+                            color = skin.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -169,6 +171,7 @@ class PickLanguageScreen : SetupScreen() {
 
             Spacer(modifier = Modifier.height(12.dp))
             val browseSrc = remember { MutableInteractionSource() }
+            val contentColor = if (skin.isDark) Color.White else Color.Black
             Button(
                 onClick = { isDialog = true },
                 interactionSource = browseSrc,
@@ -176,8 +179,8 @@ class PickLanguageScreen : SetupScreen() {
                     .fillMaxWidth()
                     .scaleOnPress(browseSrc),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.35f),
-                    contentColor = Color.White
+                    containerColor = skin.glowPrimary.copy(alpha = 0.35f),
+                    contentColor = contentColor
                 )
             ) {
                 Text(text = context.translation["setup.pick_language.browse_languages"])
@@ -215,12 +218,12 @@ class PickLanguageScreen : SetupScreen() {
                                         .padding(vertical = 4.dp)
                                         .scaleOnPress(rowSrc),
                                     shape = RoundedCornerShape(18.dp),
-                                    color = if (isSelected) PurrfectPalette.glowPrimary.copy(alpha = 0.14f) else Color.White.copy(
+                                    color = if (isSelected) skin.glowPrimary.copy(alpha = 0.14f) else skin.textPrimary.copy(
                                         alpha = 0.05f
                                     ),
                                     border = BorderStroke(
                                         1.dp,
-                                        if (isSelected) PurrfectPalette.glowPrimary.copy(alpha = 0.55f) else Color.White.copy(
+                                        if (isSelected) skin.glowPrimary.copy(alpha = 0.55f) else skin.textPrimary.copy(
                                             alpha = 0.1f
                                         )
                                     ),
@@ -238,21 +241,21 @@ class PickLanguageScreen : SetupScreen() {
                                             Text(
                                                 text = label,
                                                 fontWeight = FontWeight.Medium,
-                                                color = Color.White,
+                                                color = skin.textPrimary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
                                                 text = locale,
                                                 fontSize = 11.sp,
-                                                color = PurrfectPalette.textSecondary
+                                                color = skin.textSecondary
                                             )
                                         }
                                         if (isSelected) {
                                             androidx.compose.material3.Icon(
                                                 imageVector = Icons.Filled.Check,
                                                 contentDescription = null,
-                                                tint = PurrfectPalette.glowSecondary
+                                                tint = skin.glowSecondary
                                             )
                                         }
                                     }

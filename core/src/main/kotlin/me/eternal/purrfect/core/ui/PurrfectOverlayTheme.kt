@@ -31,10 +31,11 @@ val LocalModContext = compositionLocalOf<ModContext?> { null }
 
 @Composable
 fun resolveActiveSkin(modContext: ModContext?): PurrfectColorSet {
-    val isSystemDark = isSystemInDarkTheme()
-    
-    return remember(isSystemDark) {
-        if (isSystemDark) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isDark = remember { context.isDarkTheme() }
+
+    return remember {
+        if (isDark) {
             PurrfectSkins.nox
         } else {
             PurrfectSkins.lux
@@ -120,7 +121,7 @@ fun PurrfectGlassCard(
     val skin = LocalPurrfectSkin.current
     val isAether = skin.id == "AETHER"
     val shape = if (isAether) me.eternal.purrfect.common.ui.util.G2RoundedRectangle(28.dp) else RoundedCornerShape(22.dp)
-    
+
     Surface(
         modifier = modifier
             .shadow(

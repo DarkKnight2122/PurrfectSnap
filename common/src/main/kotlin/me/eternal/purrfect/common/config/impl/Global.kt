@@ -83,13 +83,14 @@ class Global : ConfigContainer() {
     inner class UISettings : ConfigContainer() {
         val hapticFeedback = boolean("haptic_feedback", true)
         val useSystemToasts = boolean("use_system_toasts", false)
-        val managerTheme = unique("manager_theme", "LEGACY", "APHELION") { requireRestart() }.apply { set("LEGACY") }
-        val aphelionSkin = unique("aphelion_skin", "UMBRA", "NOX", "LUX", "IRIS", "LUMINA", "AETHER") { requireRestart() }.apply { set("UMBRA") }
+        val managerTheme = unique("manager_theme", "LEGACY", "APHELION") { requireRestart() }.apply { set("APHELION") }
+        val aphelionSkin = unique("aphelion_skin", "LUMINA", "AETHER", "LUX", "UMBRA", "AMBER", "NOX", "CYBER") { requireRestart() }.apply { set("LUMINA") }
         val luminaMode = unique("lumina_mode", "AUTO", "LIGHT", "DARK") { requireRestart() }.apply { set("AUTO") }
-        val luminaAccent = unique("lumina_accent", "MAUVE", "ROSEWATER", "FLAMINGO", "PINK", "RED", "MAROON", "PEACH", "YELLOW", "GREEN", "TEAL", "SKY", "SAPPHIRE", "BLUE", "LAVENDER", "CYBER") { requireRestart() }.apply { set("MAUVE") }
+        val luminaAccent = unique("lumina_accent", "MAUVE", "ROSEWATER", "FLAMINGO", "PINK", "RED", "MAROON", "PEACH", "YELLOW", "GREEN", "TEAL", "SKY", "SAPPHIRE", "BLUE", "LAVENDER", "NEON") { requireRestart() }.apply { set("SAPPHIRE") }
         val aetherMode = unique("aether_mode", "AUTO", "LIGHT", "DARK") { requireRestart() }.apply { set("AUTO") }
         val aetherAccent = unique("aether_accent", "MAUVE", "PINK", "SAPPHIRE", "TEAL", "PEACH", "ESPRESSO", "FOREST") { requireRestart() }.apply { set("MAUVE") }
         val aetherAmoled = boolean("aether_amoled", false) { requireRestart() }
+        val cyberwareStyle = unique("cyberware_style", "SYNTHWAVE", "EDGERUNNER") { requireRestart() }.apply { set("SYNTHWAVE") }
     }
 
     val updateSettings = container("update_settings", UpdateSettings()) { addFlags(ConfigFlag.HIDDEN) }
