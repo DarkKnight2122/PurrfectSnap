@@ -69,6 +69,7 @@ class FFMpegProcessor(
     enum class Action {
         DOWNLOAD_DASH,
         MERGE_OVERLAY,
+        MUX_AUDIO_VIDEO,
         CONVERSION,
         MERGE_MEDIA,
         DOWNLOAD_AUDIO_STREAM,
@@ -79,7 +80,7 @@ class FFMpegProcessor(
         val action: Action,
         val inputs: List<String>,
         val output: File,
-        val overlay: File? = null, //only for MERGE_OVERLAY
+        val overlay: File? = null, //only for MERGE_OVERLAY and MUX_AUDIO_VIDEO
         val startTime: Long? = null, //only for DOWNLOAD_DASH
         val duration: Long? = null, //only for DOWNLOAD_DASH
         val audioStreamFormat: AudioStreamFormat? = null, //only for DOWNLOAD_AUDIO_STREAM
@@ -108,6 +109,10 @@ class FFMpegProcessor(
 
         FFmpegKit.executeAsync(stringBuilder.toString(),
             { session ->
+                if (!session.returnCode.isValueSuccess) {
+                    logManager.error("FFmpeg Failed. Command: $stringBuilder", TAG)
+                    logManager.error("FFmpeg Output:\n${session.output}", TAG)
+                }
                 it.resumeWith(
                     if (session.returnCode.isValueSuccess) {
                         Result.success(session)
@@ -119,7 +124,9 @@ class FFMpegProcessor(
                                 val lines = output.lines().filter { line ->
                                     line.isNotBlank() && !line.startsWith("ffmpeg version", ignoreCase = true) && !line.contains("Copyright")
                                 }
-                                lines.lastOrNull()?.take(400)
+                                // Pick the first error line if possible, otherwise the last relevant line
+                                lines.firstOrNull { it.contains("error", ignoreCase = true) || it.contains("Invalid", ignoreCase = true) }?.take(400)
+                                    ?: lines.lastOrNull()?.take(400)
                                     ?: "FFmpeg failed. Try changing video codec in FFmpeg options (e.g. libx264)"
                             }
                         }
@@ -141,7 +148,6 @@ class FFMpegProcessor(
         synchronized(this) { FFmpegKit.listSessions() }
         val globalArguments = ArgumentList().apply {
             this += "-y"
-            this += "-threads" to ffmpegOptions.threads.get().toString()
         }
 
         val inputArguments = ArgumentList().apply {
@@ -151,6 +157,7 @@ class FFMpegProcessor(
         }
 
         val outputArguments = ArgumentList().apply {
+            this += "-threads" to ffmpegOptions.threads.get().toString()
             this += "-c:a" to (ffmpegOptions.customAudioCodec.get().takeIf { it.isNotEmpty() }?.lowercase() ?: "copy")
             this += "-b:a" to ffmpegOptions.audioBitrate.get().toString() + "K"
         }
@@ -158,16 +165,16 @@ class FFMpegProcessor(
         fun applyVideoArguments() {
             outputArguments += "-preset" to (ffmpegOptions.preset.getNullable() ?: "ultrafast")
             outputArguments += "-c:v" to (ffmpegOptions.customVideoCodec.get().takeIf { it.isNotEmpty() }?.lowercase() ?: "libx264")
-            outputArguments += "-crf" to ffmpegOptions.constantRateFactor.get().let { "\"$it\"" }
+            outputArguments += "-crf" to ffmpegOptions.constantRateFactor.get().toString()
             outputArguments += "-b:v" to ffmpegOptions.videoBitrate.get().toString() + "K"
         }
 
         when (args.action) {
             Action.DOWNLOAD_DASH -> {
                 applyVideoArguments()
-                outputArguments += "-ss" to "'${args.startTime}ms'"
+                outputArguments += "-ss" to "${args.startTime}ms"
                 if (args.duration != null) {
-                    outputArguments += "-t" to "'${args.duration}ms'"
+                    outputArguments += "-t" to "${args.duration}ms"
                 }
             }
             Action.MERGE_OVERLAY -> {
@@ -176,21 +183,29 @@ class FFMpegProcessor(
 
                 val isVideo = runCatching {
                     MediaMetadataRetriever().use { mmr ->
-                        val file = File(args.inputs[0])
-                        file.inputStream().use { fis -> mmr.setDataSource(fis.fd, 0, file.length()) }
+                        val f = File(args.inputs[0])
+                        f.inputStream().use { fis -> mmr.setDataSource(fis.fd, 0, f.length()) }
                         mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes"
                     }
-                }.getOrElse {
-                    logManager.error("MediaMetadataRetriever failed to read inputs[0]: ${args.inputs[0]}", it)
-                    val ext = args.inputs[0].substringAfterLast('.').lowercase()
-                    ext == "mp4" || ext == "mkv" || ext == "mov" || ext == "avi" || ext == "webm" || ext == "gif"
-                }
+                }.getOrElse { false }
 
                 if (isVideo) {
-                    // [1][0]scale2ref: scale overlay (1) to match source (0). format=rgba: preserve text transparency.
-                    outputArguments += "-filter_complex" to "\"[1][0]scale2ref[img][vid];[img]format=rgba,setsar=1[img];[vid][img]overlay=(W-w)/2:(H-h)/2,scale=2*trunc(iw*sar/2):2*trunc(ih/2)\""
+                    // Video: scale overlay to video size, overlay on top, keep video stream intact
+                    outputArguments += "-filter_complex" to "\"[1][0]scale2ref=w=oh*mdar:h=ih[ol][base];[base][ol]overlay=(W-w)/2:(H-h)/2\""
                 } else {
-                    outputArguments += "-filter_complex" to "\"[1][0]scale2ref[img][src];[img]format=rgba,setsar=1[img];[src][img]overlay=(W-w)/2:(H-h)/2,scale=2*trunc(iw*sar/2):2*trunc(ih/2)\""
+                    // Image: universal scaling filter
+                    outputArguments += "-filter_complex" to "\"[0]scale2ref[img][vid];[img]setsar=1[img];[vid]nullsink;[img][1]overlay=(W-w)/2:(H-h)/2,scale=2*trunc(iw*sar/2):2*trunc(ih/2)\""
+                }
+            }
+            Action.MUX_AUDIO_VIDEO -> {
+                applyVideoArguments()
+                inputArguments += "-i" to "\"${args.overlay!!.absolutePath}\""
+                outputArguments += "-map" to "0:v"
+                outputArguments += "-map" to "1:a"
+                outputArguments += "-c:v" to "copy"
+                if (outputArguments["-c:a"] == "copy") {
+                    outputArguments -= "-c:a"
+                    outputArguments += "-c:a" to "aac"
                 }
             }
             Action.CONVERSION -> {

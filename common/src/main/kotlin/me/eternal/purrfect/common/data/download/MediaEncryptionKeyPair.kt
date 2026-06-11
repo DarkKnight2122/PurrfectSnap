@@ -1,4 +1,3 @@
-
 package me.eternal.purrfect.common.data.download
 
 import java.io.InputStream
@@ -12,11 +11,12 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 data class MediaEncryptionKeyPair(
     val key: String,
     val iv: String,
-    val urlSafe: Boolean = true
+    val urlSafe: Boolean = true,
+    val isCounterMode: Boolean = false
 ) {
     @OptIn(ExperimentalEncodingApi::class)
     fun decryptInputStream(inputStream: InputStream): InputStream {
-        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        val cipher = Cipher.getInstance(if (isCounterMode) "AES/CTR/NoPadding" else "AES/CBC/PKCS5Padding")
         cipher.init(
             Cipher.DECRYPT_MODE,
             SecretKeySpec(if (urlSafe) Base64.UrlSafe.decode(key) else Base64.Default.decode(key), "AES"),

@@ -44,8 +44,14 @@ class HttpServer(
     private val cachedData = ConcurrentHashMap<String, HttpContent>()
     private var serverSocket: ServerSocket? = null
 
+    @Synchronized
     fun ensureServerStarted(): HttpServer? {
         if (serverSocket != null && serverSocket?.isClosed != true) return this
+
+        // Clean up previous instance before restarting to prevent zombie threads
+        socketJob?.cancel()
+        socketJob = null
+        serverSocket = null
 
         return runBlocking {
             withTimeoutOrNull(5000L) {
@@ -54,8 +60,10 @@ class HttpServer(
                         AbstractLogger.directDebug("Starting http server on port $port")
                         for (i in 0..5) {
                             try {
-                                serverSocket = ServerSocket(port).apply {
-                                    soTimeout = timeout + 5000 
+                                serverSocket = ServerSocket().apply {
+                                    reuseAddress = true
+                                    bind(java.net.InetSocketAddress(port))
+                                    soTimeout = timeout + 5000
                                 }
                                 break
                             } catch (e: Throwable) {

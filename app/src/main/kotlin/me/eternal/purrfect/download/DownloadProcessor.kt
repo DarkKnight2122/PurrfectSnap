@@ -105,7 +105,26 @@ class DownloadProcessor (
         if (coroutineContext.job.isCancelled) return
 
         runCatching {
-            var fileType = FileType.fromFile(inputFile)
+            var fileType = inputFile.inputStream().buffered().use {
+                FileType.fromInputStream(it)
+            }
+            if (fileType == FileType.UNKNOWN) {
+                fileType = FileType.fromFile(inputFile)
+            }
+
+            val hexDump = inputFile.inputStream().use { stream ->
+                val bytes = ByteArray(16)
+                stream.read(bytes)
+                bytes.joinToString(" ") { "%02X".format(it) }
+            }
+            remoteSideContext.log.verbose("DEBUG first 16 bytes hex: $hexDump")
+
+            // High-visibility logs for tracing media identification
+            remoteSideContext.log.verbose("Input file path: ${inputFile.absolutePath}")
+            remoteSideContext.log.verbose("Input file exists: ${inputFile.exists()}")
+            remoteSideContext.log.verbose("Input file size: ${inputFile.length()}")
+            remoteSideContext.log.verbose("Detected FileType: ${fileType}")
+            remoteSideContext.log.verbose("Output filename: ${buildOutputFileName(metadata.outputPath, fileType)}")
 
             if (fileType.isImage) {
                 remoteSideContext.config.root.downloader.forceImageFormat.getNullable()?.let { format ->
@@ -416,13 +435,12 @@ class DownloadProcessor (
 
                 fun handleInputStream(inputStream: InputStream, estimatedSize: Long = 0L) {
                     createMediaTempFile().apply {
-                        val decryptedInputStream = (inputMedia.encryption?.decryptInputStream(inputStream) ?: inputStream).buffered()
                         val buffer = ByteArray(1024 * 1024 * 2) // 2MB
                         var read: Int
                         var totalRead = 0L
 
                         outputStream().use { outputStream ->
-                            while (decryptedInputStream.read(buffer).also { read = it } != -1) {
+                            while (inputStream.read(buffer).also { read = it } != -1) {
                                 outputStream.write(buffer, 0, read)
                                 totalRead += read
                                 inputMediaDownloadedBytes[inputMedia] = totalRead
@@ -441,7 +459,8 @@ class DownloadProcessor (
                         DownloadMediaType.PROTO_MEDIA -> {
                             RemoteMediaResolver.downloadBoltMedia(Base64.UrlSafe.decode(inputMedia.content), decryptionCallback = { it }, resultCallback = { inputStream, length ->
                                 totalSize += length
-                                inputStream.use {
+                                val decryptedStream = inputMedia.encryption?.decryptInputStream(inputStream) ?: inputStream
+                                decryptedStream.use {
                                     handleInputStream(it, estimatedSize = length)
                                 }
                             })
@@ -453,19 +472,28 @@ class DownloadProcessor (
                                 connect()
                                 totalSize += contentLength.toLong()
                                 inputStream.use {
-                                    handleInputStream(it, estimatedSize = contentLength.toLong())
+                                    val decryptedStream = inputMedia.encryption?.decryptInputStream(it) ?: it
+                                    handleInputStream(decryptedStream, estimatedSize = contentLength.toLong())
                                 }
                             }
                         }
                         DownloadMediaType.DIRECT_MEDIA -> {
                             val decoded = Base64.UrlSafe.decode(inputMedia.content)
                             totalSize += decoded.size.toLong()
-                            handleInputStream(decoded.inputStream(), estimatedSize = decoded.size.toLong())
+                            val rawStream = decoded.inputStream()
+                            val decryptedStream = inputMedia.encryption?.decryptInputStream(rawStream) ?: rawStream
+                            decryptedStream.use {
+                                handleInputStream(it, estimatedSize = decoded.size.toLong())
+                            }
                         }
                         else -> {
-                            File(inputMedia.content).inputStream().use {
-                                totalSize += it.available().toLong()
-                                handleInputStream(it, estimatedSize = it.available().toLong())
+                            val filePath = inputMedia.content.removePrefix("file://").removePrefix("file:")
+                            val file = File(filePath)
+                            val rawStream = file.inputStream()
+                            val decryptedStream = inputMedia.encryption?.decryptInputStream(rawStream) ?: rawStream
+                            decryptedStream.use {
+                                totalSize += file.length()
+                                handleInputStream(it, estimatedSize = file.length())
                             }
                         }
                     }
@@ -547,8 +575,15 @@ class DownloadProcessor (
     }
 
     private fun renameFromFileType(file: File, fileType: FileType): File {
-        val newFile = File(file.parentFile, file.nameWithoutExtension + "." + fileType.fileExtension)
-        file.renameTo(newFile)
+        val resolvedType = if (fileType == FileType.UNKNOWN) {
+            file.inputStream().buffered().use { FileType.fromInputStream(it) }
+                .takeIf { it != FileType.UNKNOWN } ?: fileType
+        } else fileType
+        val newFile = File(file.parentFile, file.nameWithoutExtension + "." + (resolvedType.fileExtension ?: "dat"))
+        if (!file.renameTo(newFile)) {
+            file.copyTo(newFile, overwrite = true)
+            file.delete()
+        }
         return newFile
     }
 
@@ -653,8 +688,10 @@ class DownloadProcessor (
                         val media = downloadedMedias.entries.first { !it.key.isOverlay }.value
                         val overlayMedia = downloadedMedias.entries.first { it.key.isOverlay }.value
 
-                        val mediaFileType = FileType.fromFile(media)
-                        val overlayFileType = FileType.fromFile(overlayMedia)
+                        val mediaFileType = media.inputStream().buffered().use { FileType.fromInputStream(it) }
+                            .takeIf { it != FileType.UNKNOWN } ?: FileType.fromFile(media)
+                        val overlayFileType = overlayMedia.inputStream().buffered().use { FileType.fromInputStream(it) }
+                            .takeIf { it != FileType.UNKNOWN } ?: FileType.fromFile(overlayMedia)
 
                         val renamedMedia = renameFromFileType(media, mediaFileType)
                         val renamedOverlayMedia = renameFromFileType(overlayMedia, overlayFileType)
@@ -696,8 +733,10 @@ class DownloadProcessor (
                         runCatching {
                             callbackOnProgress(translation.format("processing_toast", "path" to media.nameWithoutExtension))
 
+                            val isAudioOverlay = overlayFileType.isAudio
+
                             newFFMpegProcessor(pendingTask).execute(FFMpegProcessor.Request(
-                                action = FFMpegProcessor.Action.MERGE_OVERLAY,
+                                action = if (isAudioOverlay) FFMpegProcessor.Action.MUX_AUDIO_VIDEO else FFMpegProcessor.Action.MERGE_OVERLAY,
                                 inputs = listOf(renamedMedia.absolutePath),
                                 output = mergedOverlay,
                                 overlay = renamedOverlayMedia

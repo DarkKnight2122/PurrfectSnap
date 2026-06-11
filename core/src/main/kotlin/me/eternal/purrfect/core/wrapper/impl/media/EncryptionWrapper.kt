@@ -189,7 +189,8 @@ fun EncryptionWrapper.toKeyPair(): MediaEncryptionKeyPair {
     return MediaEncryptionKeyPair(
         key = Base64.encodeToString(this.keySpec, Base64.NO_WRAP),
         iv = Base64.encodeToString(this.ivKeyParameterSpec, Base64.NO_WRAP),
-        urlSafe = false
+        urlSafe = false,
+        isCounterMode = this.getObjectField("mode")?.toString() == "CTR"
     )
 }
 
@@ -204,6 +205,7 @@ fun EncryptionWrapper.toKeyPairUrlSafe(): MediaEncryptionKeyPair {
             this.ivKeyParameterSpec,
             Base64.URL_SAFE or Base64.NO_WRAP
         ),
-        urlSafe = true
+        urlSafe = true,
+        isCounterMode = this.getObjectField("mode")?.toString() == "CTR"
     )
 }
