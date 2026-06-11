@@ -90,9 +90,26 @@ class RemoteSideContext(
     val sharedPreferences: SharedPreferences get() = androidContext.getSharedPreferences("prefs", 0)
     private var targetAppOverride: TargetApp? = null
     val activeTargetApp: TargetApp
-        get() = targetAppOverride ?: TargetApp.fromKey(sharedPreferences.getString(TargetApp.PREF_KEY, TargetApp.SNAPCHAT.key))
+        get() {
+            targetAppOverride?.let { return it }
+            val savedTarget = TargetApp.fromKeyOrNull(sharedPreferences.getString(TargetApp.PREF_KEY, null))
+            val setupTargets = SetupPreferences.completedTargetApps(sharedPreferences) +
+                SetupPreferences.selectedTargetApps(sharedPreferences)
+            val inferredInstalledTarget = inferInstalledTargetApp()
+            if (savedTarget != null && (savedTarget in setupTargets || inferredInstalledTarget == null || savedTarget == inferredInstalledTarget)) {
+                return savedTarget
+            }
+            if (setupTargets.isNotEmpty()) {
+                return SetupPreferences.preferredTargetApp(sharedPreferences)
+            }
+            return inferredInstalledTarget ?: savedTarget ?: TargetApp.SNAPCHAT
+        }
     val isRedditMode: Boolean
         get() = activeTargetApp == TargetApp.REDDIT
+    val isWhatsAppMode: Boolean
+        get() = activeTargetApp == TargetApp.WHATSAPP
+    val isInstagramMode: Boolean
+        get() = activeTargetApp == TargetApp.INSTAGRAM
     val isLimitedTargetMode: Boolean
         get() = activeTargetApp != TargetApp.SNAPCHAT
     val fileHandleManager = RemoteFileHandleManager(this)
@@ -148,6 +165,8 @@ class RemoteSideContext(
                 config.load()
                 config.root.reddit.migrateLegacyFlags()
                 mirrorRedditFeaturePrefs()
+                mirrorWhatsAppFeaturePrefs()
+                mirrorInstagramFeaturePrefs()
                 ensureAutoUpdateCheckOnUpgrade()
                 launch {
                     mappings.apply {
@@ -454,6 +473,212 @@ class RemoteSideContext(
         ).distinctBy { it.absolutePath }
     }
 
+    fun mirrorWhatsAppFeaturePrefs() {
+        runCatching {
+            val whatsAppFeatures = getWhatsAppFeaturesMap()
+            val whatsAppJson = Gson().toJson(whatsAppFeatures)
+            File(androidContext.filesDir, WHATSAPP_FEATURE_CONFIG_FILE).apply {
+                parentFile?.mkdirs()
+                writeText(whatsAppJson, Charsets.UTF_8)
+                setReadable(true, false)
+            }
+            whatsAppFeatureExternalFiles().forEach { file ->
+                runCatching {
+                    file.parentFile?.mkdirs()
+                    file.writeText(whatsAppJson, Charsets.UTF_8)
+                    file.parentFile?.setReadable(true, false)
+                    file.setReadable(true, false)
+                }.onFailure {
+                    log.warn("Failed to mirror WhatsApp feature config to ${file.absolutePath}: ${it.message}")
+                }
+            }
+
+            androidContext.getSharedPreferences(WHATSAPP_FEATURE_PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .apply {
+                    whatsAppFeatures.forEach { (key, value) ->
+                        when (value) {
+                            is Boolean -> putBoolean(key, value)
+                            is String -> putString(key, value)
+                        }
+                    }
+                }
+                .commit()
+
+            val prefsFile = File(androidContext.applicationInfo.dataDir, "shared_prefs/$WHATSAPP_FEATURE_PREFS.xml")
+            val configFile = File(androidContext.filesDir, "config.json")
+            File(androidContext.applicationInfo.dataDir).setExecutable(true, false)
+            File(androidContext.applicationInfo.dataDir).setReadable(true, false)
+            androidContext.filesDir.setExecutable(true, false)
+            androidContext.filesDir.setReadable(true, false)
+            configFile.takeIf { it.exists() }?.setReadable(true, false)
+            prefsFile.parentFile?.setExecutable(true, false)
+            prefsFile.parentFile?.setReadable(true, false)
+            prefsFile.setReadable(true, false)
+            broadcastWhatsAppFeaturePrefs(whatsAppJson)
+            log.verbose("Mirrored WhatsApp feature config JSON")
+        }.onFailure {
+            log.error("Failed to mirror WhatsApp feature prefs", it)
+        }
+    }
+
+    fun mirrorInstagramFeaturePrefs() {
+        runCatching {
+            val instagramFeatures = getInstagramFeaturesMap()
+            val instagramJson = Gson().toJson(instagramFeatures)
+            File(androidContext.filesDir, INSTAGRAM_FEATURE_CONFIG_FILE).apply {
+                parentFile?.mkdirs()
+                writeText(instagramJson, Charsets.UTF_8)
+                setReadable(true, false)
+            }
+            instagramFeatureExternalFiles().forEach { file ->
+                runCatching {
+                    file.parentFile?.mkdirs()
+                    file.writeText(instagramJson, Charsets.UTF_8)
+                    file.parentFile?.setReadable(true, false)
+                    file.setReadable(true, false)
+                }.onFailure {
+                    log.warn("Failed to mirror Instagram feature config to ${file.absolutePath}: ${it.message}")
+                }
+            }
+
+            androidContext.getSharedPreferences(INSTAGRAM_FEATURE_PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .apply {
+                    instagramFeatures.forEach { (key, value) ->
+                        when (value) {
+                            is Boolean -> putBoolean(key, value)
+                            is String -> putString(key, value)
+                        }
+                    }
+                    putBoolean("keepUnsentMessagesInitialized", true)
+                    putBoolean("quickToggleUnsendInitialized", true)
+                }
+                .commit()
+
+            val prefsFile = File(androidContext.applicationInfo.dataDir, "shared_prefs/$INSTAGRAM_FEATURE_PREFS.xml")
+            val configFile = File(androidContext.filesDir, "config.json")
+            File(androidContext.applicationInfo.dataDir).setExecutable(true, false)
+            File(androidContext.applicationInfo.dataDir).setReadable(true, false)
+            androidContext.filesDir.setExecutable(true, false)
+            androidContext.filesDir.setReadable(true, false)
+            configFile.takeIf { it.exists() }?.setReadable(true, false)
+            prefsFile.parentFile?.setExecutable(true, false)
+            prefsFile.parentFile?.setReadable(true, false)
+            prefsFile.setReadable(true, false)
+            broadcastInstagramFeaturePrefs(instagramJson)
+            log.verbose("Mirrored Instagram feature config JSON")
+        }.onFailure {
+            log.error("Failed to mirror Instagram feature prefs", it)
+        }
+    }
+
+    private fun broadcastInstagramFeaturePrefs(json: String) {
+        Constants.INSTAGRAM_PACKAGE_NAMES.forEach { packageName ->
+            runCatching {
+                androidContext.sendBroadcast(
+                    Intent(Constants.INSTAGRAM_CONFIG_UPDATE_ACTION)
+                        .setPackage(packageName)
+                        .putExtra(Constants.INSTAGRAM_CONFIG_JSON_EXTRA, json)
+                )
+            }.onFailure {
+                log.warn("Failed to broadcast Instagram feature config to $packageName: ${it.message}")
+            }
+        }
+    }
+
+    private fun broadcastWhatsAppFeaturePrefs(json: String) {
+        runCatching {
+            androidContext.sendBroadcast(
+                Intent(Constants.WHATSAPP_CONFIG_UPDATE_ACTION)
+                    .setPackage(Constants.WHATSAPP_PACKAGE_NAME)
+                    .putExtra(Constants.WHATSAPP_CONFIG_JSON_EXTRA, json)
+            )
+        }.onFailure {
+            log.warn("Failed to broadcast WhatsApp feature config: ${it.message}")
+        }
+    }
+
+    fun getWhatsAppFeaturesJson(): String {
+        return Gson().toJson(getWhatsAppFeaturesMap())
+    }
+
+    fun getInstagramFeaturesJson(): String {
+        return Gson().toJson(getInstagramFeaturesMap())
+    }
+
+    private fun getWhatsAppFeaturesMap(): Map<String, Any> {
+        val whatsApp = config.root.whatsapp
+        return mapOf(
+            "hide_channels" to whatsApp.hideChannelsEnabled(),
+            "hide_channel_recommendations" to whatsApp.hideChannelRecommendationsEnabled(),
+            "hide_communities_tab" to whatsApp.hideCommunitiesTabEnabled(),
+            "hide_typing_indicators" to whatsApp.hideTypingIndicatorsEnabled(),
+            "hide_recording_audio" to whatsApp.hideRecordingAudioEnabled(),
+            "hide_delivered" to whatsApp.hideDeliveredEnabled(),
+            "hide_audio_seen" to whatsApp.hideAudioSeenEnabled(),
+            "hide_status_view" to whatsApp.hideStatusViewEnabled(),
+            "hide_start_chatting" to whatsApp.hideStartChattingEnabled(),
+            "unlimited_view_once" to whatsApp.unlimitedViewOnceEnabled(),
+            "hide_blue_ticks" to whatsApp.hideBlueTicksEnabled(),
+            "show_deleted_messages" to whatsApp.showDeletedMessagesEnabled(),
+            "hide_ui_elements" to whatsApp.hideUiElementsEnabled(),
+            "capture_ui_elements" to whatsApp.captureUiElementsEnabled(),
+            "liquid_class" to whatsApp.liquidClassEnabled(),
+            "hidden_ui_element_ids" to whatsApp.hiddenUiElementIds(),
+            "hidden_ui_element_selectors" to whatsApp.hiddenUiElementSelectors()
+        )
+    }
+
+    private fun getInstagramFeaturesMap(): Map<String, Any> {
+        return config.root.instagram.featureMap()
+    }
+
+    fun packageNameForTargetApp(targetApp: TargetApp): String {
+        return when (targetApp) {
+            TargetApp.SNAPCHAT -> Constants.SNAPCHAT_PACKAGE_NAME
+            TargetApp.REDDIT -> Constants.REDDIT_PACKAGE_NAME
+            TargetApp.WHATSAPP -> Constants.WHATSAPP_PACKAGE_NAME
+            TargetApp.INSTAGRAM -> installedInstagramPackageName()
+        }
+    }
+
+    private fun installedInstagramPackageName(): String {
+        return Constants.INSTAGRAM_PACKAGE_NAMES.firstOrNull { packageName ->
+            runCatching {
+                @Suppress("DEPRECATION")
+                androidContext.packageManager.getPackageInfo(packageName, 0)
+                true
+            }.getOrDefault(false)
+        } ?: Constants.INSTAGRAM_PACKAGE_NAME
+    }
+
+    private fun inferInstalledTargetApp(): TargetApp? {
+        val installedTargets = TargetApp.entries.filter { targetApp ->
+            runCatching {
+                androidContext.packageManager.getPackageInfo(
+                    packageNameForTargetApp(targetApp),
+                    0
+                )
+            }.isSuccess
+        }
+        return installedTargets.singleOrNull()
+    }
+
+    private fun whatsAppFeatureExternalFiles(): List<File> {
+        return listOf(
+            File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$WHATSAPP_FEATURE_CONFIG_FILE"),
+            File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$WHATSAPP_FEATURE_CONFIG_FILE")
+        ).distinctBy { it.absolutePath }
+    }
+
+    private fun instagramFeatureExternalFiles(): List<File> {
+        return listOf(
+            File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$INSTAGRAM_FEATURE_CONFIG_FILE"),
+            File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$INSTAGRAM_FEATURE_CONFIG_FILE")
+        ).distinctBy { it.absolutePath }
+    }
+
     fun requestSocialSnapshotRefresh(
         openSnapchatFirst: Boolean = true,
         snapchatWarmupDelayMs: Long = 1200L,
@@ -573,5 +798,9 @@ class RemoteSideContext(
     companion object {
         const val REDDIT_FEATURE_PREFS = "reddit_features"
         const val REDDIT_FEATURE_CONFIG_FILE = "reddit_features.json"
+        const val WHATSAPP_FEATURE_PREFS = "whatsapp_features"
+        const val WHATSAPP_FEATURE_CONFIG_FILE = "whatsapp_features.json"
+        const val INSTAGRAM_FEATURE_PREFS = "instagram_features"
+        const val INSTAGRAM_FEATURE_CONFIG_FILE = "instagram_features.json"
     }
 }

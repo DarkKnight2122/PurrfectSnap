@@ -2061,6 +2061,25 @@ class FeaturesRootSection : Routes.Route() {
             activeSectionSubtitle = sectionSubtitle,
             searchKeyword = searchKeyword,
             enableGlobalSearch = configContainer == featureRootContainer(),
+            showWhatsAppHiddenUiElementsManager =
+                configContainer === context.config.root.whatsapp.uiElements ||
+                    configContainer === context.config.root.instagram.hiddenUiElements,
+            showInstagramDeveloperTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.developer,
+            showInstagramAdsAndLinksTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.adsAndLinks,
+            showInstagramGhostSettingsTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.privacy,
+            showInstagramQuickToggleTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.privacy.quickToggle,
+            showInstagramDistractionFreeTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.distractionFree,
+            showInstagramMiscTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.misc,
+            showInstagramDownloaderTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.downloader,
+            showInstagramEmojiFontTools = context.isInstagramMode &&
+                configContainer === context.config.root.instagram.misc,
             onBack = onBack
         )
     }

@@ -418,7 +418,7 @@ class SetupActivity : ComponentActivity() {
                         val nextRoute = visibleScreens[currentStepIndex + 1].route
                         currentRoute = nextRoute
                     } else {
-                        val preferredTarget = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT)
+                        val preferredTarget = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.WHATSAPP, TargetApp.INSTAGRAM)
                             .firstOrNull { it in selectedApps }
                         if (isFirstRunFlow || isTargetInstallFlow) {
                             SetupPreferences.saveSetupChoices(

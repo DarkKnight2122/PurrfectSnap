@@ -149,7 +149,8 @@ ensure_omvll_bundle() {
     export OMVLL_PYTHONPATH="$py_root/Lib"
   fi
 
-  local plugin_target="/tmp/purrfect-omvll/$OMVLL_VERSION/omvll-ndk.so"
+  local plugin_tmp="${OMVLL_PLUGIN_TMP:-/tmp/purrfect-omvll}"
+  local plugin_target="$plugin_tmp/$OMVLL_VERSION/omvll-ndk.so"
   mkdir -p "$(dirname "$plugin_target")"
   cp -f "$OMVLL_PLUGIN_PATH" "$plugin_target"
   OMVLL_PLUGIN_PATH="$plugin_target"

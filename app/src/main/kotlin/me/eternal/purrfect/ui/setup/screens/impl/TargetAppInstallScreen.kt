@@ -189,16 +189,20 @@ open class TargetAppInstallScreen(
 
         fun isTargetInstalledAfter(target: SetupInstallTarget, timestamp: Long): Boolean {
             if (timestamp == 0L) return false
-            val info = runCatching {
-                context.androidContext.packageManager.getPackageInfo(target.packageName, 0)
-            }.getOrNull() ?: return false
-            return info.lastUpdateTime >= timestamp
+            return target.packageNames.any { packageName ->
+                val info = runCatching {
+                    context.androidContext.packageManager.getPackageInfo(packageName, 0)
+                }.getOrNull()
+                info?.lastUpdateTime?.let { it >= timestamp } == true
+            }
         }
 
         fun isTargetInstalled(target: SetupInstallTarget): Boolean {
-            return runCatching {
-                context.androidContext.packageManager.getPackageInfo(target.packageName, 0)
-            }.isSuccess
+            return target.packageNames.any { packageName ->
+                runCatching {
+                    context.androidContext.packageManager.getPackageInfo(packageName, 0)
+                }.isSuccess
+            }
         }
 
         fun resetTargetState() {
@@ -219,12 +223,15 @@ open class TargetAppInstallScreen(
             if (target.targetApp.key in completed) return
 
             SetupPreferences.addCompletedTarget(context.sharedPreferences, target.targetApp)
+            if (installTargets.size == 1) {
+                context.setActiveTargetApp(target.targetApp)
+            }
 
             if (target.targetApp == TargetApp.REDDIT) {
                 downloadedReleaseTag?.takeIf { it.isNotBlank() }?.let { releaseTag ->
                     context.sharedPreferences.edit()
                         .putString(Updater.REDDIT_INSTALLED_RELEASE_TAG_PREF, releaseTag)
-                        .apply()
+                        .commit()
                     Updater.clearRedditUpdateCache()
                 }
             }

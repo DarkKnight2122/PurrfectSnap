@@ -31,9 +31,12 @@ enum class FileType(
             "52494646" to WEBP,
             "504b0304" to ZIP,
             "89504e47" to PNG,
-            "00000020" to MP4,
+            "00000014" to MP4,
             "00000018" to MP4,
             "0000001c" to MP4,
+            "00000020" to MP4,
+            "00000024" to MP4,
+            "00000028" to MP4,
             "494433" to MP3,
             "4f676753" to OPUS,
             "fff15" to AAC,
@@ -55,17 +58,15 @@ enum class FileType(
         }
 
         private fun looksLikeIsoBmffVideo(array: ByteArray): Boolean {
-            if (array.size < 12) return false
-            // ISO BMFF containers like MP4 expose an `ftyp` box at byte offset 4.
-            if (array[4] != 'f'.code.toByte() ||
-                array[5] != 't'.code.toByte() ||
-                array[6] != 'y'.code.toByte() ||
-                array[7] != 'p'.code.toByte()
-            ) {
-                return false
-            }
+            val hex = bytesToHex(array)
+            // Search for 'ftyp' (66747970 in hex) within the header
+            val ftypIndex = hex.indexOf("66747970")
+            if (ftypIndex == -1 || ftypIndex % 2 != 0) return false
 
-            val majorBrand = String(array, 8, 4, Charsets.US_ASCII).trim('\u0000').lowercase()
+            val byteOffset = ftypIndex / 2
+            if (array.size < byteOffset + 8) return false
+
+            val majorBrand = String(array, byteOffset + 4, 4, Charsets.US_ASCII).trim('\u0000').lowercase()
             
             // Explicitly exclude known IMAGE-only brands to prevent false positives (HEIC/HEIF)
             val imageBrands = setOf("heic", "heix", "hevc", "hevx", "mif1", "msf1")
@@ -80,9 +81,7 @@ enum class FileType(
 
         fun fromFile(file: File): FileType {
             file.inputStream().use { inputStream ->
-                val buffer = ByteArray(16)
-                inputStream.read(buffer)
-                return fromByteArray(buffer)
+                return fromInputStream(inputStream)
             }
         }
 
@@ -107,16 +106,17 @@ enum class FileType(
             }
 
             // 2. Check ISO BMFF container type
-            val majorBrand = if (headerBytes.size >= 12 && 
-                headerBytes[4] == 'f'.code.toByte() && headerBytes[5] == 't'.code.toByte() &&
-                headerBytes[6] == 'y'.code.toByte() && headerBytes[7] == 'p'.code.toByte()) {
-                String(headerBytes, 8, 4, Charsets.US_ASCII).trim('\u0000').lowercase()
-            } else null
-
-            if (majorBrand != null) {
-                if (majorBrand in setOf("heic", "heix")) return HEIC
-                if (majorBrand in setOf("mif1", "msf1")) return HEIF
-                if (looksLikeIsoBmffVideo(headerBytes)) return MP4
+            if (looksLikeIsoBmffVideo(headerBytes)) return MP4
+            
+            // Re-check for HEIC/HEIF which use the same ftyp box
+            val ftypIndex = hex.indexOf("66747970")
+            if (ftypIndex != -1 && ftypIndex % 2 == 0) {
+                val byteOffset = ftypIndex / 2
+                if (headerBytes.size >= byteOffset + 8) {
+                    val majorBrand = String(headerBytes, byteOffset + 4, 4, Charsets.US_ASCII).trim('\u0000').lowercase()
+                    if (majorBrand in setOf("heic", "heix")) return HEIC
+                    if (majorBrand in setOf("mif1", "msf1")) return HEIF
+                }
             }
 
             return UNKNOWN
@@ -124,7 +124,12 @@ enum class FileType(
 
         fun fromInputStream(inputStream: InputStream): FileType {
             val buffer = ByteArray(16)
-            inputStream.read(buffer)
+            var offset = 0
+            while (offset < buffer.size) {
+                val read = inputStream.read(buffer, offset, buffer.size - offset)
+                if (read == -1) break
+                offset += read
+            }
             return fromByteArray(buffer)
         }
     }

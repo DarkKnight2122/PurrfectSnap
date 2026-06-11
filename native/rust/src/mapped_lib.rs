@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, path::PathBuf};
 
 use procfs::process::{MMPermissions, MMapPath};
 
@@ -7,6 +7,8 @@ pub(crate) struct MappedRegion {
     pub start: u64,
     pub end: u64,
     pub perms: MMPermissions,
+    pub offset: u64,
+    pub path: PathBuf,
 }
 
 #[derive(Debug)]
@@ -35,6 +37,8 @@ impl MappedLib {
                         start: map.address.0,
                         end: map.address.1,
                         perms: map.perms,
+                        offset: map.offset,
+                        path: path_buffer.clone(),
                     });
                 }
             }
