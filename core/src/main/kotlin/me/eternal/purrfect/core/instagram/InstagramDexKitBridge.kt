@@ -154,8 +154,7 @@ internal class InstagramDexKitBridge(
             val methodMatcherClass = Class.forName("org.luckypray.dexkit.query.matchers.MethodMatcher")
             val findMethod = findMethodClass.getMethod("create").invoke(null)
             val matcher = methodMatcherClass.getMethod("create").invoke(null)
-            methodMatcherClass.getMethod("usingStrings", Array<String>::class.java)
-                .invoke(matcher, arrayOf(*strings))
+            applyStringMatcher(methodMatcherClass, matcher, strings)
             findMethodClass.getMethod("matcher", methodMatcherClass).invoke(findMethod, matcher)
             val results = activeBridge.javaClass.getMethod("findMethod", findMethodClass).invoke(activeBridge, findMethod) as? Iterable<*>
                 ?: return@runCatching emptyList()
@@ -176,8 +175,7 @@ internal class InstagramDexKitBridge(
     ): List<Method> {
         if (strings.isEmpty()) return emptyList()
         return findMethodsWithMatcher("constrained string search for ${strings.joinToString()}") { methodMatcherClass, matcher ->
-            methodMatcherClass.getMethod("usingStrings", Array<String>::class.java)
-                .invoke(matcher, arrayOf(*strings.toTypedArray()))
+            applyStringMatcher(methodMatcherClass, matcher, strings.toTypedArray())
             if (paramCount != null) {
                 methodMatcherClass.getMethod("paramCount", java.lang.Integer.TYPE).invoke(matcher, paramCount)
             }
@@ -233,8 +231,7 @@ internal class InstagramDexKitBridge(
         return findMethodRefs(
             logName = "method-ref string search for ${strings.joinToString()}",
             configureMatcher = { methodMatcherClass, matcher ->
-                methodMatcherClass.getMethod("usingStrings", Array<String>::class.java)
-                    .invoke(matcher, arrayOf(*strings))
+                applyStringMatcher(methodMatcherClass, matcher, strings)
             }
         )
     }
@@ -245,8 +242,7 @@ internal class InstagramDexKitBridge(
             logName = "method-ref class/string search for $declaredClass",
             configureMatcher = { methodMatcherClass, matcher ->
                 methodMatcherClass.getMethod("declaredClass", String::class.java).invoke(matcher, declaredClass)
-                methodMatcherClass.getMethod("usingStrings", Array<String>::class.java)
-                    .invoke(matcher, arrayOf(*strings))
+                applyStringMatcher(methodMatcherClass, matcher, strings)
             }
         )
     }
@@ -333,14 +329,7 @@ internal class InstagramDexKitBridge(
             val methodMatcherClass = Class.forName("org.luckypray.dexkit.query.matchers.MethodMatcher")
             val findMethod = findMethodClass.getMethod("create").invoke(null)
             val matcher = methodMatcherClass.getMethod("create").invoke(null)
-            val usingNumbers = methodMatcherClass.methods.firstOrNull { method ->
-                method.name == "usingNumbers" && method.parameterTypes.size == 1
-            } ?: return@runCatching emptyList()
-            when (usingNumbers.parameterTypes[0]) {
-                IntArray::class.java -> usingNumbers.invoke(matcher, numbers)
-                Array<Int>::class.java -> usingNumbers.invoke(matcher, arrayOf(*numbers.toTypedArray()))
-                else -> usingNumbers.invoke(matcher, numbers.toTypedArray())
-            }
+            applyNumberMatcher(methodMatcherClass, matcher, numbers.map { it.toLong() }.toLongArray())
             findMethodClass.getMethod("matcher", methodMatcherClass).invoke(findMethod, matcher)
             val results = activeBridge.javaClass.getMethod("findMethod", findMethodClass).invoke(activeBridge, findMethod) as? Iterable<*>
                 ?: return@runCatching emptyList()
@@ -393,7 +382,25 @@ internal class InstagramDexKitBridge(
             parameterType.isArray && parameterType.componentType == java.lang.Number::class.java -> {
                 usingNumbers.invoke(matcher, numbers.map { it as Number }.toTypedArray() as Any)
             }
+            java.util.Collection::class.java.isAssignableFrom(parameterType) -> {
+                usingNumbers.invoke(matcher, numbers.map { it as Number })
+            }
             else -> usingNumbers.invoke(matcher, numbers.toTypedArray() as Any)
+        }
+    }
+
+    private fun applyStringMatcher(matcherClass: Class<*>, matcher: Any, strings: Array<out String>) {
+        val usingStrings = matcherClass.methods.firstOrNull { method ->
+            method.name == "usingStrings" &&
+                method.parameterTypes.size == 1 &&
+                ((method.parameterTypes[0].isArray && method.parameterTypes[0].componentType == String::class.java) ||
+                    java.util.Collection::class.java.isAssignableFrom(method.parameterTypes[0]))
+        } ?: return
+        val parameterType = usingStrings.parameterTypes[0]
+        if (java.util.Collection::class.java.isAssignableFrom(parameterType)) {
+            usingStrings.invoke(matcher, strings.toList())
+        } else {
+            usingStrings.invoke(matcher, strings as Any)
         }
     }
 
@@ -405,14 +412,7 @@ internal class InstagramDexKitBridge(
             val methodMatcherClass = Class.forName("org.luckypray.dexkit.query.matchers.MethodMatcher")
             val findMethod = findMethodClass.getMethod("create").invoke(null)
             val matcher = methodMatcherClass.getMethod("create").invoke(null)
-            val usingNumbers = methodMatcherClass.methods.firstOrNull { method ->
-                method.name == "usingNumbers" && method.parameterTypes.size == 1
-            } ?: return@runCatching emptyList()
-            when (usingNumbers.parameterTypes[0]) {
-                IntArray::class.java -> usingNumbers.invoke(matcher, numbers)
-                Array<Int>::class.java -> usingNumbers.invoke(matcher, arrayOf(*numbers.toTypedArray()))
-                else -> usingNumbers.invoke(matcher, numbers.toTypedArray())
-            }
+            applyNumberMatcher(methodMatcherClass, matcher, numbers.map { it.toLong() }.toLongArray())
             findMethodClass.getMethod("matcher", methodMatcherClass).invoke(findMethod, matcher)
             val results = activeBridge.javaClass.getMethod("findMethod", findMethodClass).invoke(activeBridge, findMethod) as? Iterable<*>
                 ?: return@runCatching emptyList()
@@ -432,8 +432,7 @@ internal class InstagramDexKitBridge(
             val classMatcherClass = Class.forName("org.luckypray.dexkit.query.matchers.ClassMatcher")
             val findClass = findClassClass.getMethod("create").invoke(null)
             val matcher = classMatcherClass.getMethod("create").invoke(null)
-            classMatcherClass.getMethod("usingStrings", Array<String>::class.java)
-                .invoke(matcher, arrayOf(*strings))
+            applyStringMatcher(classMatcherClass, matcher, strings)
             findClassClass.getMethod("matcher", classMatcherClass).invoke(findClass, matcher)
             val results = activeBridge.javaClass.getMethod("findClass", findClassClass).invoke(activeBridge, findClass) as? Iterable<*>
                 ?: return@runCatching emptyList()
@@ -593,8 +592,7 @@ internal class InstagramDexKitBridge(
                 methodMatcherClass.getMethod("paramTypes", Array<String>::class.java)
                     .invoke(matcher, arrayOf(*paramTypes.toTypedArray()))
             }
-            methodMatcherClass.getMethod("usingStrings", Array<String>::class.java)
-                .invoke(matcher, arrayOf(*strings))
+            applyStringMatcher(methodMatcherClass, matcher, strings)
             findMethodClass.getMethod("matcher", methodMatcherClass).invoke(findMethod, matcher)
             val results = activeBridge.javaClass.getMethod("findMethod", findMethodClass).invoke(activeBridge, findMethod) as? Iterable<*>
                 ?: return@runCatching emptyList()

@@ -201,13 +201,24 @@ internal class InstagramDevOptionsMetaConfig(
     }
 
     private fun discoverAndHookMetaConfigListBuilderClasses() {
+        val cached = loadCachedMetaConfigClassNames("DevOptionsMetaConfigListBuilders")
+        if (cached.isNotEmpty()) {
+            val cachedHooks = cached.count { hookMetaConfigListBuilderClass(it) }
+            if (cachedHooks > 0) {
+                log("MetaConfig helper discovery used cached class(es): $cachedHooks")
+                return
+            }
+        }
         var hooked = 0
+        val discovered = LinkedHashSet<String>()
         dexBridge.findClassNamesUsingStrings("^(ig_|android_|launcher_)+", "(_launcher|_universe)$").forEach { className ->
             if (hookMetaConfigListBuilderClass(className)) {
                 hooked++
+                discovered += className
                 log("MetaConfig helper candidate: $className")
             }
         }
+        saveCachedMetaConfigClassNames("DevOptionsMetaConfigListBuilders", discovered)
         log("MetaConfig helper discovery hooked $hooked class(es)")
     }
 
@@ -268,9 +279,25 @@ internal class InstagramDevOptionsMetaConfig(
     }
 
     private fun discoverGeneratedMetaConfigNameClasses() {
+        val cached = loadCachedMetaConfigClassNames("DevOptionsMetaConfigGeneratedClasses")
+        if (cached.isNotEmpty()) {
+            val added = cached.count { className -> !className.isNullOrBlank() && generatedClassNames.add(className) }
+            if (added > 0) {
+                nameHints = null
+                universeLabels = null
+                searchIndex = null
+                nameHintsLogged = false
+            }
+            log("Loaded $added cached generated MetaConfig name class(es)")
+            return
+        }
         var added = 0
+        val discovered = LinkedHashSet<String>()
         dexBridge.findClassNamesWithFieldNames("CONFIG_ID", "__CONFIG__").forEach { className ->
-            if (!className.isNullOrBlank() && generatedClassNames.add(className)) added++
+            if (!className.isNullOrBlank() && generatedClassNames.add(className)) {
+                added++
+                discovered += className
+            }
         }
         if (added > 0) {
             nameHints = null
@@ -278,26 +305,46 @@ internal class InstagramDevOptionsMetaConfig(
             searchIndex = null
             nameHintsLogged = false
         }
+        saveCachedMetaConfigClassNames("DevOptionsMetaConfigGeneratedClasses", discovered)
         log("Discovered $added generated MetaConfig name class(es)")
     }
 
     private fun discoverAndHookMetaConfigSearchRunnableClasses() {
+        val cached = loadCachedMetaConfigClassNames("DevOptionsMetaConfigSearchRunnables")
+        if (cached.isNotEmpty()) {
+            val cachedHooks = cached.count { hookMetaConfigSearchRunnableClass(it) }
+            if (cachedHooks > 0) {
+                log("MetaConfig search discovery used cached class(es): $cachedHooks")
+                return
+            }
+        }
         var hooked = 0
+        val discovered = LinkedHashSet<String>()
         hooked += discoverAndHookMetaConfigSearchRunnableClasses(
             "com.instagram.debug.quickexperiment.QuickExperimentCategoriesFragment",
-            "java.lang.String"
+            "java.lang.String",
+            discovered
         )
         hooked += discoverAndHookMetaConfigSearchRunnableClasses(
             "Lcom/instagram/debug/quickexperiment/QuickExperimentCategoriesFragment;",
-            "Ljava/lang/String;"
+            "Ljava/lang/String;",
+            discovered
         )
+        saveCachedMetaConfigClassNames("DevOptionsMetaConfigSearchRunnables", discovered)
         log("MetaConfig search discovery hooked $hooked class(es)")
     }
 
-    private fun discoverAndHookMetaConfigSearchRunnableClasses(fragmentType: String, stringType: String): Int {
+    private fun discoverAndHookMetaConfigSearchRunnableClasses(
+        fragmentType: String,
+        stringType: String,
+        discovered: MutableSet<String>
+    ): Int {
         var hooked = 0
         dexBridge.findClassNamesWithFieldTypes(fragmentType, stringType).forEach { className ->
-            if (hookMetaConfigSearchRunnableClass(className)) hooked++
+            if (hookMetaConfigSearchRunnableClass(className)) {
+                hooked++
+                discovered += className
+            }
         }
         return hooked
     }
@@ -305,24 +352,59 @@ internal class InstagramDevOptionsMetaConfig(
     private fun discoverMetaConfigSearchResultRendererClasses() {
         searchResultRunnableClassNames.add("X.aDo")
         searchResultRunnableClassNames.add("p000X.RunnableC87802aDo")
+        val cached = loadCachedMetaConfigClassNames("DevOptionsMetaConfigSearchRenderers")
+        if (cached.isNotEmpty()) {
+            val added = cached.count { className ->
+                isMetaConfigSearchResultRendererClass(className) && searchResultRunnableClassNames.add(className)
+            }
+            if (added > 0) {
+                log("MetaConfig search renderer discovery used cached class(es): $added")
+                return
+            }
+        }
         var discovered = 0
+        val discoveredClasses = LinkedHashSet<String>()
         discovered += discoverMetaConfigSearchResultRendererClasses(
             "com.instagram.debug.quickexperiment.QuickExperimentCategoriesFragment",
-            "java.util.List"
+            "java.util.List",
+            discoveredClasses
         )
         discovered += discoverMetaConfigSearchResultRendererClasses(
             "Lcom/instagram/debug/quickexperiment/QuickExperimentCategoriesFragment;",
-            "Ljava/util/List;"
+            "Ljava/util/List;",
+            discoveredClasses
         )
+        saveCachedMetaConfigClassNames("DevOptionsMetaConfigSearchRenderers", discoveredClasses)
         if (discovered > 0) log("MetaConfig search renderer discovery found $discovered class(es)")
     }
 
-    private fun discoverMetaConfigSearchResultRendererClasses(fragmentType: String, listType: String): Int {
+    private fun discoverMetaConfigSearchResultRendererClasses(
+        fragmentType: String,
+        listType: String,
+        discoveredClasses: MutableSet<String>
+    ): Int {
         var added = 0
         dexBridge.findClassNamesWithFieldTypes(fragmentType, listType).forEach { className ->
-            if (isMetaConfigSearchResultRendererClass(className) && searchResultRunnableClassNames.add(className)) added++
+            if (isMetaConfigSearchResultRendererClass(className) && searchResultRunnableClassNames.add(className)) {
+                added++
+                discoveredClasses += className
+            }
         }
         return added
+    }
+
+    private fun loadCachedMetaConfigClassNames(key: String): List<String> {
+        if (!InstagramDexKitCache.isCacheValid()) return emptyList()
+        return InstagramDexKitCache.loadString(key)
+            ?.split('\u0000')
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            .orEmpty()
+    }
+
+    private fun saveCachedMetaConfigClassNames(key: String, classNames: Collection<String>) {
+        if (classNames.isEmpty()) return
+        InstagramDexKitCache.saveString(key, classNames.filter { it.isNotBlank() }.distinct().joinToString("\u0000"))
     }
 
     private fun isMetaConfigSearchResultRendererClass(className: String?): Boolean {

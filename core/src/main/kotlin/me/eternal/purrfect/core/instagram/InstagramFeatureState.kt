@@ -1,14 +1,9 @@
 package me.eternal.purrfect.core.instagram
 
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
 import android.net.Uri
-import android.os.IBinder
 import android.os.SystemClock
 import de.robv.android.xposed.XposedBridge
-import me.eternal.purrfect.bridge.BridgeInterface
 import me.eternal.purrfect.common.BuildConfig
 import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.core.logger.CoreLogger
@@ -16,7 +11,6 @@ import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.File
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -65,19 +59,23 @@ data class InstagramFeatureState(
     val openLinksExternally: Boolean = false,
     val replaceShareLinkDomain: Boolean = false,
     val hideSuggestionsInFeed: Boolean = false,
+    val hideSuggestedForYouInFeed: Boolean = false,
+    val hideSuggestionsInDm: Boolean = false,
+    val hideDiscoverPeopleInProfile: Boolean = false,
     val doNotSaveRecentSearches: Boolean = false,
     val enablePostDownload: Boolean = false,
     val enableStoryDownload: Boolean = false,
     val enableReelDownload: Boolean = false,
     val enableProfileDownload: Boolean = false,
-    val enableDmContextMenuOptions: Boolean = false,
+    val enableDmContextMenuOptions: Boolean = true,
     val enableReelThumbnailDownload: Boolean = false,
     val enableStoryMarkSeenButton: Boolean = false,
     val enableStoryRepostButton: Boolean = false,
     val enableCopyBio: Boolean = false,
     val enableHighQualityStoryUpload: Boolean = false,
     val enableDmAnyFileUpload: Boolean = false,
-    val enableGifCommentDownload: Boolean = false,
+    val enableUploadInstantsFromGallery: Boolean = false,
+    val preventDmMessageListAutoscroll: Boolean = false,
     val downloaderUsernameFolder: Boolean = false,
     val downloaderAddTimestamp: Boolean = false,
     val isMiscEnabled: Boolean = false,
@@ -87,7 +85,6 @@ data class InstagramFeatureState(
     val storiesStartWithSound: Boolean = false,
     val disableDoubleTapLike: Boolean = false,
     val enableConfirmRefresh: Boolean = false,
-    val enableMonetTheme: Boolean = false,
     val customEmojiFontEnabled: Boolean = false,
     val enableShareSheetEmojiShortcuts: Boolean = false,
     val enableNavigationTabCustomization: Boolean = false,
@@ -96,6 +93,14 @@ data class InstagramFeatureState(
     val showFollowerToast: Boolean = false,
     val showFeatureToasts: Boolean = false,
     val enableStoryMentions: Boolean = false,
+    val localInstagramPlus: Boolean = false,
+    val sendCustomEmojiReactionsToStory: Boolean = false,
+    val changeLikeReactions: Boolean = false,
+    val customizeStoryRingSize: Boolean = false,
+    val disableGroupCreationFromShareSheet: Boolean = false,
+    val improveImageViewing: Boolean = false,
+    val moreOptionsOnPost: Boolean = false,
+    val removeEmptyBottomSpace: Boolean = false,
     val disableDiscoverPeople: Boolean = false,
     val enableHideChats: Boolean = false,
     val enableActivityHistory: Boolean = false,
@@ -111,6 +116,7 @@ data class InstagramFeatureState(
     val shareLinkReplacementDomain: String = "kkinstagram.com",
     val downloaderCustomPath: String = "",
     val downloaderCustomUri: String = "",
+    val reelDownloadControlMode: String = "menu",
     val customEmojiFontPath: String = "",
     val customEmojiFontName: String = "",
     val customEmojiFontUri: String = "",
@@ -118,11 +124,13 @@ data class InstagramFeatureState(
     val navigationTabHidden: String = "",
     val navigationDefaultTab: String = "home",
     val storyRingSize: String = "default",
+    val likeReactionAnimation: String = "ARES_LIKE_ACTIVATION",
     val hiddenUiElementIds: String = "",
     val hiddenUiElementSelectors: String = "",
     val hiddenChatNames: String = "",
     val knownChatNames: String = "",
     val customDateFormat: String = "yyyy-MM-dd HH:mm",
+    val confirmRefreshScope: String = "both",
     val notesSpoofLatitude: String = "",
     val notesSpoofLongitude: String = "",
     val source: String = "unavailable"
@@ -136,9 +144,19 @@ data class InstagramFeatureState(
     val hiddenChatNameSet: Set<String> =
         hiddenChatNames.lineSequence().map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
 
+    fun shouldConfirmRefresh(surface: String): Boolean {
+        if (!enableConfirmRefresh) return false
+        return when (confirmRefreshScope.lowercase()) {
+            "feed" -> surface == "feed"
+            "reels" -> surface == "reels"
+            else -> surface == "feed" || surface == "reels"
+        }
+    }
+
     fun hasAnyFeedSuppression(): Boolean {
         return isExtremeMode || isDistractionFree || disableStories || disableFeed ||
             disableReels || disableExplore || disableComments || hideSuggestionsInFeed ||
+            hideSuggestedForYouInFeed || hideSuggestionsInDm || hideDiscoverPeopleInProfile ||
             hiddenUiElementIdSet.isNotEmpty() || hiddenUiElementSelectorSet.isNotEmpty()
     }
 
@@ -160,25 +178,30 @@ data class InstagramFeatureState(
             "isDevEnabled", "removeBuildExpiredPopup", "isGhostModeEnabled", "isGhostSeen", "markTextsSeenAfterReply",
             "isGhostTyping", "isGhostStory", "storyInteractionSendsSeen", "isGhostLive",
             "hideVoiceMessageSeen", "allowScreenshots", "isGhostScreenshot", "isGhostViewOnce",
-            "enableUnlimitedReplays", "permanentViewMode", "keepEphemeralMessages",
+            "enableUnlimitedReplays", "permanentViewMode",
             "keepUnsentMessages", "quickToggleSeen", "quickToggleTyping", "quickToggleScreenshot",
-            "quickToggleViewOnce", "quickToggleStory", "quickToggleLive", "quickToggleEphemeral",
+            "quickToggleViewOnce", "quickToggleStory", "quickToggleLive",
             "quickToggleUnsend", "quickToggleReplays", "quickTogglePermanentView",
             "quickToggleAllowScreenshots", "isExtremeMode", "isDistractionFree", "disableStories",
             "disableFeed", "disableReels", "disableReelsExceptDM", "disableExplore",
             "disableComments", "isAdBlockEnabled", "isAnalyticsBlocked", "disableTrackingLinks",
             "stripShareTrackingParameters", "openLinksExternally", "replaceShareLinkDomain",
-            "hideSuggestionsInFeed", "doNotSaveRecentSearches", "enablePostDownload", "enableStoryDownload",
-            "enableReelDownload", "enableProfileDownload",
+            "hideSuggestionsInFeed", "hideSuggestedForYouInFeed", "hideSuggestionsInDm",
+            "hideDiscoverPeopleInProfile", "doNotSaveRecentSearches", "enablePostDownload", "enableStoryDownload",
+            "enableReelDownload", "enableProfileDownload", "enableDmContextMenuOptions",
             "enableReelThumbnailDownload", "enableStoryMarkSeenButton", "enableStoryRepostButton",
             "enableCopyBio", "enableHighQualityStoryUpload",
-            "enableDmAnyFileUpload", "enableGifCommentDownload", "downloaderUsernameFolder",
+            "enableDmAnyFileUpload", "enableUploadInstantsFromGallery",
+            "preventDmMessageListAutoscroll", "downloaderUsernameFolder",
             "downloaderAddTimestamp", "isMiscEnabled", "disableStoryFlipping", "disableVideoAutoPlay",
             "feedVideosStartWithSound", "storiesStartWithSound", "disableDoubleTapLike",
-            "enableConfirmRefresh", "enableMonetTheme", "customEmojiFontEnabled",
+            "enableConfirmRefresh", "customEmojiFontEnabled",
             "enableShareSheetEmojiShortcuts", "enableNavigationTabCustomization",
             "enableStoryTrayLongPressActions", "captureUiElementIdsEnabled",
             "showFollowerToast", "showFeatureToasts", "enableStoryMentions",
+            "localInstagramPlus", "sendCustomEmojiReactionsToStory", "changeLikeReactions",
+            "customizeStoryRingSize", "disableGroupCreationFromShareSheet",
+            "improveImageViewing", "moreOptionsOnPost", "removeEmptyBottomSpace",
             "enableHideChats", "enableActivityHistory", "enableCopyComment", "enableCustomDateFormat",
             "customDateFormatFeed", "customDateFormatComments", "customDateFormatReels",
             "customDateFormatStories", "customDateFormatDirect", "enableNotesLocationSpoof"
@@ -187,9 +210,10 @@ data class InstagramFeatureState(
         val stringFeatureKeys = listOf(
             "dmMarkSeenControlMode", "shareLinkReplacementDomain", "downloaderCustomPath",
             "downloaderCustomUri", "customEmojiFontPath", "customEmojiFontName", "customEmojiFontUri",
-            "navigationTabOrder", "navigationTabHidden", "navigationDefaultTab", "storyRingSize",
+            "navigationTabOrder", "navigationTabHidden", "navigationDefaultTab", "storyRingSize", "likeReactionAnimation",
             "hiddenUiElementIds", "hiddenUiElementSelectors", "hiddenChatNames", "knownChatNames",
-            "customDateFormat", "notesSpoofLatitude", "notesSpoofLongitude", "notesSpoofMapLocation"
+            "customDateFormat", "confirmRefreshScope", "reelDownloadControlMode",
+            "notesSpoofLatitude", "notesSpoofLongitude", "notesSpoofMapLocation"
         )
 
         fun load(androidContext: Context): InstagramFeatureState {
@@ -207,7 +231,6 @@ data class InstagramFeatureState(
 
         fun loadFresh(androidContext: Context): InstagramFeatureState? {
             return loadFromProvider(androidContext)
-                ?: loadFromBridge(androidContext)
                 ?: loadFromModuleJson(androidContext)
                 ?: loadFromExternalJson()
                 ?: loadFromRootJson()
@@ -275,48 +298,6 @@ data class InstagramFeatureState(
                 if (!throwable.message.orEmpty().contains("Unknown authority")) {
                     log("Instagram config provider unavailable: ${throwable.javaClass.simpleName}: ${throwable.message}")
                 }
-            }.getOrNull()
-        }
-
-        private fun loadFromBridge(androidContext: Context): InstagramFeatureState? {
-            val bridgeContext = moduleContext(androidContext) ?: androidContext
-            var service: BridgeInterface? = null
-            val latch = CountDownLatch(1)
-            val connection = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName, binder: IBinder) {
-                    service = BridgeInterface.Stub.asInterface(binder)
-                    latch.countDown()
-                }
-
-                override fun onServiceDisconnected(name: ComponentName) {
-                    service = null
-                }
-            }
-
-            return runCatching {
-                runCatching {
-                    bridgeContext.startActivity(
-                        Intent()
-                            .setClassName(Constants.MODULE_PACKAGE_NAME, "me.eternal.purrfect.bridge.ForceStartActivity")
-                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                    )
-                }
-
-                val intent = Intent()
-                    .setClassName(Constants.MODULE_PACKAGE_NAME, "me.eternal.purrfect.bridge.BridgeService")
-                    .setPackage(Constants.MODULE_PACKAGE_NAME)
-                if (!bridgeContext.bindService(intent, connection, Context.BIND_AUTO_CREATE)) return null
-
-                try {
-                    if (!latch.await(900L, TimeUnit.MILLISECONDS)) return null
-                    val json = service?.instagramFeaturesJson ?: return null
-                    fromJson(json, "bridge").also { logLoadedState(it) }
-                } finally {
-                    runCatching { bridgeContext.unbindService(connection) }
-                }
-            }.onFailure { throwable ->
-                log("Failed to load Instagram feature state from bridge: ${throwable.message}")
-                runCatching { bridgeContext.unbindService(connection) }
             }.getOrNull()
         }
 
@@ -539,7 +520,7 @@ data class InstagramFeatureState(
                 isGhostViewOnce = getBoolean("isGhostViewOnce", false),
                 enableUnlimitedReplays = getBoolean("enableUnlimitedReplays", false),
                 permanentViewMode = getBoolean("permanentViewMode", false),
-                keepEphemeralMessages = getBoolean("keepEphemeralMessages", false),
+                keepEphemeralMessages = false,
                 keepUnsentMessages = getBoolean("keepUnsentMessages", true),
                 quickToggleSeen = getBoolean("quickToggleSeen", false),
                 quickToggleTyping = getBoolean("quickToggleTyping", false),
@@ -547,7 +528,7 @@ data class InstagramFeatureState(
                 quickToggleViewOnce = getBoolean("quickToggleViewOnce", false),
                 quickToggleStory = getBoolean("quickToggleStory", false),
                 quickToggleLive = getBoolean("quickToggleLive", false),
-                quickToggleEphemeral = getBoolean("quickToggleEphemeral", false),
+                quickToggleEphemeral = false,
                 quickToggleUnsend = getBoolean("quickToggleUnsend", true),
                 quickToggleReplays = getBoolean("quickToggleReplays", false),
                 quickTogglePermanentView = getBoolean("quickTogglePermanentView", false),
@@ -568,19 +549,23 @@ data class InstagramFeatureState(
                 openLinksExternally = getBoolean("openLinksExternally", false),
                 replaceShareLinkDomain = getBoolean("replaceShareLinkDomain", false),
                 hideSuggestionsInFeed = getBoolean("hideSuggestionsInFeed", false),
+                hideSuggestedForYouInFeed = getBoolean("hideSuggestedForYouInFeed", false),
+                hideSuggestionsInDm = getBoolean("hideSuggestionsInDm", false),
+                hideDiscoverPeopleInProfile = getBoolean("hideDiscoverPeopleInProfile", false),
                 doNotSaveRecentSearches = getBoolean("doNotSaveRecentSearches", false),
                 enablePostDownload = getBoolean("enablePostDownload", false),
                 enableStoryDownload = getBoolean("enableStoryDownload", false),
                 enableReelDownload = getBoolean("enableReelDownload", false),
                 enableProfileDownload = getBoolean("enableProfileDownload", false),
-                enableDmContextMenuOptions = false,
+                enableDmContextMenuOptions = getBoolean("enableDmContextMenuOptions", true),
                 enableReelThumbnailDownload = getBoolean("enableReelThumbnailDownload", false),
                 enableStoryMarkSeenButton = getBoolean("enableStoryMarkSeenButton", false),
                 enableStoryRepostButton = getBoolean("enableStoryRepostButton", false),
                 enableCopyBio = getBoolean("enableCopyBio", false),
                 enableHighQualityStoryUpload = getBoolean("enableHighQualityStoryUpload", false),
                 enableDmAnyFileUpload = getBoolean("enableDmAnyFileUpload", false),
-                enableGifCommentDownload = getBoolean("enableGifCommentDownload", false),
+                enableUploadInstantsFromGallery = getBoolean("enableUploadInstantsFromGallery", false),
+                preventDmMessageListAutoscroll = getBoolean("preventDmMessageListAutoscroll", false),
                 downloaderUsernameFolder = getBoolean("downloaderUsernameFolder", false),
                 downloaderAddTimestamp = getBoolean("downloaderAddTimestamp", false),
                 isMiscEnabled = getBoolean("isMiscEnabled", false),
@@ -590,7 +575,6 @@ data class InstagramFeatureState(
                 storiesStartWithSound = getBoolean("storiesStartWithSound", false),
                 disableDoubleTapLike = getBoolean("disableDoubleTapLike", false),
                 enableConfirmRefresh = getBoolean("enableConfirmRefresh", false),
-                enableMonetTheme = getBoolean("enableMonetTheme", false),
                 customEmojiFontEnabled = getBoolean("customEmojiFontEnabled", false),
                 enableShareSheetEmojiShortcuts = getBoolean("enableShareSheetEmojiShortcuts", false),
                 enableNavigationTabCustomization = getBoolean("enableNavigationTabCustomization", false),
@@ -599,6 +583,14 @@ data class InstagramFeatureState(
                 showFollowerToast = getBoolean("showFollowerToast", false),
                 showFeatureToasts = getBoolean("showFeatureToasts", false),
                 enableStoryMentions = getBoolean("enableStoryMentions", false),
+                localInstagramPlus = getBoolean("localInstagramPlus", false),
+                sendCustomEmojiReactionsToStory = getBoolean("sendCustomEmojiReactionsToStory", false),
+                changeLikeReactions = getBoolean("changeLikeReactions", false),
+                customizeStoryRingSize = getBoolean("customizeStoryRingSize", false),
+                disableGroupCreationFromShareSheet = getBoolean("disableGroupCreationFromShareSheet", false),
+                improveImageViewing = getBoolean("improveImageViewing", false),
+                moreOptionsOnPost = getBoolean("moreOptionsOnPost", false),
+                removeEmptyBottomSpace = getBoolean("removeEmptyBottomSpace", false),
                 disableDiscoverPeople = getBoolean("disableDiscoverPeople", false),
                 enableHideChats = getBoolean("enableHideChats", false),
                 enableActivityHistory = getBoolean("enableActivityHistory", false),
@@ -614,6 +606,9 @@ data class InstagramFeatureState(
                 shareLinkReplacementDomain = getString("shareLinkReplacementDomain", "kkinstagram.com"),
                 downloaderCustomPath = getString("downloaderCustomPath", ""),
                 downloaderCustomUri = getString("downloaderCustomUri", ""),
+                reelDownloadControlMode = getString("reelDownloadControlMode", "menu").let {
+                    if (it == "menu" || it == "like_long_press" || it == "both") it else "menu"
+                },
                 customEmojiFontPath = getString("customEmojiFontPath", ""),
                 customEmojiFontName = getString("customEmojiFontName", ""),
                 customEmojiFontUri = getString("customEmojiFontUri", ""),
@@ -621,11 +616,15 @@ data class InstagramFeatureState(
                 navigationTabHidden = getString("navigationTabHidden", ""),
                 navigationDefaultTab = getString("navigationDefaultTab", "home"),
                 storyRingSize = getString("storyRingSize", "default"),
+                likeReactionAnimation = getString("likeReactionAnimation", "ARES_LIKE_ACTIVATION"),
                 hiddenUiElementIds = normalizeUiElementIds(getString("hiddenUiElementIds", "")),
                 hiddenUiElementSelectors = normalizeUiElementSelectors(getString("hiddenUiElementSelectors", "")),
                 hiddenChatNames = getString("hiddenChatNames", ""),
                 knownChatNames = getString("knownChatNames", ""),
                 customDateFormat = getString("customDateFormat", "yyyy-MM-dd HH:mm"),
+                confirmRefreshScope = getString("confirmRefreshScope", "both").let {
+                    if (it == "feed" || it == "reels" || it == "both") it else "both"
+                },
                 notesSpoofLatitude = getString("notesSpoofLatitude", ""),
                 notesSpoofLongitude = getString("notesSpoofLongitude", ""),
                 source = source

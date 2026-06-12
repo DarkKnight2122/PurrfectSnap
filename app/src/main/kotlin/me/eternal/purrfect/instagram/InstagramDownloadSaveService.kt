@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.media.MediaCodec
@@ -13,9 +14,11 @@ import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.documentfile.provider.DocumentFile
 import me.eternal.purrfect.RemoteSideContext
@@ -108,7 +111,7 @@ class InstagramDownloadSaveService : Service() {
                 else maybeProgress("Downloading...", 0, 0, true)
             }
             pushProgress("Saving...", 97, 100, false)
-            return writeViaSaf(temp, filename, mimeType, treeUri, username, usernameFolder)
+            return writeOutput(temp, filename, mimeType, treeUri, username, usernameFolder)
         } finally {
             temp.delete()
         }
@@ -139,11 +142,26 @@ class InstagramDownloadSaveService : Service() {
             pushProgress("Merging...", 80, 100, true)
             mergeVideoAudio(video.absolutePath, audio.absolutePath, merged.absolutePath)
             pushProgress("Saving...", 97, 100, false)
-            return writeViaSaf(merged, filename, mimeType, treeUri, username, usernameFolder)
+            return writeOutput(merged, filename, mimeType, treeUri, username, usernameFolder)
         } finally {
             video.delete()
             audio.delete()
             merged.delete()
+        }
+    }
+
+    private fun writeOutput(
+        source: File,
+        filename: String,
+        mimeType: String,
+        treeUri: String,
+        username: String?,
+        usernameFolder: Boolean
+    ): Uri {
+        return runCatching {
+            writeViaSaf(source, filename, mimeType, treeUri, username, usernameFolder)
+        }.getOrElse {
+            writeDefaultDownload(source, filename, mimeType, username, usernameFolder)
         }
     }
 
@@ -170,6 +188,62 @@ class InstagramDownloadSaveService : Service() {
             } ?: error("Cannot open output stream")
         }
         return document.uri
+    }
+
+    private fun writeDefaultDownload(
+        source: File,
+        filename: String,
+        mimeType: String,
+        username: String?,
+        usernameFolder: Boolean
+    ): Uri {
+        val safeUsername = sanitizePathSegment(username)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType.ifBlank { "application/octet-stream" })
+                put(MediaStore.MediaColumns.RELATIVE_PATH, buildDefaultRelativePath(safeUsername, usernameFolder))
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: error("MediaStore insert failed")
+            try {
+                contentResolver.openOutputStream(uri)?.use { output ->
+                    FileInputStream(source).use { input -> input.copyTo(output, DEFAULT_BUFFER_SIZE) }
+                } ?: error("MediaStore output failed")
+                values.clear()
+                values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                contentResolver.update(uri, values, null, null)
+                return uri
+            } catch (throwable: Throwable) {
+                contentResolver.delete(uri, null, null)
+                throw throwable
+            }
+        }
+
+        var directory = File(Environment.getExternalStorageDirectory(), "PurrfectInsta")
+        if (usernameFolder && safeUsername.isNotBlank()) directory = File(directory, safeUsername)
+        if (!directory.exists() && !directory.mkdirs()) error("Cannot create dir: ${directory.absolutePath}")
+        val output = File(directory, filename)
+        FileInputStream(source).use { input ->
+            FileOutputStream(output).use { fileOutput -> input.copyTo(fileOutput, DEFAULT_BUFFER_SIZE) }
+        }
+        return Uri.fromFile(output)
+    }
+
+    private fun buildDefaultRelativePath(username: String, usernameFolder: Boolean): String {
+        var path = "Download/PurrfectInsta"
+        if (usernameFolder && username.isNotBlank()) path += "/$username"
+        return path
+    }
+
+    private fun sanitizePathSegment(value: String?): String {
+        return value?.trim()
+            ?.removePrefix("@")
+            ?.replace(Regex("[\\\\/:*?\"<>|\\s]+"), "_")
+            ?.trim('_')
+            ?.take(80)
+            .orEmpty()
     }
 
     private fun downloadToFile(url: String, destination: File, progress: (Long, Long) -> Unit) {

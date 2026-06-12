@@ -92,8 +92,17 @@ fun File.toWslPath(): String {
 fun File.toUnixLikePath(): String = absolutePath.replace("\\", "/")
 
 // In this environment, WSL doesn't mount all Windows drives (e.g. /mnt/d may be missing).
-// When using WSL's bash.exe, stage sources into a C:-backed temp directory and build from there.
-val wslStagingDir = File(System.getProperty("java.io.tmpdir"), "purrfect-wsl-native").apply { mkdirs() }
+// When using WSL's bash.exe, stage sources into a C:-backed scratch directory outside the repo.
+val buildScratchRoot = File(
+    (findProperty("purrfectBuildScratchDir") as? String)?.takeIf { it.isNotBlank() }
+        ?: System.getenv("PURRFECT_BUILD_SCRATCH_DIR")?.takeIf { it.isNotBlank() }
+        ?: File(rootProject.projectDir.parentFile ?: rootProject.projectDir, "testing-insta").absolutePath
+).apply { mkdirs() }
+val wslStagingDir = File(buildScratchRoot, "purrfect-wsl-native").apply { mkdirs() }
+val nativeTmpDir = File(buildScratchRoot, "purrfect-native-tmp").apply { mkdirs() }
+val nativeNdkTmpDir = File(nativeTmpDir, "ndk").apply { mkdirs() }
+val nativeOmvllPluginTmpDir = File(nativeTmpDir, "omvll-plugin").apply { mkdirs() }
+val nativeShellTmpDir = File(nativeTmpDir, "tmp").apply { mkdirs() }
 
 val explicitBash = System.getenv("BASH_PATH")?.takeIf { it.isNotBlank() }?.let { File(it) }
 val bashCandidates = mutableListOf<File>()
@@ -235,8 +244,13 @@ val syncTasks = cargoTargets.mapIndexed { index, target ->
         val buildScript = project.layout.projectDirectory.file("build-native.sh").asFile
         val scriptCommand = if (requiresWslPath) {
             val wslDir = File(wslStagingDir, "native").toWslPath()
-            val escapedDir = wslDir.replace("'", "'\"'\"'")
-            val command = "cd '$escapedDir' && bash './${buildScript.name}' ${target.triple}"
+            fun shellQuote(value: String) = "'${value.replace("'", "'\"'\"'")}'"
+            val command = listOf(
+                "export ANDROID_NDK_TMP=${shellQuote(nativeNdkTmpDir.toWslPath())}",
+                "export OMVLL_PLUGIN_TMP=${shellQuote(nativeOmvllPluginTmpDir.toWslPath())}",
+                "export TMPDIR=${shellQuote(nativeShellTmpDir.toWslPath())}",
+                "cd ${shellQuote(wslDir)} && bash './${buildScript.name}' ${target.triple}"
+            ).joinToString("; ")
             listOf(
                 bashExecutablePath,
                 "-lc",
@@ -263,6 +277,9 @@ val syncTasks = cargoTargets.mapIndexed { index, target ->
         environment("RUST_TOOLCHAIN", rustToolchain)
         environment("OMVLL_VERSION", omvllVersion)
         environment("OMVLL_LINUX_ASSET", omvllLinuxAsset)
+        environment("ANDROID_NDK_TMP", (if (requiresWslPath) nativeNdkTmpDir.toWslPath() else nativeNdkTmpDir.absolutePath))
+        environment("OMVLL_PLUGIN_TMP", (if (requiresWslPath) nativeOmvllPluginTmpDir.toWslPath() else nativeOmvllPluginTmpDir.absolutePath))
+        environment("TMPDIR", (if (requiresWslPath) nativeShellTmpDir.toWslPath() else nativeShellTmpDir.absolutePath))
         omvllArchiveUrl?.let { environment("OMVLL_ARCHIVE_URL", it) }
     }
 

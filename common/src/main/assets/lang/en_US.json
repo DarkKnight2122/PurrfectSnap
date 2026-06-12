@@ -1576,8 +1576,8 @@
                                 "description": "Allow story replies, reactions, and shares to send story seen status"
                             },
                             "isGhostLive": {
-                                "name": "Hide Live Presence",
-                                "description": "Hide live viewing and presence signals where possible"
+                                "name": "Hide Live Stream Presence",
+                                "description": "Join live streams without sending viewer heartbeat signals where possible"
                             },
                             "hideVoiceMessageSeen": {
                                 "name": "Hide Voice Message Listens",
@@ -1644,8 +1644,8 @@
                                 "description": "Show a quick toggle for story seen receipts"
                             },
                             "quickToggleLive": {
-                                "name": "Include Hide Live Presence",
-                                "description": "Show a quick toggle for live presence protection"
+                                "name": "Include Hide Live Stream Presence",
+                                "description": "Show a quick toggle for live stream presence protection"
                             },
                             "quickToggleEphemeral": {
                                 "name": "Include Keep Disappearing Messages",
@@ -1759,6 +1759,18 @@
                                 "name": "Hide Suggestions in Feed",
                                 "description": "Hide suggested posts, suggested users, and similar feed recommendations"
                             },
+                            "hideSuggestedForYouInFeed": {
+                                "name": "Hide Suggested for You in Feed",
+                                "description": "Hide the Suggested for you account section that appears while scrolling the feed"
+                            },
+                            "hideSuggestionsInDm": {
+                                "name": "Hide Suggestions in DM",
+                                "description": "Hide the Accounts to follow section in the Direct inbox"
+                            },
+                            "hideDiscoverPeopleInProfile": {
+                                "name": "Hide Discover People in Profile",
+                                "description": "Hide the Discover people section on profile pages"
+                            },
                             "doNotSaveRecentSearches": {
                                 "name": "Do Not Save Recent Searches",
                                 "description": "Prevent Instagram from saving recent searches locally where possible"
@@ -1771,6 +1783,11 @@
                         "core_master_title": "Enable/Disable All",
                         "core_master_description": "Enable or disable all Downloader features together.",
                         "download_folder_reset_toast": "Download folder reset to Default",
+                        "reel_download_mode_title": "Reel download trigger",
+                        "reel_download_mode_description": "Choose whether Reel video downloads use the context menu, the like-button long-press, or both.",
+                        "reel_download_menu": "Context menu",
+                        "reel_download_like_long_press": "Like long-press",
+                        "reel_download_both": "Both",
                         "properties": {
                             "enablePostDownload": {
                                 "name": "Download Posts",
@@ -1816,9 +1833,13 @@
                                 "name": "DM any-file upload picker",
                                 "description": "Allow more file types to be shared through Direct where possible"
                             },
-                            "enableGifCommentDownload": {
-                                "name": "Download GIF comments",
-                                "description": "Add download support for GIFs shown in comments"
+                            "enableUploadInstantsFromGallery": {
+                                "name": "Upload Instants from Gallery",
+                                "description": "Add a gallery upload button to the Instants camera"
+                            },
+                            "preventDmMessageListAutoscroll": {
+                                "name": "Prevent Message List Autoscroll",
+                                "description": "Keep Direct message position stable after sending while scrolled up"
                             },
                             "downloaderUsernameFolder": {
                                 "name": "Save in Username Subfolder",
@@ -1835,6 +1856,10 @@
                             "downloaderCustomUri": {
                                 "name": "Custom Download URI",
                                 "description": "Stored system URI for the selected Instagram download folder"
+                            },
+                            "reelDownloadControlMode": {
+                                "name": "Reel Download Trigger",
+                                "description": "Choose how Reel video downloads are triggered"
                             },
                             "media_quality": {
                                 "name": "Media Quality",
@@ -1881,6 +1906,10 @@
                             "enableConfirmRefresh": {
                                 "name": "Confirm before refreshing Feed/Reels",
                                 "description": "Ask for confirmation before actions that refresh the current feed"
+                            },
+                            "confirmRefreshScope": {
+                                "name": "Refresh confirmation scope",
+                                "description": "Choose whether refresh confirmation applies to Feed, Reels, or both"
                             }
                         }
                     },
@@ -1888,10 +1917,6 @@
                         "name": "Interface",
                         "description": "Theme, emoji, navigation, app icon, and UI element controls",
                         "properties": {
-                            "enableMonetTheme": {
-                                "name": "Monet Theme",
-                                "description": "Use Material You dynamic colors where supported"
-                            },
                             "customEmojiFontEnabled": {
                                 "name": "Custom Emoji Font",
                                 "description": "Use a custom emoji font inside Instagram where possible"
@@ -1932,9 +1957,29 @@
                                 "name": "Story Ring Size",
                                 "description": "Adjust story ring size where supported"
                             },
+                            "customizeStoryRingSize": {
+                                "name": "Customize Story Ring Size",
+                                "description": "Use the home story ring size override"
+                            },
                             "enableStoryTrayLongPressActions": {
                                 "name": "Story tray long-press actions",
                                 "description": "Add extra actions when long-pressing story tray items"
+                            },
+                            "disableGroupCreationFromShareSheet": {
+                                "name": "Disable group creation from sharesheet",
+                                "description": "Hide the create group action after selecting multiple recipients"
+                            },
+                            "improveImageViewing": {
+                                "name": "Improve image viewing",
+                                "description": "Prefer higher resolution image candidates when Instagram requests media"
+                            },
+                            "moreOptionsOnPost": {
+                                "name": "More options on post",
+                                "description": "Show copy and download actions when long-pressing supported feed posts"
+                            },
+                            "removeEmptyBottomSpace": {
+                                "name": "Remove empty bottom space",
+                                "description": "Collapse empty spacer views below Instagram's bottom navigation"
                             },
                             "captureUiElementIdsEnabled": {
                                 "name": "Capture UI Element ID Overlay",
@@ -2030,6 +2075,22 @@
                             "enableStoryMentions": {
                                 "name": "View Story Mentions",
                                 "description": "Enable extra story mention controls where possible"
+                            },
+                            "localInstagramPlus": {
+                                "name": "Local Instagram Plus",
+                                "description": "Unlock Instagram Plus benefits that Instagram checks locally"
+                            },
+                            "sendCustomEmojiReactionsToStory": {
+                                "name": "Send custom emoji reactions to story",
+                                "description": "Enable Instagram's local Plus custom emoji reaction picker from story replies"
+                            },
+                            "changeLikeReactions": {
+                                "name": "Change Like Reactions",
+                                "description": "Change the feed like activation reaction animation"
+                            },
+                            "likeReactionAnimation": {
+                                "name": "Like Reaction Animation",
+                                "description": "Choose which Rings-like activation animation to use"
                             },
                             "disableDiscoverPeople": {
                                 "name": "Disable Discover People",
@@ -4014,6 +4075,11 @@
                 "always_light": "Always Light",
                 "always_dark": "Always Dark",
                 "null": "Match System"
+            },
+            "confirmRefreshScope": {
+                "both": "Feed + Reels",
+                "feed": "Feed only",
+                "reels": "Reels only"
             },
             "auto_reload": {
                 "snapchat_only": "Reload Snapchat only",

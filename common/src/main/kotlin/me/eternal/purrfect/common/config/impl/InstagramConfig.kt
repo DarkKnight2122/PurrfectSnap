@@ -35,7 +35,9 @@ class InstagramConfig : ConfigContainer() {
         val quickToggleViewOnce = boolean("quickToggleViewOnce")
         val quickToggleStory = boolean("quickToggleStory")
         val quickToggleLive = boolean("quickToggleLive")
-        val quickToggleEphemeral = boolean("quickToggleEphemeral")
+        val quickToggleEphemeral = boolean("quickToggleEphemeral") {
+            addFlags(ConfigFlag.HIDDEN)
+        }
         val quickToggleUnsend = boolean("quickToggleUnsend", defaultValue = true)
         val quickToggleReplays = boolean("quickToggleReplays")
         val quickTogglePermanentView = boolean("quickTogglePermanentView")
@@ -66,7 +68,10 @@ class InstagramConfig : ConfigContainer() {
             requireRestart()
             addNotices(FeatureNotice.UNSTABLE)
         }
-        val keepEphemeralMessages = boolean("keepEphemeralMessages") { requireRestart() }
+        val keepEphemeralMessages = boolean("keepEphemeralMessages") {
+            requireRestart()
+            addFlags(ConfigFlag.HIDDEN)
+        }
         val keepUnsentMessages = boolean("keepUnsentMessages", defaultValue = true) { requireRestart() }
         val dmMarkSeenControlMode = string("dmMarkSeenControlMode", defaultValue = "eye") {
             requireRestart()
@@ -100,6 +105,9 @@ class InstagramConfig : ConfigContainer() {
 
     inner class CleanFeed : ConfigContainer() {
         val hideSuggestionsInFeed = boolean("hideSuggestionsInFeed") { requireRestart() }
+        val hideSuggestedForYouInFeed = boolean("hideSuggestedForYouInFeed") { requireRestart() }
+        val hideSuggestionsInDm = boolean("hideSuggestionsInDm") { requireRestart() }
+        val hideDiscoverPeopleInProfile = boolean("hideDiscoverPeopleInProfile") { requireRestart() }
     }
 
     inner class HiddenUiElements : ConfigContainer() {
@@ -190,7 +198,12 @@ class InstagramConfig : ConfigContainer() {
     }
 
     inner class MiscStoryUi : ConfigContainer() {
+        val customizeStoryRingSize = boolean("customizeStoryRingSize") {
+            requireRestart()
+            keepTranslationFrom("interface", "customizeStoryRingSize")
+        }
         val storyRingSize = string("storyRingSize", defaultValue = "default") {
+            requireRestart()
             keepTranslationFrom("interface", "storyRingSize")
         }
     }
@@ -243,6 +256,23 @@ class InstagramConfig : ConfigContainer() {
             requireRestart()
             keepTranslationFrom("social_and_text", "enableStoryMentions")
         }
+        val localInstagramPlus = boolean("localInstagramPlus") {
+            requireRestart()
+            keepTranslationFrom("social_and_text", "localInstagramPlus")
+        }
+        val sendCustomEmojiReactionsToStory = boolean("sendCustomEmojiReactionsToStory") {
+            requireRestart()
+            keepTranslationFrom("social_and_text", "sendCustomEmojiReactionsToStory")
+        }
+        val changeLikeReactions = boolean("changeLikeReactions") {
+            requireRestart()
+            keepTranslationFrom("social_and_text", "changeLikeReactions")
+        }
+        val likeReactionAnimation = string("likeReactionAnimation", defaultValue = "ARES_LIKE_ACTIVATION") {
+            requireRestart()
+            keepTranslationFrom("social_and_text", "likeReactionAnimation")
+            inputCheck = { raw -> raw == "default" || raw.matches(Regex("[A-Z0-9_]+")) }
+        }
         val enableCopyComment = boolean("enableCopyComment") {
             requireRestart()
             keepTranslationFrom("social_and_text", "enableCopyComment")
@@ -254,9 +284,6 @@ class InstagramConfig : ConfigContainer() {
         val disableDoubleTapLike = boolean("disableDoubleTapLike") {
             requireRestart()
             keepTranslationFrom("playback_and_gestures", "disableDoubleTapLike")
-        }
-        val enableMonetTheme = boolean("enableMonetTheme") {
-            keepTranslationFrom("interface", "enableMonetTheme")
         }
         val customEmojiFontEnabled = boolean("customEmojiFontEnabled") {
             requireRestart()
@@ -278,6 +305,11 @@ class InstagramConfig : ConfigContainer() {
         val enableConfirmRefresh = boolean("enableConfirmRefresh") {
             requireRestart()
             keepTranslationFrom("playback_and_gestures", "enableConfirmRefresh")
+        }
+        val confirmRefreshScope = string("confirmRefreshScope", defaultValue = "both") {
+            requireRestart()
+            keepTranslationFrom("playback_and_gestures", "confirmRefreshScope")
+            inputCheck = { raw -> raw == "feed" || raw == "reels" || raw == "both" }
         }
         val enableNotesLocationSpoof = boolean("enableNotesLocationSpoof") {
             requireRestart()
@@ -310,6 +342,22 @@ class InstagramConfig : ConfigContainer() {
             requireRestart()
             keepTranslationFrom("interface", "enableStoryTrayLongPressActions")
         }
+        val disableGroupCreationFromShareSheet = boolean("disableGroupCreationFromShareSheet") {
+            requireRestart()
+            keepTranslationFrom("interface", "disableGroupCreationFromShareSheet")
+        }
+        val improveImageViewing = boolean("improveImageViewing") {
+            requireRestart()
+            keepTranslationFrom("interface", "improveImageViewing")
+        }
+        val moreOptionsOnPost = boolean("moreOptionsOnPost") {
+            requireRestart()
+            keepTranslationFrom("interface", "moreOptionsOnPost")
+        }
+        val removeEmptyBottomSpace = boolean("removeEmptyBottomSpace") {
+            requireRestart()
+            keepTranslationFrom("interface", "removeEmptyBottomSpace")
+        }
 
         val customDateFormat = container("custom_date_format", MiscDateFormat())
         val shareLinkDomain = container("share_link_domain", MiscShareLinkDomain())
@@ -331,6 +379,14 @@ class InstagramConfig : ConfigContainer() {
             requireRestart()
             keepTranslationFrom("downloader", "enableDmAnyFileUpload")
         }
+        val enableUploadInstantsFromGallery = boolean("enableUploadInstantsFromGallery") {
+            requireRestart()
+            keepTranslationFrom("downloader", "enableUploadInstantsFromGallery")
+        }
+        val preventDmMessageListAutoscroll = boolean("preventDmMessageListAutoscroll") {
+            requireRestart()
+            keepTranslationFrom("downloader", "preventDmMessageListAutoscroll")
+        }
     }
 
     inner class DownloaderOptions : ConfigContainer() {
@@ -339,6 +395,11 @@ class InstagramConfig : ConfigContainer() {
         }
         val downloaderAddTimestamp = boolean("downloaderAddTimestamp") {
             keepTranslationFrom("downloader", "downloaderAddTimestamp")
+        }
+        val reelDownloadControlMode = string("reelDownloadControlMode", defaultValue = "menu") {
+            keepTranslationFrom("downloader", "reelDownloadControlMode")
+            inputCheck = { raw -> raw == "menu" || raw == "like_long_press" || raw == "both" }
+            addFlags(ConfigFlag.HIDDEN)
         }
     }
 
@@ -358,10 +419,10 @@ class InstagramConfig : ConfigContainer() {
         val enableStoryDownload = boolean("enableStoryDownload") { requireRestart() }
         val enableReelDownload = boolean("enableReelDownload") { requireRestart() }
         val enableProfileDownload = boolean("enableProfileDownload") { requireRestart() }
+        val enableDmContextMenuOptions = boolean("enableDmContextMenuOptions", defaultValue = true) { requireRestart() }
         val enableReelThumbnailDownload = boolean("enableReelThumbnailDownload") { requireRestart() }
         val enableStoryMarkSeenButton = boolean("enableStoryMarkSeenButton") { requireRestart() }
         val enableStoryRepostButton = boolean("enableStoryRepostButton") { requireRestart() }
-        val enableGifCommentDownload = boolean("enableGifCommentDownload") { requireRestart() }
 
         val mediaQuality = container("media_quality", DownloaderMediaQuality())
         val options = container("options", DownloaderOptions())
@@ -369,8 +430,11 @@ class InstagramConfig : ConfigContainer() {
 
         val enableHighQualityStoryUpload get() = mediaQuality.enableHighQualityStoryUpload
         val enableDmAnyFileUpload get() = mediaQuality.enableDmAnyFileUpload
+        val enableUploadInstantsFromGallery get() = mediaQuality.enableUploadInstantsFromGallery
+        val preventDmMessageListAutoscroll get() = mediaQuality.preventDmMessageListAutoscroll
         val downloaderUsernameFolder get() = options.downloaderUsernameFolder
         val downloaderAddTimestamp get() = options.downloaderAddTimestamp
+        val reelDownloadControlMode get() = options.reelDownloadControlMode
         val downloaderCustomPath get() = downloadFolder.downloaderCustomPath
         val downloaderCustomUri get() = downloadFolder.downloaderCustomUri
     }
@@ -406,7 +470,6 @@ class InstagramConfig : ConfigContainer() {
         "isGhostViewOnce" to privacy.isGhostViewOnce.get(),
         "enableUnlimitedReplays" to privacy.enableUnlimitedReplays.get(),
         "permanentViewMode" to privacy.permanentViewMode.get(),
-        "keepEphemeralMessages" to privacy.keepEphemeralMessages.get(),
         "keepUnsentMessages" to privacy.keepUnsentMessages.get(),
         "dmMarkSeenControlMode" to privacy.dmMarkSeenControlMode.get(),
         "quickToggleSeen" to quickToggle.quickToggleSeen.get(),
@@ -415,7 +478,6 @@ class InstagramConfig : ConfigContainer() {
         "quickToggleViewOnce" to quickToggle.quickToggleViewOnce.get(),
         "quickToggleStory" to quickToggle.quickToggleStory.get(),
         "quickToggleLive" to quickToggle.quickToggleLive.get(),
-        "quickToggleEphemeral" to quickToggle.quickToggleEphemeral.get(),
         "quickToggleUnsend" to quickToggle.quickToggleUnsend.get(),
         "quickToggleReplays" to quickToggle.quickToggleReplays.get(),
         "quickTogglePermanentView" to quickToggle.quickTogglePermanentView.get(),
@@ -432,6 +494,9 @@ class InstagramConfig : ConfigContainer() {
         "isAnalyticsBlocked" to adsAndLinks.isAnalyticsBlocked.get(),
         "disableTrackingLinks" to adsAndLinks.disableTrackingLinks.get(),
         "hideSuggestionsInFeed" to feedAndSearch.hideSuggestionsInFeed.get(),
+        "hideSuggestedForYouInFeed" to feedAndSearch.hideSuggestedForYouInFeed.get(),
+        "hideSuggestionsInDm" to feedAndSearch.hideSuggestionsInDm.get(),
+        "hideDiscoverPeopleInProfile" to feedAndSearch.hideDiscoverPeopleInProfile.get(),
         "captureUiElementIdsEnabled" to hiddenUiElements.captureUiElementIdsEnabled.get(),
         "hiddenUiElementIds" to hiddenUiElements.hiddenUiElementIds.getNullable().orEmpty(),
         "hiddenUiElementSelectors" to hiddenUiElements.hiddenUiElementSelectors.getNullable().orEmpty(),
@@ -443,15 +508,19 @@ class InstagramConfig : ConfigContainer() {
         "showFollowerToast" to misc.showFollowerToast.get(),
         "showFeatureToasts" to misc.showFeatureToasts.get(),
         "enableStoryMentions" to misc.enableStoryMentions.get(),
+        "localInstagramPlus" to misc.localInstagramPlus.get(),
+        "sendCustomEmojiReactionsToStory" to misc.sendCustomEmojiReactionsToStory.get(),
+        "changeLikeReactions" to misc.changeLikeReactions.get(),
+        "likeReactionAnimation" to misc.likeReactionAnimation.get(),
         "enableCopyComment" to misc.enableCopyComment.get(),
         "enableCopyBio" to misc.enableCopyBio.get(),
         "disableDoubleTapLike" to misc.disableDoubleTapLike.get(),
-        "enableMonetTheme" to misc.enableMonetTheme.get(),
         "customEmojiFontEnabled" to misc.customEmojiFontEnabled.get(),
         "enableShareSheetEmojiShortcuts" to misc.enableShareSheetEmojiShortcuts.get(),
         "enableActivityHistory" to misc.enableActivityHistory.get(),
         "enableNavigationTabCustomization" to misc.enableNavigationTabCustomization.get(),
         "enableConfirmRefresh" to misc.enableConfirmRefresh.get(),
+        "confirmRefreshScope" to misc.confirmRefreshScope.get(),
         "enableNotesLocationSpoof" to enabledContainerState(misc.notesLocation, misc.enableNotesLocationSpoof.get()),
         "enableHideChats" to enabledContainerState(misc.hiddenChats, misc.enableHideChats.get()),
         "stripShareTrackingParameters" to misc.stripShareTrackingParameters.get(),
@@ -460,6 +529,10 @@ class InstagramConfig : ConfigContainer() {
         "openLinksExternally" to misc.openLinksExternally.get(),
         "replaceShareLinkDomain" to enabledContainerState(misc.shareLinkDomain, misc.replaceShareLinkDomain.get()),
         "enableStoryTrayLongPressActions" to misc.enableStoryTrayLongPressActions.get(),
+        "disableGroupCreationFromShareSheet" to misc.disableGroupCreationFromShareSheet.get(),
+        "improveImageViewing" to misc.improveImageViewing.get(),
+        "moreOptionsOnPost" to misc.moreOptionsOnPost.get(),
+        "removeEmptyBottomSpace" to misc.removeEmptyBottomSpace.get(),
         "customDateFormat" to misc.customDateFormat.customDateFormat.get(),
         "customDateFormatFeed" to misc.customDateFormat.customDateFormatFeed.get(),
         "customDateFormatComments" to misc.customDateFormat.customDateFormatComments.get(),
@@ -475,6 +548,7 @@ class InstagramConfig : ConfigContainer() {
         "navigationTabHidden" to misc.navigationUi.navigationTabHidden.getNullable().orEmpty(),
         "navigationTabOrder" to misc.navigationUi.navigationTabOrder.get(),
         "navigationDefaultTab" to misc.navigationUi.navigationDefaultTab.get(),
+        "customizeStoryRingSize" to misc.storyUi.customizeStoryRingSize.get(),
         "storyRingSize" to misc.storyUi.storyRingSize.get(),
         "customEmojiFontPath" to misc.customEmojiFont.customEmojiFontPath.getNullable().orEmpty(),
         "customEmojiFontName" to misc.customEmojiFont.customEmojiFontName.getNullable().orEmpty(),
@@ -483,14 +557,17 @@ class InstagramConfig : ConfigContainer() {
         "enableStoryDownload" to downloader.enableStoryDownload.get(),
         "enableReelDownload" to downloader.enableReelDownload.get(),
         "enableProfileDownload" to downloader.enableProfileDownload.get(),
+        "enableDmContextMenuOptions" to downloader.enableDmContextMenuOptions.get(),
         "enableReelThumbnailDownload" to downloader.enableReelThumbnailDownload.get(),
         "enableStoryMarkSeenButton" to downloader.enableStoryMarkSeenButton.get(),
         "enableStoryRepostButton" to downloader.enableStoryRepostButton.get(),
-        "enableGifCommentDownload" to downloader.enableGifCommentDownload.get(),
         "enableHighQualityStoryUpload" to downloader.enableHighQualityStoryUpload.get(),
         "enableDmAnyFileUpload" to downloader.enableDmAnyFileUpload.get(),
+        "enableUploadInstantsFromGallery" to downloader.enableUploadInstantsFromGallery.get(),
+        "preventDmMessageListAutoscroll" to downloader.preventDmMessageListAutoscroll.get(),
         "downloaderUsernameFolder" to downloader.downloaderUsernameFolder.get(),
         "downloaderAddTimestamp" to downloader.downloaderAddTimestamp.get(),
+        "reelDownloadControlMode" to downloader.reelDownloadControlMode.get(),
         "downloaderCustomPath" to downloader.downloaderCustomPath.getNullable().orEmpty(),
         "downloaderCustomUri" to downloader.downloaderCustomUri.getNullable().orEmpty()
     )

@@ -27,9 +27,11 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
+import android.graphics.ImageDecoder
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.PorterDuff
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
@@ -56,14 +58,18 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.text.BoringLayout
+import android.text.StaticLayout
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.Spannable
+import android.text.TextPaint
 import android.text.style.ForegroundColorSpan
 import android.text.style.RelativeSizeSpan
 import android.util.TypedValue
 import android.view.GestureDetector
 import android.view.Gravity
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -120,6 +126,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.regex.Pattern
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 class InstagramHooks(
@@ -147,7 +154,10 @@ class InstagramHooks(
         )
         private const val IS_EMPLOYEE_CONFIG_ID = 36310864701161762L
         private const val REQUEST_PICK_ANY_FILE = 0x1EAF120
+        private const val REQUEST_PICK_INSTANT_IMAGE = 0x1EAF121
         private const val UPLOAD_BUTTON_TAG = "purrfect_insta_upload_file_button"
+        private const val INSTANT_UPLOAD_BUTTON_TAG = "purrfect_insta_upload_instant_button"
+        private const val INSTANT_DOWNLOAD_BUTTON_TAG = "purrfect_insta_download_instant_button"
         private const val FEED_DOWNLOAD_BUTTON_TAG = "ie_media_download_btn"
         private const val TARGET_STORY_UPLOAD_QUALITY = 100
         private const val HEIC_ENCODER_UNKNOWN = 0
@@ -229,6 +239,9 @@ class InstagramHooks(
     private val recentInfoLogs = ConcurrentHashMap<String, Long>()
     private val sqliteStatementSqlCache = Collections.synchronizedMap(WeakHashMap<Any, String>())
     private val exactCurrentDatePattern = Regex("^(now|just now|moments ago)$", RegexOption.IGNORE_CASE)
+    private val timeAgoPattern = Regex(".*\\b\\d+[smhdw]\\b.*")
+    private val isoDatePattern = Regex("^\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{1,2}:\\d{2})?$")
+    private val timeOfDayPattern = Regex("\\d{1,2}:\\d{2}.*")
     private val relativeDatePattern = Regex(
         "^(?:about\\s+)?(\\d+)\\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|wk|wks|week|weeks|mo|mon|mons|month|months|y|yr|yrs|year|years)(?:\\s+ago)?$",
         RegexOption.IGNORE_CASE
@@ -239,6 +252,8 @@ class InstagramHooks(
     private val absoluteMonthNeedles = arrayOf("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
     private val quickToggleButtons = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<Activity, Boolean>()))
     private val recentMediaUrls = Collections.synchronizedList(mutableListOf<String>())
+    private val recentMediaUrlEvents = ArrayDeque<RecentMediaUrl>()
+    private val instantViewerRecentUrls = ArrayDeque<RecentMediaUrl>()
     private val searchHookedViews = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val recentSearchClearButtons = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val inboxHookedViews = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
@@ -247,16 +262,27 @@ class InstagramHooks(
     private val directSeenControls = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val uploadButtonAnchors = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val uploadButtons = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
+    private val instantUploadButtons = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
+    private val instantUploadGuardedButtons = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
+    @Volatile private var lastInstantUploadPassMs = 0L
+    @Volatile private var lastInstantUploadProbeMs = 0L
+    @Volatile private var lastInstantUploadShelfTapMs = 0L
+    @Volatile private var instantViewerSessionStartedAtMs = 0L
+    @Volatile private var lastInstantViewerSeenAtMs = 0L
+    @Volatile private var suppressInstantUploadUntilModalExit = false
+    @Volatile private var instantUploadSuppressionWatcherActive = false
+    @Volatile private var lastInstantCameraActivity: WeakReference<Activity>? = null
+    @Volatile private var pendingInstantImageReplacement: PendingInstantImageReplacement? = null
     private val pendingDirectFileUploads = ConcurrentHashMap<String, DirectFileUpload>()
     private val captureOverlayStates = Collections.synchronizedMap(WeakHashMap<Activity, CaptureOverlayState>())
     private val storyTrayImageUrls = Collections.synchronizedMap(WeakHashMap<View, String>())
     private val storyTraySurfaceViews = Collections.synchronizedMap(WeakHashMap<View, Boolean>())
     private val commentSurfaceViews = Collections.synchronizedMap(WeakHashMap<View, Boolean>())
+    @Volatile private var commentDateSurfaceActiveUntilMs = 0L
     private val autoSoundClickedViews = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val soundOffControlViews = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val storyTrayInjectedMenuContainers = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<ViewGroup, Boolean>()))
     @Volatile private var pendingStoryTrayMenu: PendingStoryTrayMenu? = null
-    @Volatile private var pendingGifCommentMenu: PendingGifCommentMenu? = null
     private val profileDownloadHookedPics = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val profilePendingRootInjections = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<View, Boolean>()))
     private val profilePendingCardInjections = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap<ViewGroup, Boolean>()))
@@ -307,15 +333,28 @@ class InstagramHooks(
     private val storySeenMethods = CopyOnWriteArrayList<Method>()
     private val storySeenBuilderMethods = CopyOnWriteArrayList<Method>()
     private val keepUnsentDeletedIds = Collections.synchronizedMap(
-        object : LinkedHashMap<String, Boolean>(MAX_KEEP_UNSENT_IDS + 1, 0.75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>?): Boolean = size > MAX_KEEP_UNSENT_IDS
+        object : LinkedHashMap<String, Long>(MAX_KEEP_UNSENT_IDS + 1, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > MAX_KEEP_UNSENT_IDS
         }
     )
+    private val keepUnsentViewRetryCounts = Collections.synchronizedMap(WeakHashMap<View, Int>())
     private val keepUnsentBoundRows = Collections.synchronizedMap(
         object : LinkedHashMap<String, WeakReference<View>>(MAX_KEEP_UNSENT_IDS + 1, 0.75f, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, WeakReference<View>>?): Boolean = size > MAX_KEEP_UNSENT_IDS
         }
     )
+    private val keepUnsentAmbiguousBoundIds = Collections.synchronizedSet(LinkedHashSet<String>())
+    private val keepUnsentVisibleRowsByText = Collections.synchronizedMap(
+        object : LinkedHashMap<String, MutableList<WeakReference<View>>>(MAX_KEEP_UNSENT_IDS + 1, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, MutableList<WeakReference<View>>>?): Boolean = size > MAX_KEEP_UNSENT_IDS
+        }
+    )
+    private val keepUnsentDeletedTexts = Collections.synchronizedMap(
+        object : LinkedHashMap<String, Long>(MAX_KEEP_UNSENT_IDS + 1, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > MAX_KEEP_UNSENT_IDS
+        }
+    )
+    private val keepUnsentPendingTemporalDeletes = Collections.synchronizedList(mutableListOf<KeepUnsentPendingDelete>())
     private val keepUnsentMarkedTextOriginals = Collections.synchronizedMap(WeakHashMap<TextView, CharSequence>())
     private val keepUnsentPersistLock = Any()
     private val remoteDeleteIds = ThreadLocal<Set<String>?>()
@@ -415,6 +454,19 @@ class InstagramHooks(
     @Volatile private var dmDirectSurfaceActive = false
     @Volatile private var dmOverlayRootCheckAtMs = 0L
     @Volatile private var dmOverlayRootActive = false
+    @Volatile private var dmMessageListUserScrolledUntilMs = 0L
+    @Volatile private var dmMessageListAutoscrollSuppressUntilMs = 0L
+    @Volatile private var dmLastAutoscrollBlockAtMs = 0L
+    @Volatile private var dmMessageListViewRef: WeakReference<View>? = null
+    @Volatile private var dmMessageListAnchorPosition = -1
+    @Volatile private var dmMessageListAnchorOffset = 0
+    @Volatile private var dmMessageListAnchorScrollOffset = -1
+    @Volatile private var dmLastManualMessageScrollLogAtMs = 0L
+    @Volatile private var dmLastLayoutSuppressLogAtMs = 0L
+    @Volatile private var dmMessageListUserTouchUntilMs = 0L
+    @Volatile private var dmPreventAutoscrollFallbackCheckAtMs = 0L
+    @Volatile private var dmPreventAutoscrollFallbackEnabled = false
+    private val dmAutoscrollInternalRestore = ThreadLocal.withInitial { false }
     @Volatile private var reelsAutoplaySurfaceCheckAtMs = 0L
     @Volatile private var reelsAutoplaySurfaceActive = false
     @Volatile private var suppressDmModalPauseCrashUntilMs = 0L
@@ -443,6 +495,16 @@ class InstagramHooks(
     @Volatile private var keepUnsentFuzzyMatchSeen = false
     @Volatile private var keepUnsentRowBindingSeen = false
     @Volatile private var keepUnsentMissedDecorationSeen = false
+    @Volatile private var keepUnsentViewCandidateSeen = false
+    @Volatile private var keepUnsentViewNoIdsSeen = false
+    @Volatile private var keepUnsentViewNoIdsLaidOutSeen = false
+    @Volatile private var keepUnsentRecyclerBindSeen = false
+    @Volatile private var keepUnsentHolderNoIdsSeen = false
+    @Volatile private var keepUnsentRecyclerHolderNullSeen = false
+    @Volatile private var keepUnsentAdapterPositionSeen = false
+    @Volatile private var keepUnsentAdapterPositionNoIdsSeen = false
+    @Volatile private var keepUnsentAdapterPositionMissingSeen = false
+    @Volatile private var keepUnsentAdapterShapeSeen = false
     @Volatile private var knownChatNamesPersistScheduled = false
     @Volatile private var directChatPruneScheduled = false
     @Volatile private var lastObservedDirectInboxChatNameMs = 0L
@@ -482,9 +544,12 @@ class InstagramHooks(
         installScreenshotAndWindowHooks()
         installActivityHooks()
         installViewHooks()
+        installDirectMessageBehaviorHooks()
         installMenuInjectionHooks()
+        installDirectMessageContextMenuHook()
         installSponsoredRecyclerHook()
         installTextHooks()
+        installStaticLayoutDateFormatHooks()
         installIntentAndClipboardHooks()
         installInstagramMapLocationSpoofHooks()
         installConfirmRefreshHooks()
@@ -537,8 +602,8 @@ class InstagramHooks(
     private fun installActivityHooks() {
         runSafe("Activity lifecycle hooks") {
             fun applyMonetActivity(activity: Activity) {
-                if (!state.enableMonetTheme) return
                 currentActivity = activity
+                return
                 refreshMonetPalette(activity)
                 applyMonetToActivity(activity)
             }
@@ -558,12 +623,13 @@ class InstagramHooks(
                         activity.window?.decorView?.postDelayed({ applySmoothActivityTuning(activity) }, 750L)
                         if (state.allowScreenshots) activity.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                         rememberRoot(activity.window?.decorView)
-                        if (state.enableMonetTheme) {
+                        if (false) {
                             refreshMonetPalette(activity)
                             applyMonetToActivity(activity)
                         }
                         refreshActivity(activity, "onResume")
                         wireInstagramEntryPoints(activity)
+                        maybeProbeInstantUploadButton(activity, 40L, 120L, 260L, 520L, 900L, 1_450L)
                         applyGhostIndicator(activity)
                         applyCaptureOverlay(activity)
                         clickDefaultNavigationTab(activity)
@@ -585,6 +651,7 @@ class InstagramHooks(
                         val activity = param.thisObject as? Activity ?: return
                         applySmoothActivityTuning(activity)
                         applyMonetActivity(activity)
+                        maybeProbeInstantUploadButton(activity, 40L, 140L, 320L, 700L, 1_200L)
                     }
                 }
             )
@@ -595,11 +662,50 @@ class InstagramHooks(
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                         val activity = param.thisObject as? Activity ?: return
                         val event = param.args.firstOrNull() as? MotionEvent ?: return
+                        if (isDirectMessageAutoscrollPreventionEnabled()) {
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> noteDirectMessageListUserTouchFromRoot(activity.window?.decorView, event)
+                                MotionEvent.ACTION_MOVE -> if (hasActiveDirectMessageAutoscrollGuard()) {
+                                    releaseDirectMessageAutoscrollFromRootTouch(activity.window?.decorView, event)
+                                }
+                            }
+                        }
                         rememberStoryShareTouch(activity, event)
+                        if (event.actionMasked == MotionEvent.ACTION_UP) {
+                            hideInstantUploadOnShelfTap(activity, event)
+                            maybeProbeInstantUploadButton(activity, 60L, 180L, 420L, 900L, 1_800L, 3_000L)
+                        }
                         if (handleUploadTouch(activity, event)) param.result = true
                     }
                 }
             )
+            XposedBridge.hookAllMethods(
+                Activity::class.java,
+                "dispatchKeyEvent",
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                        val activity = param.thisObject as? Activity ?: return
+                        val event = param.args.firstOrNull() as? KeyEvent ?: return
+                        if (event.action == KeyEvent.ACTION_UP && event.keyCode == KeyEvent.KEYCODE_BACK) {
+                            logInstantUploadDebug("back-key-before-restore", activity)
+                            restoreInstantUploadWithFirstOpenPass(activity)
+                        }
+                    }
+                }
+            )
+            runCatching {
+                XposedBridge.hookAllMethods(
+                    Activity::class.java,
+                    "onBackPressed",
+                    object : XC_MethodHook() {
+                        override fun afterHookedMethod(param: MethodHookParam<*>) {
+                            val activity = param.thisObject as? Activity ?: return
+                            logInstantUploadDebug("onBackPressed-after-before-restore", activity)
+                            restoreInstantUploadWithFirstOpenPass(activity)
+                        }
+                    }
+                )
+            }
             XposedBridge.hookAllMethods(
                 Instrumentation::class.java,
                 "callActivityOnPause",
@@ -649,8 +755,17 @@ class InstagramHooks(
                 "onActivityResult",
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
-                        if (!state.enableDmAnyFileUpload) return
                         val requestCode = param.args.getOrNull(0) as? Int ?: return
+                        if (requestCode == REQUEST_PICK_INSTANT_IMAGE) {
+                            if (!state.enableUploadInstantsFromGallery) return
+                            val activity = param.thisObject as? Activity ?: return
+                            val resultCode = param.args.getOrNull(1) as? Int ?: Activity.RESULT_CANCELED
+                            val data = param.args.getOrNull(2) as? Intent
+                            handlePickedInstantImage(activity, resultCode, data)
+                            param.result = null
+                            return
+                        }
+                        if (!state.enableDmAnyFileUpload) return
                         if (requestCode != REQUEST_PICK_ANY_FILE) return
                         val activity = param.thisObject as? Activity ?: return
                         val resultCode = param.args.getOrNull(1) as? Int ?: Activity.RESULT_CANCELED
@@ -708,7 +823,6 @@ class InstagramHooks(
                             maybeScheduleStoryRingPassForAddedView(parent, child)
                             if (state.isAdBlockEnabled) hideSponsoredSurfaceIfNeeded(parent)
                             if (state.enableStoryTrayLongPressActions) maybeInjectStoryTrayActionsIntoNativeMenu(parent)
-                            if (state.enableGifCommentDownload) maybeInjectGifCommentDownloadIntoNativeMenu(parent)
                             if (state.enableProfileDownload && suppressProfileActionBarChildHook.get() != true && parent is ViewGroup && isProfileShareCardFast(parent)) {
                                 scheduleProfileCardInjection(parent, 64L)
                             }
@@ -860,7 +974,7 @@ class InstagramHooks(
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                         val view = param.thisObject as? View ?: return
                         rememberDmMessageActionAnchorCandidate(view)
-                        if (handleUploadLongPress(view) || handleDirectSeenLongPress(view) || handleEntryPointLongPress(view) || handleStoryTrayLongPress(view) || handleGifCommentLongPress(view) || handleCopyLongPress(view) || handleCaptureLongPress(view)) {
+                        if (handleUploadLongPress(view) || handleInstantUploadClick(view) || handleInstantDownloadClick(view) || handleDirectSeenLongPress(view) || handleEntryPointLongPress(view) || handleStoryTrayLongPress(view) || handleCopyLongPress(view) || handleCaptureLongPress(view)) {
                             param.result = true
                         }
                     }
@@ -873,7 +987,8 @@ class InstagramHooks(
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                         val view = param.thisObject as? View ?: return
                         rememberManualInstagramSoundMute(view)
-                        if (handleUploadClick(view) || handleCopyBioMenuClick(view)) param.result = true
+                        noteDirectComposerSendClick(view)
+                        if (handleUploadClick(view) || handleInstantUploadClick(view) || handleInstantDownloadClick(view) || handleCopyBioMenuClick(view)) param.result = true
                         if (handleDmMessageActionOverlayClick(view)) param.result = true
                     }
 
@@ -905,6 +1020,13 @@ class InstagramHooks(
                         val view = param.thisObject as? View ?: return
                         val event = param.args.firstOrNull() as? MotionEvent ?: return
                         val action = event.actionMasked
+                        if (isDirectMessageAutoscrollPreventionEnabled() && action == MotionEvent.ACTION_DOWN) {
+                            noteDirectComposerTouch(view, event)
+                        }
+                        if (isDirectMessageAutoscrollPreventionEnabled() && action == MotionEvent.ACTION_MOVE) {
+                            releaseDirectMessageAutoscrollFromTouch(view, event)
+                            noteDirectMessageListManualScroll(view)
+                        }
                         if (action == MotionEvent.ACTION_UP) {
                             rememberManualInstagramSoundMute(view)
                             rememberManualInstagramSoundMuteFromTouch(event)
@@ -942,6 +1064,187 @@ class InstagramHooks(
         }
     }
 
+    private fun installDirectMessageBehaviorHooks() {
+        val recyclerClass = listOf(
+            "androidx.recyclerview.widget.RecyclerView",
+            "android.support.v7.widget.RecyclerView"
+        ).firstNotNullOfOrNull { className -> runCatching { Class.forName(className, false, appClassLoader) }.getOrNull() }
+            ?: return
+        runSafe("Direct message RecyclerView behavior hooks") {
+            XposedBridge.hookAllMethods(
+                recyclerClass,
+                "dispatchTouchEvent",
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                        val view = param.thisObject as? View ?: return
+                        val event = param.args.firstOrNull() as? MotionEvent ?: return
+                        if (isDirectMessageAutoscrollPreventionEnabled() && isDirectMessageListView(view)) {
+                            when (event.actionMasked) {
+                                MotionEvent.ACTION_DOWN -> noteDirectMessageListUserTouch(view)
+                                MotionEvent.ACTION_MOVE -> releaseDirectMessageAutoscrollForManualScroll(view)
+                            }
+                        }
+                    }
+                }
+            )
+            hookRecyclerPositionScroll(recyclerClass, "scrollToPosition")
+            hookRecyclerPositionScroll(recyclerClass, "smoothScrollToPosition")
+            hookRecyclerDeltaScroll(recyclerClass, "scrollBy")
+            hookRecyclerDeltaScroll(recyclerClass, "smoothScrollBy")
+            hookRecyclerRequestChildFocus(recyclerClass)
+            hookRecyclerRequestChildRectangle(recyclerClass)
+            hookRecyclerOnScrolled(recyclerClass)
+            hookRecyclerOffsetChildren(recyclerClass)
+            hookRecyclerAdapterBindViewHolder(recyclerClass)
+            hookRecyclerLayoutManagerScrolls("androidx.recyclerview.widget.LinearLayoutManager")
+            hookRecyclerLayoutManagerScrolls("android.support.v7.widget.LinearLayoutManager")
+            hookRecyclerLayoutManagerScrolls("androidx.recyclerview.widget.StaggeredGridLayoutManager")
+            hookRecyclerLayoutManagerScrolls("android.support.v7.widget.StaggeredGridLayoutManager")
+        }
+    }
+
+    private fun hookRecyclerPositionScroll(recyclerClass: Class<*>, methodName: String) {
+        runCatching {
+            XposedBridge.hookAllMethods(
+                recyclerClass,
+                methodName,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                        val view = param.thisObject as? View ?: return
+                        val position = param.args.firstOrNull() as? Int ?: return
+                        if (shouldBlockDirectMessageAutoscroll(view, position)) param.result = null
+                    }
+                }
+            )
+        }
+    }
+
+    private fun hookRecyclerDeltaScroll(recyclerClass: Class<*>, methodName: String) {
+        runCatching {
+            XposedBridge.hookAllMethods(
+                recyclerClass,
+                methodName,
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                        val view = param.thisObject as? View ?: return
+                        if (shouldBlockDirectMessageAutoscroll(view, null)) param.result = null
+                    }
+                }
+            )
+        }
+    }
+
+    private fun hookRecyclerRequestChildFocus(recyclerClass: Class<*>) {
+        runCatching {
+            XposedBridge.hookAllMethods(
+                recyclerClass,
+                "requestChildFocus",
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                        val view = param.thisObject as? View ?: return
+                        if (shouldBlockDirectMessageAutoscroll(view, null)) param.result = null
+                    }
+                }
+            )
+        }
+    }
+
+    private fun hookRecyclerRequestChildRectangle(recyclerClass: Class<*>) {
+        runCatching {
+            XposedBridge.hookAllMethods(
+                recyclerClass,
+                "requestChildRectangleOnScreen",
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                        val view = param.thisObject as? View ?: return
+                        if (shouldBlockDirectMessageAutoscroll(view, null)) param.result = false
+                    }
+                }
+            )
+        }
+    }
+
+    private fun hookRecyclerOnScrolled(recyclerClass: Class<*>) {
+        runCatching {
+            XposedBridge.hookAllMethods(
+                recyclerClass,
+                "onScrolled",
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam<*>) {
+                        val view = param.thisObject as? View ?: return
+                        val dy = param.args.getOrNull(1) as? Int ?: return
+                        if (dy == 0) return
+                        if (isDirectMessageAutoscrollPreventionEnabled() &&
+                            dmAutoscrollInternalRestore.get() != true &&
+                            !shouldBlockDirectMessageAutoscroll(view, null) &&
+                            isDirectMessageListView(view)
+                        ) {
+                            noteDirectMessageListManualScroll(view)
+                            return
+                        }
+                        if (!shouldBlockDirectMessageAutoscroll(view, null)) return
+                        runCatching {
+                            dmAutoscrollInternalRestore.set(true)
+                            view.javaClass.getMethod("scrollBy", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                                .invoke(view, 0, -dy)
+                        }.onFailure { logError("Direct message list delta restore failed", it) }
+                            .also { dmAutoscrollInternalRestore.set(false) }
+                    }
+                }
+            )
+        }
+    }
+
+    private fun hookRecyclerOffsetChildren(recyclerClass: Class<*>) {
+        listOf("offsetChildrenVertical", "offsetChildrenHorizontal").forEach { methodName ->
+            runCatching {
+                XposedBridge.hookAllMethods(
+                    recyclerClass,
+                    methodName,
+                    object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                            val view = param.thisObject as? View ?: return
+                            if (shouldBlockDirectMessageAutoscroll(view, null)) param.result = null
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    private fun hookRecyclerLayoutManagerScrolls(className: String) {
+        val cls = runCatching { Class.forName(className, false, appClassLoader) }.getOrNull() ?: return
+        listOf("scrollToPosition", "scrollToPositionWithOffset", "smoothScrollToPosition").forEach { methodName ->
+            runCatching {
+                XposedBridge.hookAllMethods(
+                    cls,
+                    methodName,
+                    object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                            val recycler = recyclerViewFromLayoutManager(param.thisObject) ?: return
+                            val position = param.args.firstOrNull { it is Int } as? Int ?: return
+                            if (shouldBlockDirectMessageAutoscroll(recycler, position)) param.result = null
+                        }
+                    }
+                )
+            }
+        }
+        listOf("scrollVerticallyBy", "scrollHorizontallyBy").forEach { methodName ->
+            runCatching {
+                XposedBridge.hookAllMethods(
+                    cls,
+                    methodName,
+                    object : XC_MethodHook() {
+                        override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                            val recycler = recyclerViewFromLayoutManager(param.thisObject) ?: return
+                            if (shouldBlockDirectMessageAutoscroll(recycler, null)) param.result = 0
+                        }
+                    }
+                )
+            }
+        }
+    }
+
     private fun installSponsoredRecyclerHook() {
         if (!sponsoredRecyclerHooked.compareAndSet(false, true)) return
         runSafe("Sponsored RecyclerView rows") {
@@ -973,6 +1276,12 @@ class InstagramHooks(
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam<*>) {
                         val textView = param.thisObject as? TextView ?: return
+                        if (state.keepUnsentMessages &&
+                            resourceEntryName(textView) == "direct_text_message_text_view" &&
+                            !textView.text?.toString().orEmpty().contains(KEEP_UNSENT_MARKER_TEXT)
+                        ) {
+                            maybeBindKeepUnsentRowFromView(textView)
+                        }
                         processTextView(textView)
                     }
                 }
@@ -992,6 +1301,212 @@ class InstagramHooks(
         }
     }
 
+    private fun installStaticLayoutDateFormatHooks() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        runSafe("StaticLayout comment date hooks") {
+            val layoutHook = object : XC_MethodHook() {
+                override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                    rewriteCommentDateLayoutArgs(param.args)
+                }
+            }
+            XposedBridge.hookAllMethods(
+                StaticLayout.Builder::class.java,
+                "obtain",
+                object : XC_MethodHook() {
+                    override fun beforeHookedMethod(param: MethodHookParam<*>) {
+                        if (!state.enableCustomDateFormat || !state.customDateFormatComments) return
+                        if (param.args.size < 5) return
+                        val source = param.args.getOrNull(0) as? CharSequence ?: return
+                        val start = param.args.getOrNull(1) as? Int ?: return
+                        val end = param.args.getOrNull(2) as? Int ?: return
+                        val paint = param.args.getOrNull(3) as? TextPaint ?: return
+                        val width = param.args.getOrNull(4) as? Int
+                        val replacement = rewriteStaticLayoutCommentDateText(source, start, end, paint, width) ?: return
+                        val fittedPaint = fittedCommentDatePaint(paint, replacement, width)
+                        param.args[0] = replacement
+                        param.args[1] = 0
+                        param.args[2] = replacement.length
+                        param.args[3] = fittedPaint
+                        if (width != null && fittedPaint === paint) {
+                            param.args[4] = commentDateLayoutWidth(width, paint, replacement)
+                        }
+                    }
+                }
+            )
+            XposedBridge.hookAllConstructors(StaticLayout::class.java, layoutHook)
+            XposedBridge.hookAllMethods(BoringLayout::class.java, "make", layoutHook)
+        }
+    }
+
+    private fun rewriteCommentDateLayoutArgs(args: Array<Any?>?) {
+        if (!state.enableCustomDateFormat || !state.customDateFormatComments) return
+        val actualArgs = args ?: return
+        val textIndex = actualArgs.indexOfFirst { it is CharSequence }
+        if (textIndex < 0) return
+        val paintIndex = actualArgs.indexOfFirst { it is TextPaint }
+        if (paintIndex < 0) return
+        val paint = actualArgs[paintIndex] as? TextPaint ?: return
+        val source = actualArgs[textIndex] as? CharSequence ?: return
+        var start = 0
+        var end = source.length
+        var startIndex = -1
+        var endIndex = -1
+        if (textIndex + 2 < actualArgs.size && actualArgs[textIndex + 1] is Int && actualArgs[textIndex + 2] is Int) {
+            startIndex = textIndex + 1
+            endIndex = textIndex + 2
+            start = actualArgs[startIndex] as Int
+            end = actualArgs[endIndex] as Int
+        }
+        val widthIndex = ((paintIndex + 1) until actualArgs.size).firstOrNull { actualArgs[it] is Int }
+        val width = widthIndex?.let { actualArgs[it] as? Int }
+        val replacement = rewriteStaticLayoutCommentDateText(source, start, end, paint, width) ?: return
+        val fittedPaint = fittedCommentDatePaint(paint, replacement, width)
+        actualArgs[textIndex] = replacement
+        actualArgs[paintIndex] = fittedPaint
+        if (startIndex >= 0 && endIndex >= 0) {
+            actualArgs[startIndex] = 0
+            actualArgs[endIndex] = replacement.length
+        }
+        if (widthIndex != null && width != null && fittedPaint === paint) {
+            actualArgs[widthIndex] = commentDateLayoutWidth(width, paint, replacement)
+        }
+    }
+
+    private fun commentDateLayoutWidth(current: Int, paint: TextPaint, text: String): Int {
+        if (current <= 0) return current
+        val measured = (paint.measureText(text) + paint.textSize.coerceAtLeast(16f) * 0.7f).roundToInt()
+        return maxOf(current, measured.coerceAtLeast(1))
+    }
+
+    private fun fittedCommentDatePaint(paint: TextPaint, text: String, availableWidth: Int?): TextPaint {
+        val width = availableWidth?.takeIf { it > 4 }?.toFloat() ?: return paint
+        val measured = paint.measureText(text)
+        if (measured <= 0f || measured <= width) return paint
+        val scale = ((width - 1f) / measured).coerceIn(0.32f, 1f)
+        if (scale >= 0.98f) return paint
+        return TextPaint(paint).apply { textScaleX = paint.textScaleX * scale }
+    }
+
+    private fun rewriteStaticLayoutCommentDateText(
+        source: CharSequence,
+        start: Int,
+        end: Int,
+        paint: TextPaint? = null,
+        availableWidth: Int? = null
+    ): String? {
+        val safeStart = start.coerceIn(0, source.length)
+        val safeEnd = end.coerceIn(safeStart, source.length)
+        val length = safeEnd - safeStart
+        if (length <= 0 || length > 96) return null
+
+        var hasDigit = false
+        var hasLetter = false
+        var markerCandidate = false
+        for (index in safeStart until safeEnd) {
+            val ch = source[index]
+            when (ch) {
+                '\n', '\r' -> return null
+                'c', 'C', 'j', 'J', 'w', 'W', 'v', 'V', 'h', 'H', 'r', 'R', 'a', 'A' -> markerCandidate = true
+            }
+            if (ch.isDigit()) hasDigit = true
+            if (ch.isLetter()) hasLetter = true
+        }
+
+        val now = SystemClock.uptimeMillis()
+        if (!hasDigit) {
+            if (length <= 64 && markerCandidate) {
+                val clean = cleanInstagramDateText(source.subSequence(safeStart, safeEnd).toString())
+                if (isCommentDateSurfaceMarker(clean) ||
+                    (now <= commentDateSurfaceActiveUntilMs && isCommentDateSurfaceExtensionMarker(clean))
+                ) {
+                    commentDateSurfaceActiveUntilMs = now + 30_000L
+                }
+            }
+            return null
+        }
+        if (!hasLetter) return null
+
+        val clean = cleanInstagramDateText(source.subSequence(safeStart, safeEnd).toString())
+        if (clean.isEmpty() || clean.length > 64 || formattedDateLikePattern.matches(clean)) return null
+        if (isCommentDateSurfaceMarker(clean)) {
+            commentDateSurfaceActiveUntilMs = now + 30_000L
+            return null
+        }
+        if (now > commentDateSurfaceActiveUntilMs) return null
+        if (!looksLikeInstagramDate(clean)) return null
+        val date = parseInstagramDate(clean) ?: return null
+        return formatCommentInlineDate(date, paint, availableWidth)
+    }
+
+    private val commentInlineDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat = SimpleDateFormat("M/d HH:mm", Locale.getDefault())
+    }
+
+    private val compactCommentInlineDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    }
+
+    private fun formatCommentInlineDate(date: Date, paint: TextPaint?, availableWidth: Int?): String {
+        val formatted = formatCustomInstagramDate(date)
+        val activePaint = paint ?: return formatted
+        val dateTime = runCatching { commentInlineDateFormatter.get().format(date) }.getOrDefault(formatted)
+        val compact = runCatching { compactCommentInlineDateFormatter.get().format(date) }.getOrDefault(dateTime)
+        val width = availableWidth?.takeIf { it > 0 }?.toFloat()
+        if (width != null) {
+            val slack = activePaint.textSize.coerceAtLeast(16f) * 0.75f
+            if (activePaint.measureText(formatted) <= width + slack) return formatted
+            if (activePaint.measureText(dateTime) <= width + slack) return dateTime
+            return compact
+        }
+        val maxInlineWidth = activePaint.textSize.coerceAtLeast(16f) * 5.5f
+        if (activePaint.measureText(formatted) <= maxInlineWidth) return formatted
+        return dateTime
+    }
+
+    private fun isCommentDateSurfaceMarker(raw: String): Boolean {
+        val lower = raw.lowercase(Locale.US)
+        return lower == "comments" ||
+            lower == "comment" ||
+            lower == "view comments" ||
+            (lower.contains("comments") && (lower.startsWith("view") || lower.startsWith("all") || lower.startsWith("hide"))) ||
+            lower.contains("join the conversation") ||
+            lower.contains("add a comment") ||
+            lower.contains("what do you think") ||
+            lower.contains("reply") ||
+            lower.startsWith("view replies") ||
+            lower.startsWith("view reply")
+    }
+
+    private fun isCommentDateSurfaceByView(view: View): Boolean {
+        var current: View? = view
+        var depth = 0
+        while (current != null && depth < 8) {
+            val entryName = resourceEntryName(current)
+            if (entryName != null) {
+                val lower = entryName.lowercase(Locale.US)
+                if (lower.contains("comment") || lower.contains("_ufi_") || lower.contains("row_feed_comment")) return true
+            }
+            val className = current.javaClass.name.lowercase(Locale.US)
+            if (className.contains("comment") && !className.contains("comment_")) return true
+            current = current.parent as? View
+            depth++
+        }
+        return false
+    }
+
+    private fun isCommentDateSurfaceContextActive(): Boolean {
+        return SystemClock.uptimeMillis() <= commentDateSurfaceActiveUntilMs
+    }
+
+    private fun isCommentDateSurfaceExtensionMarker(raw: String): Boolean {
+        val lower = raw.lowercase(Locale.US)
+        return lower == "reply" ||
+            lower.startsWith("view replies") ||
+            lower.startsWith("view reply") ||
+            lower.startsWith("hide replies") ||
+            lower.startsWith("hide reply")
+    }
+
     private fun installMenuInjectionHooks() {
         runSafe("Instagram menu item injection hooks") {
             XposedBridge.hookAllMethods(
@@ -1002,11 +1517,6 @@ class InstagramHooks(
                         if (param.args.size < 2) return
                         val labels = param.args[0] as? Array<*> ?: return
                         val listener = param.args[1] as? DialogInterface.OnClickListener ?: return
-                        maybeAppendGifCommentItem(labels, listener)?.let { replacement ->
-                            param.args[0] = replacement.first
-                            param.args[1] = replacement.second
-                            return
-                        }
                         maybeAppendStoryTrayItems(labels, listener)?.let { replacement ->
                             param.args[0] = replacement.first
                             param.args[1] = replacement.second
@@ -1017,32 +1527,6 @@ class InstagramHooks(
         }
     }
 
-    private fun maybeAppendGifCommentItem(
-        labels: Array<*>,
-        original: DialogInterface.OnClickListener
-    ): Pair<Array<CharSequence>, DialogInterface.OnClickListener>? {
-        val pending = validPendingGifCommentMenu() ?: return null
-        val originalLabels = labels.mapNotNull { it as? CharSequence }
-        if (originalLabels.size != labels.size) return null
-        if (originalLabels.any { it.toString().equals("Download GIF", ignoreCase = true) }) return null
-        if (!originalLabels.any { label ->
-                val text = label.toString().lowercase(Locale.US)
-                text.contains("report") || text.contains("block") || text.contains("creator") || text.contains("copy")
-            }
-        ) return null
-        val merged = (originalLabels + "Download GIF").toTypedArray()
-        val listener = DialogInterface.OnClickListener { dialog, which ->
-            if (which < originalLabels.size) {
-                original.onClick(dialog, which)
-                return@OnClickListener
-            }
-            enqueueDownload(pending.url, DownloadMetadata(type = "comment_gif", folderName = "comments"))
-        }
-        pendingGifCommentMenu = null
-        logInfo("Injected GIF comment download into Instagram dialog menu")
-        return merged to listener
-    }
-
     private fun maybeAppendStoryTrayItems(
         labels: Array<*>,
         original: DialogInterface.OnClickListener
@@ -1050,7 +1534,7 @@ class InstagramHooks(
         val pending = validPendingStoryTrayMenu() ?: return null
         val originalLabels = labels.mapNotNull { it as? CharSequence }
         if (originalLabels.size != labels.size) return null
-        if (originalLabels.any { it.toString().contains("profile picture", ignoreCase = true) || it.toString().contains("story cover", ignoreCase = true) }) return null
+        if (originalLabels.any { it.toString().contains("profile picture", ignoreCase = true) || it.toString().contains("cover photo", ignoreCase = true) }) return null
         val extraLabels = mutableListOf<CharSequence>()
         val extraUrls = mutableListOf<String>()
         pending.media.profileUrl?.let {
@@ -1058,7 +1542,7 @@ class InstagramHooks(
             extraUrls += it
         }
         pending.media.coverUrl?.let {
-            extraLabels += "View story cover"
+            extraLabels += "View cover photo"
             extraUrls += it
         }
         if (extraLabels.isEmpty()) return null
@@ -1079,10 +1563,11 @@ class InstagramHooks(
     private fun maybeInjectStoryTrayActionsIntoNativeMenu(view: View) {
         val pending = validPendingStoryTrayMenu() ?: return
         val container = findInstagramNativeActionMenuContainer(view) ?: return
+        if (!nativeMenuLooksLikeStoryTrayMenu(container)) return
         if (!storyTrayInjectedMenuContainers.add(container)) return
         val rows = buildList<Pair<String, String>> {
             pending.media.profileUrl?.let { add("View profile picture" to it) }
-            pending.media.coverUrl?.let { add("View story cover" to it) }
+            pending.media.coverUrl?.let { add("View cover photo" to it) }
         }
         if (rows.isEmpty() || containsStoryTrayInjectedLabels(container)) return
         val context = container.context
@@ -1103,52 +1588,25 @@ class InstagramHooks(
                 setOnClickListener { showImagePreview(pending.activity, label, url) }
             }, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)))
         }
+        container.requestLayout()
+        (container.parent as? View)?.requestLayout()
         logInfo("Injected Story tray actions into native Instagram menu rows=${rows.size}")
         pendingStoryTrayMenu = null
     }
 
-    private fun maybeInjectGifCommentDownloadIntoNativeMenu(view: View) {
-        val pending = validPendingGifCommentMenu() ?: return
-        val container = findInstagramNativeActionMenuContainer(view) ?: return
-        if (containsMenuLabel(container, "Download GIF")) {
-            pendingGifCommentMenu = null
-            return
+    private fun scheduleNativeMenuInjection(root: View?) {
+        root ?: return
+        longArrayOf(80L, 220L, 420L, 900L, 1_450L, 1_900L).forEach { delay ->
+            mainHandler.postDelayed({
+                if (state.enableStoryTrayLongPressActions) findNativeMenuContainers(root) { maybeInjectStoryTrayActionsIntoNativeMenu(it) }
+            }, delay)
         }
-        if (!nativeMenuLooksLikeGifCommentMenu(container)) return
-        val context = container.context
-        if (container.childCount > 0) {
-            container.addView(View(context).apply {
-                setBackgroundColor(Color.argb(45, 255, 255, 255))
-            }, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1)))
-        }
-        container.addView(TextView(context).apply {
-            text = "Download GIF"
-            setTextColor(Color.WHITE)
-            textSize = 16f
-            gravity = Gravity.CENTER_VERTICAL
-            minHeight = dp(52)
-            setPadding(dp(24), 0, dp(24), 0)
-            isClickable = true
-            setOnClickListener {
-                enqueueDownload(pending.url, DownloadMetadata(type = "comment_gif", folderName = "comments"))
-                pendingGifCommentMenu = null
-            }
-        }, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)))
-        logInfo("Injected GIF comment download into native Instagram menu")
-        pendingGifCommentMenu = null
     }
 
     private fun validPendingStoryTrayMenu(): PendingStoryTrayMenu? {
         val pending = pendingStoryTrayMenu ?: return null
         if (System.currentTimeMillis() - pending.createdAtMs < 4_000L) return pending
         pendingStoryTrayMenu = null
-        return null
-    }
-
-    private fun validPendingGifCommentMenu(): PendingGifCommentMenu? {
-        val pending = pendingGifCommentMenu ?: return null
-        if (System.currentTimeMillis() - pending.createdAtMs < 5_000L) return pending
-        pendingGifCommentMenu = null
         return null
     }
 
@@ -1159,27 +1617,54 @@ class InstagramHooks(
             val name = resourceEntryName(group).orEmpty().lowercase(Locale.US)
             val className = group.javaClass.name.lowercase(Locale.US)
             if ((name.contains("bottom_sheet") || name.contains("context") || name.contains("menu") ||
+                    name.contains("action_sheet") || name == "recycler_view" ||
+                    (name.contains("sheet") && nativeMenuHasActionRows(group)) ||
                     className.contains("bottomsheet") || className.contains("contextmenu")) &&
-                group is LinearLayout &&
                 group.childCount in 1..24
             ) {
-                return group
+                return nativeMenuInjectionParent(group)
             }
             current = group.parent as? View
         }
         return null
     }
 
-    private fun containsStoryTrayInjectedLabels(root: ViewGroup): Boolean {
-        return containsMenuLabel(root, "View profile picture") || containsMenuLabel(root, "View story cover")
+    private fun findNativeMenuContainers(root: View, onContainer: (View) -> Unit) {
+        var visited = 0
+        fun visit(view: View, depth: Int) {
+            if (depth > 12 || visited++ > 420) return
+            val group = view as? ViewGroup ?: return
+            val name = resourceEntryName(group).orEmpty().lowercase(Locale.US)
+            if (name.contains("action_sheet") || name.contains("bottom_sheet") ||
+                name.contains("context_menu") || name == "recycler_view"
+            ) {
+                onContainer(group)
+            }
+            for (i in 0 until group.childCount) visit(group.getChildAt(i), depth + 1)
+        }
+        visit(root, 0)
     }
 
-    private fun containsMenuLabel(root: ViewGroup, label: String): Boolean {
+    private fun nativeMenuInjectionParent(group: ViewGroup): ViewGroup? {
+        val parent = group.parent as? ViewGroup
+        val parentName = parent?.let { resourceEntryName(it) }.orEmpty().lowercase(Locale.US)
+        return when {
+            group is LinearLayout -> group
+            parent is LinearLayout && parentName.contains("action_sheet") -> parent
+            parent is LinearLayout && nativeMenuHasActionRows(group) -> parent
+            else -> null
+        }
+    }
+
+    private fun nativeMenuHasActionRows(root: ViewGroup): Boolean {
         fun scan(view: View, depth: Int): Boolean {
-            if (depth > 5) return false
+            if (depth > 4) return false
             if (view is TextView) {
-                val text = view.text?.toString().orEmpty()
-                if (text.equals(label, ignoreCase = true)) return true
+                val text = view.text?.toString()?.lowercase(Locale.US).orEmpty()
+                if (text.contains("view profile") || text.contains("mute") ||
+                    text.contains("report") || text.contains("block") ||
+                    text.contains("creator") || text.contains("hide suggestion")
+                ) return true
             }
             if (view is ViewGroup) {
                 for (i in 0 until view.childCount) if (scan(view.getChildAt(i), depth + 1)) return true
@@ -1189,12 +1674,36 @@ class InstagramHooks(
         return scan(root, 0)
     }
 
-    private fun nativeMenuLooksLikeGifCommentMenu(root: ViewGroup): Boolean {
+    private fun nativeMenuLooksLikeStoryTrayMenu(root: ViewGroup): Boolean {
+        var hasViewProfile = false
+        var hasMute = false
+        var hasSuggestionOnly = false
+        fun scan(view: View, depth: Int) {
+            if (depth > 5) return
+            if (view is TextView) {
+                val text = view.text?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                if (text == "view profile") hasViewProfile = true
+                if (text == "mute") hasMute = true
+                if (text == "hide suggestion") hasSuggestionOnly = true
+            }
+            if (view is ViewGroup) {
+                for (i in 0 until view.childCount) scan(view.getChildAt(i), depth + 1)
+            }
+        }
+        scan(root, 0)
+        return hasViewProfile && hasMute && !hasSuggestionOnly
+    }
+
+    private fun containsStoryTrayInjectedLabels(root: ViewGroup): Boolean {
+        return containsMenuLabel(root, "View profile picture") || containsMenuLabel(root, "View cover photo")
+    }
+
+    private fun containsMenuLabel(root: ViewGroup, label: String): Boolean {
         fun scan(view: View, depth: Int): Boolean {
             if (depth > 5) return false
             if (view is TextView) {
-                val text = view.text?.toString()?.lowercase(Locale.US).orEmpty()
-                if (text.contains("report") || text.contains("block") || text.contains("creator")) return true
+                val text = view.text?.toString().orEmpty()
+                if (text.equals(label, ignoreCase = true)) return true
             }
             if (view is ViewGroup) {
                 for (i in 0 until view.childCount) if (scan(view.getChildAt(i), depth + 1)) return true
@@ -1972,7 +2481,7 @@ class InstagramHooks(
                 object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                         val palette = monetPalette() ?: return
-                        if (!state.enableMonetTheme || param.args.isEmpty()) return
+                        return
                         when (val arg = param.args[0]) {
                             is Int -> monetShapeColorReplacement(arg, palette)?.let { param.args[0] = it }
                             is ColorStateList -> monetShapeColorReplacement(arg.defaultColor, palette)
@@ -2067,7 +2576,7 @@ class InstagramHooks(
                             }
                         }
                     )
-                }
+            }
             logInfo("Installed Instagram image URL capture on ${imageViewClass.name}")
         }
     }
@@ -2079,9 +2588,10 @@ class InstagramHooks(
                 "parse",
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam<*>) {
-                        if (!state.enablePostDownload) return
                         val url = param.args.firstOrNull() as? String ?: return
-                        if (looksLikeMediaUrl(url) && !looksLikeProfileImageUrl(url)) rememberMediaUrl(url)
+                        if (state.enablePostDownload && looksLikeMediaUrl(url) && !looksLikeProfileImageUrl(url)) {
+                            rememberMediaUrl(url)
+                        }
                     }
                 }
             )
@@ -2633,6 +3143,7 @@ class InstagramHooks(
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                         val request = param.args.firstOrNull() ?: return
                         val url = requestUrl(request) ?: return
+                        InstagramFollowerListLogger.rememberPotentialAuth(request, url)
                         rememberMediaUrl(url)
                         runCatching { URI(url) }.getOrNull()?.let { uri ->
                             maybeScheduleDirectChatSnapshotFromUri(uri)
@@ -2666,6 +3177,7 @@ class InstagramHooks(
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                         val requestObj = param.args.firstOrNull() ?: return
                         val uri = runCatching { uriField.get(requestObj) as? URI }.getOrNull() ?: return
+                        InstagramFollowerListLogger.rememberPotentialAuth(requestObj, uri.toString())
                         rememberMediaUrl(uri.toString())
                         rememberDirectThreadFromUri(uri)
                         maybeScheduleDirectChatSnapshotFromUri(uri)
@@ -2689,41 +3201,42 @@ class InstagramHooks(
     }
 
     private fun installDexKitHooks() {
+        val s = state
         installDexKitStep("DevOptions") { installDevOptionsStableHooks() }
         installDexKitStep("BottomSheet") { installBottomSheetNavigatorHook() }
-        installDexKitStep("ActivityHistory") { InstagramActivityHistoryHooks.installDexKitHooks(dexBridge, appClassLoader) }
-        installDexKitStep("CopyBio") { installCopyBioModelHooks() }
-        installDexKitStep("CommentCopy") { installCommentCopyLongPressHooks() }
-        installDexKitStep("SponsoredModels") { installSponsoredModelHooks() }
-        installDexKitStep("HideSuggestedFeed") { installHideSuggestedFeedItemsHook() }
-        installDexKitStep("GhostDmSeen") { installGhostDmSeenHook() }
-        installDexKitStep("GhostStorySeen") { installGhostStorySeenHook() }
-        installDexKitStep("GhostReplayLimit") { installGhostReplayLimitHooks() }
-        installDexKitStep("GhostPermanentView") { installGhostPermanentViewHook() }
-        installDexKitStep("GhostEphemeralKeep") { installGhostEphemeralKeepHooks() }
-        installDexKitStep("KeepUnsentMessages") { installKeepUnsentMessagesHooks() }
-        installDexKitStep("StoryOverflow") { installStoryOverflowHooks() }
-        installDexKitStep("GhostTyping") { installGhostTypingHook() }
-        installDexKitStep("GhostViewOnce") { installGhostViewOnceHook() }
-        installDexKitStep("GhostVoiceSeen") { installGhostVoiceSeenHooks() }
-        installDexKitStep("BuildExpiredPopup") { installBuildExpiredPopupHook() }
-        installDexKitStep("VideoAutoPlay") { installVideoAutoPlayDexHook() }
+        if (s.enableActivityHistory) installDexKitStep("ActivityHistory") { InstagramActivityHistoryHooks.installDexKitHooks(dexBridge, appClassLoader) }
+        if (s.enableCopyBio) installDexKitStep("CopyBio") { installCopyBioModelHooks() }
+        if (s.enableCopyComment) installDexKitStep("CommentCopy") { installCommentCopyLongPressHooks() }
+        if (s.isAdBlockEnabled) installDexKitStep("SponsoredModels") { installSponsoredModelHooks() }
+        if (s.hideSuggestionsInFeed) installDexKitStep("HideSuggestedFeed") { installHideSuggestedFeedItemsHook() }
+        if (s.isGhostSeen || s.quickToggleSeen) installDexKitStep("GhostDmSeen") { installGhostDmSeenHook() }
+        if (s.isGhostStory) installDexKitStep("GhostStorySeen") { installGhostStorySeenHook() }
+        if (s.enableUnlimitedReplays) installDexKitStep("GhostReplayLimit") { installGhostReplayLimitHooks() }
+        if (s.permanentViewMode) installDexKitStep("GhostPermanentView") { installGhostPermanentViewHook() }
+        if (s.keepEphemeralMessages) installDexKitStep("GhostEphemeralKeep") { installGhostEphemeralKeepHooks() }
+        if (s.keepUnsentMessages) installDexKitStep("KeepUnsentMessages") { installKeepUnsentMessagesHooks() }
+        if (s.enableStoryDownload || s.enableStoryMarkSeenButton || s.enableStoryRepostButton || s.isGhostStory) installDexKitStep("StoryOverflow") { installStoryOverflowHooks() }
+        if (s.isGhostTyping || s.quickToggleTyping) installDexKitStep("GhostTyping") { installGhostTypingHook() }
+        if (s.isGhostViewOnce) installDexKitStep("GhostViewOnce") { installGhostViewOnceHook() }
+        if (s.hideVoiceMessageSeen) installDexKitStep("GhostVoiceSeen") { installGhostVoiceSeenHooks() }
+        if (s.removeBuildExpiredPopup) installDexKitStep("BuildExpiredPopup") { installBuildExpiredPopupHook() }
+        if (s.disableVideoAutoPlay) installDexKitStep("VideoAutoPlay") { installVideoAutoPlayDexHook() }
         installDexKitStep("VideoPrepare") { installVideoPrepareSkipHook() }
-        installDexKitStep("GhostScreenshot") { installGhostScreenshotDetectionHook() }
-        installDexKitStep("DoubleTapLike") { installDoubleTapLikeDexHooks() }
-        installDexKitStep("StoryFlipping") { installStoryFlippingDexHook() }
-        installDexKitStep("NotesLocation") {
-            hookDexVoidOrFalse("NotesLocation", listOf("location_note_create_info", "longitude")) { state.enableNotesLocationSpoof }
+        if (s.isGhostScreenshot || s.allowScreenshots) installDexKitStep("GhostScreenshot") { installGhostScreenshotDetectionHook() }
+        if (s.disableDoubleTapLike) installDexKitStep("DoubleTapLike") { installDoubleTapLikeDexHooks() }
+        if (s.disableStoryFlipping) installDexKitStep("StoryFlipping") { installStoryFlippingDexHook() }
+        if (hasValidNotesLocationSpoof(s)) installDexKitStep("NotesLocation") {
+            hookDexVoidOrFalse("NotesLocation", listOf("location_note_create_info", "longitude")) { hasValidNotesLocationSpoof() }
             installNotesLocationRequestHooks()
             installNotesLocationFallbackHook()
         }
-        installDexKitStep("PostVideoUrlCapture") { installPostVideoUrlCaptureHook() }
-        installDexKitStep("PostDownload") { installPostDownloadMenuHook() }
-        installDexKitStep("ReelDownload") { installReelDownloadMenuHook() }
-        installDexKitStep("StoryMention") { installStoryMentionHook() }
-        installDexKitStep("NavigationTabs") { installNavigationNativeTabFactoryHook() }
-        installDexKitStep("ConfirmRefresh") { installConfirmRefreshDexListenerHooks() }
-        installDexKitStep("DmFileAttachmentBridge") { installDmFileAttachmentBridgeHooks() }
+        if (s.enablePostDownload) installDexKitStep("PostVideoUrlCapture") { installPostVideoUrlCaptureHook() }
+        if (s.enablePostDownload) installDexKitStep("PostDownload") { installPostDownloadMenuHook() }
+        if (s.enableReelDownload) installDexKitStep("ReelDownload") { installReelDownloadMenuHook() }
+        if (s.enableStoryMentions) installDexKitStep("StoryMention") { installStoryMentionHook() }
+        if (s.enableNavigationTabCustomization) installDexKitStep("NavigationTabs") { installNavigationNativeTabFactoryHook() }
+        if (s.enableConfirmRefresh) installDexKitStep("ConfirmRefresh") { installConfirmRefreshDexListenerHooks() }
+        if (s.enableDmAnyFileUpload) installDexKitStep("DmFileAttachmentBridge") { installDmFileAttachmentBridgeHooks() }
     }
 
     private fun installDexKitStep(name: String, block: () -> Unit) {
@@ -4513,6 +5026,28 @@ class InstagramHooks(
                     method.parameterTypes.isNotEmpty() &&
                     !Modifier.isStatic(method.modifiers)
 
+            fun hookCachedStoreDeleteMethods(hook: XC_MethodHook): Int {
+                if (!InstagramDexKitCache.isCacheValid()) return 0
+                val cached = InstagramDexKitCache.loadMethods("KeepUnsent_store_delete", appClassLoader).orEmpty()
+                if (cached.isEmpty()) return 0
+                var hooked = 0
+                cached.forEach { method ->
+                    if (method.returnType != Void.TYPE) return@forEach
+                    val signature = "${methodKey(method)}:keep_unsent_store_delete_cached"
+                    if (!hookedDexMethods.add(signature)) return@forEach
+                    runCatching {
+                        method.isAccessible = true
+                        XposedBridge.hookMethod(method, hook)
+                        hooked++
+                        if (isStoreDeleteMethod(method)) {
+                            hooked += hookKeepUnsentStoreDeleteWrappers(method.declaringClass, hook).size
+                        }
+                    }.onFailure { logError("Failed cached keep-unsent store hook $signature", it) }
+                }
+                if (hooked > 0) logInfo("Installed cached keep-unsent hooks KeepUnsent_store_delete=$hooked")
+                return hooked
+            }
+
             val renderHook = object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam<*>) {
                     if (!state.keepUnsentMessages) return
@@ -4545,7 +5080,7 @@ class InstagramHooks(
                     val operations = param.args?.getOrNull(2) as? List<*> ?: return
                     val deleteIds = collectRemoveOperationIds(operations)
                     if (deleteIds.isNotEmpty()) {
-                        rememberKeepUnsentDeletedIds(deleteIds)
+                        rememberKeepUnsentDeletedIds(deleteIds, operations)
                         rememberScopedDeleteIds(param, deleteIds)
                     }
                     val filtered = filterRemoveOperations(operations)
@@ -4580,7 +5115,7 @@ class InstagramHooks(
                     if (!state.keepUnsentMessages) return
                     val deleteIds = collectRealtimeRemoveIds(param.args)
                     if (deleteIds.isNotEmpty()) {
-                        rememberKeepUnsentDeletedIds(deleteIds)
+                        rememberKeepUnsentDeletedIds(deleteIds, param.args)
                         rememberScopedDeleteIds(param, deleteIds)
                     }
                 }
@@ -4615,7 +5150,7 @@ class InstagramHooks(
             val legacyHook = object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam<*>) {
                     if (state.keepUnsentMessages && containsLegacyDeleteItemPayload(param.args)) {
-                        rememberKeepUnsentDeletedIds(collectUsefulIdsDeep(param.args))
+                        rememberKeepUnsentDeletedIds(collectUsefulIdsDeep(param.args), param.args)
                         param.result = null
                     }
                 }
@@ -4644,30 +5179,34 @@ class InstagramHooks(
                 override fun beforeHookedMethod(param: MethodHookParam<*>) {
                     if (!state.keepUnsentMessages) return
                     if (isScopedRemoteDelete(param.args) || isOneIdServerDelete(param.args)) {
-                        rememberKeepUnsentDeletedIds(collectUsefulIdsDeep(param.args))
+                        rememberKeepUnsentDeletedIds(collectUsefulIdsDeep(param.args), param.args)
                         param.result = null
                     }
                 }
             }
-            var storeHooks = hookCachedKeepUnsentMethods(
-                "KeepUnsent_store_delete",
-                "keep_unsent_store_delete_cached",
-                storeHook,
-                afterHook = { method -> hookKeepUnsentStoreDeleteWrappers(method.declaringClass) },
-                validator = ::isStoreDeleteMethod
-            )
+            var storeHooks = hookCachedStoreDeleteMethods(storeHook)
             if (storeHooks == 0) {
+                val discoveredStoreMethods = dexBridge.findMethodsUsingStringsConstrained(
+                    listOf("Client context should not be null if messageId is null."),
+                    paramCount = 5,
+                    returnType = "void"
+                ).filter(::isStoreDeleteMethod)
+                val wrapperMethods = ArrayList<Method>()
                 storeHooks = hookKeepUnsentMethods(
                     "KeepUnsent_store_delete",
                     "keep_unsent_store_delete",
-                    dexBridge.findMethodsUsingStringsConstrained(
-                        listOf("Client context should not be null if messageId is null."),
-                        paramCount = 5,
-                        returnType = "void"
-                    ).filter(::isStoreDeleteMethod),
+                    discoveredStoreMethods,
                     storeHook,
-                    afterHook = { method -> hookKeepUnsentStoreDeleteWrappers(method.declaringClass) }
+                    afterHook = { method ->
+                        val wrappers = hookKeepUnsentStoreDeleteWrappers(method.declaringClass, storeHook)
+                        wrapperMethods += wrappers
+                        wrappers.size
+                    },
+                    save = false
                 )
+                if (discoveredStoreMethods.isNotEmpty() || wrapperMethods.isNotEmpty()) {
+                    InstagramDexKitCache.saveMethods("KeepUnsent_store_delete", discoveredStoreMethods + wrapperMethods)
+                }
             }
 
             val rowHooks = installKeepUnsentDeletedIndicatorHooks()
@@ -4681,7 +5220,7 @@ class InstagramHooks(
         val filtered = ArrayList<Any?>()
         operations.forEach { operation ->
             if (isLikelyRemoveMessageOperation(operation)) {
-                rememberKeepUnsentDeletedIds(collectStringFields(operation))
+                rememberKeepUnsentDeletedIds(collectStringFields(operation), operation)
                 changed = true
             } else {
                 filtered += operation
@@ -4803,7 +5342,20 @@ class InstagramHooks(
         }
     }
 
+    private var copyBioClassesCached = false
+    private val copyBioCachedClassNames = HashSet<String>()
+
     private fun hookDexDiscoveredBiographyClasses(): Int {
+        val persisted = if (InstagramDexKitCache.isCacheValid()) {
+            InstagramDexKitCache.loadString("CopyBio_Classes")
+        } else null
+        if (!persisted.isNullOrBlank()) {
+            val classNames = persisted.split('\u0000').filter { it.isNotBlank() }
+            return classNames.sumOf { hookBiographyStringMethods(it, exactOnly = false) }
+        }
+        if (copyBioClassesCached) {
+            return copyBioCachedClassNames.sumOf { hookBiographyStringMethods(it, exactOnly = false) }
+        }
         var hooked = 0
         val seen = HashSet<String>()
         arrayOf("biography", "biography_with_entities", "profile_header_bio").forEach { marker ->
@@ -4811,6 +5363,11 @@ class InstagramHooks(
                 if (!seen.add(className)) return@forEach
                 hooked += hookBiographyStringMethods(className, exactOnly = false)
             }
+        }
+        copyBioClassesCached = true
+        copyBioCachedClassNames.addAll(seen)
+        if (seen.isNotEmpty()) {
+            InstagramDexKitCache.saveString("CopyBio_Classes", seen.joinToString("\u0000"))
         }
         return hooked
     }
@@ -5300,8 +5857,8 @@ class InstagramHooks(
             compact.endsWith(".com") ||
             compact.contains(".in/") ||
             compact.endsWith(".in")
-        val emailish = compact.matches(Regex("[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}"))
-        return (urlish || emailish) && text.split(Regex("\\s+")).size <= 2
+        val emailish = compact.matches(emailPattern)
+        return (urlish || emailish) && text.split(whitespacePattern).size <= 2
     }
 
     private fun looksLikeDisplayNameOnly(value: String?): Boolean {
@@ -5310,7 +5867,7 @@ class InstagramHooks(
         val lower = text.lowercase(Locale.US)
         if (text.contains('\n') || lower.contains("@") || lower.contains("http")) return false
         if (text.contains("|") || text.contains(":") || text.contains("/") || text.contains("&")) return false
-        if (text.split(Regex("\\s+")).size > 2) return false
+        if (text.split(whitespacePattern).size > 2) return false
         if (text.any { it.isDigit() }) return false
         var offset = 0
         while (offset < text.length) {
@@ -5319,7 +5876,7 @@ class InstagramHooks(
             if (type == Character.OTHER_SYMBOL.toInt() || type == Character.MATH_SYMBOL.toInt()) return false
             offset += Character.charCount(codePoint)
         }
-        return text.matches(Regex("[\\p{L} ._'-]+"))
+        return text.matches(displayNamePattern)
     }
 
     private fun looksLikeBioContent(value: String?): Boolean {
@@ -5328,7 +5885,7 @@ class InstagramHooks(
         val lower = text.lowercase(Locale.US)
         if (isNeverBioText(lower) || looksLikeLinkOnly(text) || looksLikeDisplayNameOnly(text)) return false
         if (text.contains('\n')) return true
-        if (text.split(Regex("\\s+")).size >= 3) return true
+        if (text.split(whitespacePattern).size >= 3) return true
         if (text.contains("|") || text.contains(":") || text.contains("/") || text.contains("&")) return true
         var offset = 0
         while (offset < text.length) {
@@ -5727,15 +6284,15 @@ class InstagramHooks(
                 return
             }
             is Array<*> -> {
-                target.take(32).forEach { collectUsefulIdsDeep(it, out, seen, depth + 1) }
+                target.forEach { collectUsefulIdsDeep(it, out, seen, depth + 1) }
                 return
             }
             is Iterable<*> -> {
-                target.take(32).forEach { collectUsefulIdsDeep(it, out, seen, depth + 1) }
+                target.take(33).forEach { collectUsefulIdsDeep(it, out, seen, depth + 1) }
                 return
             }
             is Map<*, *> -> {
-                target.values.take(32).forEach { collectUsefulIdsDeep(it, out, seen, depth + 1) }
+                target.values.take(33).forEach { collectUsefulIdsDeep(it, out, seen, depth + 1) }
                 return
             }
         }
@@ -5757,23 +6314,46 @@ class InstagramHooks(
         }
     }
 
-    private fun rememberKeepUnsentDeletedIds(ids: Collection<String>) {
+    private fun rememberKeepUnsentDeletedIds(ids: Collection<String>, source: Any? = null) {
+        logKeepUnsentDebug(
+            "delete-event rawIds=${formatKeepUnsentIds(ids)} source=${source?.javaClass?.name.orEmpty()}"
+        )
         val messageIds = extractDeletedMessageIds(ids)
-        if (messageIds.isEmpty()) return
+        logKeepUnsentDebug("delete-event extractedIds=${formatKeepUnsentIds(messageIds)}")
+        val deletedTexts = collectKeepUnsentDeletedTexts(source)
+        logKeepUnsentDebug("delete-event extractedTexts=${formatKeepUnsentTexts(deletedTexts)}")
+        if (messageIds.isEmpty() && deletedTexts.isEmpty()) {
+            logKeepUnsentDebug("delete-event skipped: no trustworthy id or text")
+            return
+        }
         var added = 0
-        synchronized(keepUnsentDeletedIds) {
-            messageIds.forEach { id ->
-                val key = id.trim()
-                if (!keepUnsentDeletedIds.containsKey(key)) added++
-                keepUnsentDeletedIds[key] = true
+        val deletedAt = System.currentTimeMillis()
+        if (messageIds.isNotEmpty()) {
+            synchronized(keepUnsentDeletedIds) {
+                messageIds.forEach { id ->
+                    val key = id.trim()
+                    if (!keepUnsentDeletedIds.containsKey(key)) added++
+                    keepUnsentDeletedIds[key] = deletedAt
+                }
+            }
+            if (added > 0) {
+                keepUnsentPersistDirty = true
+                persistKeepUnsentDeletedIds(androidContext)
+                logInfo("Marked unsent Direct message ids: $added")
             }
         }
-        if (added > 0) {
-            keepUnsentPersistDirty = true
-            persistKeepUnsentDeletedIds(androidContext)
-            logInfo("Marked unsent Direct message ids: $added")
+        if (deletedTexts.isNotEmpty()) {
+            rememberKeepUnsentDeletedTexts(deletedTexts, deletedAt)
+            decorateKeepUnsentTextRows(deletedTexts, deletedAt)
+            scheduleKeepUnsentTextDecorationRetries(deletedTexts, deletedAt)
         }
-        decorateKeepUnsentBoundRows(messageIds)
+        if (messageIds.isNotEmpty()) {
+            rememberKeepUnsentTemporalDeleteCandidate(deletedAt)
+            scanVisibleKeepUnsentRowsSoon("delete-event", 0L)
+            scanVisibleKeepUnsentRowsSoon("delete-event-retry", 180L)
+            decorateKeepUnsentBoundRows(messageIds)
+            mainHandler.postDelayed({ decorateKeepUnsentBoundRows(messageIds) }, 220L)
+        }
     }
 
     private fun loadKeepUnsentDeletedIds(context: Context?) {
@@ -5785,7 +6365,10 @@ class InstagramHooks(
                 val saved = app.getSharedPreferences(KEEP_UNSENT_PREFS, Context.MODE_PRIVATE)
                     .getStringSet(KEEP_UNSENT_PREF_IDS, null)
                 saved.orEmpty().forEach { id ->
-                    if (isMessageScopedId(id, allowNumeric = true)) keepUnsentDeletedIds[id.trim()] = true
+                    val parts = id.split("|", limit = 2)
+                    val key = parts[0].trim()
+                    val at = parts.getOrNull(1)?.toLongOrNull() ?: 0L
+                    if (isMessageScopedId(key, allowNumeric = true)) keepUnsentDeletedIds[key] = at
                 }
                 keepUnsentPersistedLoaded = true
                 if (!saved.isNullOrEmpty()) logInfo("Loaded persisted unsent Direct ids: ${saved.size}")
@@ -5797,9 +6380,11 @@ class InstagramHooks(
         if (context == null) return
         synchronized(keepUnsentPersistLock) {
             runCatching {
-                val ids = synchronized(keepUnsentDeletedIds) { keepUnsentDeletedIds.keys.toList() }
+                val ids = synchronized(keepUnsentDeletedIds) {
+                    keepUnsentDeletedIds.entries.map { "${it.key}|${it.value}" }
+                }
                     .takeLast(MAX_KEEP_UNSENT_IDS)
-                    .filterTo(HashSet()) { isMessageScopedId(it, allowNumeric = true) }
+                    .filterTo(HashSet()) { isMessageScopedId(it.substringBefore("|"), allowNumeric = true) }
                 val app = context.applicationContext ?: context
                 val ok = app.getSharedPreferences(KEEP_UNSENT_PREFS, Context.MODE_PRIVATE)
                     .edit()
@@ -5810,22 +6395,24 @@ class InstagramHooks(
         }
     }
 
-    private fun containsKeepUnsentDeletedId(ids: Set<String>): Boolean {
-        val rowIds = extractRowBindableIds(ids)
-        if (rowIds.isEmpty()) return false
-        val deleted = synchronized(keepUnsentDeletedIds) {
-            rowIds.firstOrNull { keepUnsentDeletedIds.containsKey(it.trim()) }?.let { return true }
-            keepUnsentDeletedIds.keys.toList()
-        }
-        rowIds.forEach { rowId ->
-            deleted.forEach { deletedId ->
-                if (idsLikelyMatch(rowId, deletedId)) {
+    private fun keepUnsentDeletedAt(ids: Set<String>): Long {
+        val rowIds = extractRowBindableIds(ids).filterNot { keepUnsentAmbiguousBoundIds.contains(it) }.toSet()
+        if (rowIds.isEmpty()) return 0L
+        synchronized(keepUnsentDeletedIds) {
+            rowIds.firstNotNullOfOrNull { keepUnsentDeletedIds[it.trim()] }?.let { return it }
+            if (rowIds.size > 4) return 0L
+            keepUnsentDeletedIds.forEach { (deletedId, deletedAt) ->
+                if (rowIds.any { idsLikelyMatch(it, deletedId) }) {
                     logKeepUnsentFuzzyMatchOnce()
-                    return true
+                    return deletedAt
                 }
             }
         }
-        return false
+        return 0L
+    }
+
+    private fun containsKeepUnsentDeletedId(ids: Set<String>): Boolean {
+        return keepUnsentDeletedAt(ids) > 0L
     }
 
     private fun extractDeletedMessageIds(ids: Collection<String>?): Set<String> {
@@ -5836,13 +6423,22 @@ class InstagramHooks(
             collectUriMessageIds(trimmed, parsed, strictMessageOnly = true)
             if (isMessageScopedId(trimmed, allowNumeric = true)) fallback += trimmed
         }
-        return if (parsed.isNotEmpty()) parsed else fallback
+        val result = if (parsed.isNotEmpty()) parsed else fallback
+        if (!ids.isNullOrEmpty()) {
+            logKeepUnsentDebug(
+                "extract-delete-ids raw=${formatKeepUnsentIds(ids)} parsed=${formatKeepUnsentIds(parsed)} fallback=${formatKeepUnsentIds(fallback)} result=${formatKeepUnsentIds(result)}"
+            )
+        }
+        return result
     }
 
     private fun extractRowBindableIds(ids: Collection<String>?): Set<String> {
         val out = HashSet<String>()
         ids.orEmpty().forEach { id ->
             if (isMessageScopedId(id, allowNumeric = true)) out += id.trim()
+        }
+        if (!ids.isNullOrEmpty()) {
+            logKeepUnsentDebug("extract-row-ids raw=${formatKeepUnsentIds(ids)} result=${formatKeepUnsentIds(out)}")
         }
         return out
     }
@@ -5852,6 +6448,66 @@ class InstagramHooks(
         if (trimmed.isBlank()) return
         if (collectUriMessageIds(trimmed, out, strictMessageOnly = false)) return
         if (isUsefulMessageId(trimmed)) out += trimmed
+    }
+
+    private fun collectKeepUnsentDeletedTexts(source: Any?): Set<String> {
+        val out = LinkedHashSet<String>()
+        collectKeepUnsentDeletedTexts(source, out, Collections.newSetFromMap(IdentityHashMap<Any, Boolean>()), 0)
+        return out.take(8).toSet()
+    }
+
+    private fun collectKeepUnsentDeletedTexts(source: Any?, out: MutableSet<String>, seen: MutableSet<Any>, depth: Int) {
+        if (source == null || depth > 3 || out.size >= 8) return
+        when (source) {
+            is CharSequence -> {
+                normalizeKeepUnsentMessageText(source)?.let(out::add)
+                return
+            }
+            is Array<*> -> {
+                source.take(24).forEach { collectKeepUnsentDeletedTexts(it, out, seen, depth + 1) }
+                return
+            }
+            is Iterable<*> -> {
+                source.take(24).forEach { collectKeepUnsentDeletedTexts(it, out, seen, depth + 1) }
+                return
+            }
+            is Map<*, *> -> {
+                source.values.take(24).forEach { collectKeepUnsentDeletedTexts(it, out, seen, depth + 1) }
+                return
+            }
+        }
+        if (isPrimitiveLike(source) || source is View || !seen.add(source)) return
+        var cls: Class<*>? = source.javaClass
+        var classDepth = 0
+        while (cls != null && cls != Any::class.java && classDepth++ < 4 && out.size < 8) {
+            cls.declaredFields.forEach { field ->
+                if (out.size >= 8 || Modifier.isStatic(field.modifiers) || field.isSynthetic || field.type.isPrimitive) return@forEach
+                runCatching {
+                    field.isAccessible = true
+                    val value = field.get(source) ?: return@forEach
+                    if (value is CharSequence) {
+                        normalizeKeepUnsentMessageText(value)?.let(out::add)
+                    } else if (!isPrimitiveLike(value) && value !is View) {
+                        collectKeepUnsentDeletedTexts(value, out, seen, depth + 1)
+                    }
+                }
+            }
+            cls = cls.superclass
+        }
+    }
+
+    private fun normalizeKeepUnsentMessageText(value: CharSequence?): String? {
+        val text = cleanMessageDeletedLines(value).trim()
+        if (text.isBlank() || text.length > 500) return null
+        val lower = text.lowercase(Locale.US)
+        if (lower.length < 2) return null
+        if (lower.all { it in '0'..'9' }) return null
+        if (lower == KEEP_UNSENT_MARKER_TEXT.lowercase(Locale.US)) return null
+        if (lower.contains("://") || lower.startsWith("{") || lower.startsWith("[") || lower.contains("\"")) return null
+        if (lower.contains("direct_v2") || lower.contains("remove_message") || lower.contains("delete_item")) return null
+        if (lower in setOf("remove", "delete", "replace_message", "noop", "process_start", "process_end")) return null
+        if (isUsefulMessageId(text) || isMessageScopedId(text, allowNumeric = true)) return null
+        return text
     }
 
     private fun collectUriMessageIds(value: String?, out: MutableSet<String>, strictMessageOnly: Boolean): Boolean {
@@ -5930,8 +6586,8 @@ class InstagramHooks(
         }
     }
 
-    private fun hookKeepUnsentStoreDeleteWrappers(storeClass: Class<*>): Int {
-        var hooked = 0
+    private fun hookKeepUnsentStoreDeleteWrappers(storeClass: Class<*>, hook: XC_MethodHook? = null): List<Method> {
+        val hooked = ArrayList<Method>()
         storeClass.declaredMethods.forEach { method ->
             val params = method.parameterTypes
             if (method.returnType != Void.TYPE || params.size != 3 || params[1] != String::class.java || params[2] != String::class.java) {
@@ -5942,17 +6598,17 @@ class InstagramHooks(
             method.isAccessible = true
             XposedBridge.hookMethod(
                 method,
-                object : XC_MethodHook() {
+                hook ?: object : XC_MethodHook() {
                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                         if (!state.keepUnsentMessages) return
                         if (isScopedRemoteDelete(param.args) || isOneIdServerDelete(param.args)) {
-                            rememberKeepUnsentDeletedIds(collectUsefulIdsDeep(param.args))
+                            rememberKeepUnsentDeletedIds(collectUsefulIdsDeep(param.args), param.args)
                             param.result = null
                         }
                     }
                 }
             )
-            hooked++
+            hooked += method
         }
         return hooked
     }
@@ -5961,16 +6617,9 @@ class InstagramHooks(
         val hook = object : XC_MethodHook() {
             override fun afterHookedMethod(param: MethodHookParam<*>) {
                 if (!state.keepUnsentMessages || param.args == null || param.args.size < 2) return
-                var rowIds = collectRowIds(param.args[0])
-                var rowRoot = findViewHolderRootForKeepUnsent(param.args[1])
-                if (rowRoot == null || rowIds.isEmpty()) {
-                    val swappedIds = collectRowIds(param.args[1])
-                    val swappedRoot = findViewHolderRootForKeepUnsent(param.args[0])
-                    if (swappedRoot != null && swappedIds.isNotEmpty()) {
-                        rowIds = swappedIds
-                        rowRoot = swappedRoot
-                    }
-                }
+                val bound = findKeepUnsentRowBinding(param.args) ?: return
+                val rowIds = bound.first
+                val rowRoot = bound.second
                 if (rowRoot == null || rowIds.isEmpty()) return
                 loadKeepUnsentDeletedIds(rowRoot.context)
                 if (keepUnsentPersistDirty) persistKeepUnsentDeletedIds(rowRoot.context)
@@ -5979,7 +6628,7 @@ class InstagramHooks(
                     logInfo("Keep-unsent deleted marker row binder active")
                 }
                 rememberKeepUnsentBoundRows(rowIds, rowRoot)
-                applyKeepUnsentDeletedMarker(rowRoot, containsKeepUnsentDeletedId(rowIds))
+                applyKeepUnsentDeletedMarker(rowRoot, keepUnsentDeletedAt(rowIds))
             }
         }
 
@@ -6015,16 +6664,51 @@ class InstagramHooks(
         }
 
         val tagId = resolveInstagramRId("message_content_view_tag").takeIf { it != 0 } ?: 2131437280
-        dexBridge.findMethodsUsingNumbersConstrained(
+        val textId = resolveInstagramRId("direct_text_message_text_view").takeIf { it != 0 } ?: 2131432340
+        val contentId = resolveInstagramRId("message_content_horizontal_linear_layout").takeIf { it != 0 } ?: 2131437270
+        val dexCandidates = LinkedHashSet<Method>()
+        dexCandidates += dexBridge.findMethodsUsingNumbersConstrained(
             listOf(tagId),
             paramCount = 2,
             returnType = "void"
-        ).filter { it.returnType == Void.TYPE && it.parameterTypes.size == 2 }
-            .forEach { method ->
-                hookRowMethod(method, "keep_unsent_row_dex")
-            }
+        )
+        dexCandidates += dexBridge.findMethodsUsingNumbersConstrained(
+            listOf(textId),
+            paramCount = 2,
+            returnType = "void"
+        )
+        dexCandidates += dexBridge.findMethodsUsingNumbersConstrained(
+            listOf(contentId),
+            paramCount = 2,
+            returnType = "void"
+        )
+        if (dexCandidates.isEmpty()) {
+            dexCandidates += dexBridge.findMethodsUsingNumbers(tagId, textId, contentId)
+                .filter { method ->
+                    method.returnType == Void.TYPE &&
+                        method.parameterTypes.size in 2..4 &&
+                        !Modifier.isStatic(method.modifiers)
+                }
+        }
+        dexCandidates
+            .filter { it.returnType == Void.TYPE && it.parameterTypes.size in 2..4 }
+            .forEach { method -> hookRowMethod(method, "keep_unsent_row_dex") }
         if (hookedMethods.isNotEmpty()) InstagramDexKitCache.saveMethods("KeepUnsent_row_decorator", hookedMethods)
+        if (hooked == 0) logInfo("Keep-unsent deleted marker row binder not found; using Direct view fallback")
         return hooked
+    }
+
+    private fun findKeepUnsentRowBinding(args: Array<Any?>): Pair<Set<String>, View>? {
+        for (modelIndex in args.indices) {
+            val rowIds = collectRowIds(args[modelIndex])
+            if (rowIds.isEmpty()) continue
+            for (holderIndex in args.indices) {
+                if (holderIndex == modelIndex) continue
+                val rowRoot = findViewHolderRootForKeepUnsent(args[holderIndex]) ?: continue
+                return rowIds to rowRoot
+            }
+        }
+        return null
     }
 
     private fun resolveInstagramRId(name: String): Int {
@@ -6057,11 +6741,401 @@ class InstagramHooks(
         return ids
     }
 
+    private fun maybeBindKeepUnsentRowFromView(view: View) {
+        if (!state.keepUnsentMessages || !isKeepUnsentMessageContentCandidate(view)) return
+        if (!keepUnsentViewCandidateSeen) {
+            keepUnsentViewCandidateSeen = true
+            logInfo("Keep-unsent Direct view fallback candidate ${describeViewBrief(view)}")
+        }
+        val rowRoot = nearestKeepUnsentRowRoot(view) ?: return
+        rememberKeepUnsentVisibleTextRow(rowRoot)
+        val rowIds = collectKeepUnsentViewRowIds(view, rowRoot)
+            .toMutableSet()
+            .also { it += collectKeepUnsentRecyclerHolderIds(rowRoot) }
+        keepUnsentDeletedTextAt(rowRoot).takeIf { it > 0L }?.let { applyKeepUnsentDeletedMarker(rowRoot, it) }
+        if (rowIds.isEmpty()) {
+            scheduleKeepUnsentViewRowRetry(rowRoot)
+            if (!keepUnsentViewNoIdsSeen) {
+                keepUnsentViewNoIdsSeen = true
+                logInfo("Keep-unsent Direct view fallback found no row ids view=${describeViewBrief(view)} root=${describeViewBrief(rowRoot)}")
+            }
+            if (rowRoot.width > 0 && rowRoot.height > 0 && !keepUnsentViewNoIdsLaidOutSeen) {
+                keepUnsentViewNoIdsLaidOutSeen = true
+                logInfo("Keep-unsent Direct laid-out row still has no ids view=${describeViewBrief(view)} root=${describeViewBrief(rowRoot)}")
+            }
+            return
+        }
+        loadKeepUnsentDeletedIds(view.context)
+        if (keepUnsentPersistDirty) persistKeepUnsentDeletedIds(view.context)
+        if (!keepUnsentRowDecoratorSeen) {
+            keepUnsentRowDecoratorSeen = true
+            logInfo("Keep-unsent deleted marker view fallback active")
+        }
+        rememberKeepUnsentBoundRows(rowIds, rowRoot)
+        applyKeepUnsentDeletedMarker(rowRoot, keepUnsentDeletedAt(rowIds))
+    }
+
+    private fun scheduleKeepUnsentViewRowRetry(rowRoot: View) {
+        val attempt = synchronized(keepUnsentViewRetryCounts) {
+            val next = (keepUnsentViewRetryCounts[rowRoot] ?: 0) + 1
+            if (next > 2) return
+            keepUnsentViewRetryCounts[rowRoot] = next
+            next
+        }
+        rowRoot.postDelayed({
+            if (rowRoot.parent != null) maybeBindKeepUnsentRowFromView(rowRoot)
+        }, when (attempt) {
+            1 -> 160L
+            else -> 350L
+        })
+    }
+
+    private fun maybeBindKeepUnsentRowFromHolder(holder: Any?, adapter: Any? = null, position: Int = -1) {
+        val rowRoot = findViewHolderRootForKeepUnsent(holder) ?: return
+        if (!containsKeepUnsentMessageContent(rowRoot)) return
+        if (!keepUnsentRecyclerBindSeen) {
+            keepUnsentRecyclerBindSeen = true
+            logInfo("Keep-unsent RecyclerView fallback bind holder=${holder?.javaClass?.name} root=${describeViewBrief(rowRoot)}")
+        }
+        val rowIds = HashSet<String>()
+        rememberKeepUnsentVisibleTextRow(rowRoot)
+        rowIds += collectRowIds(holder)
+        if (adapter != null && position >= 0) {
+            val adapterIds = collectKeepUnsentAdapterItemIds(adapter, position)
+            if (adapterIds.isNotEmpty()) {
+                logKeepUnsentDebug("holder-bind adapter position=$position ids=${formatKeepUnsentIds(adapterIds)} rowText=${formatKeepUnsentText(keepUnsentRowMessageText(rowRoot))}")
+                rowIds += adapterIds
+            }
+        }
+        rowIds += collectKeepUnsentViewRowIds(rowRoot, rowRoot)
+        keepUnsentDeletedTextAt(rowRoot).takeIf { it > 0L }?.let { applyKeepUnsentDeletedMarker(rowRoot, it) }
+        if (rowIds.isEmpty()) {
+            if (!keepUnsentHolderNoIdsSeen) {
+                keepUnsentHolderNoIdsSeen = true
+                logInfo("Keep-unsent RecyclerView fallback found no row ids holder=${holder?.javaClass?.name} root=${describeViewBrief(rowRoot)}")
+            }
+            return
+        }
+        logKeepUnsentDebug("holder-bind final ids=${formatKeepUnsentIds(rowIds)} rowText=${formatKeepUnsentText(keepUnsentRowMessageText(rowRoot))}")
+        loadKeepUnsentDeletedIds(rowRoot.context)
+        if (keepUnsentPersistDirty) persistKeepUnsentDeletedIds(rowRoot.context)
+        if (!keepUnsentRowDecoratorSeen) {
+            keepUnsentRowDecoratorSeen = true
+            logInfo("Keep-unsent deleted marker RecyclerView fallback active")
+        }
+        rememberKeepUnsentBoundRows(rowIds, rowRoot)
+        applyKeepUnsentDeletedMarker(rowRoot, keepUnsentDeletedAt(rowIds))
+    }
+
+    private fun containsKeepUnsentMessageContent(view: View?): Boolean {
+        if (view == null) return false
+        if (isKeepUnsentMessageContentCandidate(view)) return true
+        if (view !is ViewGroup) return false
+        for (i in 0 until view.childCount) {
+            if (containsKeepUnsentMessageContent(view.getChildAt(i))) return true
+        }
+        return false
+    }
+
+    private fun isKeepUnsentMessageContentCandidate(view: View): Boolean {
+        val name = resourceEntryName(view).orEmpty()
+        if (name == "direct_text_message_text_view" ||
+            name == "message_content" ||
+            name == "message_content_horizontal_linear_layout" ||
+            name == "direct_text_message_text_view_stub"
+        ) {
+            return true
+        }
+        val tagId = view.resources.getIdentifier("message_content_view_tag", "id", view.context.packageName)
+        return tagId != 0 && runCatching { view.getTag(tagId) != null }.getOrDefault(false)
+    }
+
+    private fun nearestKeepUnsentRowRoot(view: View): View? {
+        var current: View? = view
+        var best: View? = view
+        repeat(8) {
+            val node = current ?: return@repeat
+            val parent = node.parent as? View
+            if (parent != null && parent.javaClass.name.contains("RecyclerView")) return node
+            val name = resourceEntryName(node).orEmpty().lowercase(Locale.US)
+            val cls = node.javaClass.name.lowercase(Locale.US)
+            if ((name.contains("message") || name.contains("direct") || cls.contains("recyclerview")) &&
+                (node.width > 0 || node.height > 0 || best?.parent == null)
+            ) {
+                best = node
+            }
+            if (parent == null || parent.javaClass.name.contains("RecyclerView")) return best
+            current = parent
+        }
+        return best
+    }
+
+    private fun scanVisibleKeepUnsentRowsSoon(reason: String, delayMs: Long) {
+        val root = currentActivity?.window?.decorView ?: return
+        mainHandler.postDelayed({
+            if (!state.keepUnsentMessages || !root.isAttachedToWindow) return@postDelayed
+            logKeepUnsentDebug("visible-row-scan reason=$reason")
+            scanTree(root, reason, 2_500)
+            resolveKeepUnsentTemporalDeleteCandidates()
+        }, delayMs)
+    }
+
+    private fun collectKeepUnsentViewRowIds(view: View, rowRoot: View): Set<String> {
+        val ids = HashSet<String>()
+        val tagIds = intArrayOf(
+            view.resources.getIdentifier("message_content_view_tag", "id", view.context.packageName),
+            2131437280
+        ).filter { it != 0 }.distinct()
+        var current: View? = view
+        repeat(8) {
+            val node = current ?: return@repeat
+            collectRowIdentityIds(node.tag, ids, Collections.newSetFromMap(IdentityHashMap<Any, Boolean>()), 0)
+            tagIds.forEach { tagId ->
+                runCatching {
+                    collectRowIdentityIds(node.getTag(tagId), ids, Collections.newSetFromMap(IdentityHashMap<Any, Boolean>()), 0)
+                }
+            }
+            if (node === rowRoot) return@repeat
+            current = node.parent as? View
+        }
+        return ids
+    }
+
+    private fun collectKeepUnsentRecyclerHolderIds(rowRoot: View): Set<String> {
+        var child: View? = rowRoot
+        var parent = child?.parent
+        while (child != null && parent is View) {
+            val parentView = parent as View
+            if (parentView.javaClass.name.contains("RecyclerView")) {
+                val ids = HashSet<String>()
+                val holder = invokeRecyclerChildViewHolder(parentView, child)
+                val position = invokeRecyclerChildPosition(parentView, child)
+                val childIndex = (parentView as? ViewGroup)?.indexOfChild(child) ?: -1
+                if (holder == null) {
+                    if (!keepUnsentRecyclerHolderNullSeen) {
+                        keepUnsentRecyclerHolderNullSeen = true
+                        logInfo("Keep-unsent RecyclerView holder lookup returned null recycler=${describeViewBrief(parentView)} child=${describeViewBrief(child)} position=$position childIndex=$childIndex")
+                    }
+                } else {
+                    logKeepUnsentDebug("view-holder lookup holder=${holder.javaClass.name} position=$position childIndex=$childIndex rowText=${formatKeepUnsentText(keepUnsentRowMessageText(rowRoot))}")
+                    ids += collectRowIds(holder)
+                }
+                ids += collectKeepUnsentAdapterPositionIds(parentView, child)
+                logKeepUnsentDebug("view-holder ids=${formatKeepUnsentIds(ids)} rowText=${formatKeepUnsentText(keepUnsentRowMessageText(rowRoot))}")
+                return ids
+            }
+            child = parentView
+            parent = child.parent
+        }
+        logKeepUnsentDebug("view-holder lookup skipped: no RecyclerView parent rowText=${formatKeepUnsentText(keepUnsentRowMessageText(rowRoot))} root=${describeViewBrief(rowRoot)}")
+        return emptySet()
+    }
+
+    private fun invokeRecyclerChildViewHolder(recyclerView: View, child: View): Any? {
+        arrayOf("getChildViewHolder", "findContainingViewHolder").forEach { name ->
+            invokeOneArgDeep(recyclerView, name, child)?.let { return it }
+        }
+        var cls: Class<*>? = recyclerView.javaClass
+        var depth = 0
+        while (cls != null && cls != Any::class.java && depth++ < 6) {
+            cls.declaredMethods.forEach { method ->
+                if ((method.name == "findContainingViewHolder" ||
+                        method.name == "getChildViewHolder" ||
+                        method.name == "getChildViewHolderInt") &&
+                    method.parameterTypes.size == 1 &&
+                    View::class.java.isAssignableFrom(method.parameterTypes[0])
+                ) {
+                    val holder = runCatching {
+                        method.isAccessible = true
+                        method.invoke(recyclerView, child)
+                    }.getOrNull()
+                    if (holder != null) return holder
+                }
+            }
+            cls = cls.superclass
+        }
+        return null
+    }
+
+    private fun collectKeepUnsentAdapterPositionIds(recyclerView: View, child: View): Set<String> {
+        val position = invokeRecyclerChildPosition(recyclerView, child)
+        val childIndex = (recyclerView as? ViewGroup)?.indexOfChild(child) ?: -1
+        if (position < 0 && childIndex < 0) {
+            if (!keepUnsentAdapterPositionMissingSeen) {
+                keepUnsentAdapterPositionMissingSeen = true
+                logInfo("Keep-unsent adapter-position fallback could not resolve position recycler=${describeViewBrief(recyclerView)} child=${describeViewBrief(child)}")
+            }
+            return emptySet()
+        }
+        val ids = HashSet<String>()
+        val adapter = invokeNoArgDeep(recyclerView, "getAdapter")
+            ?: invokeNoArgDeep(recyclerView, "getBindingAdapter")
+        if (adapter != null) {
+            if (position >= 0) ids += collectKeepUnsentAdapterItemIds(adapter, position)
+            if (ids.isEmpty() && childIndex >= 0 && childIndex != position) {
+                ids += collectKeepUnsentAdapterItemIds(adapter, childIndex)
+            }
+            if (ids.size > 4) {
+                if (!keepUnsentAdapterPositionNoIdsSeen) {
+                    keepUnsentAdapterPositionNoIdsSeen = true
+                    logInfo("Keep-unsent adapter-position fallback rejected broad row ids position=$position childIndex=$childIndex ids=${ids.size} adapter=${adapter.javaClass.name}")
+                }
+                return emptySet()
+            }
+        }
+        if (ids.isNotEmpty()) {
+            if (!keepUnsentAdapterPositionSeen) {
+                keepUnsentAdapterPositionSeen = true
+                logInfo("Keep-unsent adapter-position fallback resolved row ids position=$position childIndex=$childIndex ids=${ids.size}")
+            }
+        } else if (!keepUnsentAdapterPositionNoIdsSeen) {
+            keepUnsentAdapterPositionNoIdsSeen = true
+            logInfo("Keep-unsent adapter-position fallback found no ids position=$position childIndex=$childIndex adapter=${adapter?.javaClass?.name}")
+            if (adapter != null && !keepUnsentAdapterShapeSeen) {
+                keepUnsentAdapterShapeSeen = true
+                logInfo("Keep-unsent adapter shape ${describeKeepUnsentAdapterShape(adapter)}")
+            }
+        }
+        return ids
+    }
+
+    private fun invokeRecyclerChildPosition(recyclerView: View, child: View): Int {
+        arrayOf("getChildAdapterPosition", "getChildLayoutPosition", "getChildPosition").forEach { name ->
+            val result = invokeOneArgDeep(recyclerView, name, child)
+            if (result is Number) return result.toInt()
+        }
+        return -1
+    }
+
+    private fun collectKeepUnsentAdapterItemIds(adapter: Any, position: Int): Set<String> {
+        val ids = HashSet<String>()
+        collectKeepUnsentAdapterItemIds(adapter, position, ids, Collections.newSetFromMap(IdentityHashMap<Any, Boolean>()), 0)
+        return ids
+    }
+
+    private fun collectKeepUnsentAdapterItemIds(
+        adapter: Any?,
+        position: Int,
+        ids: MutableSet<String>,
+        seen: MutableSet<Any>,
+        depth: Int
+    ) {
+        if (adapter == null || depth > 1 || isPrimitiveLike(adapter) || !seen.add(adapter)) return
+        arrayOf("getItem", "getItemAt", "getItemAtPosition").forEach { name ->
+            invokeOneArgDeep(adapter, name, position)?.let { item ->
+                collectRowIdentityIds(item, ids, Collections.newSetFromMap(IdentityHashMap<Any, Boolean>()), 0)
+            }
+        }
+        collectKeepUnsentAdapterListIds(adapter, position, ids)
+    }
+
+    private fun collectKeepUnsentAdapterListIds(adapter: Any, position: Int, ids: MutableSet<String>) {
+        val seen = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+        var cls: Class<*>? = adapter.javaClass
+        var classDepth = 0
+        while (cls != null && cls != Any::class.java && classDepth++ < 5) {
+            cls.declaredFields.forEach { field ->
+                if (Modifier.isStatic(field.modifiers) || field.isSynthetic) return@forEach
+                runCatching {
+                    field.isAccessible = true
+                    when (val value = field.get(adapter)) {
+                        is List<*> -> collectKeepUnsentNearbyListItems(value, position, ids, seen)
+                        is Array<*> -> collectKeepUnsentNearbyListItems(value.asList(), position, ids, seen)
+                    }
+                }
+            }
+            cls = cls.superclass
+        }
+    }
+
+    private fun collectKeepUnsentNearbyListItems(
+        items: List<*>,
+        position: Int,
+        ids: MutableSet<String>,
+        seen: MutableSet<Any>
+    ) {
+        if (items.isEmpty()) return
+        intArrayOf(position).forEach { index ->
+            if (index in items.indices) {
+                collectRowIdentityIds(items[index], ids, seen, 0)
+            }
+        }
+    }
+
+    private fun invokeOneArgDeep(target: Any?, methodName: String, arg: Any?): Any? {
+        if (target == null) return null
+        var cls: Class<*>? = target.javaClass
+        var depth = 0
+        while (cls != null && cls != Any::class.java && depth++ < 8) {
+            cls.declaredMethods.forEach { method ->
+                if (method.name == methodName && method.parameterTypes.size == 1 && isReflectArgCompatible(method.parameterTypes[0], arg)) {
+                    return runCatching {
+                        method.isAccessible = true
+                        method.invoke(target, arg)
+                    }.getOrNull()
+                }
+            }
+            cls = cls.superclass
+        }
+        return null
+    }
+
+    private fun isReflectArgCompatible(type: Class<*>, arg: Any?): Boolean {
+        if (arg == null) return !type.isPrimitive
+        if (type.isAssignableFrom(arg.javaClass)) return true
+        if (arg is Int) {
+            return type == Integer.TYPE || type == Integer::class.java ||
+                type == Long::class.javaPrimitiveType || type == java.lang.Long::class.java
+        }
+        return false
+    }
+
+    private fun shouldTraverseKeepUnsentAdapter(value: Any?, depth: Int): Boolean {
+        if (value == null || depth >= 3 || value is View || isPrimitiveLike(value)) return false
+        val className = value.javaClass.name
+        if (className.startsWith("android.") ||
+            className.startsWith("androidx.") ||
+            className.startsWith("java.") ||
+            className.startsWith("kotlin.")
+        ) return false
+        val lower = className.lowercase(Locale.US)
+        return lower.contains("adapter") ||
+            lower.contains("binder") ||
+            lower.contains("model") ||
+            lower.contains("message") ||
+            lower.contains("direct") ||
+            className.startsWith("X.")
+    }
+
+    private fun describeKeepUnsentAdapterShape(adapter: Any): String {
+        val parts = ArrayList<String>()
+        var cls: Class<*>? = adapter.javaClass
+        var depth = 0
+        while (cls != null && cls != Any::class.java && depth++ < 3 && parts.size < 18) {
+            cls.declaredFields.forEach { field ->
+                if (parts.size >= 18 || Modifier.isStatic(field.modifiers) || field.isSynthetic) return@forEach
+                runCatching {
+                    field.isAccessible = true
+                    val value = field.get(adapter)
+                    val summary = when (value) {
+                        null -> "null"
+                        is Collection<*> -> "${value.javaClass.simpleName}[${value.size}]"
+                        is Array<*> -> "Array[${value.size}]"
+                        else -> value.javaClass.name
+                    }
+                    parts += "${field.name}:${summary}"
+                }
+            }
+            cls = cls.superclass
+        }
+        return "${adapter.javaClass.name} fields=${parts.joinToString(",")}"
+    }
+
     private fun collectRowIdentityIds(target: Any?, ids: MutableSet<String>, seen: MutableSet<Any>, depth: Int) {
         if (target == null || depth > 4) return
         when (target) {
             is String -> {
-                addRowMessageId(target, ids, allowLooseKey = false)
+                addRowMessageId(target, ids, allowLooseKey = depth > 0)
                 return
             }
             is Array<*> -> {
@@ -6078,6 +7152,7 @@ class InstagramHooks(
             }
         }
         if (isPrimitiveLike(target) || !seen.add(target)) return
+        val scopedIdentityObject = looksLikeDirectMessageIdentityObject(target)
         if (isMessageIdentifierObject(target)) collectMessageIdentifierFields(target, ids)
 
         arrayOf("getKey", "A0o", "A0p", "A0r", "A0s").forEach { methodName ->
@@ -6102,12 +7177,21 @@ class InstagramHooks(
                 runCatching {
                     field.isAccessible = true
                     val value = field.get(target) ?: return@forEach
-                    if (value is String) addRowMessageId(value, ids, allowLooseKey = false)
+                    if (value is String) addRowMessageId(value, ids, allowLooseKey = scopedIdentityObject || depth > 0)
                     else if (shouldTraverseRowIdentityObject(value, depth)) collectRowIdentityIds(value, ids, seen, depth + 1)
                 }
             }
             cls = cls.superclass
         }
+    }
+
+    private fun looksLikeDirectMessageIdentityObject(target: Any?): Boolean {
+        val lower = target?.javaClass?.name?.lowercase(Locale.US).orEmpty()
+        return lower.contains("message") ||
+            lower.contains("direct") ||
+            lower.contains("threaditem") ||
+            lower.contains("identifier") ||
+            lower.contains("itemid")
     }
 
     private fun collectDirectMessageGetterIds(target: Any?, ids: MutableSet<String>, seen: MutableSet<Any>, depth: Int) {
@@ -6187,13 +7271,219 @@ class InstagramHooks(
             logInfo("Keep-unsent bound Direct row ids: ${rowIds.size}")
         }
         synchronized(keepUnsentBoundRows) {
-            rowIds.forEach { keepUnsentBoundRows[it.trim()] = WeakReference(rowRoot) }
+            rowIds.forEach { rawId ->
+                val id = rawId.trim()
+                if (keepUnsentAmbiguousBoundIds.contains(id)) return@forEach
+                val existing = keepUnsentBoundRows[id]?.get()
+                if (existing != null && existing.parent != null && existing !== rowRoot) {
+                    keepUnsentBoundRows.remove(id)
+                    keepUnsentAmbiguousBoundIds += id
+                    while (keepUnsentAmbiguousBoundIds.size > MAX_KEEP_UNSENT_IDS) {
+                        keepUnsentAmbiguousBoundIds.remove(keepUnsentAmbiguousBoundIds.first())
+                    }
+                    logKeepUnsentDebug("bound-id ambiguous id=${formatKeepUnsentId(id)} oldText=${formatKeepUnsentText(keepUnsentRowMessageText(existing))} newText=${formatKeepUnsentText(keepUnsentRowMessageText(rowRoot))}")
+                } else {
+                    keepUnsentBoundRows[id] = WeakReference(rowRoot)
+                }
+            }
         }
     }
 
+    private fun rememberKeepUnsentVisibleTextRow(rowRoot: View) {
+        val text = keepUnsentRowMessageText(rowRoot) ?: return
+        logKeepUnsentDebug("visible-text-row text=${formatKeepUnsentText(text)} root=${describeViewBrief(rowRoot)}")
+        synchronized(keepUnsentVisibleRowsByText) {
+            val rows = keepUnsentVisibleRowsByText.getOrPut(text) { mutableListOf() }
+            rows.removeAll { it.get()?.parent == null || it.get() === rowRoot }
+            rows += WeakReference(rowRoot)
+            while (rows.size > 3) rows.removeAt(0)
+        }
+        keepUnsentDeletedTexts[text]?.takeIf { it > 0L }?.let { applyKeepUnsentDeletedMarker(rowRoot, it) }
+    }
+
+    private fun rememberKeepUnsentDeletedTexts(texts: Collection<String>, deletedAt: Long) {
+        var added = 0
+        synchronized(keepUnsentDeletedTexts) {
+            texts.mapNotNull(::normalizeKeepUnsentMessageText).forEach { text ->
+                if (!keepUnsentDeletedTexts.containsKey(text)) added++
+                keepUnsentDeletedTexts[text] = deletedAt
+            }
+        }
+        logKeepUnsentDebug("remember-deleted-texts normalized=${formatKeepUnsentTexts(texts)} added=$added")
+        if (added > 0) logInfo("Marked unsent Direct message texts: $added")
+    }
+
+    private fun decorateKeepUnsentTextRows(texts: Collection<String>, deletedAt: Long) {
+        val normalized = texts.mapNotNull(::normalizeKeepUnsentMessageText).distinct()
+        if (normalized.isEmpty()) {
+            logKeepUnsentDebug("decorate-text skipped: no normalized texts raw=${formatKeepUnsentTexts(texts)}")
+            return
+        }
+        val views = ArrayList<View>()
+        synchronized(keepUnsentVisibleRowsByText) {
+            normalized.forEach { text ->
+                val rows = keepUnsentVisibleRowsByText[text] ?: return@forEach
+                rows.removeAll { it.get()?.parent == null }
+                rows.lastOrNull()?.get()?.let { views += it }
+            }
+        }
+        logKeepUnsentDebug("decorate-text mapMatches=${views.size} wanted=${formatKeepUnsentTexts(normalized)}")
+        if (views.isEmpty()) {
+            val scanned = findVisibleKeepUnsentTextRows(normalized)
+            logKeepUnsentDebug("decorate-text scanMatches=${scanned.size} wanted=${formatKeepUnsentTexts(normalized)}")
+            views += scanned
+        }
+        if (views.isEmpty()) {
+            logKeepUnsentDebug("decorate-text skipped: no exact visible row for ${formatKeepUnsentTexts(normalized)}")
+            return
+        }
+        views.distinctBy { System.identityHashCode(it) }.forEach {
+            logKeepUnsentDebug("decorate-text applying rowText=${formatKeepUnsentText(keepUnsentRowMessageText(it))} root=${describeViewBrief(it)}")
+            applyKeepUnsentDeletedMarker(it, deletedAt)
+        }
+    }
+
+    private fun scheduleKeepUnsentTextDecorationRetries(texts: Collection<String>, deletedAt: Long) {
+        val normalized = texts.mapNotNull(::normalizeKeepUnsentMessageText).distinct()
+        if (normalized.isEmpty() || deletedAt <= 0L) return
+        listOf(120L, 350L, 900L, 1_600L).forEach { delay ->
+            mainHandler.postDelayed({
+                if (state.keepUnsentMessages) decorateKeepUnsentTextRows(normalized, deletedAt)
+            }, delay)
+        }
+    }
+
+    private fun findVisibleKeepUnsentTextRows(texts: Collection<String>): List<View> {
+        val root = currentActivity?.window?.decorView ?: return emptyList()
+        val wanted = texts.toSet()
+        val out = ArrayList<View>()
+        findVisibleKeepUnsentTextRows(root, wanted, out, intArrayOf(2_500))
+        return out.distinctBy { System.identityHashCode(it) }.takeLast(2)
+    }
+
+    private fun findVisibleKeepUnsentTextRows(view: View?, texts: Set<String>, out: MutableList<View>, budget: IntArray) {
+        if (view == null || budget[0]-- <= 0 || !view.isShown) return
+        if (view is TextView && resourceEntryName(view) == "direct_text_message_text_view") {
+            val text = normalizeKeepUnsentMessageText(view.text)
+            if (text != null && text in texts) {
+                nearestKeepUnsentRowRoot(view)?.let { out += it }
+                logKeepUnsentDebug("visible-scan exact text=${formatKeepUnsentText(text)} view=${describeViewBrief(view)}")
+            } else if (text != null) {
+                logKeepUnsentDebug("visible-scan candidate text=${formatKeepUnsentText(text)} wanted=${formatKeepUnsentTexts(texts)}")
+            }
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findVisibleKeepUnsentTextRows(view.getChildAt(i), texts, out, budget)
+                if (budget[0] <= 0) return
+            }
+        }
+    }
+
+    private fun findNewestVisibleIncomingKeepUnsentRow(): View? {
+        val root = currentActivity?.window?.decorView ?: return null
+        val rows = ArrayList<View>()
+        collectVisibleIncomingKeepUnsentRows(root, rows, intArrayOf(2_500))
+        return rows.distinctBy { System.identityHashCode(it) }.lastOrNull()
+    }
+
+    private fun rememberKeepUnsentTemporalDeleteCandidate(deletedAt: Long) {
+        val baseline = snapshotVisibleIncomingKeepUnsentTextCounts()
+        synchronized(keepUnsentPendingTemporalDeletes) {
+            keepUnsentPendingTemporalDeletes += KeepUnsentPendingDelete(deletedAt, baseline, System.currentTimeMillis())
+            while (keepUnsentPendingTemporalDeletes.size > 4) keepUnsentPendingTemporalDeletes.removeAt(0)
+        }
+        logKeepUnsentDebug("temporal-delete baseline=${baseline.entries.joinToString(",") { "${formatKeepUnsentText(it.key)}:${it.value}" }}")
+    }
+
+    private fun snapshotVisibleIncomingKeepUnsentTextCounts(): Map<String, Int> {
+        val root = currentActivity?.window?.decorView ?: return emptyMap()
+        val rows = ArrayList<View>()
+        collectVisibleIncomingKeepUnsentRows(root, rows, intArrayOf(2_500))
+        val counts = LinkedHashMap<String, Int>()
+        rows.forEach { row ->
+            val text = keepUnsentRowMessageText(row) ?: return@forEach
+            counts[text] = (counts[text] ?: 0) + 1
+        }
+        return counts
+    }
+
+    private fun resolveKeepUnsentTemporalDeleteCandidates() {
+        val pending = synchronized(keepUnsentPendingTemporalDeletes) { keepUnsentPendingTemporalDeletes.toList() }
+        if (pending.isEmpty()) return
+        val root = currentActivity?.window?.decorView ?: return
+        val rows = ArrayList<View>()
+        collectVisibleIncomingKeepUnsentRows(root, rows, intArrayOf(2_500))
+        val rowsByText = LinkedHashMap<String, MutableList<View>>()
+        rows.distinctBy { System.identityHashCode(it) }.forEach { row ->
+            val text = keepUnsentRowMessageText(row) ?: return@forEach
+            rowsByText.getOrPut(text) { mutableListOf() } += row
+        }
+        val now = System.currentTimeMillis()
+        val resolved = ArrayList<KeepUnsentPendingDelete>()
+        pending.forEach { event ->
+            var chosen: View? = null
+            var chosenText: String? = null
+            rowsByText.forEach { (text, textRows) ->
+                val extra = textRows.size - (event.baselineCounts[text] ?: 0)
+                if (extra > 0) {
+                    chosen = textRows.takeLast(extra).lastOrNull()
+                    chosenText = text
+                }
+            }
+            if (chosen != null) {
+                logKeepUnsentDebug(
+                    "temporal-delete applying text=${formatKeepUnsentText(chosenText)} root=${describeViewBrief(chosen)}"
+                )
+                applyKeepUnsentDeletedMarker(chosen, event.deletedAt)
+                resolved += event
+            } else if (now - event.createdAt > 5_000L) {
+                logKeepUnsentDebug("temporal-delete expired rows=${rowsByText.mapValues { it.value.size }}")
+                resolved += event
+            }
+        }
+        if (resolved.isNotEmpty()) {
+            synchronized(keepUnsentPendingTemporalDeletes) {
+                keepUnsentPendingTemporalDeletes.removeAll(resolved.toSet())
+            }
+        }
+    }
+
+    private fun collectVisibleIncomingKeepUnsentRows(view: View?, out: MutableList<View>, budget: IntArray) {
+        if (view == null || budget[0]-- <= 0 || !view.isShown) return
+        if (view is TextView && resourceEntryName(view) == "direct_text_message_text_view") {
+            val rowRoot = nearestKeepUnsentRowRoot(view)
+            val text = normalizeKeepUnsentMessageText(view.text)
+            if (rowRoot != null && text != null && findViewByResourceName(rowRoot, "sender_avatar") != null) {
+                out += rowRoot
+            }
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                collectVisibleIncomingKeepUnsentRows(view.getChildAt(i), out, budget)
+                if (budget[0] <= 0) return
+            }
+        }
+    }
+
+    private fun keepUnsentDeletedTextAt(rowRoot: View): Long {
+        val text = keepUnsentRowMessageText(rowRoot) ?: return 0L
+        val deletedAt = synchronized(keepUnsentDeletedTexts) { keepUnsentDeletedTexts[text] ?: 0L }
+        if (deletedAt > 0L) logKeepUnsentDebug("row-text matched deleted text=${formatKeepUnsentText(text)} root=${describeViewBrief(rowRoot)}")
+        return deletedAt
+    }
+
+    private fun keepUnsentRowMessageText(rowRoot: View): String? {
+        val textView = findViewByResourceName(rowRoot, "direct_text_message_text_view") as? TextView ?: return null
+        return normalizeKeepUnsentMessageText(textView.text)
+    }
+
     private fun decorateKeepUnsentBoundRows(ids: Collection<String>) {
-        val lookupIds = extractDeletedMessageIds(ids).toList()
-        if (lookupIds.isEmpty()) return
+        val lookupIds = extractDeletedMessageIds(ids).filterNot { keepUnsentAmbiguousBoundIds.contains(it) }.toList()
+        if (lookupIds.isEmpty()) {
+            logKeepUnsentDebug("decorate-id skipped: no lookup ids raw=${formatKeepUnsentIds(ids)}")
+            return
+        }
         val views = ArrayList<View>()
         val seenViews = Collections.newSetFromMap(IdentityHashMap<View, Boolean>())
         val stale = ArrayList<String>()
@@ -6201,13 +7491,20 @@ class InstagramHooks(
         synchronized(keepUnsentBoundRows) {
             lookupIds.forEach { id ->
                 val view = keepUnsentBoundRows[id]?.get()
-                if (view == null) stale += id else if (seenViews.add(view)) views += view
+                if (view == null) {
+                    stale += id
+                    logKeepUnsentDebug("decorate-id no-bound-row id=${formatKeepUnsentId(id)}")
+                } else if (seenViews.add(view)) {
+                    logKeepUnsentDebug("decorate-id exact id=${formatKeepUnsentId(id)} rowText=${formatKeepUnsentText(keepUnsentRowMessageText(view))}")
+                    views += view
+                }
             }
             keepUnsentBoundRows.forEach { (boundId, ref) ->
                 val view = ref.get()
                 if (view == null) {
                     stale += boundId
                 } else if (!lookupIds.contains(boundId) && lookupIds.any { idsLikelyMatch(boundId, it) } && seenViews.add(view)) {
+                    logKeepUnsentDebug("decorate-id compatible bound=${formatKeepUnsentId(boundId)} lookup=${formatKeepUnsentIds(lookupIds)} rowText=${formatKeepUnsentText(keepUnsentRowMessageText(view))}")
                     views += view
                     usedCompatibleId = true
                 }
@@ -6219,7 +7516,8 @@ class InstagramHooks(
             keepUnsentMissedDecorationSeen = true
             logInfo("Keep-unsent marker had deleted ids but no bound Direct row match yet")
         }
-        views.forEach { applyKeepUnsentDeletedMarker(it, deleted = true) }
+        val deletedAt = lookupIds.firstNotNullOfOrNull { id -> synchronized(keepUnsentDeletedIds) { keepUnsentDeletedIds[id] } } ?: System.currentTimeMillis()
+        views.forEach { applyKeepUnsentDeletedMarker(it, deletedAt) }
     }
 
     private fun findViewHolderRootForKeepUnsent(holder: Any?): View? {
@@ -6276,19 +7574,20 @@ class InstagramHooks(
 
     private fun invokeStringLikeNoArg(target: Any?, methodName: String): String? = invokeNoArgDeep(target, methodName)?.toString()
 
-    private fun applyKeepUnsentDeletedMarker(rowRoot: View, deleted: Boolean) {
+    private fun applyKeepUnsentDeletedMarker(rowRoot: View, deletedAt: Long) {
         rowRoot.post {
             runCatching {
                 removeKeepUnsentDeletedMarkers(rowRoot)
                 restoreKeepUnsentMarkedText(rowRoot)
-                if (!deleted) return@runCatching
-                if (decorateKeepUnsentTextMessage(rowRoot)) return@runCatching
+                if (deletedAt <= 0L) return@runCatching
+                val markerText = keepUnsentMarkerText(deletedAt)
+                if (decorateKeepUnsentTextMessage(rowRoot, markerText)) return@runCatching
                 val content = findKeepUnsentMessageContentView(rowRoot)
                 val parent = findKeepUnsentMarkerParent(content ?: rowRoot, rowRoot) ?: return@runCatching
                 removeKeepUnsentDeletedMarkers(parent)
                 val marker = TextView(parent.context).apply {
                     tag = KEEP_UNSENT_MARKER_TAG
-                    text = KEEP_UNSENT_MARKER_TEXT
+                    text = markerText
                     setTextColor(Color.rgb(160, 166, 173))
                     setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                     setIncludeFontPadding(false)
@@ -6305,7 +7604,7 @@ class InstagramHooks(
         }
     }
 
-    private fun decorateKeepUnsentTextMessage(rowRoot: View): Boolean {
+    private fun decorateKeepUnsentTextMessage(rowRoot: View, markerText: String): Boolean {
         val textView = findViewByResourceName(rowRoot, "direct_text_message_text_view") as? TextView ?: return false
         val current = cleanMessageDeletedLines(textView.text)
         if (current.isBlank()) return false
@@ -6316,7 +7615,7 @@ class InstagramHooks(
             base
         }
         val markerPrefix = "\n"
-        val text = SpannableString(original + markerPrefix + KEEP_UNSENT_MARKER_TEXT)
+        val text = SpannableString(original + markerPrefix + markerText)
         val start = original.length + markerPrefix.length
         text.setSpan(ForegroundColorSpan(Color.rgb(160, 166, 173)), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         text.setSpan(RelativeSizeSpan(0.78f), start, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -6334,7 +7633,14 @@ class InstagramHooks(
         val text = value?.toString()?.replace("\r\n", "\n")?.replace('\r', '\n').orEmpty()
         val lines = text.split('\n')
         if (lines.size == 1) return text
-        return lines.filterNot { it.trim() == KEEP_UNSENT_MARKER_TEXT }.joinToString("\n").trimEnd('\n')
+        return lines.filterNot { it.trim().startsWith(KEEP_UNSENT_MARKER_TEXT) }.joinToString("\n").trimEnd('\n')
+    }
+
+    private fun keepUnsentMarkerText(deletedAt: Long): String {
+        val timestamp = if (deletedAt > 0L) {
+            runCatching { SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(deletedAt)) }.getOrDefault("")
+        } else ""
+        return if (timestamp.isBlank()) KEEP_UNSENT_MARKER_TEXT else "$KEEP_UNSENT_MARKER_TEXT | $timestamp"
     }
 
     private fun findKeepUnsentMessageContentView(root: View): View? {
@@ -6367,6 +7673,39 @@ class InstagramHooks(
             }
         }
         return null
+    }
+
+    private fun describeViewBrief(view: View?): String {
+        if (view == null) return "null"
+        val name = resourceEntryName(view).orEmpty().ifBlank { "no-id" }
+        return "${view.javaClass.name}#$name ${view.width}x${view.height}"
+    }
+
+    private fun logKeepUnsentDebug(message: String) {
+        logInfo("Keep-unsent debug ${System.currentTimeMillis()} $message")
+    }
+
+    private fun formatKeepUnsentIds(ids: Collection<String>?): String {
+        val values = ids.orEmpty().map(::formatKeepUnsentId).take(12)
+        return "[${values.joinToString(",")}] size=${ids?.size ?: 0}"
+    }
+
+    private fun formatKeepUnsentId(id: String?): String {
+        val value = id?.trim().orEmpty()
+        if (value.isBlank()) return "blank"
+        return "${value.take(16)}${if (value.length > 16) "..." else ""}(len=${value.length})"
+    }
+
+    private fun formatKeepUnsentTexts(texts: Collection<String>?): String {
+        val values = texts.orEmpty().map(::formatKeepUnsentText).take(8)
+        return "[${values.joinToString(" | ")}] size=${texts?.size ?: 0}"
+    }
+
+    private fun formatKeepUnsentText(text: String?): String {
+        val value = cleanMessageDeletedLines(text).replace('\n', ' ').trim()
+        if (value.isBlank()) return "blank"
+        val shown = value.take(80).replace("|", "\\|")
+        return "\"$shown${if (value.length > 80) "..." else ""}\"(len=${value.length})"
     }
 
     private fun findKeepUnsentMarkerParent(content: View, rowRoot: View): ViewGroup? {
@@ -6437,11 +7776,17 @@ class InstagramHooks(
     }
 
     private fun installDevOptionsStableHooks() {
-        hookDevOptionsUserSessionBooleans("X.2jq")
-        hookDevOptionsUserSessionBooleans("p000X.C71182jq")
+        if (!state.isDevEnabled) return
+        var installedHooks = 0
+        installedHooks += hookDevOptionsUserSessionBooleans("X.2jq")
+        installedHooks += hookDevOptionsUserSessionBooleans("p000X.C71182jq")
+        var cachedOrInstalled = false
         if (InstagramDexKitCache.isCacheValid()) {
             InstagramDexKitCache.loadString("DevOptionsClass")?.let { className ->
-                hookDevOptionsUserSessionBooleans(className)
+                val cachedHooks = hookDevOptionsUserSessionBooleans(className)
+                installedHooks += cachedHooks
+                cachedOrInstalled = cachedHooks > 0
+                if (!cachedOrInstalled) logInfo("DevOptions cached class had no usable hooks: $className")
             }
         }
         runSafe("DevOptions E2E blocker") {
@@ -6459,7 +7804,8 @@ class InstagramHooks(
                 }
         }
         devOptionsMetaConfig.install()
-        installDevOptionsDynamicHooks()
+        if (!cachedOrInstalled) installDevOptionsDynamicHooks()
+        if (installedHooks > 0) logInfo("DevOptions stable boolean hooks installed=$installedHooks")
     }
 
     private fun installDevOptionsDynamicHooks() {
@@ -6483,17 +7829,74 @@ class InstagramHooks(
                         methodRef.returnType.contains("boolean", ignoreCase = true) && methodRef.paramTypes.size == 1
                     }
                     ?.let { methodRef ->
-                        InstagramDexKitCache.saveString("DevOptionsClass", methodRef.className)
-                        hookDevOptionsUserSessionBooleans(methodRef.className)
-                        logInfo("DevOptions found via config ID in ${methodRef.className}")
-                        found = true
+                        val hooks = hookDevOptionsUserSessionBooleans(methodRef.className)
+                        if (hooks > 0) {
+                            InstagramDexKitCache.saveString("DevOptionsClass", methodRef.className)
+                            logInfo("DevOptions found via config ID in ${methodRef.className} hooks=$hooks")
+                            found = true
+                        } else {
+                            logInfo("DevOptions config ID candidate had no usable hooks: ${methodRef.className}")
+                        }
                     }
             }
 
             if (!found) {
-                logInfo("DevOptions tier 2 failed; logging global is_employee references")
+                logInfo("DevOptions discovery tier 3 (employee/dev string scan)")
+                val employeeStrings = arrayOf("is_employee", "is_employee_or_test", "employee", "dev", "internal")
+                employeeStrings.forEach { probe ->
+                    if (found) return@forEach
+                    dexBridge.findMethodRefsUsingStrings(probe)
+                        .filter { it.returnType.contains("boolean", ignoreCase = true) }
+                        .forEach { methodRef ->
+                            if (found) return@forEach
+                            if (methodRef.paramTypes.size == 1 &&
+                                methodRef.paramTypes.first().contains("UserSession")
+                            ) {
+                                val hooks = hookDevOptionsUserSessionBooleans(methodRef.className)
+                                if (hooks > 0) {
+                                    InstagramDexKitCache.saveString("DevOptionsClass", methodRef.className)
+                                    logInfo("DevOptions found via '$probe' scan in ${methodRef.className} hooks=$hooks")
+                                    found = true
+                                }
+                            }
+                        }
+                }
+            }
+
+            if (!found) {
+                logInfo("DevOptions discovery tier 4 (UserSession boolean method scan)")
+                dexBridge.findClassNamesUsingStrings("UserSession")
+                    .filter { className -> className.startsWith("X.") || className.startsWith("p000X.") }
+                    .take(8)
+                    .forEach { className ->
+                        if (found) return@forEach
+                        runCatching {
+                            val cls = Class.forName(className, false, appClassLoader)
+                            cls.declaredMethods
+                                .filter { method ->
+                                    (method.returnType == java.lang.Boolean.TYPE || method.returnType == java.lang.Boolean::class.java) &&
+                                        method.parameterTypes.size == 1 &&
+                                        method.parameterTypes[0].name == "com.instagram.common.session.UserSession"
+                                }
+                                .forEach { method ->
+                                    val hooks = hookDevOptionsUserSessionBooleans(className)
+                                    if (hooks > 0) {
+                                        InstagramDexKitCache.saveString("DevOptionsClass", className)
+                                        logInfo("DevOptions found via UserSession boolean scan in $className hooks=$hooks")
+                                        found = true
+                                    }
+                                }
+                        }
+                    }
+            }
+
+            if (!found) {
+                logInfo("DevOptions all tiers failed; logging references for diagnostics")
                 dexBridge.findMethodRefsUsingStrings("is_employee").forEach { methodRef ->
                     logInfo("DevOptionsDebug: is_employee found in ${methodRef.className}.${methodRef.name}")
+                }
+                dexBridge.findClassNamesUsingStrings("UserSession", "is_employee").forEach { className ->
+                    logInfo("DevOptionsDebug: candidate class $className")
                 }
             }
         }
@@ -6505,15 +7908,18 @@ class InstagramHooks(
             if (invoked.paramTypes.size != 1 ||
                 !invoked.paramTypes.first().contains("com.instagram.common.session.UserSession")
             ) return@forEach
-            InstagramDexKitCache.saveString("DevOptionsClass", invoked.className)
-            hookDevOptionsUserSessionBooleans(invoked.className)
-            logInfo("DevOptions hooking via string detection: ${invoked.className}")
-            return true
+            val hooks = hookDevOptionsUserSessionBooleans(invoked.className)
+            if (hooks > 0) {
+                InstagramDexKitCache.saveString("DevOptionsClass", invoked.className)
+                logInfo("DevOptions hooking via string detection: ${invoked.className} hooks=$hooks")
+                return true
+            }
         }
         return false
     }
 
-    private fun hookDevOptionsUserSessionBooleans(className: String) {
+    private fun hookDevOptionsUserSessionBooleans(className: String): Int {
+        var hooked = 0
         runSafe("DevOptions class $className") {
             val cls = Class.forName(className, false, appClassLoader)
             cls.declaredMethods
@@ -6523,14 +7929,16 @@ class InstagramHooks(
                         method.parameterTypes[0].name == "com.instagram.common.session.UserSession"
                 }
                 .forEach { method ->
-                    hookBooleanMethodOnce("DevOptionsStable", method, true) { state.isDevEnabled }
+                    if (hookBooleanMethodOnce("DevOptionsStable", method, true) { state.isDevEnabled }) hooked++
                 }
         }
+        return hooked
     }
 
-    private fun hookBooleanMethodOnce(name: String, method: Method, result: Boolean, enabled: () -> Boolean) {
+    private fun hookBooleanMethodOnce(name: String, method: Method, result: Boolean, enabled: () -> Boolean): Boolean {
         val signature = "${method.declaringClass.name}.${method.name}:${method.parameterTypes.size}:$result"
-        if (!hookedDexMethods.add(signature)) return
+        if (!hookedDexMethods.add(signature)) return false
+        var installed = false
         runCatching {
             method.isAccessible = true
             XposedBridge.hookMethod(
@@ -6542,7 +7950,9 @@ class InstagramHooks(
                 }
             )
             logInfo("Boolean hook installed: $name -> $signature")
+            installed = true
         }.onFailure { logError("Failed boolean hook $name $signature", it) }
+        return installed
     }
 
     private fun installSponsoredModelHooks() {
@@ -6898,7 +8308,7 @@ class InstagramHooks(
                         method,
                         object : XC_MethodHook() {
                             override fun beforeHookedMethod(param: MethodHookParam<*>) {
-                                if (state.enableNotesLocationSpoof) applyNotesLocationSpoof(param)
+                                if (hasValidNotesLocationSpoof()) applyNotesLocationSpoof(param)
                             }
                         }
                     )
@@ -6998,13 +8408,12 @@ class InstagramHooks(
                         method,
                         object : XC_MethodHook() {
                             override fun beforeHookedMethod(param: MethodHookParam<*>) {
-                                if (state.enableNotesLocationSpoof) applyNotesLocationSpoof(param)
+                                if (hasValidNotesLocationSpoof()) applyNotesLocationSpoof(param)
                             }
 
                             override fun afterHookedMethod(param: MethodHookParam<*>) {
-                                if (!state.enableNotesLocationSpoof) return
-                                val latitude = state.notesSpoofLatitude.toDoubleOrNull()?.takeIf { it in -90.0..90.0 } ?: return
-                                val longitude = state.notesSpoofLongitude.toDoubleOrNull()?.takeIf { it in -180.0..180.0 } ?: return
+                                val latitude = parsedNotesSpoofLatitude() ?: return
+                                val longitude = parsedNotesSpoofLongitude() ?: return
                                 if (applyNotesLocationSpoofToObject(param.result, latitude, longitude) && notesSpoofLogCount++ < 30) {
                                     logInfo("Applied Notes location spoof after ${param.method}")
                                 }
@@ -7585,6 +8994,12 @@ class InstagramHooks(
     }
 
     private data class StoryImageCandidate(val url: String, val area: Int)
+
+    private data class KeepUnsentPendingDelete(
+        val deletedAt: Long,
+        val baselineCounts: Map<String, Int>,
+        val createdAt: Long
+    )
 
     private fun findStoryVideoUrl(value: Any?, visited: MutableSet<Any>, depth: Int): String? {
         if (value == null || depth > 5 || !visited.add(value)) return null
@@ -8774,8 +10189,12 @@ class InstagramHooks(
 
     private fun dismissDmActionModalSafelySoon() {
         suppressDmModalPauseCrashUntilMs = System.currentTimeMillis() + 20_000L
-        listOf(180L, 650L, 1_300L).forEach { delay ->
-            mainHandler.postDelayed({ dismissDmActionModalSafely() }, delay)
+        val dismissed = java.util.concurrent.atomic.AtomicBoolean(false)
+        listOf(180L, 500L).forEach { delay ->
+            mainHandler.postDelayed({
+                if (!dismissed.compareAndSet(false, true)) return@postDelayed
+                dismissDmActionModalSafely()
+            }, delay)
         }
     }
 
@@ -9368,7 +10787,8 @@ class InstagramHooks(
         val now = System.currentTimeMillis()
         if (now - dmDirectSurfaceCheckAtMs < 750L) return dmDirectSurfaceActive
         dmDirectSurfaceCheckAtMs = now
-        val root = currentActivity?.window?.decorView
+        val activity = currentActivity ?: run { dmDirectSurfaceActive = false; return false }
+        val root = activity.window?.decorView ?: run { dmDirectSurfaceActive = false; return false }
         dmDirectSurfaceActive = hasVisibleIdContaining(
             root,
             "message_list",
@@ -9377,8 +10797,441 @@ class InstagramHooks(
             "direct_thread",
             "row_thread_composer",
             "direct_inbox"
-        )
+        ) || hasVisibleTextAny(root, setOf("message...", "active now", "active"), 150)
         return dmDirectSurfaceActive
+    }
+
+    private fun noteDirectOutgoingMessageForAutoscroll(uri: URI) {
+        if (!isDirectMessageAutoscrollPreventionEnabled()) return
+        if (!isDirectTextSendRequest(uri)) return
+        armDirectMessageAutoscrollGuard("network")
+    }
+
+    private fun isDirectMessageAutoscrollPreventionEnabled(): Boolean {
+        if (InstagramFeatureStateStore.current.preventDmMessageListAutoscroll) return true
+        val now = System.currentTimeMillis()
+        if (now - dmPreventAutoscrollFallbackCheckAtMs < 2_000L) return dmPreventAutoscrollFallbackEnabled
+        dmPreventAutoscrollFallbackCheckAtMs = now
+        dmPreventAutoscrollFallbackEnabled = runCatching {
+            val file = File(Environment.getExternalStorageDirectory(), "Android/media/me.eternal.purrfect/instagram_features.json")
+            file.exists() && JSONObject(file.readText()).optBoolean("preventDmMessageListAutoscroll", false)
+        }.getOrDefault(false)
+        return dmPreventAutoscrollFallbackEnabled
+    }
+
+    private fun noteDirectMessageListManualScroll(touchedView: View) {
+        val list = directMessageListFromTouchPath(touchedView) ?: return
+        if (!isDirectMessageSurfaceActive()) return
+        val now = System.currentTimeMillis()
+        if (now <= dmMessageListAutoscrollSuppressUntilMs &&
+            now > dmMessageListUserTouchUntilMs &&
+            dmAutoscrollInternalRestore.get() != true
+        ) return
+        dmMessageListUserScrolledUntilMs = now + 90_000L
+        dmMessageListViewRef = WeakReference(list)
+            captureDirectMessageListAnchor(list)
+            if (now - dmLastManualMessageScrollLogAtMs > 2_000L) {
+                dmLastManualMessageScrollLogAtMs = now
+            logInfo("Direct message list manual scroll noted position=$dmMessageListAnchorPosition offset=$dmMessageListAnchorOffset scrollOffset=$dmMessageListAnchorScrollOffset")
+        }
+    }
+
+    private fun hookRecyclerAdapterBindViewHolder(recyclerClass: Class<*>) {
+        val adapterClass = runCatching { Class.forName("${recyclerClass.name}\$Adapter", false, recyclerClass.classLoader) }.getOrNull()
+            ?: recyclerClass.declaredClasses.firstOrNull { it.simpleName == "Adapter" }
+            ?: run {
+                logInfo("Keep-unsent RecyclerView Adapter class not found for ${recyclerClass.name}")
+                return
+            }
+        runCatching {
+            XposedBridge.hookAllMethods(
+                adapterClass,
+                "bindViewHolder",
+                object : XC_MethodHook() {
+                    override fun afterHookedMethod(param: MethodHookParam<*>) {
+                        if (!state.keepUnsentMessages) return
+                        val holder = param.args.firstOrNull() ?: return
+                        val position = param.args.getOrNull(1) as? Int ?: -1
+                        maybeBindKeepUnsentRowFromHolder(holder, param.thisObject, position)
+                    }
+                }
+            )
+            logInfo("Installed keep-unsent RecyclerView bindViewHolder fallback")
+        }.onFailure { logError("Failed hooking RecyclerView bindViewHolder for keep-unsent", it) }
+    }
+
+    private fun noteDirectMessageListUserTouch(touchedView: View) {
+        val list = directMessageListFromTouchPath(touchedView) ?: return
+        if (!isDirectMessageSurfaceActive()) return
+        dmMessageListUserTouchUntilMs = System.currentTimeMillis() + 1_500L
+        dmMessageListViewRef = WeakReference(list)
+    }
+
+    private fun releaseDirectMessageAutoscrollForManualScroll(touchedView: View) {
+        val list = directMessageListFromTouchPath(touchedView) ?: return
+        if (!isDirectMessageSurfaceActive()) return
+        releaseDirectMessageAutoscrollForManualScroll(list, "manual-scroll")
+    }
+
+    private fun releaseDirectMessageAutoscrollFromTouch(view: View, event: MotionEvent) {
+        if (!isDirectMessageSurfaceActive()) return
+        val root = view.rootView ?: return
+        releaseDirectMessageAutoscrollFromRootTouch(root, event)
+    }
+
+    private fun noteDirectMessageListUserTouchFromRoot(root: View?, event: MotionEvent) {
+        if (!isDirectMessageSurfaceActive()) return
+        val list = directMessageListFromRootTouch(root, event) ?: return
+        dmMessageListUserTouchUntilMs = System.currentTimeMillis() + 1_500L
+        dmMessageListViewRef = WeakReference(list)
+    }
+
+    private fun releaseDirectMessageAutoscrollFromRootTouch(root: View?, event: MotionEvent) {
+        if (!isDirectMessageSurfaceActive()) return
+        val list = directMessageListFromRootTouch(root, event) ?: return
+        releaseDirectMessageAutoscrollForManualScroll(list, "manual-touch")
+    }
+
+    private fun directMessageListFromRootTouch(root: View?, event: MotionEvent): View? {
+        root ?: return null
+        if (root.height <= 0) return null
+        val location = IntArray(2)
+        root.getLocationOnScreen(location)
+        val localY = event.rawY - location[1]
+        val cached = dmMessageListViewRef?.get()?.takeIf { it.isShown && isDirectMessageListView(it) }
+        if (cached != null) {
+            return cached.takeIf { isRawTouchInsideView(it, event) || localY < root.height * 0.74f }
+        }
+        if (localY < root.height * 0.06f || localY > root.height * 0.82f) return null
+        return findDirectMessageListInTree(root)?.takeIf { isRawTouchInsideView(it, event) || localY < root.height * 0.74f }
+    }
+
+    private fun hasActiveDirectMessageAutoscrollGuard(): Boolean {
+        val now = System.currentTimeMillis()
+        return now <= dmMessageListAutoscrollSuppressUntilMs && now <= dmMessageListUserScrolledUntilMs
+    }
+
+    private fun isRawTouchInsideView(view: View, event: MotionEvent): Boolean {
+        if (!view.isShown || view.width <= 0 || view.height <= 0) return false
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        return event.rawX >= location[0] &&
+            event.rawX <= location[0] + view.width &&
+            event.rawY >= location[1] &&
+            event.rawY <= location[1] + view.height
+    }
+
+    private fun releaseDirectMessageAutoscrollForManualScroll(list: View, reason: String) {
+        val now = System.currentTimeMillis()
+        dmMessageListUserTouchUntilMs = now + 1_500L
+        dmMessageListAutoscrollSuppressUntilMs = 0L
+        dmMessageListUserScrolledUntilMs = now + 90_000L
+        dmMessageListViewRef = WeakReference(list)
+        setDirectMessageListLayoutSuppressed(list, false, reason)
+        captureDirectMessageListAnchor(list)
+        if (now - dmLastManualMessageScrollLogAtMs > 1_000L) {
+            dmLastManualMessageScrollLogAtMs = now
+            logInfo("Direct message list manual scroll released autoscroll guard reason=$reason position=$dmMessageListAnchorPosition offset=$dmMessageListAnchorOffset scrollOffset=$dmMessageListAnchorScrollOffset")
+        }
+    }
+
+    private fun noteDirectComposerSendClick(view: View) {
+        if (!isDirectMessageAutoscrollPreventionEnabled()) return
+        val name = resourceEntryName(view).orEmpty().lowercase(Locale.US)
+        val desc = view.contentDescription?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+        if (!name.contains("send_button") && desc != "send" && !hasVisibleIdContaining(view, "row_thread_composer_send_button")) return
+        if (!isDirectMessageSurfaceActive()) return
+        armDirectMessageAutoscrollGuard("send-click")
+    }
+
+    private fun noteDirectComposerTouch(view: View, event: MotionEvent? = null) {
+        if (System.currentTimeMillis() <= dmMessageListUserTouchUntilMs) return
+        if (!isDirectComposerView(view) && !isDirectComposerRegionTouch(view, event)) return
+        if (!isDirectMessageSurfaceActive()) return
+        val list = dmMessageListViewRef?.get() ?: findDirectMessageListInTree(currentActivity?.window?.decorView)
+        if (list != null) {
+            dmMessageListViewRef = WeakReference(list)
+            captureDirectMessageListAnchor(list)
+        }
+        armDirectMessageAutoscrollGuard("composer-touch")
+    }
+
+    private fun isDirectComposerRegionTouch(view: View, event: MotionEvent?): Boolean {
+        val root = view.rootView ?: return false
+        val touch = event ?: return false
+        if (root.height <= 0 || root.width <= 0) return false
+        dmMessageListViewRef?.get()?.takeIf { it.isShown && isDirectMessageListView(it) }?.let { list ->
+            if (isRawTouchInsideView(list, touch)) return false
+        }
+        val location = IntArray(2)
+        root.getLocationOnScreen(location)
+        val localY = touch.rawY - location[1]
+        val localX = touch.rawX - location[0]
+        return localY >= root.height * 0.78f && localX >= 0f && localX <= root.width
+    }
+
+    private fun armDirectMessageAutoscrollGuard(reason: String) {
+        val now = System.currentTimeMillis()
+        if (now > dmMessageListUserScrolledUntilMs) {
+            dmMessageListUserScrolledUntilMs = now + 90_000L
+        }
+        val guardMs = when (reason) {
+            "composer-touch", "send-click", "network" -> 30_000L
+            else -> 4_000L
+        }
+        dmMessageListAutoscrollSuppressUntilMs = maxOf(dmMessageListAutoscrollSuppressUntilMs, now + guardMs)
+        logInfo("Direct message list autoscroll guard armed reason=$reason")
+        suppressDirectMessageListLayoutSoon(reason)
+        restoreDirectMessageListAnchorSoon(reason)
+    }
+
+    private fun shouldBlockDirectMessageAutoscroll(view: View, targetPosition: Int?): Boolean {
+        if (!isDirectMessageAutoscrollPreventionEnabled()) return false
+        if (dmAutoscrollInternalRestore.get()) return false
+        val now = System.currentTimeMillis()
+        if (now <= dmMessageListUserTouchUntilMs) return false
+        if (now > dmMessageListAutoscrollSuppressUntilMs || now > dmMessageListUserScrolledUntilMs) return false
+        if (!isDirectMessageListView(view)) return false
+        val count = recyclerAdapterItemCount(view)
+        if (now - dmLastAutoscrollBlockAtMs > 1_500L) {
+            dmLastAutoscrollBlockAtMs = now
+            logInfo("Blocked Direct message list autoscroll target=${targetPosition ?: "delta"} count=$count")
+        }
+        return true
+    }
+
+    private fun recyclerViewFromLayoutManager(layoutManager: Any?): View? {
+        if (layoutManager == null) return null
+        var cls: Class<*>? = layoutManager.javaClass
+        while (cls != null && cls != Any::class.java) {
+            cls.declaredFields.firstOrNull { field ->
+                field.type.name.contains("RecyclerView")
+            }?.let { field ->
+                return runCatching {
+                    field.isAccessible = true
+                    field.get(layoutManager) as? View
+                }.getOrNull()
+            }
+            cls = cls.superclass
+        }
+        return null
+    }
+
+    private fun isDirectMessageListView(view: View): Boolean {
+        val name = resourceEntryName(view).orEmpty().lowercase(Locale.US)
+        if (!view.javaClass.name.contains("RecyclerView")) return false
+        if (!isDirectMessageSurfaceActive()) return false
+        return name == "message_list" ||
+            name.contains("message_list") ||
+            hasVisibleIdContaining(view, "message", "direct", "thread")
+    }
+
+    private fun recyclerAdapterItemCount(view: View): Int {
+        val adapter = runCatching { view.javaClass.getMethod("getAdapter").invoke(view) }.getOrNull() ?: return -1
+        return listOf("getItemCount", "getCount").firstNotNullOfOrNull { name ->
+            runCatching { adapter.javaClass.getMethod(name).invoke(adapter) as? Int }.getOrNull()
+        } ?: -1
+    }
+
+    private fun directMessageListFromTouchPath(view: View): View? {
+        var current: View? = view
+        repeat(10) {
+            val node = current ?: return null
+            if (isDirectMessageListView(node)) return node
+            current = node.parent as? View
+        }
+        return null
+    }
+
+    private fun findDirectMessageListInTree(root: View?): View? {
+        if (root == null) return null
+        val stack = ArrayDeque<View>()
+        stack.add(root)
+        var visited = 0
+        while (stack.isNotEmpty() && visited++ < 450) {
+            val view = stack.removeFirst()
+            if (!view.isShown) continue
+            if (isDirectMessageListView(view)) return view
+            val group = view as? ViewGroup ?: continue
+            for (index in group.childCount - 1 downTo 0) {
+                group.getChildAt(index)?.let { stack.add(it) }
+            }
+        }
+        return null
+    }
+
+    private fun isDirectComposerView(view: View): Boolean {
+        var current: View? = view
+        repeat(8) {
+            val node = current ?: return false
+            val name = resourceEntryName(node).orEmpty().lowercase(Locale.US)
+            val desc = node.contentDescription?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+            if (node is EditText) return true
+            if (name.contains("row_thread_composer") ||
+                name.contains("message_composer") ||
+                name.contains("composer_edit") ||
+                name.contains("direct_text") ||
+                desc.contains("message")
+            ) {
+                return true
+            }
+            current = node.parent as? View
+        }
+        return false
+    }
+
+    private fun captureDirectMessageListAnchor(list: View) {
+        val position = directMessageListFirstVisiblePosition(list)
+        if (position < 0) return
+        dmMessageListAnchorPosition = position
+        dmMessageListAnchorOffset = directMessageListFirstChildOffset(list)
+        dmMessageListAnchorScrollOffset = directMessageListVerticalScrollOffset(list)
+    }
+
+    private fun restoreDirectMessageListAnchorSoon(reason: String) {
+        val list = dmMessageListViewRef?.get() ?: return
+        val position = dmMessageListAnchorPosition
+        val offset = dmMessageListAnchorOffset
+        if (position < 0) return
+        val delays = when (reason) {
+            "composer-touch", "send-click", "network" -> longArrayOf(0L, 180L, 650L, 1_200L, 2_200L, 3_800L, 6_000L, 8_500L, 12_000L, 18_000L, 26_000L)
+            else -> longArrayOf(0L, 180L, 650L, 1_200L, 2_000L)
+        }
+        delays.forEach { delay ->
+            if (delay == 0L) {
+                list.post { restoreDirectMessageListAnchor(list, position, offset, reason) }
+            } else {
+                list.postDelayed({ restoreDirectMessageListAnchor(list, position, offset, reason) }, delay)
+            }
+        }
+    }
+
+    private fun suppressDirectMessageListLayoutSoon(reason: String) {
+        val list = dmMessageListViewRef?.get() ?: return
+        if (!list.isShown || !isDirectMessageListView(list)) return
+        val position = dmMessageListAnchorPosition
+        val offset = dmMessageListAnchorOffset
+        val releaseMs = when (reason) {
+            "composer-touch" -> 700L
+            "send-click", "network" -> 1_400L
+            else -> 900L
+        }
+        val safetyMs = releaseMs + 1_500L
+        setDirectMessageListLayoutSuppressed(list, true, reason)
+        list.postDelayed({ setDirectMessageListLayoutSuppressed(list, false, "$reason-release") }, releaseMs)
+        if (position >= 0) {
+            list.postDelayed({ restoreDirectMessageListAnchor(list, position, offset, "$reason-release") }, releaseMs + 40L)
+        }
+        list.postDelayed({ setDirectMessageListLayoutSuppressed(list, false, "$reason-safety") }, safetyMs)
+    }
+
+    private fun setDirectMessageListLayoutSuppressed(list: View, suppressed: Boolean, reason: String) {
+        runCatching {
+            dmAutoscrollInternalRestore.set(true)
+            val method = list.javaClass.methods.firstOrNull { candidate ->
+                candidate.name == "suppressLayout" &&
+                    candidate.parameterTypes.size == 1 &&
+                    candidate.parameterTypes[0] == Boolean::class.javaPrimitiveType
+            } ?: list.javaClass.methods.firstOrNull { candidate ->
+                candidate.name == "setLayoutFrozen" &&
+                    candidate.parameterTypes.size == 1 &&
+                    candidate.parameterTypes[0] == Boolean::class.javaPrimitiveType
+            }
+            method?.invoke(list, suppressed)
+            val now = System.currentTimeMillis()
+            if (now - dmLastLayoutSuppressLogAtMs > 1_500L || !suppressed) {
+                dmLastLayoutSuppressLogAtMs = now
+                logInfo("Direct message list layout suppressed=$suppressed reason=$reason method=${method?.name ?: "none"}")
+            }
+        }.onFailure { logError("Direct message list layout suppression failed", it) }
+            .also { dmAutoscrollInternalRestore.set(false) }
+    }
+
+    private fun restoreDirectMessageListAnchor(list: View, position: Int, offset: Int, reason: String) {
+        if (!isDirectMessageAutoscrollPreventionEnabled()) return
+        val now = System.currentTimeMillis()
+        if (now > dmMessageListAutoscrollSuppressUntilMs || now > dmMessageListUserScrolledUntilMs) return
+        if (!list.isShown || !isDirectMessageListView(list)) return
+        val layoutManager = runCatching { list.javaClass.getMethod("getLayoutManager").invoke(list) }.getOrNull()
+        val savedScrollOffset = dmMessageListAnchorScrollOffset
+        val restored = runCatching {
+            dmAutoscrollInternalRestore.set(true)
+            val method = layoutManager?.javaClass?.methods?.firstOrNull { candidate ->
+                candidate.name == "scrollToPositionWithOffset" &&
+                    candidate.parameterTypes.size == 2 &&
+                    candidate.parameterTypes[0] == Int::class.javaPrimitiveType &&
+                    candidate.parameterTypes[1] == Int::class.javaPrimitiveType
+            }
+            if (method != null) {
+                method.invoke(layoutManager, position, offset)
+                true
+            } else {
+                list.javaClass.getMethod("scrollToPosition", Int::class.javaPrimitiveType).invoke(list, position)
+                true
+            }
+            if (savedScrollOffset >= 0) {
+                val currentOffset = directMessageListVerticalScrollOffset(list)
+                if (currentOffset >= 0) {
+                    val delta = savedScrollOffset - currentOffset
+                    if (delta != 0) {
+                        list.javaClass.getMethod("scrollBy", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                            .invoke(list, 0, delta)
+                    }
+                }
+            }
+            true
+        }.onFailure { logError("Direct message list anchor restore failed", it) }
+            .also { dmAutoscrollInternalRestore.set(false) }
+            .getOrDefault(false)
+        if (now - dmLastAutoscrollBlockAtMs > 1_500L) {
+            dmLastAutoscrollBlockAtMs = now
+            logInfo("Restored Direct message list anchor reason=$reason position=$position offset=$offset scrollOffset=$savedScrollOffset current=${directMessageListVerticalScrollOffset(list)}")
+        }
+    }
+
+    private fun directMessageListFirstVisiblePosition(list: View): Int {
+        val layoutManager = runCatching { list.javaClass.getMethod("getLayoutManager").invoke(list) }.getOrNull() ?: return -1
+        listOf("findFirstVisibleItemPosition", "findFirstCompletelyVisibleItemPosition").forEach { name ->
+            runCatching { layoutManager.javaClass.getMethod(name).invoke(layoutManager) as? Int }.getOrNull()?.let { position ->
+                if (position >= 0) return position
+            }
+        }
+        return runCatching {
+            val method = layoutManager.javaClass.getMethod("findFirstVisibleItemPositions", IntArray::class.java)
+            val positions = method.invoke(layoutManager, null) as? IntArray
+            positions?.filter { it >= 0 }?.minOrNull() ?: -1
+        }.getOrDefault(-1)
+    }
+
+    private fun directMessageListFirstChildOffset(list: View): Int {
+        val group = list as? ViewGroup ?: return 0
+        if (group.childCount <= 0) return 0
+        return group.getChildAt(0).top - list.paddingTop
+    }
+
+    private fun directMessageListVerticalScrollOffset(list: View): Int {
+        return runCatching {
+            list.javaClass.getMethod("computeVerticalScrollOffset").invoke(list) as? Int
+        }.getOrNull() ?: -1
+    }
+
+    private fun hasVisibleTextAny(root: View?, targets: Set<String>, limit: Int): Boolean {
+        var visited = 0
+        fun walk(view: View?): Boolean {
+            if (view == null || visited++ > limit || !view.isShown) return false
+            if (view is TextView) {
+                val text = view.text?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                if (targets.any { text == it || text.contains(it) }) return true
+            }
+            val desc = view.contentDescription?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+            if (targets.any { desc == it || desc.contains(it) }) return true
+            val group = view as? ViewGroup ?: return false
+            for (index in 0 until group.childCount) {
+                if (walk(group.getChildAt(index))) return true
+            }
+            return false
+        }
+        return walk(root)
     }
 
     private fun claimDmOverlayAction(action: Int, view: View): Boolean {
@@ -9646,36 +11499,33 @@ class InstagramHooks(
 
     private fun findDmUrlNear(anchor: View?): String? {
         if (anchor == null) return null
-        val candidates = mutableListOf<ViewUrlCandidate>()
         var current: View? = anchor
         var level = 0
-        while (current != null && level++ < 8) {
-            collectDmViewUrlCandidates(current, anchor, candidates, 0, intArrayOf(0))
+        while (current != null && level++ < 5) {
+            val url = extractMediaUrlFromView(current)
+            if (url != null && !looksLikeProfileImageUrl(url)) return url
+            if (current is ViewGroup) {
+                for (i in 0 until minOf(current.childCount, 12)) {
+                    val childUrl = collectDmChildUrl(current.getChildAt(i), 0)
+                    if (childUrl != null) return childUrl
+                }
+            }
             current = current.parent as? View
         }
-        return candidates.minWithOrNull(
-            compareBy<ViewUrlCandidate> { it.distance }
-                .thenByDescending { it.area }
-        )?.url
+        return null
     }
 
-    private fun collectDmViewUrlCandidates(
-        view: View,
-        target: View,
-        out: MutableList<ViewUrlCandidate>,
-        depth: Int,
-        visited: IntArray
-    ) {
-        if (depth > 5 || visited[0]++ > 140) return
+    private fun collectDmChildUrl(view: View, depth: Int): String? {
+        if (depth > 2) return null
         val url = extractMediaUrlFromView(view)
-        if (url != null && !looksLikeProfileImageUrl(url)) {
-            out += ViewUrlCandidate(url, (view.width * view.height).coerceAtLeast(1), distanceBetween(view, target))
-        }
-        if (view is ViewGroup) {
-            for (i in 0 until view.childCount) {
-                collectDmViewUrlCandidates(view.getChildAt(i), target, out, depth + 1, visited)
+        if (url != null && !looksLikeProfileImageUrl(url)) return url
+        if (view is ViewGroup && depth < 2) {
+            for (i in 0 until minOf(view.childCount, 8)) {
+                val childUrl = collectDmChildUrl(view.getChildAt(i), depth + 1)
+                if (childUrl != null) return childUrl
             }
         }
+        return null
     }
 
     private fun extractMediaUrlFromView(view: View): String? {
@@ -10313,7 +12163,7 @@ class InstagramHooks(
 
     private fun drainDeferredDmAction(hostActivity: Activity?) {
         val pending = dmPendingDeferredAction ?: return
-        if (hostActivity == null) {
+        if (hostActivity == null || hostActivity.isFinishing || hostActivity.isDestroyed) {
             if (System.currentTimeMillis() - pending.createdAtMs > 10_000L) dmPendingDeferredAction = null
             return
         }
@@ -10324,7 +12174,9 @@ class InstagramHooks(
         }
         dmPendingDeferredAction = null
         mainHandler.postDelayed({
-            handleResolvedDmAction(hostActivity, null, null, pending.action, null, pending.url)
+            if (!hostActivity.isFinishing && !hostActivity.isDestroyed) {
+                handleResolvedDmAction(hostActivity, null, null, pending.action, null, pending.url)
+            }
         }, 220L)
     }
 
@@ -10627,7 +12479,14 @@ class InstagramHooks(
         connection.readTimeout = 30_000
         connection.instanceFollowRedirects = true
         connection.setRequestProperty("User-Agent", "Instagram 300.0.0.0 Android")
+        connection.setRequestProperty("Accept", "video/*,image/*,*/*")
+        connection.setRequestProperty("Referer", "https://www.instagram.com/")
         try {
+            val code = connection.responseCode
+            if (code >= 400) {
+                logInfo("Instagram media download HTTP $code url=${redactCdnUrlForLog(url)}")
+                error("HTTP $code")
+            }
             connection.inputStream.use { input -> copyStream(input, output) }
         } finally {
             connection.disconnect()
@@ -11579,7 +13438,6 @@ class InstagramHooks(
         val current = state
         return hasAnyViewHideRule(current) ||
             hasKnownHiddenUiState(view) ||
-            current.enableMonetTheme ||
             storyRingScaleFactor(current) != 1f
     }
 
@@ -11592,6 +13450,7 @@ class InstagramHooks(
         if (fromLayout && shouldSkipRecentLayoutProcess(view)) return
         if (!fromLayout && shouldSkipRecentAttachedProcess(view)) return
         val current = state
+        if (!hasAnyProcessViewWork(current)) return
         maybeAutoEnableInstagramSound(view, current)
         if (view is TextView && current.enableHighQualityStoryUpload) maybeRememberStoryComposerText(view)
         if (view is TextView && hasAnyTextViewWork(current)) processTextView(view)
@@ -11599,13 +13458,17 @@ class InstagramHooks(
         if (!fromLayout) processEntryPointCandidate(view)
         if (current.isAdBlockEnabled) hideSponsoredSurfaceIfNeeded(view)
         if (current.isGhostLive) hideLivePresenceIfNeeded(view)
+        if (current.keepUnsentMessages) maybeBindKeepUnsentRowFromView(view)
         if (!fromLayout) {
             applyDirectGhostSeenControls(view)
             applyDmAnyFileUploadButton(view)
+            if (current.enableUploadInstantsFromGallery && isInstantUploadSignalView(view)) {
+                applyInstantGalleryUploadButton(view)
+                maybeScheduleInstantUploadButtonPass(view)
+            }
             applyProfilePictureDownload(view)
         }
         if (!enforceHiddenUiState(view) && hasAnyViewHideRule(current) && shouldHideView(view)) hideView(view, reason)
-        if (current.enableMonetTheme) applyMonetThemeToView(view)
         if (storyRingScaleFactor(current) != 1f && isStoryRingCandidateFast(view)) {
             applyStoryRingScale(view)
             if (looksLikeHomeStoryTrayContainerName(resourceEntryName(view)) ||
@@ -11618,10 +13481,30 @@ class InstagramHooks(
         if (!fromLayout && current.enableStoryTrayLongPressActions && isStoryTraySurface(view)) {
             view.isLongClickable = true
         }
-        if (!fromLayout && current.enableGifCommentDownload && isCommentSurface(view)) {
-            view.isLongClickable = true
-        }
         if (!fromLayout) scheduleScan(view, reason)
+    }
+
+    private fun hasAnyProcessViewWork(current: InstagramFeatureState): Boolean {
+        return current.isAdBlockEnabled ||
+            current.isGhostLive ||
+            current.isGhostSeen ||
+            current.enableHighQualityStoryUpload ||
+            current.keepUnsentMessages ||
+            current.doNotSaveRecentSearches ||
+            current.enableDmAnyFileUpload ||
+            current.enableUploadInstantsFromGallery ||
+            current.enableProfileDownload ||
+            current.enableStoryTrayLongPressActions ||
+            current.customizeStoryRingSize ||
+            current.disableComments ||
+            current.enableHideChats ||
+            current.enableCopyBio ||
+            current.enableCustomDateFormat ||
+            current.enableNavigationTabCustomization ||
+            hasAnyViewHideRule(current) ||
+            hasAnyTextViewWork(current) ||
+            current.isGhostTyping ||
+            current.showFollowerToast
     }
 
     private fun shouldSkipRecentLayoutProcess(view: View): Boolean {
@@ -11702,6 +13585,12 @@ class InstagramHooks(
         if (!needsRawText) return
         val raw = textView.text?.toString().orEmpty()
         val dateRaw = raw.ifBlank { textView.contentDescription?.toString().orEmpty() }
+        if (current.enableCustomDateFormat && current.customDateFormatComments && isCommentDateSurfaceMarker(dateRaw)) {
+            commentDateSurfaceActiveUntilMs = SystemClock.uptimeMillis() + 30_000L
+        }
+        if (current.enableCustomDateFormat && current.customDateFormatComments && !isCommentDateSurfaceContextActive() && isCommentDateSurfaceByView(textView)) {
+            commentDateSurfaceActiveUntilMs = SystemClock.uptimeMillis() + 30_000L
+        }
         val isAdDisclosure = isAdDisclosureText(raw)
         if (current.isAdBlockEnabled && (isSponsoredText(raw) ||
                 (isAdDisclosure && (hasFeedAdDisclosureContext(textView) || hasAdDisclosureNeighborContext(textView)))
@@ -11729,7 +13618,7 @@ class InstagramHooks(
         val root = view.rootView ?: view
         val now = System.currentTimeMillis()
         val last = scannedRoots[root] ?: 0L
-        if (now - last < 2_500L || !pendingRootScans.add(root)) return
+        if (now - last < 5_000L || !pendingRootScans.add(root)) return
         scannedRoots[root] = now
         mainHandler.post {
             try {
@@ -11770,21 +13659,46 @@ class InstagramHooks(
 
     private fun processViewWithoutScheduling(view: View, reason: String) {
         val current = state
+        if (!hasAnyViewWork(current)) return
         maybeAutoEnableInstagramSound(view, current)
         if (view is TextView && hasAnyTextViewWork(current)) processTextView(view)
         if (current.doNotSaveRecentSearches) clearVisibleRecentSearchRowIfNeeded(view)
         processEntryPointCandidate(view)
         if (current.isAdBlockEnabled) hideSponsoredSurfaceIfNeeded(view)
         if (current.isGhostLive) hideLivePresenceIfNeeded(view)
+        if (current.keepUnsentMessages) maybeBindKeepUnsentRowFromView(view)
         applyDirectGhostSeenControls(view)
         applyDmAnyFileUploadButton(view)
         applyProfilePictureDownload(view)
         if (!enforceHiddenUiState(view) && hasAnyViewHideRule(current) && shouldHideView(view)) hideView(view, reason)
-        if (current.enableMonetTheme) applyMonetThemeToView(view)
         if (storyRingScaleFactor(current) != 1f) applyStoryRingScale(view)
         if (current.enableNavigationTabCustomization && isLikelyNavigationCustomizationTarget(view)) {
             applyNavigationTabRules(view)
         }
+    }
+
+    private fun hasAnyViewWork(current: InstagramFeatureState): Boolean {
+        return current.isAdBlockEnabled ||
+            current.isGhostLive ||
+            current.isGhostSeen ||
+            current.isGhostStory ||
+            current.keepUnsentMessages ||
+            current.doNotSaveRecentSearches ||
+            current.enableNavigationTabCustomization ||
+            current.enableCustomDateFormat ||
+            current.enableHideChats ||
+            current.enableCopyBio ||
+            current.enableCopyComment ||
+            current.enableDmAnyFileUpload ||
+            current.enableUploadInstantsFromGallery ||
+            current.enableProfileDownload ||
+            current.disableComments ||
+            current.disableReels ||
+            current.disableStories ||
+            current.disableFeed ||
+            current.disableExplore ||
+            hasAnyViewHideRule(current) ||
+            storyRingScaleFactor(current) != 1f
     }
 
     private fun rememberRoot(view: View?) {
@@ -12988,17 +14902,26 @@ class InstagramHooks(
             value.contains("bottom_right_sponsored")
     }
 
+    private val sponsoredTextRegex = Regex("^sponsored\\s*[·.]*\\s*$", RegexOption.IGNORE_CASE)
+    private val adDisclosureTextRegex = Regex("^ad\\s*\\W{0,2}\\s*$", RegexOption.IGNORE_CASE)
+    private val emailPattern = Regex("[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}")
+    private val displayNamePattern = Regex("[\\p{L} ._'-]+")
+    private val dimensionPattern = Regex("""(?:s|p)?(\d{2,4})x(\d{2,4})""")
+    private val whitespacePattern = Regex("\\s+")
+
     private fun isSponsoredText(text: String?): Boolean {
         val clean = text?.trim().orEmpty()
+        if (clean.isEmpty()) return false
         return clean.equals("Sponsored", ignoreCase = true) ||
             clean.equals("Sponsored ·", ignoreCase = true) ||
-            clean.lowercase(Locale.US).matches(Regex("^sponsored\\s*[·.]*\\s*$"))
+            clean.matches(sponsoredTextRegex)
     }
 
     private fun isAdDisclosureText(text: String?): Boolean {
         val clean = text?.trim().orEmpty()
+        if (clean.isEmpty()) return false
         return clean.equals("Ad", ignoreCase = true) ||
-            clean.lowercase(Locale.US).matches(Regex("^ad\\s*\\W{0,2}\\s*$"))
+            clean.matches(adDisclosureTextRegex)
     }
 
     private fun isAdDisclosureResourceName(name: String?): Boolean {
@@ -13660,9 +15583,9 @@ class InstagramHooks(
             lower.contains("turned off disappearing messages") ||
             lower.contains(" ·") ||
             lower.contains("·") ||
-            Regex(".*\\b\\d+[smhdw]\\b.*").matches(lower) ||
-            Regex("^\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{1,2}:\\d{2})?$").matches(lower) ||
-            Regex("\\d{1,2}:\\d{2}.*").matches(lower) ||
+            timeAgoPattern.matches(lower) ||
+            isoDatePattern.matches(lower) ||
+            timeOfDayPattern.matches(lower) ||
             lower.endsWith("...") ||
             lower.endsWith("…") ||
             lower == "notes" ||
@@ -14117,10 +16040,10 @@ class InstagramHooks(
         return monetPalette
     }
 
-    private fun monetActive(): Boolean = state.enableMonetTheme && monetPalette() != null
+    private fun monetActive(): Boolean = false
 
     private fun monetActiveActivity(activity: Activity?): Boolean {
-        return state.enableMonetTheme && activity != null && isSupportedInstagramPackage(activity.packageName) && monetPalette() != null
+        return false
     }
 
     private fun monetReadableOn(color: Int): Int {
@@ -15671,6 +17594,9 @@ class InstagramHooks(
         if (state.enableDmAnyFileUpload) {
             ensureUploadButton(activity)
         }
+        if (state.enableUploadInstantsFromGallery) {
+            scheduleInstantUploadButtonPass(activity)
+        }
         if (!anySearchFound) retrySearchEntryPointWiringAfterLayout(activity, root)
         else entryPointSearchWiringDone[activity] = true
         applyGhostIndicator(activity)
@@ -15873,6 +17799,10 @@ class InstagramHooks(
         layout.addView(createActionRow(activity, "Activity History") {
             currentSettingsDialog?.dismiss()
             InstagramActivityHistoryDialog.show(activity)
+        })
+        layout.addView(createActionRow(activity, "Analytics") {
+            currentSettingsDialog?.dismiss()
+            InstagramFollowerListLogger.show(activity, lastInstagramUserSession)
         })
         layout.addView(createActionRow(activity, "Backup & Restore") {
             showBackupRestoreSection(activity)
@@ -16288,6 +18218,197 @@ class InstagramHooks(
         if (isComposerUploadAnchor(view)) ensureUploadButton(view)
     }
 
+    private fun applyInstantGalleryUploadButton(view: View) {
+        if (!state.enableUploadInstantsFromGallery) return
+        val activity = findActivity(view.context) ?: currentActivity ?: return
+        val root = activity.window?.decorView ?: view.rootView ?: return
+        if (isInstantsViewerSurface(root)) {
+            hideInstantUploadButton(activity)
+            ensureInstantViewerDownloadButton(activity, root)
+            return
+        }
+        if (!isInstantsCameraSurface(root, activity)) {
+            if (isTransparentInstagramModal(root, activity)) hideInstantUploadButton(activity)
+            hideInstantViewerDownloadButton(activity)
+            return
+        }
+        hideInstantViewerDownloadButton(activity)
+        ensureInstantUploadButton(activity, root)
+    }
+
+    private fun maybeScheduleInstantUploadButtonPass(view: View) {
+        if (!state.enableUploadInstantsFromGallery) return
+        val activity = findActivity(view.context) ?: currentActivity ?: return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastInstantUploadPassMs < 550L) return
+        lastInstantUploadPassMs = now
+        logInstantUploadDebug("signal-schedule-first-open-pass", activity)
+        scheduleInstantUploadButtonPass(activity)
+    }
+
+    private fun scheduleInstantUploadButtonPass(activity: Activity) {
+        val root = activity.window?.decorView ?: run {
+            logInfo("InstantsUpload[first-open-pass-skip] root=null activity=${activity.javaClass.name}")
+            return
+        }
+        logInstantUploadDebug("first-open-pass-scheduled", activity, root)
+        longArrayOf(20L, 80L, 180L, 380L, 800L, 1_300L).forEach { delay ->
+            root.postDelayed({
+                if (!state.enableUploadInstantsFromGallery) {
+                    logInfo("InstantsUpload[first-open-pass-$delay] feature disabled")
+                    return@postDelayed
+                }
+                if (!isTransparentInstagramModal(root, activity)) {
+                    logInstantUploadDebug("first-open-pass-$delay-not-transparent", activity, root)
+                    suppressInstantUploadUntilModalExit = false
+                    return@postDelayed
+                }
+                maybeClearInstantUploadSuppression(root)
+                logInstantUploadDebug("first-open-pass-$delay-before-decision", activity, root)
+                if (isInstantsViewerSurface(root)) {
+                    hideInstantUploadButton(activity)
+                    ensureInstantViewerDownloadButton(activity, root)
+                } else if (isInstantsCameraSurface(root, activity)) {
+                    hideInstantViewerDownloadButton(activity)
+                    logInfo("Instants camera surface detected; ensuring gallery upload button")
+                    ensureInstantUploadButton(activity, root)
+                } else if (isTransparentInstagramModal(root, activity)) {
+                    logInstantUploadDebug("first-open-pass-$delay-hide-not-surface", activity, root)
+                    hideInstantUploadButton(activity)
+                    hideInstantViewerDownloadButton(activity)
+                }
+            }, delay)
+        }
+    }
+
+    private fun maybeProbeInstantUploadButton(activity: Activity, vararg delays: Long) {
+        if (!state.enableUploadInstantsFromGallery) return
+        val root = activity.window?.decorView ?: run {
+            logInfo("InstantsUpload[probe-skip] root=null activity=${activity.javaClass.name}")
+            return
+        }
+        if (!isTransparentInstagramModal(root, activity)) {
+            logInstantUploadDebug("probe-not-transparent", activity, root)
+            suppressInstantUploadUntilModalExit = false
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastInstantUploadProbeMs < 300L) {
+            logInstantUploadDebug("probe-throttled", activity, root)
+            return
+        }
+        lastInstantUploadProbeMs = now
+        delays.forEach { delay ->
+            root.postDelayed({
+                if (!state.enableUploadInstantsFromGallery) return@postDelayed
+                val currentRoot = activity.window?.decorView ?: run {
+                    logInfo("InstantsUpload[probe-$delay-skip] root=null activity=${activity.javaClass.name}")
+                    return@postDelayed
+                }
+                maybeClearInstantUploadSuppression(currentRoot)
+                logInstantUploadDebug("probe-$delay-before-decision", activity, currentRoot)
+                if (isInstantsViewerSurface(currentRoot)) {
+                    hideInstantUploadButton(activity)
+                    ensureInstantViewerDownloadButton(activity, currentRoot)
+                } else if (isInstantsCameraSurface(currentRoot, activity)) {
+                    hideInstantViewerDownloadButton(activity)
+                    ensureInstantUploadButton(activity, currentRoot)
+                } else {
+                    logInstantUploadDebug("probe-$delay-hide-not-surface", activity, currentRoot)
+                    hideInstantUploadButton(activity)
+                    hideInstantViewerDownloadButton(activity)
+                }
+            }, delay)
+        }
+    }
+
+    private fun restoreInstantUploadWithFirstOpenPass(activity: Activity) {
+        if (!state.enableUploadInstantsFromGallery) {
+            logInfo("InstantsUpload[restore-skip] feature disabled")
+            return
+        }
+        logInstantUploadDebug("restore-entry", activity)
+        val targetActivity = currentInstantsActivity(activity)
+        val root = targetActivity.window?.decorView ?: run {
+            logInfo("InstantsUpload[restore-skip] target root=null activity=${targetActivity.javaClass.name}")
+            return
+        }
+        if (!isTransparentInstagramModal(root, targetActivity)) {
+            logInstantUploadDebug("restore-not-transparent", targetActivity, root)
+            suppressInstantUploadUntilModalExit = false
+            return
+        }
+        suppressInstantUploadUntilModalExit = false
+        lastInstantUploadShelfTapMs = 0L
+        instantUploadSuppressionWatcherActive = false
+        logInstantUploadDebug("restore-running-first-open-pass", targetActivity, root)
+        scheduleInstantUploadButtonPass(targetActivity)
+        maybeProbeInstantUploadButton(targetActivity, 80L, 220L, 520L, 900L, 1_400L)
+    }
+
+    private fun logInstantUploadDebug(label: String, activity: Activity, root: View? = activity.window?.decorView) {
+        if (!state.enableUploadInstantsFromGallery) return
+        runCatching {
+            val current = currentActivity
+            val last = lastInstantCameraActivity?.get()
+            val overlayParent = activity.findViewById<View>(android.R.id.content) as? ViewGroup
+            val upload = overlayParent?.let { findInstantUploadButton(it) }
+            val uploadState = when (upload?.visibility) {
+                View.VISIBLE -> "visible"
+                View.INVISIBLE -> "invisible"
+                View.GONE -> "gone"
+                null -> "missing"
+                else -> upload.visibility.toString()
+            }
+            val transparent = root?.let { isTransparentInstagramModal(it, activity) } ?: false
+            val controls = root?.let { hasInstantCameraVisibleControls(it) } ?: false
+            val quick = root?.let { hasQuickSnapNativeSurface(it) } ?: false
+            val native = root?.let { hasInstantCameraNativeSurface(it) } ?: false
+            val surface = root?.let { isInstantsCameraSurface(it, activity) } ?: false
+            val shelf = root?.let { findInstantShelfAnchor(it) }
+            val sinceShelf = if (lastInstantUploadShelfTapMs == 0L) -1L else SystemClock.elapsedRealtime() - lastInstantUploadShelfTapMs
+            logInfo(
+                "InstantsUpload[$label] activity=${activity.javaClass.simpleName} " +
+                    "current=${current?.javaClass?.simpleName} last=${last?.javaClass?.simpleName} " +
+                    "root=${root != null} shown=${root?.isShown} size=${root?.width}x${root?.height} " +
+                    "transparent=$transparent controls=$controls quick=$quick native=$native surface=$surface " +
+                    "shelf=${shelf != null} shelfBounds=${shelf?.let { viewBoundsString(it) }} " +
+                    "upload=$uploadState uploadBounds=${upload?.let { viewBoundsString(it) }} " +
+                    "suppress=$suppressInstantUploadUntilModalExit sinceShelfMs=$sinceShelf watcher=$instantUploadSuppressionWatcherActive"
+            )
+        }.onFailure {
+            logError("InstantsUpload[$label] debug logging failed", it)
+        }
+    }
+
+    private fun viewBoundsString(view: View): String {
+        val loc = IntArray(2)
+        view.getLocationOnScreen(loc)
+        return "${loc[0]},${loc[1]},${loc[0] + view.width},${loc[1] + view.height}"
+    }
+
+    private fun isInstantUploadSignalView(view: View): Boolean {
+        if (!view.isShown) return false
+        val name = resourceEntryName(view).orEmpty().lowercase(Locale.US)
+        if (name.contains("camera") || name.contains("quick") || name.contains("capture") || name.contains("shelf")) return true
+        val description = view.contentDescription?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+        if (description == "capture" || description == "switch cameras" || description == "flash" || description == "friends") return true
+        if (view.width <= 0 || view.height <= 0) return false
+        val root = view.rootView ?: return false
+        if (root.width <= 0 || root.height <= 0) return false
+        val rootLoc = IntArray(2)
+        val loc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        view.getLocationOnScreen(loc)
+        val relX = loc[0] - rootLoc[0]
+        val relY = loc[1] - rootLoc[1]
+        return view.width in dp(36)..dp(96) &&
+            view.height in dp(36)..dp(96) &&
+            relX > root.width * 0.72f &&
+            relY >= 0 &&
+            relY < root.height * 0.18f
+    }
+
     private fun handleDirectSeenLongPress(view: View): Boolean {
         if (!state.isGhostSeen || state.dmMarkSeenControlMode != "hold_gallery") return false
         if (resourceEntryName(view) != "row_thread_composer_button_gallery") return false
@@ -16304,6 +18425,36 @@ class InstagramHooks(
     private fun handleUploadClick(view: View): Boolean {
         if (!state.enableDmAnyFileUpload || view.tag != UPLOAD_BUTTON_TAG) return false
         launchAnyFilePicker(view.context)
+        return true
+    }
+
+    private fun handleInstantUploadClick(view: View): Boolean {
+        if (!state.enableUploadInstantsFromGallery || view.tag != INSTANT_UPLOAD_BUTTON_TAG) return false
+        launchInstantImagePicker(view.context)
+        return true
+    }
+
+    private fun handleInstantDownloadClick(view: View): Boolean {
+        if (!state.enableUploadInstantsFromGallery || view.tag != INSTANT_DOWNLOAD_BUTTON_TAG) return false
+        val activity = findActivity(view.context) ?: currentActivity ?: return true
+        val root = activity.window?.decorView ?: view.rootView
+        val url = root?.let { findCurrentInstantViewerUrl(it) }
+        if (url != null) {
+            enqueueDownload(url, DownloadMetadata(type = "instant"))
+            return true
+        }
+        view.postDelayed({
+            val retryRoot = activity.window?.decorView ?: view.rootView
+            val retryUrl = retryRoot?.let { findCurrentInstantViewerUrl(it) }
+            if (retryUrl != null) {
+                enqueueDownload(retryUrl, DownloadMetadata(type = "instant"))
+            } else if (retryRoot != null && saveCurrentInstantSnapshot(activity, retryRoot)) {
+                logInfo("Instant viewer download saved visible snapshot fallback")
+            } else {
+                Toast.makeText(view.context, "Instant download failed", Toast.LENGTH_SHORT).show()
+                logInfo("Instant viewer download skipped: no media URL found scoped=${instantViewerRecentCount()}")
+            }
+        }, 650L)
         return true
     }
 
@@ -16606,6 +18757,1128 @@ class InstagramHooks(
         }
     }
 
+    private fun isInstantsCameraSurface(root: View, activity: Activity? = null): Boolean {
+        if (!root.isShown) return false
+        if (!isTransparentInstagramModal(root, activity)) return false
+        if (isVisibleInstagramResource(root, "compose_bottom_sheet_container", "bottom_sheet_compose_view")) return false
+        if (isInstantsArchiveSurface(root)) return false
+        if (isInstantsViewerSurface(root)) return false
+        if (!hasQuickSnapNativeSurface(root)) return false
+        return hasInstantCameraNativeSurface(root) || (findInstantShelfAnchor(root) != null && hasInstantCameraControlSurface(root))
+    }
+
+    private fun isTransparentInstagramModal(root: View, activity: Activity? = null): Boolean {
+        return activity?.javaClass?.name?.contains("TransparentModalActivity") == true ||
+            findActivity(root.context)?.javaClass?.name?.contains("TransparentModalActivity") == true ||
+            root.context?.javaClass?.name?.contains("TransparentModalActivity") == true
+    }
+
+    private fun hasQuickSnapNativeSurface(root: View): Boolean {
+        return isVisibleInstagramResource(
+            root,
+            "quick_snap_empty_archive_qs_camera",
+            "direct_quick_snap_consumption_preview"
+        ) || rootHasClassName(root, "quicksnap", 700)
+    }
+
+    private fun isInstantsArchiveSurface(root: View): Boolean {
+        if (containsVisibleHeaderText(root, "your instants", maxDepth = 14, maxVisited = 900)) return true
+        return containsVisibleHeaderText(root, "this is only visible to you", maxDepth = 14, maxVisited = 900)
+    }
+
+    private fun isInstantsViewerSurface(root: View): Boolean {
+        if (containsVisibleTextPrefix(root, "reply to ", maxDepth = 18, maxVisited = 1_600)) return true
+        if (containsVisibleText(root, "send message", maxDepth = 18, maxVisited = 1_600)) return true
+        if (containsAccessibilityAnyTextPrefix(root, "reply to ", maxVisited = 1_600)) return true
+        if (containsAccessibilityAnyText(root, "send message", maxVisited = 1_600)) return true
+        if (containsVisibleLowerTextPrefix(root, "reply to ", maxDepth = 16, maxVisited = 1_200)) return true
+        if (containsVisibleLowerText(root, "send message", maxDepth = 16, maxVisited = 1_200)) return true
+        if (hasInstantCameraNativeSurface(root) || hasInstantCameraControlSurface(root)) return false
+        return hasQuickSnapNativeSurface(root) &&
+            !hasInstantCameraControlSurface(root) &&
+            instantTopRightNativeActionCount(root) >= 2 &&
+            !isInstantsArchiveSurface(root)
+    }
+
+    private fun instantTopRightNativeActionCount(root: View): Int {
+        if (root.width <= 0 || root.height <= 0) return 0
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        var count = 0
+        var visited = 0
+        fun walk(view: View?) {
+            if (view == null || visited++ > 700 || !view.isShown) return
+            if (view.tag == INSTANT_UPLOAD_BUTTON_TAG || view.tag == INSTANT_DOWNLOAD_BUTTON_TAG) return
+            val width = view.width
+            val height = view.height
+            if (view.isClickable && width in dp(36)..dp(112) && height in dp(36)..dp(112)) {
+                val loc = IntArray(2)
+                view.getLocationOnScreen(loc)
+                val relX = loc[0] - rootLoc[0]
+                val relY = loc[1] - rootLoc[1]
+                if (relX > root.width * 0.58f && relY >= 0 && relY < root.height * 0.18f) {
+                    count++
+                    if (count >= 2) return
+                }
+            }
+            val group = view as? ViewGroup ?: return
+            for (index in 0 until group.childCount) {
+                walk(group.getChildAt(index))
+                if (count >= 2) return
+            }
+        }
+        walk(root)
+        return count
+    }
+
+    private fun containsVisibleHeaderText(root: View?, lowerNeedle: String, maxDepth: Int, maxVisited: Int): Boolean {
+        if (root == null || root.width <= 0 || root.height <= 0) return false
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        var visited = 0
+        fun walk(view: View?, depth: Int): Boolean {
+            if (view == null || depth > maxDepth || visited++ > maxVisited || !view.isShown) return false
+            if (view is TextView && view.text?.toString()?.trim()?.lowercase(Locale.US) == lowerNeedle) {
+                if (view.alpha <= 0.05f || view.width <= 0 || view.height <= 0) return false
+                val rect = Rect()
+                if (!view.getGlobalVisibleRect(rect) || rect.width() <= 0 || rect.height() <= 0) return false
+                val centerX = rect.centerX() - rootLoc[0]
+                val centerY = rect.centerY() - rootLoc[1]
+                return centerX in (root.width * 0.18f).toInt()..(root.width * 0.82f).toInt() &&
+                    centerY in 0..(root.height * 0.18f).toInt()
+            }
+            val group = view as? ViewGroup ?: return false
+            for (index in 0 until group.childCount) {
+                if (walk(group.getChildAt(index), depth + 1)) return true
+            }
+            return false
+        }
+        return walk(root, 0)
+    }
+
+    private fun containsAccessibilityLowerTextMatch(
+        root: View?,
+        maxVisited: Int,
+        matcher: (String) -> Boolean
+    ): Boolean {
+        if (root == null || root.width <= 0 || root.height <= 0) return false
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        val rootInfo = runCatching { root.createAccessibilityNodeInfo() }.getOrNull() ?: return false
+        var visited = 0
+        fun walk(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            try {
+                if (visited++ > maxVisited) return false
+                val text = node.text?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                if (text.isNotBlank() && matcher(text)) {
+                    val rect = Rect()
+                    node.getBoundsInScreen(rect)
+                    val centerY = rect.centerY() - rootLoc[1]
+                    if (rect.width() > 0 && rect.height() > 0 && centerY > root.height * 0.72f) return true
+                }
+                for (index in 0 until node.childCount) {
+                    val child = runCatching { node.getChild(index) }.getOrNull()
+                    if (walk(child)) return true
+                }
+                return false
+            } finally {
+                if (node !== rootInfo) runCatching { node.recycle() }
+            }
+        }
+        return try {
+            walk(rootInfo)
+        } finally {
+            runCatching { rootInfo.recycle() }
+        }
+    }
+
+    private fun containsAccessibilityAnyTextPrefix(root: View?, lowerPrefix: String, maxVisited: Int): Boolean {
+        return containsAccessibilityAnyTextMatch(root, maxVisited) { text ->
+            text.startsWith(lowerPrefix)
+        }
+    }
+
+    private fun containsAccessibilityAnyText(root: View?, lowerNeedle: String, maxVisited: Int): Boolean {
+        return containsAccessibilityAnyTextMatch(root, maxVisited) { text ->
+            text == lowerNeedle || text.contains(lowerNeedle)
+        }
+    }
+
+    private fun containsAccessibilityAnyTextMatch(
+        root: View?,
+        maxVisited: Int,
+        matcher: (String) -> Boolean
+    ): Boolean {
+        if (root == null || root.width <= 0 || root.height <= 0) return false
+        val rootInfo = runCatching { root.createAccessibilityNodeInfo() }.getOrNull() ?: return false
+        var visited = 0
+        fun walk(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            try {
+                if (visited++ > maxVisited) return false
+                val text = node.text?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                val description = node.contentDescription?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                if ((text.isNotBlank() && matcher(text)) || (description.isNotBlank() && matcher(description))) return true
+                for (index in 0 until node.childCount) {
+                    val child = runCatching { node.getChild(index) }.getOrNull()
+                    if (walk(child)) return true
+                }
+                return false
+            } finally {
+                if (node !== rootInfo) runCatching { node.recycle() }
+            }
+        }
+        return try {
+            walk(rootInfo)
+        } finally {
+            runCatching { rootInfo.recycle() }
+        }
+    }
+
+    private fun containsVisibleLowerTextPrefix(root: View?, lowerPrefix: String, maxDepth: Int, maxVisited: Int): Boolean {
+        return containsVisibleLowerTextMatch(root, maxDepth, maxVisited) { text ->
+            text.startsWith(lowerPrefix)
+        }
+    }
+
+    private fun containsVisibleLowerText(root: View?, lowerNeedle: String, maxDepth: Int, maxVisited: Int): Boolean {
+        return containsVisibleLowerTextMatch(root, maxDepth, maxVisited) { text ->
+            text == lowerNeedle
+        }
+    }
+
+    private fun containsVisibleTextPrefix(root: View?, lowerPrefix: String, maxDepth: Int, maxVisited: Int): Boolean {
+        return containsVisibleTextMatch(root, maxDepth, maxVisited) { text ->
+            text.startsWith(lowerPrefix)
+        }
+    }
+
+    private fun containsVisibleText(root: View?, lowerNeedle: String, maxDepth: Int, maxVisited: Int): Boolean {
+        return containsVisibleTextMatch(root, maxDepth, maxVisited) { text ->
+            text == lowerNeedle || text.contains(lowerNeedle)
+        }
+    }
+
+    private fun containsVisibleTextMatch(
+        root: View?,
+        maxDepth: Int,
+        maxVisited: Int,
+        matcher: (String) -> Boolean
+    ): Boolean {
+        if (root == null || root.width <= 0 || root.height <= 0) return false
+        var visited = 0
+        fun walk(view: View?, depth: Int): Boolean {
+            if (view == null || depth > maxDepth || visited++ > maxVisited || !view.isShown) return false
+            if (view is TextView) {
+                val text = view.text?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                if (text.isNotBlank() && matcher(text)) {
+                    val rect = Rect()
+                    if (view.alpha > 0.05f && view.getGlobalVisibleRect(rect) && rect.width() > 0 && rect.height() > 0) return true
+                }
+            }
+            val group = view as? ViewGroup ?: return false
+            for (index in 0 until group.childCount) {
+                if (walk(group.getChildAt(index), depth + 1)) return true
+            }
+            return false
+        }
+        return walk(root, 0)
+    }
+
+    private fun containsVisibleLowerTextMatch(
+        root: View?,
+        maxDepth: Int,
+        maxVisited: Int,
+        matcher: (String) -> Boolean
+    ): Boolean {
+        if (root == null || root.width <= 0 || root.height <= 0) return false
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        var visited = 0
+        fun walk(view: View?, depth: Int): Boolean {
+            if (view == null || depth > maxDepth || visited++ > maxVisited || !view.isShown) return false
+            if (view is TextView) {
+                val text = view.text?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                if (text.isNotBlank() && matcher(text)) {
+                    val rect = Rect()
+                    if (view.alpha > 0.05f && view.getGlobalVisibleRect(rect) && rect.width() > 0 && rect.height() > 0) {
+                        val centerY = rect.centerY() - rootLoc[1]
+                        if (centerY > root.height * 0.72f) return true
+                    }
+                }
+            }
+            val group = view as? ViewGroup ?: return false
+            for (index in 0 until group.childCount) {
+                if (walk(group.getChildAt(index), depth + 1)) return true
+            }
+            return false
+        }
+        return walk(root, 0) || containsAccessibilityLowerTextMatch(root, maxVisited, matcher)
+    }
+
+    private fun isVisibleInstagramResource(root: View, vararg names: String): Boolean {
+        val resources = root.resources ?: return false
+        val pkg = root.context?.packageName ?: return false
+        names.forEach { name ->
+            val id = resources.getIdentifier(name, "id", pkg)
+            if (id != 0 && root.findViewById<View>(id)?.isShown == true) return true
+        }
+        return false
+    }
+
+    private fun rootHasClassName(root: View, needle: String, limit: Int): Boolean {
+        var visited = 0
+        val lowerNeedle = needle.lowercase(Locale.US)
+        fun walk(view: View?): Boolean {
+            if (view == null || visited++ > limit || !view.isShown) return false
+            if (view.javaClass.name.lowercase(Locale.US).contains(lowerNeedle)) return true
+            val group = view as? ViewGroup ?: return false
+            for (index in 0 until group.childCount) {
+                if (walk(group.getChildAt(index))) return true
+            }
+            return false
+        }
+        return walk(root)
+    }
+
+    private fun hasInstantCameraNativeSurface(root: View): Boolean {
+        val resources = root.resources ?: return false
+        val pkg = root.context?.packageName ?: return false
+        val containerId = resources.getIdentifier("camera_container_view", "id", pkg)
+        val cameraId = resources.getIdentifier("camera_view", "id", pkg)
+        val container = containerId.takeIf { it != 0 }?.let { root.findViewById<View>(it) }
+        val camera = cameraId.takeIf { it != 0 }?.let { root.findViewById<View>(it) }
+        return container?.isShown == true &&
+            camera?.isShown == true &&
+            container.width >= root.width * 0.75f &&
+            container.height >= root.height * 0.35f
+    }
+
+    private fun hasInstantCaptureSurface(root: View): Boolean {
+        if (hasInstantCameraVisibleControls(root)) return true
+        return containsAccessibilityText(root, "capture", maxVisited = 1_200)
+    }
+
+    private fun containsAccessibilityText(root: View?, lowerNeedle: String, maxVisited: Int): Boolean {
+        if (root == null) return false
+        val rootInfo = runCatching { root.createAccessibilityNodeInfo() }.getOrNull() ?: return false
+        var visited = 0
+        fun walk(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+            if (node == null) return false
+            try {
+                if (visited++ > maxVisited) return false
+                val text = node.text?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                val description = node.contentDescription?.toString()?.trim()?.lowercase(Locale.US).orEmpty()
+                if (text == lowerNeedle || description == lowerNeedle) return true
+                for (index in 0 until node.childCount) {
+                    val child = runCatching { node.getChild(index) }.getOrNull()
+                    if (walk(child)) return true
+                }
+                return false
+            } finally {
+                if (node !== rootInfo) runCatching { node.recycle() }
+            }
+        }
+        return try {
+            walk(rootInfo)
+        } finally {
+            runCatching { rootInfo.recycle() }
+        }
+    }
+
+    private fun maybeClearInstantUploadSuppression(root: View) {
+        if (suppressInstantUploadUntilModalExit && isInstantsCameraSurface(root)) {
+            logInfo("InstantsUpload[clear-suppression] native Instants camera surface visible again")
+            suppressInstantUploadUntilModalExit = false
+            lastInstantUploadShelfTapMs = 0L
+        }
+    }
+
+    private fun hasInstantCameraVisibleControls(root: View): Boolean {
+        if (root.width <= 0 || root.height <= 0) return false
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        var captureLike = false
+        var lowerControlCount = 0
+        var visited = 0
+        fun walk(view: View?) {
+            if (view == null || visited++ > 650 || !view.isShown || (captureLike && lowerControlCount >= 2)) return
+            if (view.tag == INSTANT_UPLOAD_BUTTON_TAG || view.tag == INSTANT_DOWNLOAD_BUTTON_TAG) return
+            val width = view.width
+            val height = view.height
+            if (width > 0 && height > 0) {
+                val description = view.contentDescription?.toString()?.trim().orEmpty()
+                val loc = IntArray(2)
+                view.getLocationOnScreen(loc)
+                val relX = loc[0] - rootLoc[0]
+                val relY = loc[1] - rootLoc[1]
+                val centerX = relX + width / 2
+                val centerY = relY + height / 2
+                if (centerY > root.height * 0.70f && centerY < root.height * 0.93f) {
+                    if (description.equals("Capture", ignoreCase = true) ||
+                        (centerX > root.width * 0.34f && centerX < root.width * 0.66f &&
+                            width in dp(72)..dp(280) && height in dp(72)..dp(280))
+                    ) {
+                        captureLike = true
+                    } else if (view.isClickable && width in dp(36)..dp(260) && height in dp(36)..dp(170)) {
+                        lowerControlCount++
+                    }
+                }
+            }
+            val group = view as? ViewGroup ?: return
+            for (index in 0 until group.childCount) walk(group.getChildAt(index))
+        }
+        walk(root)
+        return captureLike || lowerControlCount >= 2
+    }
+
+    private fun hasInstantCameraControlSurface(root: View): Boolean {
+        if (hasInstantCameraVisibleControls(root)) return true
+        return containsAccessibilityText(root, "flash", maxVisited = 1_200) &&
+            containsAccessibilityText(root, "switch cameras", maxVisited = 1_200)
+    }
+
+    private fun currentInstantsActivity(fallback: Activity): Activity {
+        val current = currentActivity
+        val currentRoot = current?.window?.decorView
+        return if (current != null && currentRoot != null && isTransparentInstagramModal(currentRoot, current)) {
+            current
+        } else {
+            val last = lastInstantCameraActivity?.get()
+            val lastRoot = last?.window?.decorView
+            if (last != null && lastRoot != null && !last.isFinishing &&
+                isTransparentInstagramModal(lastRoot, last) && lastRoot.isShown
+            ) {
+                last
+            } else {
+                fallback
+            }
+        }
+    }
+
+    private fun currentReadyInstantsActivity(fallback: Activity): Activity {
+        val current = currentActivity
+        val currentRoot = current?.window?.decorView
+        if (current != null && currentRoot != null && isTransparentInstagramModal(currentRoot, current) &&
+            isInstantsCameraSurface(currentRoot, current)
+        ) {
+            return current
+        }
+        val last = lastInstantCameraActivity?.get()
+        val lastRoot = last?.window?.decorView
+        return if (last != null && lastRoot != null && !last.isFinishing &&
+            isTransparentInstagramModal(lastRoot, last) && isInstantsCameraSurface(lastRoot, last)
+        ) {
+            last
+        } else {
+            fallback
+        }
+    }
+
+    private fun activeInstantsCameraActivity(fallback: Activity): Activity {
+        val current = currentActivity
+        val currentRoot = current?.window?.decorView
+        if (current != null && currentRoot != null && !current.isFinishing &&
+            isInstantsCameraSurface(currentRoot, current)
+        ) {
+            return current
+        }
+        val last = lastInstantCameraActivity?.get()
+        val lastRoot = last?.window?.decorView
+        if (last != null && lastRoot != null && !last.isFinishing &&
+            isInstantsCameraSurface(lastRoot, last)
+        ) {
+            return last
+        }
+        return fallback
+    }
+
+    private fun ensureInstantUploadButton(activity: Activity, root: View) {
+        logInstantUploadDebug("ensure-entry", activity, root)
+        maybeClearInstantUploadSuppression(root)
+        if (suppressInstantUploadUntilModalExit) {
+            logInstantUploadDebug("ensure-skip-suppressed", activity, root)
+            return
+        }
+        if (SystemClock.elapsedRealtime() - lastInstantUploadShelfTapMs < 2_500L) {
+            logInstantUploadDebug("ensure-skip-recent-shelf-tap", activity, root)
+            return
+        }
+        if (isInstantsCameraSurface(root, activity)) {
+            lastInstantCameraActivity = WeakReference(activity)
+            logInstantUploadDebug("ensure-remembered-camera-activity", activity, root)
+        }
+        val overlayParent = activity.findViewById<View>(android.R.id.content) as? FrameLayout
+            ?: run {
+                logInfo("Instants gallery upload button skipped: overlay parent unavailable")
+                return
+            }
+        hideInstantViewerDownloadButton(activity)
+        val close = findInstantCloseAnchor(root)
+        val shelf = findInstantShelfAnchor(root)
+        val existingUpload = findInstantUploadButton(overlayParent)
+        val upload = existingUpload ?: ImageView(overlayParent.context).apply {
+            tag = INSTANT_UPLOAD_BUTTON_TAG
+            setImageDrawable(UploadGlyphDrawable())
+            scaleType = ImageView.ScaleType.CENTER
+            adjustViewBounds = false
+            contentDescription = "Upload instant from gallery"
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { launchInstantImagePicker(it.context) }
+            setOnLongClickListener {
+                launchInstantImagePicker(it.context)
+                true
+            }
+            overlayParent.addView(this)
+            logInfo("Injected Instants gallery upload button")
+        }
+        instantUploadButtons += upload
+        applyInstantUploadTint(upload)
+        if (close != null) {
+            positionInstantUploadBesideClose(overlayParent, upload, close)
+        } else {
+            positionInstantUploadBesideCloseFallback(overlayParent, upload)
+        }
+        upload.visibility = View.VISIBLE
+        upload.bringToFront()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) upload.elevation = dp(14).toFloat()
+        logInstantUploadDebug("ensure-visible", activity, root)
+        scheduleInstantUploadVisibilityGuard(activity, upload)
+    }
+
+    private fun applyInstantUploadTint(upload: ImageView) {
+        upload.alpha = 1f
+        upload.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+    }
+
+    private fun scheduleInstantUploadVisibilityGuard(activity: Activity, upload: ImageView) {
+        if (!instantUploadGuardedButtons.add(upload)) {
+            logInstantUploadDebug("guard-already-active", activity)
+            return
+        }
+        fun check() {
+            if (!instantUploadGuardedButtons.contains(upload)) return
+            if (!state.enableUploadInstantsFromGallery || upload.visibility != View.VISIBLE) {
+                logInstantUploadDebug("guard-hide-feature-or-upload-not-visible", activity)
+                instantUploadGuardedButtons.remove(upload)
+                hideInstantUploadButton(activity)
+                return
+            }
+            val root = activity.window?.decorView
+            if (root != null && isInstantsViewerSurface(root)) {
+                logInstantUploadDebug("guard-hide-viewer-surface", activity, root)
+                instantUploadGuardedButtons.remove(upload)
+                hideInstantUploadButton(activity)
+                ensureInstantViewerDownloadButton(activity, root)
+                return
+            }
+            if (root == null || !isInstantsCameraSurface(root, activity) || (findInstantCloseAnchor(root) == null && findInstantShelfAnchor(root) == null)) {
+                logInstantUploadDebug("guard-hide-not-surface-or-no-anchor", activity, root)
+                instantUploadGuardedButtons.remove(upload)
+                hideInstantUploadButton(activity)
+                return
+            }
+            logInstantUploadDebug("guard-keep-visible", activity, root)
+            upload.postDelayed(::check, 600L)
+        }
+        upload.postDelayed(::check, 600L)
+    }
+
+    private fun positionInstantUploadBesideClose(parent: FrameLayout, upload: ImageView, close: View, attempt: Int = 0) {
+        if (parent.width <= 0 || parent.height <= 0 || close.width <= 0 || close.height <= 0) {
+            if (attempt < 4) parent.post { positionInstantUploadBesideClose(parent, upload, close, attempt + 1) }
+            return
+        }
+        val size = dp(48)
+        val padding = dp(8)
+        upload.setPadding(padding, padding, padding, padding)
+
+        val parentLoc = IntArray(2)
+        val closeLoc = IntArray(2)
+        parent.getLocationOnScreen(parentLoc)
+        close.getLocationOnScreen(closeLoc)
+
+        val gap = dp(2)
+        val closeLeft = closeLoc[0] - parentLoc[0]
+        val closeTop = closeLoc[1] - parentLoc[1]
+        val nearCloseMax = dp(168).coerceAtMost((parent.width - size - gap).coerceAtLeast(gap))
+        val left = (closeLeft + close.width + gap).coerceIn(gap, nearCloseMax.coerceAtLeast(gap))
+        val top = (closeTop + (close.height - size) / 2).coerceIn(0, (parent.height - size).coerceAtLeast(0))
+
+        upload.layoutParams = FrameLayout.LayoutParams(size, size).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            leftMargin = 0
+            topMargin = 0
+        }
+        placeInstantUploadAbsolute(upload, left, top)
+        if (attempt < 2) parent.post { positionInstantUploadBesideClose(parent, upload, close, attempt + 1) }
+    }
+
+    private fun positionInstantUploadBesideCloseFallback(parent: FrameLayout, upload: ImageView, attempt: Int = 0) {
+        if (parent.width <= 0 || parent.height <= 0) {
+            if (attempt < 4) parent.post { positionInstantUploadBesideCloseFallback(parent, upload, attempt + 1) }
+            return
+        }
+        val size = dp(48)
+        val padding = dp(8)
+        upload.setPadding(padding, padding, padding, padding)
+        val left = dp(72).coerceIn(dp(8), (parent.width - size - dp(8)).coerceAtLeast(dp(8)))
+        val top = dp(37).coerceIn(0, (parent.height - size).coerceAtLeast(0))
+        upload.layoutParams = FrameLayout.LayoutParams(size, size).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            leftMargin = 0
+            topMargin = 0
+        }
+        placeInstantUploadAbsolute(upload, left, top)
+        if (attempt < 2) parent.post { positionInstantUploadBesideCloseFallback(parent, upload, attempt + 1) }
+    }
+
+    private fun positionInstantUploadBesideShelf(parent: FrameLayout, upload: ImageView, shelf: View, attempt: Int = 0) {
+        if (parent.width <= 0 || parent.height <= 0 || shelf.width <= 0 || shelf.height <= 0) {
+            if (attempt < 4) parent.post { positionInstantUploadBesideShelf(parent, upload, shelf, attempt + 1) }
+            return
+        }
+        val size = dp(48)
+        val padding = dp(8)
+        upload.setPadding(padding, padding, padding, padding)
+
+        val parentLoc = IntArray(2)
+        val shelfLoc = IntArray(2)
+        parent.getLocationOnScreen(parentLoc)
+        shelf.getLocationOnScreen(shelfLoc)
+
+        val gap = dp(8)
+        val shelfTop = shelfLoc[1] - parentLoc[1]
+        val left = instantUploadLeft(parent, size, gap)
+        val top = (shelfTop + (shelf.height - size) / 2 - dp(4)).coerceIn(0, (parent.height - size).coerceAtLeast(0))
+
+        upload.layoutParams = FrameLayout.LayoutParams(size, size).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            leftMargin = 0
+            topMargin = 0
+        }
+        placeInstantUploadAbsolute(upload, left, top)
+        if (attempt < 2) parent.post { positionInstantUploadBesideShelf(parent, upload, shelf, attempt + 1) }
+    }
+
+    private fun instantUploadLeft(parent: FrameLayout, size: Int, gap: Int): Int {
+        val shelfSlotWidth = dp(52)
+        return (parent.width - shelfSlotWidth - gap - size)
+            .coerceIn(gap, (parent.width - size - gap).coerceAtLeast(gap))
+    }
+
+    private fun placeInstantUploadAbsolute(upload: ImageView, left: Int, top: Int) {
+        upload.x = left.toFloat()
+        upload.y = top.toFloat()
+        upload.post {
+            upload.x = left.toFloat()
+            upload.y = top.toFloat()
+        }
+    }
+
+
+    private fun positionInstantUploadFallback(parent: FrameLayout, upload: ImageView, attempt: Int = 0) {
+        if (parent.width <= 0 || parent.height <= 0) {
+            if (attempt < 3) parent.post { positionInstantUploadFallback(parent, upload, attempt + 1) }
+            return
+        }
+        val size = dp(48)
+        val padding = dp(8)
+        upload.setPadding(padding, padding, padding, padding)
+        val gap = dp(8)
+        val left = instantUploadLeft(parent, size, gap)
+        val top = dp(37).coerceAtLeast(0)
+        upload.layoutParams = FrameLayout.LayoutParams(size, size).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            leftMargin = 0
+            topMargin = 0
+        }
+        placeInstantUploadAbsolute(upload, left, top)
+    }
+
+    private fun isInstantUploadPlacedLeftOfShelf(parent: FrameLayout, upload: ImageView, shelf: View): Boolean {
+        if (upload.width <= 0 || upload.height <= 0 || shelf.width <= 0 || shelf.height <= 0) return false
+        val parentLoc = IntArray(2)
+        val uploadLoc = IntArray(2)
+        val shelfLoc = IntArray(2)
+        parent.getLocationOnScreen(parentLoc)
+        upload.getLocationOnScreen(uploadLoc)
+        shelf.getLocationOnScreen(shelfLoc)
+        val uploadLeft = uploadLoc[0] - parentLoc[0]
+        val uploadTop = uploadLoc[1] - parentLoc[1]
+        val uploadRight = uploadLeft + upload.width
+        val uploadCenterY = uploadTop + upload.height / 2
+        val shelfLeft = shelfLoc[0] - parentLoc[0]
+        val shelfTop = shelfLoc[1] - parentLoc[1]
+        val shelfCenterY = shelfTop + shelf.height / 2
+        return uploadLeft >= dp(8) &&
+            uploadRight <= shelfLeft - dp(4) &&
+            abs(uploadCenterY - shelfCenterY) <= dp(16)
+    }
+
+    private fun findInstantUploadButton(parent: ViewGroup): ImageView? {
+        for (i in 0 until parent.childCount) {
+            val child = parent.getChildAt(i)
+            if (child.tag == INSTANT_UPLOAD_BUTTON_TAG && child is ImageView) return child
+        }
+        return null
+    }
+
+    private fun findInstantViewerDownloadButton(parent: ViewGroup): ImageView? {
+        for (i in 0 until parent.childCount) {
+            val child = parent.getChildAt(i)
+            if (child.tag == INSTANT_DOWNLOAD_BUTTON_TAG && child is ImageView) return child
+        }
+        return null
+    }
+
+    private fun hideInstantUploadButton(activity: Activity) {
+        val overlayParent = activity.findViewById<View>(android.R.id.content) as? ViewGroup ?: return
+        val upload = findInstantUploadButton(overlayParent)
+        upload?.visibility = View.GONE
+        logInstantUploadDebug("hide-button", activity)
+    }
+
+    private fun hideInstantViewerDownloadButton(activity: Activity) {
+        val overlayParent = activity.findViewById<View>(android.R.id.content) as? ViewGroup ?: return
+        findInstantViewerDownloadButton(overlayParent)?.visibility = View.GONE
+    }
+
+    private fun ensureInstantViewerDownloadButton(activity: Activity, root: View) {
+        if (!isInstantsViewerSurface(root)) {
+            hideInstantViewerDownloadButton(activity)
+            return
+        }
+        markInstantViewerSeen()
+        val overlayParent = activity.findViewById<View>(android.R.id.content) as? FrameLayout ?: return
+        findInstantUploadButton(overlayParent)?.visibility = View.GONE
+        val collection = findInstantViewerCollectionAnchor(root)
+        val download = findInstantViewerDownloadButton(overlayParent) ?: ImageView(overlayParent.context).apply {
+            tag = INSTANT_DOWNLOAD_BUTTON_TAG
+            setImageDrawable(DownloadGlyphDrawable())
+            scaleType = ImageView.ScaleType.CENTER
+            adjustViewBounds = false
+            contentDescription = "Download viewed instant"
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { handleInstantDownloadClick(this) }
+            overlayParent.addView(this)
+            logInfo("Injected Instants viewer download button")
+        }
+        download.alpha = 1f
+        download.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
+        if (collection != null) {
+            positionInstantDownloadBesideCollection(overlayParent, download, collection)
+        } else {
+            positionInstantDownloadFallback(overlayParent, download)
+        }
+        download.visibility = View.VISIBLE
+        download.bringToFront()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) download.elevation = dp(14).toFloat()
+        scheduleInstantDownloadVisibilityGuard(activity, download)
+    }
+
+    private fun scheduleInstantDownloadVisibilityGuard(activity: Activity, download: ImageView) {
+        fun check() {
+            if (!state.enableUploadInstantsFromGallery || download.visibility != View.VISIBLE) {
+                hideInstantViewerDownloadButton(activity)
+                return
+            }
+            val root = activity.window?.decorView
+            if (root == null || !isInstantsViewerSurface(root)) {
+                hideInstantViewerDownloadButton(activity)
+                return
+            }
+            val parent = activity.findViewById<View>(android.R.id.content) as? FrameLayout
+            if (parent != null) findInstantViewerCollectionAnchor(root)?.let { positionInstantDownloadBesideCollection(parent, download, it) }
+            download.postDelayed(::check, 750L)
+        }
+        download.postDelayed(::check, 750L)
+    }
+
+    private fun positionInstantDownloadBesideCollection(parent: FrameLayout, download: ImageView, collection: View, attempt: Int = 0) {
+        if (parent.width <= 0 || parent.height <= 0 || collection.width <= 0 || collection.height <= 0) {
+            if (attempt < 4) parent.post { positionInstantDownloadBesideCollection(parent, download, collection, attempt + 1) }
+            return
+        }
+        val size = dp(48)
+        val padding = dp(8)
+        download.setPadding(padding, padding, padding, padding)
+
+        val parentLoc = IntArray(2)
+        val collectionLoc = IntArray(2)
+        parent.getLocationOnScreen(parentLoc)
+        collection.getLocationOnScreen(collectionLoc)
+
+        val gap = dp(8)
+        val screenWidth = parent.resources.displayMetrics.widthPixels.takeIf { it > 0 } ?: parent.width
+        val collectionLeft = collectionLoc[0] - parentLoc[0]
+        val collectionTop = collectionLoc[1] - parentLoc[1]
+        val targetLeft = if (collectionLeft in 0 until screenWidth) {
+            collectionLeft - size - gap
+        } else {
+            screenWidth - size * 3 - gap * 2
+        }
+        val left = targetLeft.coerceIn(gap, (screenWidth - size - gap).coerceAtLeast(gap))
+        val top = (collectionTop + (collection.height - size) / 2).coerceIn(0, (parent.height - size).coerceAtLeast(0))
+
+        download.layoutParams = FrameLayout.LayoutParams(size, size).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            leftMargin = 0
+            topMargin = 0
+        }
+        placeInstantUploadAbsolute(download, left, top)
+        if (attempt < 2) parent.post { positionInstantDownloadBesideCollection(parent, download, collection, attempt + 1) }
+    }
+
+    private fun positionInstantDownloadFallback(parent: FrameLayout, download: ImageView) {
+        if (parent.width <= 0 || parent.height <= 0) return
+        val size = dp(48)
+        val padding = dp(8)
+        val gap = dp(8)
+        val screenWidth = parent.resources.displayMetrics.widthPixels.takeIf { it > 0 } ?: parent.width
+        download.setPadding(padding, padding, padding, padding)
+        download.layoutParams = FrameLayout.LayoutParams(size, size).apply {
+            gravity = Gravity.TOP or Gravity.LEFT
+            leftMargin = 0
+            topMargin = 0
+        }
+        placeInstantUploadAbsolute(download, (screenWidth - size * 3 - gap * 2).coerceIn(gap, (screenWidth - size - gap).coerceAtLeast(gap)), dp(37))
+    }
+
+    private fun hideInstantUploadOnShelfTap(activity: Activity, event: MotionEvent) {
+        if (!state.enableUploadInstantsFromGallery) return
+        val root = activity.window?.decorView ?: return
+        if (!isTransparentInstagramModal(root, activity)) return
+        val overlayParent = activity.findViewById<View>(android.R.id.content) as? ViewGroup ?: return
+        val upload = findInstantUploadButton(overlayParent) ?: return
+        if (upload.visibility != View.VISIBLE) return
+        val rootLoc = IntArray(2)
+        val uploadLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        upload.getLocationOnScreen(uploadLoc)
+        val x = event.rawX - rootLoc[0]
+        val y = event.rawY - rootLoc[1]
+        val uploadLeft = uploadLoc[0] - rootLoc[0]
+        val uploadTop = uploadLoc[1] - rootLoc[1]
+        val insideUpload = x >= uploadLeft && x <= uploadLeft + upload.width && y >= uploadTop && y <= uploadTop + upload.height
+        if (!insideUpload && x > root.width * 0.84f && y < root.height * 0.14f) {
+            logInstantUploadDebug("shelf-tap-hide-before", activity, root)
+            lastInstantUploadShelfTapMs = SystemClock.elapsedRealtime()
+            suppressInstantUploadUntilModalExit = true
+            hideInstantUploadButton(activity)
+            logInstantUploadDebug("shelf-tap-hide-after", activity, root)
+            scheduleInstantUploadSuppressionWatcher(activity)
+        }
+    }
+
+    private fun scheduleInstantUploadSuppressionWatcher(activity: Activity) {
+        if (instantUploadSuppressionWatcherActive) {
+            logInstantUploadDebug("suppression-watcher-already-active", activity)
+            return
+        }
+        instantUploadSuppressionWatcherActive = true
+        logInstantUploadDebug("suppression-watcher-start", activity)
+        val startedAt = SystemClock.elapsedRealtime()
+        fun check() {
+            if (!state.enableUploadInstantsFromGallery || !suppressInstantUploadUntilModalExit) {
+                logInstantUploadDebug("suppression-watcher-stop-feature-or-unsuppressed", activity)
+                instantUploadSuppressionWatcherActive = false
+                return
+            }
+            val root = activity.window?.decorView
+            if (root == null || !isTransparentInstagramModal(root, activity)) {
+                logInstantUploadDebug("suppression-watcher-modal-exit", activity, root)
+                suppressInstantUploadUntilModalExit = false
+                instantUploadSuppressionWatcherActive = false
+                return
+            }
+            logInstantUploadDebug("suppression-watcher-check", activity, root)
+            if (isInstantsCameraSurface(root, activity)) {
+                logInstantUploadDebug("suppression-watcher-restore", activity, root)
+                instantUploadSuppressionWatcherActive = false
+                restoreInstantUploadWithFirstOpenPass(activity)
+                return
+            }
+            if (SystemClock.elapsedRealtime() - startedAt > 45_000L) {
+                logInstantUploadDebug("suppression-watcher-timeout", activity, root)
+                instantUploadSuppressionWatcherActive = false
+                return
+            }
+            root.postDelayed(::check, 450L)
+        }
+        activity.window?.decorView?.postDelayed(::check, 250L)
+    }
+
+    private fun findInstantShelfAnchor(root: View): View? {
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        val candidates = mutableListOf<View>()
+        fun walk(view: View?) {
+            if (view == null || !view.isShown) return
+            if (view.tag == INSTANT_UPLOAD_BUTTON_TAG || view.tag == INSTANT_DOWNLOAD_BUTTON_TAG) return
+            val width = view.width
+            val height = view.height
+            if (view.isClickable && width in dp(36)..dp(96) && height in dp(36)..dp(96)) {
+                val loc = IntArray(2)
+                view.getLocationOnScreen(loc)
+                val relX = loc[0] - rootLoc[0]
+                val relY = loc[1] - rootLoc[1]
+                if (relX > root.width * 0.72f && relY >= 0 && relY < root.height * 0.18f) {
+                    candidates += view
+                }
+            }
+            val group = view as? ViewGroup ?: return
+            for (i in 0 until group.childCount) walk(group.getChildAt(i))
+        }
+        walk(root)
+        return candidates.maxByOrNull {
+            val loc = IntArray(2)
+            it.getLocationOnScreen(loc)
+            loc[0]
+        }
+    }
+
+    private fun findInstantCloseAnchor(root: View): View? {
+        if (root.width <= 0 || root.height <= 0) return null
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        val candidates = mutableListOf<View>()
+        fun walk(view: View?) {
+            if (view == null || !view.isShown) return
+            if (view.tag == INSTANT_UPLOAD_BUTTON_TAG || view.tag == INSTANT_DOWNLOAD_BUTTON_TAG) return
+            val width = view.width
+            val height = view.height
+            if (view.isClickable && width in dp(36)..dp(112) && height in dp(36)..dp(112)) {
+                val loc = IntArray(2)
+                view.getLocationOnScreen(loc)
+                val relX = loc[0] - rootLoc[0]
+                val relY = loc[1] - rootLoc[1]
+                if (relX >= 0 && relX < root.width * 0.22f && relY >= 0 && relY < root.height * 0.18f) {
+                    candidates += view
+                }
+            }
+            val group = view as? ViewGroup ?: return
+            for (i in 0 until group.childCount) walk(group.getChildAt(i))
+        }
+        walk(root)
+        return candidates.minWithOrNull(
+            compareBy<View> {
+                val loc = IntArray(2)
+                it.getLocationOnScreen(loc)
+                loc[0] - rootLoc[0]
+            }.thenBy {
+                val loc = IntArray(2)
+                it.getLocationOnScreen(loc)
+                loc[1] - rootLoc[1]
+            }
+        )
+    }
+
+    private fun findInstantViewerCollectionAnchor(root: View): View? {
+        if (root.width <= 0 || root.height <= 0) return null
+        val rootLoc = IntArray(2)
+        root.getLocationOnScreen(rootLoc)
+        val candidates = mutableListOf<View>()
+        fun walk(view: View?) {
+            if (view == null || !view.isShown) return
+            if (view.tag == INSTANT_UPLOAD_BUTTON_TAG || view.tag == INSTANT_DOWNLOAD_BUTTON_TAG) return
+            val width = view.width
+            val height = view.height
+            if (view.isClickable && width in dp(36)..dp(132) && height in dp(36)..dp(132)) {
+                val loc = IntArray(2)
+                view.getLocationOnScreen(loc)
+                val relX = loc[0] - rootLoc[0]
+                val relY = loc[1] - rootLoc[1]
+                if (relX > root.width * 0.58f && relY >= 0 && relY < root.height * 0.18f) {
+                    candidates += view
+                }
+            }
+            val group = view as? ViewGroup ?: return
+            for (i in 0 until group.childCount) walk(group.getChildAt(i))
+        }
+        walk(root)
+        return candidates.minByOrNull {
+            val loc = IntArray(2)
+            it.getLocationOnScreen(loc)
+            loc[0]
+        }
+    }
+
+    private fun findCurrentInstantViewerUrl(root: View): String? {
+        val rootRect = Rect()
+        root.getGlobalVisibleRect(rootRect)
+        val candidates = mutableListOf<ViewUrlCandidate>()
+        var visited = 0
+        fun walk(view: View?, depth: Int) {
+            if (view == null || depth > 18 || visited++ > 1_600 || !view.isShown) return
+            extractMediaUrlFromView(view)
+                ?.takeIf { looksLikeMediaUrl(it) && !looksLikeProfileImageUrl(it) }
+                ?.let { url ->
+                    val rect = Rect()
+                    if (view.getGlobalVisibleRect(rect) && rect.width() > 0 && rect.height() > 0) {
+                        val area = (rect.width() * rect.height()).coerceAtLeast(1)
+                        val distance = abs(rect.centerX() - rootRect.centerX()) + abs(rect.centerY() - rootRect.centerY())
+                        candidates += ViewUrlCandidate(url, area, distance)
+                    }
+                }
+            val group = view as? ViewGroup ?: return
+            for (index in 0 until group.childCount) walk(group.getChildAt(index), depth + 1)
+        }
+        walk(root, 0)
+        candidates.sortedWith(
+            compareByDescending<ViewUrlCandidate> { it.area }
+                .thenBy { it.distance }
+        ).firstOrNull()?.url?.let { return it }
+        return bestInstantViewerRecentUrl()
+    }
+
+    private fun markInstantViewerSeen() {
+        val now = System.currentTimeMillis()
+        val previousSeen = lastInstantViewerSeenAtMs
+        if (previousSeen == 0L || now - previousSeen > 3_000L) {
+            instantViewerSessionStartedAtMs = (now - 15_000L).coerceAtLeast(0L)
+            synchronized(instantViewerRecentUrls) {
+                instantViewerRecentUrls.clear()
+            }
+            synchronized(recentMediaUrlEvents) {
+                recentMediaUrlEvents
+                    .filter { it.timeMs >= instantViewerSessionStartedAtMs && isInstantDownloadCandidateUrl(it.url) }
+                    .forEach { rememberInstantViewerMediaUrl(it.url, it.timeMs) }
+            }
+        }
+        lastInstantViewerSeenAtMs = now
+    }
+
+    private fun bestInstantViewerRecentUrl(): String? {
+        val since = instantViewerSessionStartedAtMs.takeIf { it > 0L }
+            ?: (System.currentTimeMillis() - 15_000L)
+        val urls = synchronized(instantViewerRecentUrls) {
+            instantViewerRecentUrls
+                .filter { it.timeMs >= since && isInstantDownloadCandidateUrl(it.url) }
+                .map { it.url }
+                .distinct()
+        }
+        return urls.maxWithOrNull(
+            compareBy<String> { instantViewerMediaScore(it) }
+                .thenBy { it.length }
+        )
+    }
+
+    private fun rememberInstantViewerMediaUrl(url: String, timeMs: Long = System.currentTimeMillis()) {
+        if (!isInstantDownloadCandidateUrl(url)) return
+        synchronized(instantViewerRecentUrls) {
+            val iterator = instantViewerRecentUrls.iterator()
+            while (iterator.hasNext()) {
+                if (iterator.next().url == url) iterator.remove()
+            }
+            instantViewerRecentUrls.addFirst(RecentMediaUrl(url, timeMs))
+            val cutoff = timeMs - 60_000L
+            while (instantViewerRecentUrls.size > 40) instantViewerRecentUrls.removeLast()
+            while (instantViewerRecentUrls.isNotEmpty() && instantViewerRecentUrls.peekLast().timeMs < cutoff) {
+                instantViewerRecentUrls.removeLast()
+            }
+        }
+    }
+
+    private fun instantViewerRecentCount(): Int = synchronized(instantViewerRecentUrls) { instantViewerRecentUrls.size }
+
+    private fun isInstantDownloadCandidateUrl(url: String): Boolean {
+        if (!looksLikeMediaUrl(url) || looksLikeProfileImageUrl(url)) return false
+        val lower = url.lowercase(Locale.US)
+        if (lower.contains("sprite") || lower.contains("emoji") || lower.contains("placeholder")) return false
+        return true
+    }
+
+    private fun instantViewerMediaScore(url: String): Int {
+        val lower = url.lowercase(Locale.US)
+        var score = 0
+        if (lower.contains(".mp4") || lower.contains("video")) score += 200_000_000
+        if (lower.contains("s150x150") || lower.contains("s240x240") || lower.contains("s320x320")) score -= 50_000_000
+        val dimensionMatch = dimensionPattern.findAll(lower)
+            .mapNotNull { match ->
+                val width = match.groupValues.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+                val height = match.groupValues.getOrNull(2)?.toIntOrNull() ?: return@mapNotNull null
+                width * height
+            }
+            .maxOrNull()
+        if (dimensionMatch != null) score += dimensionMatch.coerceAtMost(100_000_000)
+        if (lower.contains("/t51.") && !lower.contains("-19")) score += 2_000_000
+        if (lower.contains("cdninstagram") || lower.contains("fbcdn")) score += 1_000
+        return score
+    }
+
+    private fun saveCurrentInstantSnapshot(activity: Activity, root: View): Boolean {
+        val mediaRect = findCurrentInstantMediaRect(root) ?: return false
+        if (root.width <= 0 || root.height <= 0) return false
+        return runCatching {
+            val rootRect = Rect()
+            root.getGlobalVisibleRect(rootRect)
+            val localRect = Rect(mediaRect).apply {
+                offset(-rootRect.left, -rootRect.top)
+                intersect(0, 0, root.width, root.height)
+            }
+            if (localRect.width() < dp(120) || localRect.height() < dp(120)) return false
+            val full = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+            root.draw(Canvas(full))
+            val crop = Bitmap.createBitmap(full, localRect.left, localRect.top, localRect.width(), localRect.height())
+            full.recycle()
+            val fileName = "unknown_instant_snapshot_${java.text.SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())}.jpg"
+            Thread({
+                runCatching {
+                    openDownloadOutputStream(activity, fileName, "image/jpeg", "instant").use { output ->
+                        check(crop.compress(Bitmap.CompressFormat.JPEG, 95, output)) { "Unable to encode instant snapshot" }
+                    }
+                }.onSuccess {
+                    mainHandler.post { Toast.makeText(androidContext, "Saved: $fileName", Toast.LENGTH_SHORT).show() }
+                }.onFailure { throwable ->
+                    logError("Instant snapshot save failed", throwable)
+                    mainHandler.post { Toast.makeText(androidContext, "Instant download failed", Toast.LENGTH_SHORT).show() }
+                }
+                crop.recycle()
+            }, "PurrfectInstantSnapshot").start()
+            Toast.makeText(androidContext, "Instagram download started", Toast.LENGTH_SHORT).show()
+            true
+        }.onFailure {
+            logError("Instant snapshot capture failed", it)
+        }.getOrDefault(false)
+    }
+
+    private fun findCurrentInstantMediaRect(root: View): Rect? {
+        val rootRect = Rect()
+        if (!root.getGlobalVisibleRect(rootRect) || rootRect.width() <= 0 || rootRect.height() <= 0) return null
+        val candidates = mutableListOf<Pair<Rect, Int>>()
+        var visited = 0
+        fun walk(view: View?, depth: Int) {
+            if (view == null || depth > 18 || visited++ > 1_600 || !view.isShown) return
+            if (view !is TextView && view !is EditText) {
+                val rect = Rect()
+                if (view.getGlobalVisibleRect(rect)) {
+                    val relTop = rect.top - rootRect.top
+                    val relBottom = rect.bottom - rootRect.top
+                    val minWidth = (rootRect.width() * 0.35f).roundToInt()
+                    val minHeight = (rootRect.height() * 0.18f).roundToInt()
+                    val area = rect.width() * rect.height()
+                    if (rect.width() >= minWidth &&
+                        rect.height() >= minHeight &&
+                        relTop > rootRect.height() * 0.08f &&
+                        relBottom < rootRect.height() * 0.78f &&
+                        area < rootRect.width() * rootRect.height() * 0.75f
+                    ) {
+                        val centerPenalty = abs(rect.centerX() - rootRect.centerX()) + abs(rect.centerY() - (rootRect.top + rootRect.height() * 0.36f).roundToInt())
+                        candidates += rect to (area - centerPenalty * 250)
+                    }
+                }
+            }
+            val group = view as? ViewGroup ?: return
+            for (index in 0 until group.childCount) walk(group.getChildAt(index), depth + 1)
+        }
+        walk(root, 0)
+        return candidates.maxByOrNull { it.second }?.first
+    }
+
     private fun launchAnyFilePicker(context: Context?) {
         val activity = findActivity(context) ?: return
         runCatching {
@@ -16617,6 +19890,255 @@ class InstagramHooks(
             }
             activity.startActivityForResult(intent, REQUEST_PICK_ANY_FILE)
         }.onFailure { logError("DM any-file picker launch failed", it) }
+    }
+
+    private fun launchInstantImagePicker(context: Context?) {
+        val baseActivity = findActivity(context) ?: currentActivity ?: return
+        val activity = activeInstantsCameraActivity(baseActivity)
+        runCatching {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "image/*"
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"))
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            }
+            activity.startActivityForResult(intent, REQUEST_PICK_INSTANT_IMAGE)
+        }.onFailure { logError("Instant image picker launch failed", it) }
+    }
+
+    private fun handlePickedInstantImage(activity: Activity, resultCode: Int, data: Intent?) {
+        val uri = data?.data
+        if (resultCode != Activity.RESULT_OK || uri == null) return
+        val mime = activity.contentResolver.getType(uri).orEmpty()
+        if (!mime.startsWith("image/")) {
+            Toast.makeText(activity, "Pick a picture for Instants", Toast.LENGTH_SHORT).show()
+            return
+        }
+        runCatching {
+            activity.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        runCatching {
+            val replacement = prepareInstantReplacementImage(activity, uri)
+            pendingInstantImageReplacement = PendingInstantImageReplacement(
+                imageFile = replacement,
+                queuedAtMs = SystemClock.elapsedRealtime()
+            )
+            Toast.makeText(activity, "Uploading image to Instants...", Toast.LENGTH_SHORT).show()
+            val root = activity.window?.decorView
+            if (root != null) {
+                root.postDelayed({
+                    triggerNativeInstantCaptureWhenReady(activity)
+                }, 450L)
+            } else {
+                triggerNativeInstantCaptureWhenReady(activity)
+            }
+        }.onFailure {
+            logError("Instant image send failed", it)
+            Toast.makeText(activity, "Instant upload failed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun prepareInstantReplacementImage(activity: Activity, uri: Uri): File {
+        val bitmap = decodeInstantReplacementBitmap(activity, uri)
+        val dir = File(activity.cacheDir, "purrfect_instants").apply { mkdirs() }
+        val outFile = File(dir, "gallery_instant_${System.currentTimeMillis()}.jpg")
+        outFile.outputStream().use { output ->
+            check(bitmap.compress(Bitmap.CompressFormat.JPEG, 96, output)) { "Unable to encode selected image" }
+        }
+        bitmap.recycle()
+        return outFile
+    }
+
+    private fun decodeInstantReplacementBitmap(activity: Activity, uri: Uri): Bitmap {
+        decodeInstantBitmapWithImageDecoder(activity, uri)?.let { return it }
+        decodeInstantBitmapFromDescriptor(activity, uri)?.let { return it }
+        decodeInstantBitmapFromStream(activity, uri)?.let { return it }
+        error("Unable to decode selected image uri=$uri")
+    }
+
+    private fun decodeInstantBitmapWithImageDecoder(activity: Activity, uri: Uri): Bitmap? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+        return runCatching {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(activity.contentResolver, uri)) { decoder, info, _ ->
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                val options = BitmapFactory.Options().apply {
+                    outWidth = info.size.width
+                    outHeight = info.size.height
+                }
+                decoder.setTargetSampleSize(instantBitmapSampleSize(options))
+            }
+        }.onFailure {
+            logError("Instant ImageDecoder decode failed uri=$uri", it)
+        }.getOrNull()
+    }
+
+    private fun decodeInstantBitmapFromDescriptor(activity: Activity, uri: Uri): Bitmap? = runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        activity.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+            BitmapFactory.decodeFileDescriptor(descriptor.fileDescriptor, null, bounds)
+        } ?: return@runCatching null
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = instantBitmapSampleSize(bounds)
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        activity.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
+            BitmapFactory.decodeFileDescriptor(descriptor.fileDescriptor, null, options)
+        }
+    }.onFailure {
+        logError("Instant descriptor decode failed uri=$uri", it)
+    }.getOrNull()
+
+    private fun decodeInstantBitmapFromStream(activity: Activity, uri: Uri): Bitmap? = runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        activity.contentResolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, bounds)
+        } ?: return@runCatching null
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = instantBitmapSampleSize(bounds)
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        activity.contentResolver.openInputStream(uri)?.use { input ->
+            BitmapFactory.decodeStream(input, null, options)
+        }
+    }.onFailure {
+        logError("Instant stream decode failed uri=$uri", it)
+    }.getOrNull()
+
+    private fun instantBitmapSampleSize(bounds: BitmapFactory.Options): Int {
+        val width = bounds.outWidth.takeIf { it > 0 } ?: return 1
+        val height = bounds.outHeight.takeIf { it > 0 } ?: return 1
+        val maxDimension = 2160
+        var sampleSize = 1
+        while ((width / sampleSize) > maxDimension || (height / sampleSize) > maxDimension) {
+            sampleSize *= 2
+        }
+        return sampleSize.coerceAtLeast(1)
+    }
+
+    private fun triggerNativeInstantCapture(activity: Activity) {
+        val root = activity.window?.decorView ?: error("Instagram window unavailable")
+        val capture = findView(root) { view ->
+            view.isShown && view.contentDescription?.toString()?.equals("Capture", ignoreCase = true) == true
+        }
+        val rootLocation = IntArray(2)
+        val captureLocation = IntArray(2)
+        root.getLocationOnScreen(rootLocation)
+        val (x, y) = if (capture != null && capture.width > 0 && capture.height > 0) {
+            capture.getLocationOnScreen(captureLocation)
+            (captureLocation[0] - rootLocation[0] + capture.width / 2f) to
+                (captureLocation[1] - rootLocation[1] + capture.height / 2f)
+        } else {
+            root.width / 2f to root.height * 0.81f
+        }
+        dispatchInstantTap(root, x, y, rootLocation[0] + x, rootLocation[1] + y)
+        logInfo("Triggered native Instants capture for gallery replacement")
+    }
+
+    private fun triggerNativeInstantCaptureWhenReady(activity: Activity, attempt: Int = 0) {
+        val targetActivity = currentReadyInstantsActivity(activity)
+        val root = targetActivity.window?.decorView
+        if (root == null || !isInstantsCameraSurface(root, targetActivity)) {
+            if (attempt < 16) {
+                (root ?: targetActivity.window?.decorView ?: activity.window?.decorView)?.postDelayed({
+                    triggerNativeInstantCaptureWhenReady(targetActivity, attempt + 1)
+                }, 250L) ?: Handler(Looper.getMainLooper()).postDelayed({
+                    triggerNativeInstantCaptureWhenReady(targetActivity, attempt + 1)
+                }, 250L)
+            } else {
+                pendingInstantImageReplacement = null
+                Toast.makeText(targetActivity, "Instant upload failed", Toast.LENGTH_SHORT).show()
+                logInfo("Instant capture trigger skipped: Instants camera surface not visible")
+            }
+            return
+        }
+        suppressInstantUploadUntilModalExit = false
+        lastInstantUploadShelfTapMs = 0L
+        ensureInstantUploadButton(targetActivity, root)
+        triggerNativeInstantCapture(targetActivity)
+        scheduleInstantReplacementPasses(targetActivity)
+    }
+
+    private fun dispatchInstantTap(root: View, x: Float, y: Float, rawX: Float, rawY: Float) {
+        val downTime = SystemClock.uptimeMillis()
+        Thread({
+            val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, rawX, rawY, 0).apply {
+                source = InputDevice.SOURCE_TOUCHSCREEN
+            }
+            val up = MotionEvent.obtain(downTime, downTime + 80L, MotionEvent.ACTION_UP, rawX, rawY, 0).apply {
+                source = InputDevice.SOURCE_TOUCHSCREEN
+            }
+            runCatching {
+                val instrumentation = Instrumentation()
+                instrumentation.sendPointerSync(down)
+                Thread.sleep(80L)
+                instrumentation.sendPointerSync(up)
+            }.onFailure {
+                logError("Instant instrumentation tap failed", it)
+                root.post {
+                    val localDown = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0)
+                    val localUp = MotionEvent.obtain(downTime, downTime + 80L, MotionEvent.ACTION_UP, x, y, 0)
+                    root.dispatchTouchEvent(localDown)
+                    root.postDelayed({
+                        runCatching { root.dispatchTouchEvent(localUp) }
+                        localUp.recycle()
+                    }, 80L)
+                    localDown.recycle()
+                }
+            }
+            down.recycle()
+            up.recycle()
+        }, "PurrfectInstantTap").start()
+    }
+
+    private fun scheduleInstantReplacementPasses(activity: Activity) {
+        val delays = longArrayOf(15L, 35L, 60L, 90L, 130L, 180L, 250L, 350L, 500L, 700L, 950L, 1300L, 1700L, 2200L, 3000L)
+        Thread({
+            var previousDelay = 0L
+            delays.forEach { delay ->
+                val sleepFor = (delay - previousDelay).coerceAtLeast(0L)
+                if (sleepFor > 0L) Thread.sleep(sleepFor)
+                replaceNewestNativeInstantIfPending(activity)
+                previousDelay = delay
+            }
+        }, "PurrfectInstantReplace").start()
+    }
+
+    private fun replaceNewestNativeInstantIfPending(activity: Activity) {
+        val pending = pendingInstantImageReplacement ?: return
+        if (SystemClock.elapsedRealtime() - pending.queuedAtMs > 6_000L) {
+            pendingInstantImageReplacement = null
+            return
+        }
+        val target = newestNativeInstantFile(activity) ?: return
+        runCatching {
+            pending.imageFile.inputStream().use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            }
+            target.setLastModified(System.currentTimeMillis())
+            logInfo("Replaced native Instants capture with gallery image path=${target.absolutePath}")
+        }.onFailure {
+            logError("Failed replacing native Instants capture", it)
+        }
+    }
+
+    private fun newestNativeInstantFile(activity: Activity): File? {
+        val root = File(activity.filesDir, "ig_original_images")
+        if (!root.exists()) return null
+        val minLastModified = System.currentTimeMillis() - 10_000L
+        var newest: File? = null
+        fun walk(file: File, depth: Int) {
+            if (depth > 3 || !file.exists()) return
+            if (file.isFile) {
+                val name = file.name.lowercase(Locale.US)
+                if (name.startsWith("quicksnap_") && name.endsWith(".jpg") && file.lastModified() >= minLastModified) {
+                    if (newest == null || file.lastModified() > newest!!.lastModified()) newest = file
+                }
+                return
+            }
+            file.listFiles()?.forEach { walk(it, depth + 1) }
+        }
+        walk(root, 0)
+        return newest
     }
 
     private fun handlePickedAnyFile(activity: Activity, resultCode: Int, data: Intent?) {
@@ -17298,7 +20820,7 @@ class InstagramHooks(
         "enablePostDownload", "enableStoryDownload", "enableReelDownload", "enableProfileDownload",
         "enableReelThumbnailDownload",
         "enableStoryMarkSeenButton", "enableStoryRepostButton", "enableHighQualityStoryUpload",
-        "enableGifCommentDownload", "enableDmAnyFileUpload"
+        "enableDmAnyFileUpload", "enableUploadInstantsFromGallery"
     )
 
     private fun updateHostFeatureGroup(activity: Activity, keys: List<String>, checked: Boolean, sectionTitle: String) {
@@ -17532,7 +21054,7 @@ class InstagramHooks(
                             storiesStartWithSound && showFollowerToast &&
                             showFeatureToasts && enableStoryMentions &&
                             enableCopyComment && enableCopyBio && disableDoubleTapLike &&
-                            enableMonetTheme && customEmojiFontEnabled &&
+                            customEmojiFontEnabled &&
                             enableShareSheetEmojiShortcuts && enableActivityHistory &&
                             enableNavigationTabCustomization && enableConfirmRefresh &&
                             enableNotesLocationSpoof && enableHideChats &&
@@ -17554,7 +21076,6 @@ class InstagramHooks(
                 HostFeature.BooleanFeature("enableCopyComment", "Copy Comment") { enableCopyComment },
                 HostFeature.BooleanFeature("enableCopyBio", "Copy Profile Bio") { enableCopyBio },
                 HostFeature.BooleanFeature("disableDoubleTapLike", "Disable Double Tap to Like") { disableDoubleTapLike },
-                HostFeature.BooleanFeature("enableMonetTheme", "Monet Theme") { enableMonetTheme },
                 HostFeature.BooleanFeature("customEmojiFontEnabled", "Custom Emoji Font") { customEmojiFontEnabled },
                 HostFeature.BooleanFeature("enableShareSheetEmojiShortcuts", "Share Sheet Emoji Shortcuts") { enableShareSheetEmojiShortcuts },
                 HostFeature.BooleanFeature("enableActivityHistory", "Activity History Logging") { enableActivityHistory },
@@ -17612,7 +21133,7 @@ class InstagramHooks(
                             enableProfileDownload &&
                             enableReelThumbnailDownload && enableStoryMarkSeenButton &&
                             enableStoryRepostButton && enableHighQualityStoryUpload &&
-                            enableGifCommentDownload && enableDmAnyFileUpload
+                            enableDmAnyFileUpload && enableUploadInstantsFromGallery
                     },
                     update = { activity, checked ->
                         updateHostFeatureGroup(activity, hostDownloaderMasterKeys, checked, "Downloader")
@@ -17625,9 +21146,9 @@ class InstagramHooks(
                 HostFeature.BooleanFeature("enableReelThumbnailDownload", "Download Reel Thumbnails") { enableReelThumbnailDownload },
                 HostFeature.BooleanFeature("enableStoryMarkSeenButton", "Story Mark as Seen Button") { enableStoryMarkSeenButton },
                 HostFeature.BooleanFeature("enableStoryRepostButton", "Story Repost Button") { enableStoryRepostButton },
-                HostFeature.BooleanFeature("enableGifCommentDownload", "Download GIF comments") { enableGifCommentDownload },
                 HostFeature.BooleanFeature("enableHighQualityStoryUpload", "High Quality Story Upload") { enableHighQualityStoryUpload },
                 HostFeature.BooleanFeature("enableDmAnyFileUpload", "DM any-file upload picker") { enableDmAnyFileUpload },
+                HostFeature.BooleanFeature("enableUploadInstantsFromGallery", "Upload Instants from Gallery") { enableUploadInstantsFromGallery },
                 HostFeature.BooleanFeature("downloaderUsernameFolder", "Save in Username Subfolder") { downloaderUsernameFolder },
                 HostFeature.BooleanFeature("downloaderAddTimestamp", "Add Timestamp to Filename") { downloaderAddTimestamp },
                 HostFeature.StringFeature("downloaderCustomPath", "Download Folder") { downloaderCustomPath },
@@ -17835,17 +21356,70 @@ class InstagramHooks(
             ?: currentActivity?.takeUnless { it.isFinishing }
             ?: context
         val packageName = androidContext.packageName
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("instagram://settings_devoptions"))
-            .setPackage(packageName)
-        if (starter !is Activity) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val uris = listOf(
+            "instagram://settings_devoptions",
+            "instagram://developer_options",
+            "instagram://settings/developer_options",
+            "instagram://internal_settings",
+            "instagram://settings/internal",
+            "instagram://debug",
+            "instagram://debug_settings",
+            "instagram://settings/debug",
+            "instagram://settings/account/dev_options",
+            "instagram://settings/dev_options"
+        )
+        var opened = false
+        for (uri in uris) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).setPackage(packageName)
+            if (starter !is Activity) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val result = runCatching { starter.startActivity(intent) }
+            if (result.isSuccess) {
+                opened = true
+                logInfo("Opened Instagram Dev Options with URI: $uri")
+                break
+            }
         }
-        runCatching {
-            starter.startActivity(intent)
-        }.onFailure { throwable ->
-            logError("Failed to open Instagram Dev Options", throwable)
-            Toast.makeText(context, "Unable to open Instagram developer options", Toast.LENGTH_SHORT).show()
+
+        if (!opened) {
+            logInfo("Deep link attempts failed; trying direct activity launch")
+            opened = tryOpenDevOptionsActivityDirectly(starter, packageName)
         }
+
+        if (!opened) {
+            logInfo("Failed to open Instagram Dev Options with any known URI")
+            Toast.makeText(context, "Unable to open Instagram developer options. Try enabling Developer Mode first.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun tryOpenDevOptionsActivityDirectly(starter: Any, packageName: String): Boolean {
+        val ctx = starter as? Context ?: return false
+        val isActivity = starter is Activity
+
+        val candidateClasses = listOf(
+            "com.instagram.debug.devoptions.DeveloperOptionsActivity",
+            "com.instagram.debug.devoptions.DevOptionsActivity",
+            "com.instagram.debug.quickexperiment.QuickExperimentSettingsActivity",
+            "com.instagram.debug.devoptions.DeveloperOptionsFragment",
+            "com.instagram.debug.devoptions.internal.DeveloperOptionsActivity"
+        )
+
+        candidateClasses.forEach { className ->
+            val result = runCatching {
+                val cls = Class.forName(className, false, appClassLoader)
+                val intent = Intent(ctx, cls)
+                if (!isActivity) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                ctx.startActivity(intent)
+                logInfo("Opened Instagram Dev Options via direct activity: $className")
+                true
+            }
+            if (result.getOrDefault(false)) return true
+        }
+
+        return false
     }
 
     private fun importInstagramDevConfig(activity: Activity) {
@@ -18045,6 +21619,7 @@ class InstagramHooks(
         val media = findStoryTrayMedia(view)
         if (media.profileUrl == null && media.coverUrl == null) return false
         pendingStoryTrayMenu = PendingStoryTrayMenu(activity, media, System.currentTimeMillis())
+        scheduleNativeMenuInjection(activity.window?.decorView)
         logInfo("Primed Story tray menu actions from long press")
         return false
     }
@@ -18052,34 +21627,13 @@ class InstagramHooks(
     private fun primeStoryTrayMenuFromTouch(view: View, event: MotionEvent) {
         if (!state.enableStoryTrayLongPressActions || event.actionMasked != MotionEvent.ACTION_DOWN) return
         if (event.rawY > dp(view, 720)) return
-        if (!isStoryTrayExplicitMenuTouchTarget(view)) return
         if (!isStoryTraySurface(view)) return
         val activity = findActivity(view.context) ?: currentActivity ?: return
         val media = findStoryTrayMedia(view)
         if (media.profileUrl == null && media.coverUrl == null) return
         pendingStoryTrayMenu = PendingStoryTrayMenu(activity, media, System.currentTimeMillis())
+        scheduleNativeMenuInjection(activity.window?.decorView)
         logInfo("Primed Story tray menu actions from touch")
-    }
-
-    private fun isStoryTrayExplicitMenuTouchTarget(view: View): Boolean {
-        var current: View? = view
-        repeat(4) {
-            val target = current ?: return false
-            val name = resourceEntryName(target).orEmpty().lowercase(Locale.US)
-            val description = target.contentDescription?.toString().orEmpty().lowercase(Locale.US)
-            if (name.contains("more") ||
-                name.contains("overflow") ||
-                name.contains("menu") ||
-                name.contains("options") ||
-                description == "more" ||
-                description.contains("more options") ||
-                description.contains("menu")
-            ) {
-                return true
-            }
-            current = target.parent as? View
-        }
-        return false
     }
 
     private fun findStoryTrayMedia(pressed: View): StoryTrayMedia {
@@ -18113,7 +21667,8 @@ class InstagramHooks(
                 bestCover = candidate
             }
         }
-        return StoryTrayMedia(bestProfile?.second, bestCover?.second)
+        val profileUrl = bestProfile?.second
+        return StoryTrayMedia(profileUrl, bestCover?.second ?: profileUrl)
     }
 
     private fun nearestStoryTrayContainer(view: View): View? {
@@ -18186,36 +21741,9 @@ class InstagramHooks(
         }, "PurrfectInstaStoryPreview").start()
     }
 
-    private fun handleGifCommentLongPress(view: View): Boolean {
-        if (!state.enableGifCommentDownload) return false
-        val url = findGifCommentUrlNear(view) ?: return false
-        if (!isCommentSurface(view) && !isCommentSurfaceTree(view.rootView)) return false
-        pendingGifCommentMenu = PendingGifCommentMenu(url, System.currentTimeMillis())
-        logInfo("Primed GIF comment download menu")
-        return false
-    }
-
-    private fun findGifCommentUrlNear(view: View): String? {
-        var current: View? = view
-        repeat(8) {
-            val node = current ?: return@repeat
-            storyTrayImageUrls[node]?.takeIf { looksLikeGifCommentUrl(it) }?.let { return it }
-            if (node is ViewGroup) findGifCommentUrlInTree(node, 0, intArrayOf(80))?.let { return it }
-            current = node.parent as? View
-        }
-        return null
-    }
-
-    private fun findGifCommentUrlInTree(view: View, depth: Int, budget: IntArray): String? {
-        if (depth > 8 || budget[0]-- <= 0) return null
-        storyTrayImageUrls[view]?.takeIf { looksLikeGifCommentUrl(it) }?.let { return it }
-        extractUrlFromView(view)?.takeIf { looksLikeGifCommentUrl(it) }?.let { return it }
-        if (view is ViewGroup) {
-            for (i in 0 until view.childCount) {
-                findGifCommentUrlInTree(view.getChildAt(i), depth + 1, budget)?.let { return it }
-            }
-        }
-        return null
+    private fun redactCdnUrlForLog(url: String): String {
+        val clean = url.substringBefore("&se=").substringBefore("?se=").substringBefore("&oe=").substringBefore("?oe=")
+        return clean.take(420)
     }
 
     private fun isCommentSurface(view: View): Boolean {
@@ -18271,20 +21799,6 @@ class InstagramHooks(
             current = node.parent as? View
         }
         return false
-    }
-
-    private fun looksLikeGifCommentUrl(url: String?): Boolean {
-        val lower = url?.lowercase(Locale.US) ?: return false
-        if (!lower.startsWith("http://") && !lower.startsWith("https://")) return false
-        if (looksLikeProfileImageUrl(lower)) return false
-        return lower.contains("giphy") ||
-            lower.contains("tenor") ||
-            lower.contains("gif") ||
-            lower.contains("sticker") ||
-            lower.contains(".webp") ||
-            lower.contains(".mp4") ||
-            lower.contains("image_url") ||
-            lower.contains("animated")
     }
 
     private fun applyProfilePictureDownload(view: View) {
@@ -18595,8 +22109,10 @@ class InstagramHooks(
     }
 
     private fun handleCopyLongPress(view: View): Boolean {
-        val text = findTextForCopy(view) ?: return false
         if (!state.enableCopyComment && !state.enableCopyBio) return false
+        val textView = view as? TextView ?: return false
+        val text = textView.text?.toString()?.trim()?.takeIf { it.isNotBlank() } ?: return false
+        if (!shouldMakeCopyable(textView, text)) return false
         val clipboard = androidContext.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return false
         clipboard.setPrimaryClip(ClipData.newPlainText("Instagram", text))
         Toast.makeText(androidContext, "Copied", Toast.LENGTH_SHORT).show()
@@ -19389,6 +22905,7 @@ class InstagramHooks(
         val query = lower(uri.query)
         val host = lower(uri.host)
 
+        noteDirectOutgoingMessageForAutoscroll(uri)
         if (state.markTextsSeenAfterReply && isDirectTextSendRequest(uri)) {
             logInfo("Detected outgoing Direct text/reply while seen-after-reply is enabled: $path")
             markDmSeenAfterReply(currentActivity, currentActivity?.window?.decorView)
@@ -19837,6 +23354,10 @@ class InstagramHooks(
             .getOrElse { body.contains("\"followed_by\":true") || body.contains("\"followed_by\": true") }
     }
 
+    private val toJsonStringCache = Collections.synchronizedMap(object : LinkedHashMap<String, String?>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String?>?): Boolean = size > 64
+    })
+
     private fun toJsonString(value: Any?, depth: Int): String? {
         if (value == null || depth < 0) return null
         when (value) {
@@ -19852,19 +23373,25 @@ class InstagramHooks(
             }
         }
         if (depth == 0) return null
+        val cacheKey = "${System.identityHashCode(value)}@${value.javaClass.name}"
+        toJsonStringCache[cacheKey]?.let { return it }
         var cls: Class<*>? = value.javaClass
         var visited = 0
-        while (cls != null && cls != Any::class.java && visited < 80) {
+        while (cls != null && cls != Any::class.java && visited < 40) {
             cls.declaredFields.forEach { field ->
-                if (visited++ >= 80 || Modifier.isStatic(field.modifiers) || field.type.isPrimitive) return@forEach
+                if (visited++ >= 40 || Modifier.isStatic(field.modifiers) || field.type.isPrimitive) return@forEach
                 runCatching {
                     field.isAccessible = true
                     val nested = field.get(value)
                     if (nested !== value && nested !is Number) toJsonString(nested, depth - 1) else null
-                }.getOrNull()?.takeIf { it.contains("followed_by") }?.let { return it }
+                }.getOrNull()?.takeIf { it.contains("followed_by") }?.let { result ->
+                    toJsonStringCache[cacheKey] = result
+                    return result
+                }
             }
             cls = cls.superclass
         }
+        toJsonStringCache[cacheKey] = null
         return null
     }
 
@@ -19897,14 +23424,30 @@ class InstagramHooks(
 
     private fun rememberMediaUrl(url: String) {
         if (!looksLikeMediaUrl(url)) return
+        val now = System.currentTimeMillis()
         synchronized(recentMediaUrls) {
             recentMediaUrls.remove(url)
             recentMediaUrls.add(url)
             while (recentMediaUrls.size > 60) recentMediaUrls.removeAt(0)
         }
+        synchronized(recentMediaUrlEvents) {
+            val iterator = recentMediaUrlEvents.iterator()
+            while (iterator.hasNext()) {
+                if (iterator.next().url == url) iterator.remove()
+            }
+            recentMediaUrlEvents.addFirst(RecentMediaUrl(url, now))
+            val cutoff = now - 90_000L
+            while (recentMediaUrlEvents.size > 120) recentMediaUrlEvents.removeLast()
+            while (recentMediaUrlEvents.isNotEmpty() && recentMediaUrlEvents.peekLast().timeMs < cutoff) {
+                recentMediaUrlEvents.removeLast()
+            }
+        }
+        if (now - lastInstantViewerSeenAtMs in 0L..12_000L) {
+            rememberInstantViewerMediaUrl(url, now)
+        }
         synchronized(dmRecentUrls) {
             dmRecentUrls.removeAll { it.url == url }
-            dmRecentUrls.addFirst(RecentMediaUrl(url, System.currentTimeMillis()))
+            dmRecentUrls.addFirst(RecentMediaUrl(url, now))
             pruneDmRecentUrls()
         }
     }
@@ -20902,9 +24445,17 @@ class InstagramHooks(
         return null
     }
 
-    private fun parseInstagramAbsoluteDate(raw: String, pattern: String): Date? {
+    private val cachedAbsoluteFormatters = ConcurrentHashMap<String, ThreadLocal<SimpleDateFormat>>()
+    private val cachedCustomDateFormatter = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue(): SimpleDateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+    }
+    @Volatile private var lastCustomDateFormatPattern: String = "yyyy-MM-dd HH:mm"
+
+    private fun parseInstagramAbsoluteDate(raw: String, pattern: String, ): Date? {
         return runCatching {
-            val formatter = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }
+            val formatter = cachedAbsoluteFormatters.getOrPut(pattern) {
+                ThreadLocal.withInitial { SimpleDateFormat(pattern, Locale.US).apply { isLenient = false } }
+            }.get()
             val position = ParsePosition(0)
             val parsed = formatter.parse(raw, position) ?: return@runCatching null
             if (position.index != raw.length) return@runCatching null
@@ -20924,8 +24475,15 @@ class InstagramHooks(
     }
 
     private fun formatCustomInstagramDate(date: Date): String {
+        val pattern = state.customDateFormat.ifBlank { "yyyy-MM-dd HH:mm" }
+        val formatter = if (pattern == lastCustomDateFormatPattern) {
+            cachedCustomDateFormatter.get()
+        } else {
+            lastCustomDateFormatPattern = pattern
+            SimpleDateFormat(pattern, Locale.getDefault()).also { cachedCustomDateFormatter.set(it) }
+        }
         return runCatching {
-            SimpleDateFormat(state.customDateFormat.ifBlank { "yyyy-MM-dd HH:mm" }, Locale.getDefault()).format(date)
+            formatter.format(date)
         }.getOrElse {
             SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(date)
         }
@@ -20944,23 +24502,29 @@ class InstagramHooks(
         return absoluteMonthNeedles.any { lower.contains(it) }
     }
 
+    private val dateSurfaceCache = Collections.synchronizedMap(WeakHashMap<View, Boolean>())
+
     private fun dateSurfaceAllowed(view: View): Boolean {
-        val surface = buildString {
-            var current: View? = view
-            repeat(10) {
-                val node = current ?: return@repeat
-                append(' ').append(resourceEntryName(node).orEmpty())
-                append(' ').append(node.javaClass.name)
-                current = node.parent as? View
-            }
-            var context: Context? = view.context
-            repeat(8) {
-                val ctx = context ?: return@repeat
-                append(' ').append(ctx.javaClass.name)
-                context = (ctx as? ContextWrapper)?.baseContext
-            }
-        }.lowercase(Locale.US)
-        return when {
+        dateSurfaceCache[view]?.let { return it }
+        val sb = StringBuilder()
+        var current: View? = view
+        var depth = 0
+        while (current != null && depth < 6) {
+            val entryName = resourceEntryName(current)
+            if (entryName != null) sb.append(' ').append(entryName)
+            sb.append(' ').append(current.javaClass.name)
+            current = current.parent as? View
+            depth++
+        }
+        var context: Context? = view.context
+        depth = 0
+        while (context != null && depth < 5) {
+            sb.append(' ').append(context.javaClass.name)
+            context = (context as? ContextWrapper)?.baseContext
+            depth++
+        }
+        val surface = sb.toString().lowercase(Locale.US)
+        val result = when {
             surface.contains("comment") || surface.contains("ufi") -> state.customDateFormatComments
             surface.contains("direct") || surface.contains("inbox") || surface.contains("thread") ||
                 surface.contains("message") || surface.contains("mailbox") -> state.customDateFormatDirect
@@ -20968,6 +24532,8 @@ class InstagramHooks(
             surface.contains("clips") || surface.contains("reels") || surface.contains("reel_viewer") -> state.customDateFormatReels
             else -> state.customDateFormatFeed
         }
+        dateSurfaceCache[view] = result
+        return result
     }
 
     private fun buildSelector(view: View, root: View = view.rootView ?: view): String? {
@@ -21083,10 +24649,24 @@ class InstagramHooks(
     }
 
     private fun notesSpoofCoordinates(): Pair<Double, Double>? {
-        if (!state.enableNotesLocationSpoof) return null
-        val latitude = state.notesSpoofLatitude.toDoubleOrNull()?.takeIf { it in -90.0..90.0 } ?: return null
-        val longitude = state.notesSpoofLongitude.toDoubleOrNull()?.takeIf { it in -180.0..180.0 } ?: return null
+        if (!hasValidNotesLocationSpoof()) return null
+        val latitude = parsedNotesSpoofLatitude() ?: return null
+        val longitude = parsedNotesSpoofLongitude() ?: return null
         return latitude to longitude
+    }
+
+    private fun hasValidNotesLocationSpoof(current: InstagramFeatureState = state): Boolean {
+        return current.enableNotesLocationSpoof &&
+            parsedNotesSpoofLatitude(current) != null &&
+            parsedNotesSpoofLongitude(current) != null
+    }
+
+    private fun parsedNotesSpoofLatitude(current: InstagramFeatureState = state): Double? {
+        return current.notesSpoofLatitude.trim().toDoubleOrNull()?.takeIf { it in -90.0..90.0 }
+    }
+
+    private fun parsedNotesSpoofLongitude(current: InstagramFeatureState = state): Double? {
+        return current.notesSpoofLongitude.trim().toDoubleOrNull()?.takeIf { it in -180.0..180.0 }
     }
 
     private fun spoofLocation(location: Location?): Location? {
@@ -21285,7 +24865,7 @@ class InstagramHooks(
     private fun hasAnyDownloadFeature(): Boolean {
         return state.enablePostDownload || state.enableStoryDownload || state.enableReelDownload ||
             state.enableProfileDownload || state.enableReelThumbnailDownload ||
-            state.enableStoryRepostButton || state.enableGifCommentDownload
+            state.enableStoryRepostButton
     }
 
     private fun hasAnyQuickToggle(): Boolean {
@@ -21412,11 +24992,6 @@ class InstagramHooks(
     private data class PendingStoryTrayMenu(
         val activity: Activity,
         val media: StoryTrayMedia,
-        val createdAtMs: Long
-    )
-
-    private data class PendingGifCommentMenu(
-        val url: String,
         val createdAtMs: Long
     )
 
@@ -21567,6 +25142,11 @@ class InstagramHooks(
         val broadcastStarted: AtomicBoolean = AtomicBoolean(false)
     )
 
+    private data class PendingInstantImageReplacement(
+        val imageFile: File,
+        val queuedAtMs: Long
+    )
+
     private class UploadGlyphDrawable : android.graphics.drawable.Drawable() {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
@@ -21592,6 +25172,47 @@ class InstagramHooks(
             canvas.drawLine(cx, top, cx, shaftBottom, paint)
             canvas.drawLine(cx, top, b.left + w * 0.37f, mid, paint)
             canvas.drawLine(cx, top, b.left + w * 0.63f, mid, paint)
+            canvas.drawLine(left, trayTop, left, trayBottom, paint)
+            canvas.drawLine(left, trayBottom, right, trayBottom, paint)
+            canvas.drawLine(right, trayBottom, right, trayTop, paint)
+        }
+
+        override fun setAlpha(alpha: Int) {
+            paint.alpha = alpha
+        }
+
+        override fun setColorFilter(colorFilter: ColorFilter?) {
+            paint.colorFilter = colorFilter
+        }
+
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+    }
+
+    private class DownloadGlyphDrawable : android.graphics.drawable.Drawable() {
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            val w = b.width().toFloat()
+            val h = b.height().toFloat()
+            val cx = b.left + w / 2f
+            val top = b.top + h * 0.20f
+            val tip = b.top + h * 0.62f
+            val arrowY = b.top + h * 0.48f
+            val trayTop = b.top + h * 0.68f
+            val trayBottom = b.top + h * 0.82f
+            val left = b.left + w * 0.26f
+            val right = b.left + w * 0.74f
+            paint.strokeWidth = maxOf(2.5f, w * 0.075f)
+
+            canvas.drawLine(cx, top, cx, tip, paint)
+            canvas.drawLine(cx, tip, b.left + w * 0.37f, arrowY, paint)
+            canvas.drawLine(cx, tip, b.left + w * 0.63f, arrowY, paint)
             canvas.drawLine(left, trayTop, left, trayBottom, paint)
             canvas.drawLine(left, trayBottom, right, trayBottom, paint)
             canvas.drawLine(right, trayBottom, right, trayTop, paint)

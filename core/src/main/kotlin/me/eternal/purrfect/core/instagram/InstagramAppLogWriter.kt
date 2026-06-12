@@ -44,6 +44,7 @@ internal object InstagramAppLogWriter {
     }
 
     private fun write(context: Context?, level: LogLevel, tag: String, message: String) {
+        if (level == LogLevel.INFO) return
         val targetContext = context ?: broadcastContext
         val clipped = message.take(4096)
         executor.execute {

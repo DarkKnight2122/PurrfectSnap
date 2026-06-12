@@ -153,6 +153,13 @@
             </intent-filter>
         </receiver>
         <receiver
+            android:name=".instagram.InstagramDexKitScanReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.action.INSTAGRAM_DEXKIT_SCAN" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name=".instagram.InstagramConfigBroadcastReceiver"
             android:exported="true">
             <intent-filter>

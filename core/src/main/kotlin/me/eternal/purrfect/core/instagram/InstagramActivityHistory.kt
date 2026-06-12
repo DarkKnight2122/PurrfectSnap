@@ -8,7 +8,11 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
@@ -37,6 +41,7 @@ import android.widget.CompoundButton
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.VideoView
+import android.webkit.CookieManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import de.robv.android.xposed.XC_MethodHook
@@ -78,7 +83,11 @@ internal object InstagramActivityHistoryHooks {
     private val userInfoPath = Pattern.compile(".*/users/([^/]+)/info(?:_stream)?/.*")
     private val recentRecords = ConcurrentHashMap<String, Long>()
     private val visibleViews = Collections.synchronizedMap(WeakHashMap<View, Long>())
+    private val profileImageUrls = Collections.synchronizedMap(WeakHashMap<View, String>())
+    private val recentProfileThumbnails = ConcurrentHashMap<String, String>()
+    private val recentProfileImageSamples = mutableListOf<TimedThumbnail>()
     private val recentMediaObjects = Collections.synchronizedMap(WeakHashMap<Any, Long>())
+    @Volatile private var recentProfileHeaderThumbnail: TimedThumbnail? = null
     private val mountedNativePages = Collections.synchronizedMap(WeakHashMap<Activity, Boolean>())
     private val mainHandler = Handler(Looper.getMainLooper())
     private val executor = Executors.newCachedThreadPool()
@@ -111,6 +120,9 @@ internal object InstagramActivityHistoryHooks {
     @Volatile private var storyVideoVersionGetUrl: Method? = null
 
     private const val TAG_REEL_MEDIA = 1521086594
+    private const val CACHE_STORY_SEEN_MISSING = "ActivityHistory_story_seen_missing_v1"
+
+    private data class TimedThumbnail(val url: String, val timeMs: Long)
 
     fun install(context: Context, classLoader: ClassLoader) {
         appContext = context.applicationContext ?: context
@@ -417,6 +429,10 @@ internal object InstagramActivityHistoryHooks {
                 log("hooked story seen cached: ${cached.declaringClass.name}.${cached.name}")
                 return
             }
+            if (InstagramDexKitCache.loadString(CACHE_STORY_SEEN_MISSING) == "1") {
+                log("story seen method not found cached")
+                return
+            }
         }
         val methods = bridge.findMethodsUsingStrings("media/seen/")
         var hooked = 0
@@ -431,7 +447,23 @@ internal object InstagramActivityHistoryHooks {
                 log("hooked story seen: $signature")
             }.onFailure { log("story seen hook failed for $signature: ${it.message}") }
         }
-        if (hooked == 0) log("story seen method not found")
+        if (hooked == 0) {
+            InstagramDexKitCache.saveString(CACHE_STORY_SEEN_MISSING, "1")
+            log("story seen method not found")
+        }
+    }
+
+    fun rememberInstagramImageUrl(view: View, url: String) {
+        if (!InstagramFeatureStateStore.current.enableActivityHistory || !looksLikeProfileImageUrl(url)) return
+        profileImageUrls[view] = url
+        rememberRecentProfileImageSample(url)
+        if (isLikelyProfileHeaderAvatar(view)) {
+            recentProfileHeaderThumbnail = TimedThumbnail(url, System.currentTimeMillis())
+        }
+    }
+
+    fun cachedProfileThumbnail(username: String): String? {
+        return recentProfileThumbnails[username.trim('@').lowercase(Locale.US)]?.takeIf { it.isNotBlank() }
     }
 
     private fun hookStoryViewerMethods(classLoader: ClassLoader) {
@@ -681,19 +713,41 @@ internal object InstagramActivityHistoryHooks {
     }
 
     private fun scanObjectForUsername(obj: Any?, depth: Int, visited: MutableSet<Any>): String? {
-        if (obj == null || depth > 3 || !visited.add(obj)) return null
+        if (obj == null || depth > 5 || !visited.add(obj)) return null
+        if (obj is String) return obj.takeIf { isProfileSlug(it) }
         runCatching {
             val result = obj.javaClass.methods.firstOrNull { it.name == "getUsername" && it.parameterTypes.isEmpty() }?.invoke(obj)
             if (result is String && isProfileSlug(result)) return result
         }
-        if (depth >= 3 || !shouldDescend(obj.javaClass)) return null
+        if (depth <= 2) {
+            obj.javaClass.declaredMethods
+                .filter { method ->
+                    method.parameterTypes.isEmpty() &&
+                        method.returnType == String::class.java &&
+                        method.name.lowercase(Locale.US).contains("username")
+                }
+                .take(12)
+                .forEach { method ->
+                    runCatching {
+                        method.isAccessible = true
+                        val value = method.invoke(obj) as? String
+                        if (value != null && isProfileSlug(value)) return value
+                    }
+                }
+        }
+        if (depth >= 5 || !shouldDescend(obj.javaClass)) return null
         var cls: Class<*>? = obj.javaClass
         while (cls != null && cls != Any::class.java) {
             cls.declaredFields.forEach { field ->
                 runCatching {
-                    if (Modifier.isStatic(field.modifiers) || field.type.isPrimitive || field.type == String::class.java || field.type.isArray) return@forEach
+                    if (Modifier.isStatic(field.modifiers) || field.type.isPrimitive || field.type.isArray) return@forEach
                     field.isAccessible = true
                     val value = field.get(obj) ?: return@forEach
+                    if (value is String) {
+                        val name = field.name.lowercase(Locale.US)
+                        if (name.contains("username") && isProfileSlug(value)) return value
+                        return@forEach
+                    }
                     scanObjectForUsername(value, depth + 1, visited)?.let { return it }
                 }
             }
@@ -1215,13 +1269,44 @@ internal object InstagramActivityHistoryHooks {
     }
 
     private fun looksLikeProfileImageUrl(url: String?): Boolean {
-        val lower = url?.lowercase(Locale.US).orEmpty()
-        return lower.contains("/t51.") && lower.contains("-19/")
+        val lower = url?.lowercase(Locale.US) ?: return false
+        return (lower.contains("/t51.") && lower.contains("-19/")) ||
+            (lower.contains("t51.") && lower.contains("-19")) ||
+            lower.contains("profile_pic") ||
+            lower.contains("profilepic") ||
+            lower.contains("profilepicture") ||
+            lower.contains("profile_picture") ||
+            lower.contains("profile_photo") ||
+            lower.contains("profilephoto") ||
+            lower.contains("avatar") ||
+            lower.contains("s150x150") ||
+            lower.contains("s320x320")
     }
 
     private fun looksLikeMediaId(value: String?): Boolean {
         val clean = value?.trim()?.substringBefore("_").orEmpty()
         return clean.matches(Regex("\\d{8,}"))
+    }
+
+    private fun isLikelyProfileHeaderAvatar(view: View): Boolean {
+        val width = view.width
+        val height = view.height
+        if (width < 90 || height < 90 || width > 360 || height > 360) return false
+        val location = IntArray(2)
+        runCatching { view.getLocationOnScreen(location) }.getOrNull() ?: return false
+        val centerY = location[1] + height / 2
+        if (centerY !in 160..720) return false
+        return location[0] < 420
+    }
+
+    private fun rememberRecentProfileImageSample(url: String) {
+        val now = System.currentTimeMillis()
+        synchronized(recentProfileImageSamples) {
+            recentProfileImageSamples += TimedThumbnail(url, now)
+            while (recentProfileImageSamples.size > 48) recentProfileImageSamples.removeAt(0)
+            val cutoff = now - 30_000L
+            recentProfileImageSamples.removeAll { it.timeMs < cutoff }
+        }
     }
 
     @Synchronized
@@ -1230,7 +1315,6 @@ internal object InstagramActivityHistoryHooks {
         if (!source.startsWith("view:reel") && !source.contains("clips_seen")) return true
         val now = System.currentTimeMillis()
         if (mediaId != lastReelVisualMediaId && now - lastReelVisualRecordAt < 1_200L) {
-            log("skip likely pre-rendered reel id=$mediaId source=$source")
             return false
         }
         lastReelVisualMediaId = mediaId
@@ -1531,6 +1615,10 @@ internal object InstagramActivityHistoryHooks {
             if (usernameView is TextView) username = cleanText(usernameView.text)
         }
         if (!isProfileSlug(username)) return
+        val thumbnailUrl = findProfileImageUrlInTree(view).ifBlank { recentProfileHeaderThumbnailForRecord() }
+        if (thumbnailUrl.isNotBlank()) {
+            recentProfileThumbnails[username.lowercase(Locale.US)] = thumbnailUrl
+        }
         record(
             context,
             InstagramActivityHistoryStore.TYPE_PAGE,
@@ -1539,9 +1627,59 @@ internal object InstagramActivityHistoryHooks {
             "",
             "",
             instagramProfileUrl(username),
-            "",
+            thumbnailUrl,
             "view:profile_header"
         )
+    }
+
+    private fun findProfileImageUrlInTree(root: View): String {
+        profileImageUrls[root]?.takeIf { looksLikeProfileImageUrl(it) }?.let { return it }
+        if (root !is ViewGroup) return ""
+        var visited = 0
+        fun scan(view: View): String? {
+            if (visited++ > 90) return null
+            profileImageUrls[view]?.takeIf { looksLikeProfileImageUrl(it) }?.let { return it }
+            if (view is ViewGroup) {
+                for (i in 0 until view.childCount) {
+                    scan(view.getChildAt(i))?.let { return it }
+                }
+            }
+            return null
+        }
+        return scan(root).orEmpty()
+    }
+
+    private fun recentProfileHeaderThumbnailForRecord(): String {
+        synchronized(profileImageUrls) {
+            profileImageUrls.entries.firstOrNull { (view, url) ->
+                looksLikeProfileImageUrl(url) && isLikelyProfileHeaderAvatar(view)
+            }?.value?.let { return it }
+        }
+        val now = System.currentTimeMillis()
+        val candidate = recentProfileHeaderThumbnail
+        if (candidate != null && now - candidate.timeMs <= 20_000L && looksLikeProfileImageUrl(candidate.url)) {
+            return candidate.url
+        }
+        return bestRecentProfileImageSample(now)
+    }
+
+    private fun bestRecentProfileImageSample(now: Long): String {
+        val samples = synchronized(recentProfileImageSamples) {
+            recentProfileImageSamples.filter { now - it.timeMs <= 20_000L && looksLikeProfileImageUrl(it.url) }
+        }
+        var bestUrl = ""
+        var bestCount = 0
+        var bestLastSeen = 0L
+        samples.groupBy { it.url }.forEach { (url, values) ->
+            val count = values.size
+            val lastSeen = values.maxOfOrNull { it.timeMs } ?: 0L
+            if (count > bestCount || (count == bestCount && lastSeen > bestLastSeen)) {
+                bestUrl = url
+                bestCount = count
+                bestLastSeen = lastSeen
+            }
+        }
+        return bestUrl
     }
 
     private fun profileUsernameFromActivity(activity: Activity?): String {
@@ -1697,6 +1835,7 @@ internal object InstagramActivityHistoryDialog {
     private val thumbnailLocks = ConcurrentHashMap<String, Any>()
     private val resolvedThumbnails = ConcurrentHashMap<String, String>()
     private val resolvedPageNames = ConcurrentHashMap<String, String>()
+    private val resolvedPageThumbnails = ConcurrentHashMap<String, String>()
     private val bitmapCache = object : LruCache<String, Bitmap>(24 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = maxOf(1, value.byteCount / 1024)
     }
@@ -2005,12 +2144,17 @@ internal object InstagramActivityHistoryDialog {
     }
 
     private fun storyRows(items: List<InstagramActivityHistoryStore.Item>): List<Row> {
-        val grouped = LinkedHashMap<String, MutableList<InstagramActivityHistoryStore.Item>>()
-        items.forEach { item -> grouped.getOrPut(item.username.lowercase(Locale.US).ifBlank { "unknown" }) { mutableListOf() } += item }
+        val grouped = LinkedHashMap<String, Pair<String, MutableList<InstagramActivityHistoryStore.Item>>>()
+        items.forEach { item ->
+            val label = storyGroupLabel(item)
+            val key = storyGroupKey(label, item)
+            grouped.getOrPut(key) { label to mutableListOf() }.second += item
+        }
         val rows = mutableListOf<Row>()
         var added = 0
-        for ((key, group) in grouped) {
-            rows += Row.Header(if (key == "unknown") "Unknown" else "@$key", group.size)
+        for ((_, entry) in grouped) {
+            val (label, group) = entry
+            rows += Row.Header(label, group.size)
             for (item in group) {
                 if (added >= 160) return rows
                 rows += Row.Card(item)
@@ -2018,6 +2162,54 @@ internal object InstagramActivityHistoryDialog {
             }
         }
         return rows
+    }
+
+    private fun storyGroupLabel(item: InstagramActivityHistoryStore.Item): String {
+        val username = resolvedStoryUsername(item)
+        if (username.isNotBlank()) return "@$username"
+        val title = cleanDisplayText(item.title)
+            .takeIf { it.isNotBlank() && !it.equals("Story", true) && !it.startsWith("Story by ", true) && !isBadHistoryText(it) }
+        if (title != null) return title.take(48)
+        val source = cleanDisplayText(item.source.substringBefore(":"))
+            .takeIf { it.isNotBlank() && !it.equals("story", true) && !it.startsWith("dex", true) && !it.startsWith("view", true) }
+        if (source != null) return source.take(48)
+        return "Unknown story ${formatTime(item.timestamp).substringAfter(' ')}"
+    }
+
+    private fun storyGroupKey(label: String, item: InstagramActivityHistoryStore.Item): String {
+        if (label.startsWith("Unknown story", true)) return "unknown:${item.uniqueKey()}"
+        val normalized = normalizeSearch(label).ifBlank { "unknown" }
+        return if (normalized.startsWith("@")) normalized else "$normalized:${item.timestamp / 86_400_000L}"
+    }
+
+    private fun resolvedStoryUsername(item: InstagramActivityHistoryStore.Item): String {
+        item.username.trim('@').takeIf { isStoryUsernameLike(it) }?.let { return it }
+        listOf(item.url, item.thumbnailUrl).forEach { value ->
+            val fromUrl = usernameFromStoryUrl(value)
+            if (fromUrl.isNotBlank()) return fromUrl
+        }
+        val fromTitle = Regex("(?i)story\\s+by\\s+@?([A-Za-z0-9._]{1,30})").find(item.title)?.groupValues?.getOrNull(1).orEmpty()
+        if (isStoryUsernameLike(fromTitle)) return fromTitle
+        return ""
+    }
+
+    private fun usernameFromStoryUrl(value: String): String {
+        if (value.isBlank()) return ""
+        return runCatching {
+            val uri = Uri.parse(value)
+            val scheme = uri.scheme.orEmpty().lowercase(Locale.US)
+            val host = uri.host.orEmpty().lowercase(Locale.US)
+            if (scheme !in setOf("http", "https") || host !in setOf("instagram.com", "www.instagram.com")) return@runCatching ""
+            val segments = uri.pathSegments
+            val storyIndex = segments.indexOfFirst { it.equals("stories", true) }
+            val username = if (storyIndex >= 0) segments.getOrNull(storyIndex + 1).orEmpty() else ""
+            username.trim('@').takeIf { isStoryUsernameLike(it) }.orEmpty()
+        }.getOrDefault("")
+    }
+
+    private fun isStoryUsernameLike(value: String): Boolean {
+        val lower = value.lowercase(Locale.US)
+        return lower.matches(Regex("[a-z0-9._]{1,30}")) && lower !in setOf("stories", "story", "media")
     }
 
     private fun queryItemsForDialog(state: State): List<InstagramActivityHistoryStore.Item> {
@@ -2029,8 +2221,9 @@ internal object InstagramActivityHistoryDialog {
         val direct = mutableListOf<ScoredItem>()
         val fuzzy = mutableListOf<ScoredItem>()
         items.forEachIndexed { index, item ->
+            val storyLabel = if (item.type == InstagramActivityHistoryStore.TYPE_STORY) storyGroupLabel(item) else ""
             val haystack = normalizeSearch(
-                listOf(primaryText(item), secondaryText(item), item.username, item.mediaId, item.title, item.caption, item.typeLabel()).joinToString(" ")
+                listOf(primaryText(item), secondaryText(item), storyLabel, item.username, item.mediaId, item.title, item.caption, item.typeLabel()).joinToString(" ")
             )
             val compact = haystack.replace(" ", "")
             if (tokens.all { haystack.contains(it) }) {
@@ -2043,16 +2236,22 @@ internal object InstagramActivityHistoryDialog {
     }
 
     private fun createItemView(state: State, item: InstagramActivityHistoryStore.Item): View {
-        if (state.preferNativeUi) {
+        if (state.preferNativeUi &&
+            item.type != InstagramActivityHistoryStore.TYPE_PAGE &&
+            item.type != InstagramActivityHistoryStore.TYPE_FOLLOWER
+        ) {
             val native = when (item.type) {
-                InstagramActivityHistoryStore.TYPE_PAGE -> createNativePageRow(state, item)
                 InstagramActivityHistoryStore.TYPE_REEL -> createNativeReelTile(state, item)
                 InstagramActivityHistoryStore.TYPE_STORY -> createNativePostTile(state, item)
                 else -> createNativePostTile(state, item)
             }
             if (native != null) return native
         }
-        return if (item.type == InstagramActivityHistoryStore.TYPE_PAGE) createPageRow(state, item) else createGridCard(state, item)
+        return if (item.type == InstagramActivityHistoryStore.TYPE_PAGE || item.type == InstagramActivityHistoryStore.TYPE_FOLLOWER) {
+            createPageRow(state, item)
+        } else {
+            createGridCard(state, item)
+        }
     }
 
     private fun createNativePostTile(state: State, item: InstagramActivityHistoryStore.Item): View? {
@@ -2079,7 +2278,8 @@ internal object InstagramActivityHistoryDialog {
             checkbox = state.selectionMode,
             checked = state.selectedKeys.contains(item.uniqueKey())
         ) ?: return null
-        listCellIcon(row)?.apply {
+        val icon = listCellIcon(row) ?: return null
+        icon.apply {
             visibility = View.VISIBLE
             clearColorFilter()
             scaleType = ImageView.ScaleType.CENTER_CROP
@@ -2256,10 +2456,7 @@ internal object InstagramActivityHistoryDialog {
             background = rounded(if (selected) Color.rgb(10, 31, 48) else BG, dp(context, 4), dp(context, if (selected) 2 else 1), if (selected) ACCENT else DIVIDER)
         }
         wireActions(row, state, item)
-        val image = ImageView(context).apply {
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            setBackgroundColor(SURFACE_2)
-        }
+        val image = ProfileThumbnailView(context)
         row.addView(image, LinearLayout.LayoutParams(dp(context, 56), dp(context, 56)))
         loadThumbnailAsync(image, item)
         val labels = LinearLayout(context).apply {
@@ -2417,12 +2614,13 @@ internal object InstagramActivityHistoryDialog {
         val urls = InstagramActivityHistoryStore.buildThumbnailUrls(item)
         val tag = "${item.uniqueKey()}:${item.timestamp}:$urls"
         image.tag = tag
-        cachedBitmapFor(item, urls)?.let {
+        val cachedBitmap = cachedBitmapFor(item, urls)
+        cachedBitmap?.let {
             image.clearColorFilter()
             image.setImageBitmap(it)
-            return
+            if (item.type != InstagramActivityHistoryStore.TYPE_PAGE) return
         }
-        image.setImageDrawable(null)
+        if (cachedBitmap == null) image.setImageDrawable(null)
         imageExecutor.submit {
             val cacheKey = item.uniqueKey()
             var bitmap: Bitmap? = null
@@ -2430,14 +2628,15 @@ internal object InstagramActivityHistoryDialog {
             try {
                 synchronized(lock) {
                     bitmap = cachedBitmapFor(item, urls)
-                    if (bitmap == null) resolvedThumbnails[cacheKey]?.let { bitmap = decodeThumbnail(image.context, it) }
+                    val resolvedUrl = resolvedThumbnails[cacheKey].orEmpty()
+                    if (bitmap == null) resolvedUrl.takeIf { it.isNotBlank() }?.let { bitmap = decodeThumbnail(image.context, it) }
                     if (bitmap == null) bitmap = urls.firstNotNullOfOrNull { decodeThumbnail(image.context, it) }
-                    if (bitmap == null) {
-                        val resolved = resolveRemoteThumbnailUrl(item)
-                        if (resolved.isNotBlank()) {
+                    if (bitmap == null || (item.type == InstagramActivityHistoryStore.TYPE_PAGE && resolvedUrl.isBlank())) {
+                        val resolved = resolveRemoteThumbnailUrl(image.context, item)
+                        if (resolved.isNotBlank() && resolved != item.thumbnailUrl) {
                             resolvedThumbnails[cacheKey] = resolved
                             persistResolvedThumbnail(image.context, item, resolved)
-                            bitmap = decodeThumbnail(image.context, resolved)
+                            decodeThumbnail(image.context, resolved)?.let { bitmap = it }
                         }
                     }
                 }
@@ -2569,29 +2768,54 @@ internal object InstagramActivityHistoryDialog {
         }
     }
 
-    private fun resolveRemoteThumbnailUrl(item: InstagramActivityHistoryStore.Item): String {
+    private fun resolveRemoteThumbnailUrl(context: Context, item: InstagramActivityHistoryStore.Item): String {
         return when (item.type) {
-            InstagramActivityHistoryStore.TYPE_PAGE -> resolveProfilePictureUrl(item.username)
+            InstagramActivityHistoryStore.TYPE_PAGE -> resolveProfilePictureUrl(context, item.username)
             InstagramActivityHistoryStore.TYPE_POST, InstagramActivityHistoryStore.TYPE_REEL -> resolveInstagramHtmlThumbnail(InstagramActivityHistoryStore.buildOpenUrl(item))
             else -> ""
         }
     }
 
-    private fun resolveProfilePictureUrl(username: String): String {
+    private fun resolveProfilePictureUrl(context: Context, username: String): String {
         if (username.isBlank()) return ""
-        val profile = resolveEmbedProfile(username)
+        val key = username.lowercase(Locale.US)
+        resolvedPageThumbnails[key]?.takeIf { it.isNotBlank() }?.let { return it }
+        InstagramActivityHistoryHooks.cachedProfileThumbnail(username)?.let {
+            resolvedPageThumbnails[key] = it
+            return it
+        }
+        val authenticated = InstagramFollowerListLogger.resolveProfileForActivityHistory(context, username)
+        if (authenticated.thumbnailUrl.isNotBlank()) {
+            resolvedPageThumbnails[key] = authenticated.thumbnailUrl
+            if (isUsefulPageName(authenticated.displayName, username)) resolvedPageNames[key] = authenticated.displayName
+            return authenticated.thumbnailUrl
+        }
+        val profile = resolveEmbedProfile(context, username)
         if (profile.thumbnailUrl.isNotBlank()) return profile.thumbnailUrl
         return runCatching {
-            val json = fetchText("https://i.instagram.com/api/v1/users/web_profile_info/?username=${Uri.encode(username)}", "Instagram 219.0.0.12.117 Android")
-            cleanResolvedUrl(firstMatch(json, "\"profile_pic_url_hd\"\\s*:\\s*\"(https:[^\"]+)\"")
-                .ifBlank { firstMatch(json, "\"profile_pic_url\"\\s*:\\s*\"(https:[^\"]+)\"") })
+            listOf(
+                "https://www.instagram.com/api/v1/users/web_profile_info/?username=${Uri.encode(username)}" to "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36",
+                "https://i.instagram.com/api/v1/users/web_profile_info/?username=${Uri.encode(username)}" to "Instagram 219.0.0.12.117 Android"
+            ).firstNotNullOfOrNull { (url, userAgent) ->
+                val json = fetchText(url, userAgent)
+                cleanResolvedUrl(firstMatch(json, "\"profile_pic_url_hd\"\\s*:\\s*\"(https:[^\"]+)\"")
+                    .ifBlank { firstMatch(json, "\"profile_pic_url\"\\s*:\\s*\"(https:[^\"]+)\"") })
+                    .takeIf { it.isNotBlank() }
+            }.orEmpty().also { if (it.isNotBlank()) resolvedPageThumbnails[key] = it }
         }.getOrDefault("")
     }
 
-    private fun resolveEmbedProfile(username: String): EmbedProfile {
+    private fun resolveEmbedProfile(context: Context, username: String): EmbedProfile {
         val key = username.lowercase(Locale.US)
         val cachedName = resolvedPageNames[key]
-        if (cachedName != null) return EmbedProfile("", cachedName)
+        val cachedThumb = resolvedPageThumbnails[key]
+        if (cachedName != null && !cachedThumb.isNullOrBlank()) return EmbedProfile(cachedThumb, cachedName)
+        val authenticated = InstagramFollowerListLogger.resolveProfileForActivityHistory(context, username)
+        if (authenticated.thumbnailUrl.isNotBlank()) resolvedPageThumbnails[key] = authenticated.thumbnailUrl
+        if (isUsefulPageName(authenticated.displayName, username)) resolvedPageNames[key] = authenticated.displayName
+        if (authenticated.thumbnailUrl.isNotBlank() || isUsefulPageName(authenticated.displayName, username)) {
+            return EmbedProfile(authenticated.thumbnailUrl.ifBlank { cachedThumb.orEmpty() }, authenticated.displayName.ifBlank { cachedName.orEmpty() })
+        }
         return runCatching {
             val html = normalizeJsonEscapes(fetchText("https://www.instagram.com/$username/embed/", "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36"))
             val thumb = cleanResolvedUrl(firstMatch(html, "\"profile_pic_url_hd\"\\s*:\\s*\"(https:[^\"]+)\"")
@@ -2599,8 +2823,9 @@ internal object InstagramActivityHistoryDialog {
                 .ifBlank { firstMatch(html, "property=[\"']og:image[\"'][^>]*content=[\"']([^\"']+)") })
             val display = stripInstagramProfileTitle(cleanDisplayText(firstMatch(html, "\"full_name\"\\s*:\\s*\"([^\"]*)\"")
                 .ifBlank { firstMatch(html, "property=[\"']og:title[\"'][^>]*content=[\"']([^\"']+)") }), username)
+            if (thumb.isNotBlank()) resolvedPageThumbnails[key] = thumb
             if (isUsefulPageName(display, username)) resolvedPageNames[key] = display
-            EmbedProfile(thumb, display)
+            EmbedProfile(thumb.ifBlank { cachedThumb.orEmpty() }, display.ifBlank { cachedName.orEmpty() })
         }.getOrDefault(EmbedProfile("", ""))
     }
 
@@ -2617,12 +2842,26 @@ internal object InstagramActivityHistoryDialog {
 
     private fun fetchText(url: String, userAgent: String): String {
         val connection = URL(url).openConnection() as HttpURLConnection
+        val host = runCatching { URL(url).host.lowercase(Locale.US) }.getOrDefault("")
+        val webRequest = host.contains("instagram.com") && !host.startsWith("i.")
         connection.connectTimeout = 4500
         connection.readTimeout = 4500
         connection.instanceFollowRedirects = true
         connection.setRequestProperty("User-Agent", userAgent)
         connection.setRequestProperty("Accept", "text/html,application/json,*/*")
+        connection.setRequestProperty("X-IG-App-ID", if (webRequest) "936619743392459" else "567067343352427")
+        connection.setRequestProperty("X-ASBD-ID", "198387")
+        connection.setRequestProperty("X-IG-WWW-Claim", "0")
+        connection.setRequestProperty("X-Requested-With", "XMLHttpRequest")
+        connection.setRequestProperty("Accept-Language", Locale.getDefault().toLanguageTag())
+        instagramCookieHeader().takeIf { it.isNotBlank() }?.let { cookie ->
+            connection.setRequestProperty("Cookie", cookie)
+            Regex("""(?:^|;\s*)csrftoken=([^;]+)""").find(cookie)?.groupValues?.getOrNull(1)?.let {
+                connection.setRequestProperty("X-CSRFToken", it)
+            }
+        }
         connection.setRequestProperty("Referer", "https://www.instagram.com/")
+        if (webRequest) connection.setRequestProperty("Origin", "https://www.instagram.com")
         return try {
             if (connection.responseCode !in 200..299) return ""
             connection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
@@ -2631,13 +2870,19 @@ internal object InstagramActivityHistoryDialog {
         }
     }
 
+    private fun instagramCookieHeader(): String {
+        return runCatching { CookieManager.getInstance().getCookie("https://www.instagram.com/") }
+            .getOrNull()
+            .orEmpty()
+    }
+
     private fun loadPageNameAsync(target: TextView, item: InstagramActivityHistoryStore.Item) {
         if (item.type != InstagramActivityHistoryStore.TYPE_PAGE || item.username.isBlank()) return
         if (isUsefulPageName(target.text?.toString().orEmpty(), item.username)) return
         val tag = "page-name:${item.username.lowercase(Locale.US)}:${item.timestamp}"
         target.tag = tag
         imageExecutor.submit {
-            val profile = resolveEmbedProfile(item.username)
+            val profile = resolveEmbedProfile(target.context, item.username)
             val display = profile.displayName
             if (!isUsefulPageName(display, item.username)) return@submit
             InstagramActivityHistoryStore.record(target.context, item.copy(type = InstagramActivityHistoryStore.TYPE_PAGE, title = display))
@@ -2657,13 +2902,16 @@ internal object InstagramActivityHistoryDialog {
             resolvedPageNames[item.username.lowercase(Locale.US)]?.takeIf { isUsefulPageName(it, item.username) }?.let { return it }
             stripInstagramProfileTitle(item.title, item.username).takeIf { isUsefulPageName(it, item.username) }?.let { return it }
             stripInstagramProfileTitle(item.caption, item.username).takeIf { isUsefulPageName(it, item.username) }?.let { return it }
-            return "Page"
+            return item.username.takeIf { it.isNotBlank() }?.let { "@$it" } ?: "Page"
+        }
+        if (item.type == InstagramActivityHistoryStore.TYPE_FOLLOWER) {
+            return item.title.takeIf { it.isNotBlank() && it != "Follower" } ?: item.username.takeIf { it.isNotBlank() }?.let { "@$it" } ?: "Follower"
         }
         return item.username.takeIf { it.isNotBlank() }?.let { "@$it" } ?: item.typeLabel()
     }
 
     private fun secondaryText(item: InstagramActivityHistoryStore.Item): String {
-        if (item.type == InstagramActivityHistoryStore.TYPE_PAGE) {
+        if (item.type == InstagramActivityHistoryStore.TYPE_PAGE || item.type == InstagramActivityHistoryStore.TYPE_FOLLOWER) {
             if (item.username.isNotBlank()) return "@${item.username}"
             if (item.url.isNotBlank()) return item.url
             return item.source
@@ -2816,6 +3064,7 @@ internal object InstagramActivityHistoryDialog {
             InstagramActivityHistoryStore.TYPE_STORY -> 1
             InstagramActivityHistoryStore.TYPE_REEL -> 2
             InstagramActivityHistoryStore.TYPE_PAGE -> 3
+            InstagramActivityHistoryStore.TYPE_FOLLOWER -> 4
             else -> 0
         }
     }
@@ -2860,6 +3109,30 @@ internal object InstagramActivityHistoryDialog {
 
     private fun shortUrl(url: String): String = if (url.length <= 120) url else url.take(117) + "..."
 
+    private class ProfileThumbnailView(context: Context) : ImageView(context) {
+        private val clipPath = Path()
+        private val rect = RectF()
+        private val placeholderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = SURFACE_2
+        }
+
+        init {
+            scaleType = ScaleType.CENTER_CROP
+            setBackgroundColor(Color.TRANSPARENT)
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            val save = canvas.save()
+            rect.set(0f, 0f, width.toFloat(), height.toFloat())
+            clipPath.reset()
+            clipPath.addRoundRect(rect, width / 2f, height / 2f, Path.Direction.CW)
+            canvas.clipPath(clipPath)
+            canvas.drawRoundRect(rect, width / 2f, height / 2f, placeholderPaint)
+            super.onDraw(canvas)
+            canvas.restoreToCount(save)
+        }
+    }
+
     private data class State(
         val context: Context,
         val closeAction: () -> Unit,
@@ -2900,7 +3173,7 @@ internal object InstagramActivityHistoryDialog {
 
         fun spanSize(position: Int): Int {
             return when (val row = rows.getOrNull(position)) {
-                is Row.Card -> if (row.item.type == InstagramActivityHistoryStore.TYPE_PAGE) 3 else 1
+                is Row.Card -> if (row.item.type == InstagramActivityHistoryStore.TYPE_PAGE || row.item.type == InstagramActivityHistoryStore.TYPE_FOLLOWER) 3 else 1
                 else -> 3
             }
         }
@@ -2927,7 +3200,7 @@ internal object InstagramActivityHistoryDialog {
             ))
             (holder.container.layoutParams as? ViewGroup.MarginLayoutParams)?.let { params ->
                 when {
-                    row is Row.Card && row.item.type != InstagramActivityHistoryStore.TYPE_PAGE -> {
+                    row is Row.Card && row.item.type != InstagramActivityHistoryStore.TYPE_PAGE && row.item.type != InstagramActivityHistoryStore.TYPE_FOLLOWER -> {
                         val margin = if (state.preferNativeUi) dp(state.context, 1) else dp(state.context, 6)
                         params.setMargins(margin, margin, margin, margin)
                     }
@@ -2947,20 +3220,38 @@ internal object InstagramActivityHistoryStore {
     const val TYPE_STORY = "story"
     const val TYPE_REEL = "reel"
     const val TYPE_PAGE = "page"
+    const val TYPE_FOLLOWER = "follower"
 
     private const val PREF_NAME = "purrfect_instagram_prefs"
     private const val LEGACY_PREF_NAME = "instaeclipse_prefs"
     private const val KEY_HISTORY = "activityHistoryJson"
     private const val MAX_ITEMS = 500
     private const val SHORTCODE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    private val writeExecutor = Executors.newSingleThreadExecutor { task ->
+        Thread(task, "PurrfectInstaHistoryStore").apply { isDaemon = true }
+    }
+    private val pendingRecordKeys = ConcurrentHashMap.newKeySet<String>()
 
-    @Synchronized
     fun record(context: Context, rawItem: Item) {
         val item = rawItem.normalized()
         if (item.type.isBlank()) return
         if (!item.isDisplayable()) return
         val key = item.uniqueKey()
         if (key.isBlank()) return
+        val app = context.applicationContext ?: context
+        if (!pendingRecordKeys.add(key)) return
+        writeExecutor.execute {
+            try {
+                synchronized(this) {
+                    recordLocked(app, item, key)
+                }
+            } finally {
+                pendingRecordKeys.remove(key)
+            }
+        }
+    }
+
+    private fun recordLocked(context: Context, item: Item, key: String) {
         val old = readRawArray(context)
         val next = JSONArray()
         var foundExisting = false
@@ -3047,6 +3338,11 @@ internal object InstagramActivityHistoryStore {
             if (isUsernameLike(item.username)) return "https://www.instagram.com/${item.username}/"
             return ""
         }
+        if (item.type == TYPE_FOLLOWER) {
+            if (isUsernameLike(item.username)) return "https://www.instagram.com/${item.username}/"
+            if (item.url.isNotBlank() && !isApiOrCdnUrl(item.url)) return item.url
+            return ""
+        }
         return item.url.takeUnless { isApiOrCdnUrl(it) }.orEmpty()
     }
 
@@ -3054,7 +3350,7 @@ internal object InstagramActivityHistoryStore {
 
     fun buildThumbnailUrls(item: Item): List<String> {
         val urls = mutableListOf<String>()
-        if (item.type != TYPE_PAGE || !isOldLocalPageThumbnail(item.thumbnailUrl)) {
+        if (item.type != TYPE_PAGE || !isUnusablePageThumbnail(item.thumbnailUrl)) {
             addUniqueUrl(urls, item.thumbnailUrl)
         }
         addUniqueUrl(urls, buildCanonicalThumbnailUrl(item))
@@ -3103,10 +3399,6 @@ internal object InstagramActivityHistoryStore {
             .edit()
             .putString(KEY_HISTORY, value)
             .apply()
-        context.getSharedPreferences(LEGACY_PREF_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_HISTORY, value)
-            .apply()
     }
 
     private fun addUniqueUrl(urls: MutableList<String>, url: String) {
@@ -3118,6 +3410,18 @@ internal object InstagramActivityHistoryStore {
         return lower.startsWith("file://") &&
             lower.contains("instaeclipse_activity_history") &&
             lower.contains("/pages/")
+    }
+
+    private fun isUnusablePageThumbnail(url: String): Boolean {
+        val lower = url.lowercase(Locale.US)
+        if (lower.isBlank()) return true
+        if (isOldLocalPageThumbnail(lower)) return true
+        return lower.contains("rsrc.php") ||
+            lower.contains("default_profile") ||
+            lower.contains("profile_default") ||
+            lower.contains("anonymous_user") ||
+            lower.contains("blank_profile") ||
+            lower.contains("placeholder")
     }
 
     private fun cleanMediaCode(value: String): String {
@@ -3220,7 +3524,7 @@ internal object InstagramActivityHistoryStore {
             return when (type) {
                 TYPE_POST, TYPE_REEL -> canonicalMediaUrl(type, mediaId, url).isNotBlank()
                 TYPE_STORY -> mediaId.isNotBlank() || url.isNotBlank() || thumbnailUrl.isNotBlank() || username.isNotBlank()
-                TYPE_PAGE -> isUsernameLike(username) || (url.isNotBlank() && !isApiOrCdnUrl(url))
+                TYPE_PAGE, TYPE_FOLLOWER -> isUsernameLike(username) || (url.isNotBlank() && !isApiOrCdnUrl(url))
                 else -> type.isNotBlank()
             }
         }
@@ -3235,6 +3539,7 @@ internal object InstagramActivityHistoryStore {
                 type == TYPE_STORY && username.isNotBlank() && title.isNotBlank() -> "$type:text:${username.lowercase(Locale.US)}:${normalize(title)}"
                 type == TYPE_STORY && url.isNotBlank() -> "$type:url:${stableUrlKey(url)}"
                 type == TYPE_PAGE && username.isNotBlank() -> "$type:user:${username.lowercase(Locale.US)}"
+                type == TYPE_FOLLOWER && username.isNotBlank() -> "$type:user:${username.lowercase(Locale.US)}"
                 mediaId.isNotBlank() -> "$type:media:$mediaId"
                 url.isNotBlank() -> "$type:url:${stableUrlKey(url)}"
                 username.isNotBlank() && title.isNotBlank() -> "$type:text:${username.lowercase(Locale.US)}:${normalize(title)}"
@@ -3254,6 +3559,7 @@ internal object InstagramActivityHistoryStore {
                 TYPE_STORY -> "Story"
                 TYPE_REEL -> "Reel"
                 TYPE_PAGE -> "Page"
+                TYPE_FOLLOWER -> "Follower"
                 else -> "Post"
             }
         }
@@ -3305,15 +3611,18 @@ internal object InstagramActivityHistoryStore {
             private fun firstUseful(existing: String, fresh: String): String = if (existing.isBlank()) fresh.trim() else existing.trim()
 
             private fun betterThumbnail(type: String, existing: String, fresh: String): String {
-                if (fresh.isBlank()) return existing.trim()
-                if (existing.isBlank()) return fresh.trim()
-                if (type == TYPE_PAGE && isOldLocalPageThumbnail(existing)) return fresh.trim()
-                val existingRemote = isApiOrCdnUrl(existing)
-                val freshRemote = isApiOrCdnUrl(fresh)
-                if ((type == TYPE_PAGE || type == TYPE_POST || type == TYPE_REEL) && existingRemote && freshRemote && existing != fresh) {
-                    return fresh.trim()
+                val cleanExisting = existing.trim()
+                val cleanFresh = fresh.trim()
+                if (cleanFresh.isBlank()) return cleanExisting
+                if (type == TYPE_PAGE && isUnusablePageThumbnail(cleanFresh)) return cleanExisting
+                if (cleanExisting.isBlank()) return cleanFresh
+                if (type == TYPE_PAGE && isUnusablePageThumbnail(cleanExisting)) return cleanFresh
+                val existingRemote = isApiOrCdnUrl(cleanExisting)
+                val freshRemote = isApiOrCdnUrl(cleanFresh)
+                if ((type == TYPE_PAGE || type == TYPE_POST || type == TYPE_REEL) && existingRemote && freshRemote && cleanExisting != cleanFresh) {
+                    return cleanFresh
                 }
-                return existing.trim()
+                return cleanExisting
             }
 
             private fun betterExistingTitle(type: String, username: String, existing: String, fresh: String): String {

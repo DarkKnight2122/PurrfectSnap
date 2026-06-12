@@ -624,10 +624,12 @@ class FeaturesRootSection : Routes.Route() {
         "showFollowerToast",
         "showFeatureToasts",
         "enableStoryMentions",
+        "localInstagramPlus",
+        "sendCustomEmojiReactionsToStory",
+        "changeLikeReactions",
         "enableCopyComment",
         "enableCopyBio",
         "disableDoubleTapLike",
-        "enableMonetTheme",
         "enableShareSheetEmojiShortcuts",
         "enableActivityHistory",
         "enableNavigationTabCustomization",
@@ -635,7 +637,12 @@ class FeaturesRootSection : Routes.Route() {
         "stripShareTrackingParameters",
         "doNotSaveRecentSearches",
         "openLinksExternally",
-        "enableStoryTrayLongPressActions"
+        "enableStoryTrayLongPressActions",
+        "customizeStoryRingSize",
+        "disableGroupCreationFromShareSheet",
+        "improveImageViewing",
+        "moreOptionsOnPost",
+        "removeEmptyBottomSpace"
     )
 
     internal val instagramDownloaderMasterKeys = listOf(
@@ -643,12 +650,14 @@ class FeaturesRootSection : Routes.Route() {
         "enableStoryDownload",
         "enableReelDownload",
         "enableProfileDownload",
+        "enableDmContextMenuOptions",
         "enableReelThumbnailDownload",
         "enableStoryMarkSeenButton",
         "enableStoryRepostButton",
         "enableHighQualityStoryUpload",
-        "enableGifCommentDownload",
-        "enableDmAnyFileUpload"
+        "enableDmAnyFileUpload",
+        "enableUploadInstantsFromGallery",
+        "preventDmMessageListAutoscroll"
     )
 
     internal val instagramSelectionStringProperties = setOf(
@@ -656,6 +665,8 @@ class FeaturesRootSection : Routes.Route() {
         "navigationTabOrder",
         "navigationDefaultTab",
         "storyRingSize",
+        "likeReactionAnimation",
+        "confirmRefreshScope",
         "notesSpoofMapLocation",
         "hiddenChatNames"
     )
@@ -670,6 +681,41 @@ class FeaturesRootSection : Routes.Route() {
         "profile" to "Profile"
     )
 
+    internal val instagramLikeReactionAnimations = listOf(
+        "ARES_LIKE_ACTIVATION" to "Ares",
+        "ANYWAY_LIKE_ACTIVATION" to "Anyway",
+        "RINGS_LIKE_ADRIAN" to "Adrian",
+        "RINGS_LIKE_AKI_KOCHI" to "Aki Kochi",
+        "RINGS_LIKE_BRIAN" to "Brian",
+        "RINGS_LIKE_BRICKLEY" to "Brickley",
+        "RINGS_LIKE_COLE" to "Cole",
+        "RINGS_LIKE_DJAG" to "DJAG",
+        "RINGS_LIKE_DOLLY" to "Dolly",
+        "RINGS_LIKE_ELYSE" to "Elyse",
+        "RINGS_LIKE_FILM" to "Film",
+        "RINGS_LIKE_FUTURA" to "Futura",
+        "RINGS_LIKE_GABRIEL" to "Gabriel",
+        "RINGS_LIKE_GOLLORIA" to "Golloria",
+        "RINGS_LIKE_HOMESTEAD" to "Homestead",
+        "RINGS_LIKE_KIDS" to "Kids",
+        "RINGS_LIKE_LAUFEY" to "Laufey",
+        "RINGS_LIKE_LINDA" to "Linda",
+        "RINGS_LIKE_MIMLES" to "Mimles",
+        "RINGS_LIKE_NIGEL" to "Nigel",
+        "RINGS_LIKE_NINA" to "Nina",
+        "RINGS_LIKE_OLIVIA" to "Olivia",
+        "RINGS_LIKE_SEB" to "Seb",
+        "RINGS_LIKE_TWINS" to "Twins",
+        "RINGS_LIKE_TYSHAWN" to "Tyshawn",
+        "RINGS_LIKE_ZARNA" to "Zarna"
+    )
+
+    internal val instagramConfirmRefreshScopes = listOf(
+        "both" to "Feed + Reels",
+        "feed" to "Feed only",
+        "reels" to "Reels only"
+    )
+
     internal fun persistInstagramConfig(onConfigChanged: () -> Unit) {
         context.config.writeConfig()
         context.mirrorInstagramFeaturePrefs()
@@ -677,25 +723,65 @@ class FeaturesRootSection : Routes.Route() {
     }
 
     internal fun openInstagramDevOptionsFromManager(onConfigChanged: () -> Unit) {
-        context.config.root.instagram.developer.isDevEnabled.set(true)
-        context.config.writeConfig()
-        context.mirrorInstagramFeaturePrefs()
-        onConfigChanged()
+        val developer = context.config.root.instagram.developer
+        val wasDevEnabled = developer.isDevEnabled.get()
+        fun persistDevEnabled(enabled: Boolean) {
+            developer.isDevEnabled.set(enabled)
+            context.config.writeConfig()
+            context.mirrorInstagramFeaturePrefs()
+            onConfigChanged()
+        }
+        if (!wasDevEnabled) persistDevEnabled(true)
 
         val packages = installedInstagramPackages().ifEmpty { listOf(Constants.INSTAGRAM_PACKAGE_NAME) }
-        var launched = false
-        for (packageName in packages) {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("instagram://settings_devoptions"))
-                .setPackage(packageName)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (runCatching { context.androidContext.startActivity(intent) }.isSuccess) {
-                launched = true
-                break
+        packages.forEach { packageName ->
+            runCatching {
+                context.androidContext.sendBroadcast(
+                    Intent(Constants.INSTAGRAM_FORCE_STOP_ACTION).setPackage(packageName)
+                )
             }
         }
-        if (!launched) {
-            context.shortToast("Unable to open Instagram developer options")
-        }
+        Handler(Looper.getMainLooper()).postDelayed({
+            var launched = false
+            val deepLinks = listOf(
+                "instagram://settings_devoptions",
+                "instagram://developer_options",
+                "instagram://settings/developer_options",
+                "instagram://internal_settings",
+                "instagram://settings/internal",
+                "instagram://debug",
+                "instagram://debug_settings",
+                "instagram://settings/debug",
+                "instagram://settings/account/dev_options",
+                "instagram://settings/dev_options"
+            )
+            for (packageName in packages) {
+                if (launched) break
+                for (uri in deepLinks) {
+                    if (launched) break
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+                        .setPackage(packageName)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    val launcher = context.activity ?: context.androidContext
+                    if (runCatching {
+                            launcher.startActivity(intent)
+                            context.activity?.moveTaskToBack(true)
+                        }.isSuccess) {
+                        launched = true
+                    }
+                }
+            }
+            if (!launched) {
+                if (!wasDevEnabled) persistDevEnabled(false)
+                context.shortToast("Unable to open Instagram developer options")
+                return@postDelayed
+            }
+            if (!wasDevEnabled) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    persistDevEnabled(false)
+                }, 8000L)
+            }
+        }, 800L)
     }
 
     internal fun isInstagramAdsAndLinksCoreEnabled(): Boolean {
@@ -720,6 +806,10 @@ class FeaturesRootSection : Routes.Route() {
             "disableReelsExceptDM" -> instagram.distractionFree.disableReelsExceptDM.get()
             "disableExplore" -> instagram.distractionFree.disableExplore.get()
             "disableComments" -> instagram.distractionFree.disableComments.get()
+            "hideSuggestionsInFeed" -> instagram.feedAndSearch.hideSuggestionsInFeed.get()
+            "hideSuggestedForYouInFeed" -> instagram.feedAndSearch.hideSuggestedForYouInFeed.get()
+            "hideSuggestionsInDm" -> instagram.feedAndSearch.hideSuggestionsInDm.get()
+            "hideDiscoverPeopleInProfile" -> instagram.feedAndSearch.hideDiscoverPeopleInProfile.get()
             "disableStoryFlipping" -> instagram.misc.disableStoryFlipping.get()
             "disableVideoAutoPlay" -> instagram.misc.disableVideoAutoPlay.get()
             "feedVideosStartWithSound" -> instagram.misc.feedVideosStartWithSound.get()
@@ -727,10 +817,12 @@ class FeaturesRootSection : Routes.Route() {
             "showFollowerToast" -> instagram.misc.showFollowerToast.get()
             "showFeatureToasts" -> instagram.misc.showFeatureToasts.get()
             "enableStoryMentions" -> instagram.misc.enableStoryMentions.get()
+            "localInstagramPlus" -> instagram.misc.localInstagramPlus.get()
+            "sendCustomEmojiReactionsToStory" -> instagram.misc.sendCustomEmojiReactionsToStory.get()
+            "changeLikeReactions" -> instagram.misc.changeLikeReactions.get()
             "enableCopyComment" -> instagram.misc.enableCopyComment.get()
             "enableCopyBio" -> instagram.misc.enableCopyBio.get()
             "disableDoubleTapLike" -> instagram.misc.disableDoubleTapLike.get()
-            "enableMonetTheme" -> instagram.misc.enableMonetTheme.get()
             "customEmojiFontEnabled" -> instagram.misc.customEmojiFontEnabled.get()
             "enableShareSheetEmojiShortcuts" -> instagram.misc.enableShareSheetEmojiShortcuts.get()
             "enableActivityHistory" -> instagram.misc.enableActivityHistory.get()
@@ -744,16 +836,23 @@ class FeaturesRootSection : Routes.Route() {
             "openLinksExternally" -> instagram.misc.openLinksExternally.get()
             "replaceShareLinkDomain" -> instagram.misc.shareLinkDomain.globalState ?: instagram.misc.replaceShareLinkDomain.get()
             "enableStoryTrayLongPressActions" -> instagram.misc.enableStoryTrayLongPressActions.get()
+            "customizeStoryRingSize" -> instagram.misc.storyUi.customizeStoryRingSize.get()
+            "disableGroupCreationFromShareSheet" -> instagram.misc.disableGroupCreationFromShareSheet.get()
+            "improveImageViewing" -> instagram.misc.improveImageViewing.get()
+            "moreOptionsOnPost" -> instagram.misc.moreOptionsOnPost.get()
+            "removeEmptyBottomSpace" -> instagram.misc.removeEmptyBottomSpace.get()
             "enablePostDownload" -> instagram.downloader.enablePostDownload.get()
             "enableStoryDownload" -> instagram.downloader.enableStoryDownload.get()
             "enableReelDownload" -> instagram.downloader.enableReelDownload.get()
             "enableProfileDownload" -> instagram.downloader.enableProfileDownload.get()
+            "enableDmContextMenuOptions" -> instagram.downloader.enableDmContextMenuOptions.get()
             "enableReelThumbnailDownload" -> instagram.downloader.enableReelThumbnailDownload.get()
             "enableStoryMarkSeenButton" -> instagram.downloader.enableStoryMarkSeenButton.get()
             "enableStoryRepostButton" -> instagram.downloader.enableStoryRepostButton.get()
             "enableHighQualityStoryUpload" -> instagram.downloader.enableHighQualityStoryUpload.get()
-            "enableGifCommentDownload" -> instagram.downloader.enableGifCommentDownload.get()
             "enableDmAnyFileUpload" -> instagram.downloader.enableDmAnyFileUpload.get()
+            "enableUploadInstantsFromGallery" -> instagram.downloader.enableUploadInstantsFromGallery.get()
+            "preventDmMessageListAutoscroll" -> instagram.downloader.preventDmMessageListAutoscroll.get()
             else -> false
         }
     }
@@ -767,6 +866,10 @@ class FeaturesRootSection : Routes.Route() {
             "disableReelsExceptDM" -> instagram.distractionFree.disableReelsExceptDM.set(enabled)
             "disableExplore" -> instagram.distractionFree.disableExplore.set(enabled)
             "disableComments" -> instagram.distractionFree.disableComments.set(enabled)
+            "hideSuggestionsInFeed" -> instagram.feedAndSearch.hideSuggestionsInFeed.set(enabled)
+            "hideSuggestedForYouInFeed" -> instagram.feedAndSearch.hideSuggestedForYouInFeed.set(enabled)
+            "hideSuggestionsInDm" -> instagram.feedAndSearch.hideSuggestionsInDm.set(enabled)
+            "hideDiscoverPeopleInProfile" -> instagram.feedAndSearch.hideDiscoverPeopleInProfile.set(enabled)
             "disableStoryFlipping" -> instagram.misc.disableStoryFlipping.set(enabled)
             "disableVideoAutoPlay" -> instagram.misc.disableVideoAutoPlay.set(enabled)
             "feedVideosStartWithSound" -> instagram.misc.feedVideosStartWithSound.set(enabled)
@@ -774,10 +877,12 @@ class FeaturesRootSection : Routes.Route() {
             "showFollowerToast" -> instagram.misc.showFollowerToast.set(enabled)
             "showFeatureToasts" -> instagram.misc.showFeatureToasts.set(enabled)
             "enableStoryMentions" -> instagram.misc.enableStoryMentions.set(enabled)
+            "localInstagramPlus" -> instagram.misc.localInstagramPlus.set(enabled)
+            "sendCustomEmojiReactionsToStory" -> instagram.misc.sendCustomEmojiReactionsToStory.set(enabled)
+            "changeLikeReactions" -> instagram.misc.changeLikeReactions.set(enabled)
             "enableCopyComment" -> instagram.misc.enableCopyComment.set(enabled)
             "enableCopyBio" -> instagram.misc.enableCopyBio.set(enabled)
             "disableDoubleTapLike" -> instagram.misc.disableDoubleTapLike.set(enabled)
-            "enableMonetTheme" -> instagram.misc.enableMonetTheme.set(enabled)
             "customEmojiFontEnabled" -> instagram.misc.customEmojiFontEnabled.set(enabled)
             "enableShareSheetEmojiShortcuts" -> instagram.misc.enableShareSheetEmojiShortcuts.set(enabled)
             "enableActivityHistory" -> instagram.misc.enableActivityHistory.set(enabled)
@@ -803,16 +908,23 @@ class FeaturesRootSection : Routes.Route() {
                 instagram.misc.replaceShareLinkDomain.set(enabled)
             }
             "enableStoryTrayLongPressActions" -> instagram.misc.enableStoryTrayLongPressActions.set(enabled)
+            "customizeStoryRingSize" -> instagram.misc.storyUi.customizeStoryRingSize.set(enabled)
+            "disableGroupCreationFromShareSheet" -> instagram.misc.disableGroupCreationFromShareSheet.set(enabled)
+            "improveImageViewing" -> instagram.misc.improveImageViewing.set(enabled)
+            "moreOptionsOnPost" -> instagram.misc.moreOptionsOnPost.set(enabled)
+            "removeEmptyBottomSpace" -> instagram.misc.removeEmptyBottomSpace.set(enabled)
             "enablePostDownload" -> instagram.downloader.enablePostDownload.set(enabled)
             "enableStoryDownload" -> instagram.downloader.enableStoryDownload.set(enabled)
             "enableReelDownload" -> instagram.downloader.enableReelDownload.set(enabled)
             "enableProfileDownload" -> instagram.downloader.enableProfileDownload.set(enabled)
+            "enableDmContextMenuOptions" -> instagram.downloader.enableDmContextMenuOptions.set(enabled)
             "enableReelThumbnailDownload" -> instagram.downloader.enableReelThumbnailDownload.set(enabled)
             "enableStoryMarkSeenButton" -> instagram.downloader.enableStoryMarkSeenButton.set(enabled)
             "enableStoryRepostButton" -> instagram.downloader.enableStoryRepostButton.set(enabled)
             "enableHighQualityStoryUpload" -> instagram.downloader.enableHighQualityStoryUpload.set(enabled)
-            "enableGifCommentDownload" -> instagram.downloader.enableGifCommentDownload.set(enabled)
             "enableDmAnyFileUpload" -> instagram.downloader.enableDmAnyFileUpload.set(enabled)
+            "enableUploadInstantsFromGallery" -> instagram.downloader.enableUploadInstantsFromGallery.set(enabled)
+            "preventDmMessageListAutoscroll" -> instagram.downloader.preventDmMessageListAutoscroll.set(enabled)
         }
     }
 
@@ -887,7 +999,6 @@ class FeaturesRootSection : Routes.Route() {
             ghost.isGhostViewOnce.get() &&
             ghost.enableUnlimitedReplays.get() &&
             ghost.permanentViewMode.get() &&
-            ghost.keepEphemeralMessages.get() &&
             ghost.keepUnsentMessages.get() &&
             ghost.markTextsSeenAfterReply.get() &&
             ghost.storyInteractionSendsSeen.get()
@@ -905,7 +1016,6 @@ class FeaturesRootSection : Routes.Route() {
         ghost.isGhostViewOnce.set(enabled)
         ghost.enableUnlimitedReplays.set(enabled)
         ghost.permanentViewMode.set(enabled)
-        ghost.keepEphemeralMessages.set(enabled)
         ghost.keepUnsentMessages.set(enabled)
         ghost.markTextsSeenAfterReply.set(enabled)
         ghost.storyInteractionSendsSeen.set(enabled)
@@ -922,7 +1032,6 @@ class FeaturesRootSection : Routes.Route() {
             quick.quickToggleViewOnce.get() &&
             quick.quickToggleStory.get() &&
             quick.quickToggleLive.get() &&
-            quick.quickToggleEphemeral.get() &&
             quick.quickToggleUnsend.get() &&
             quick.quickToggleReplays.get() &&
             quick.quickTogglePermanentView.get() &&
@@ -937,7 +1046,6 @@ class FeaturesRootSection : Routes.Route() {
         quick.quickToggleViewOnce.set(enabled)
         quick.quickToggleStory.set(enabled)
         quick.quickToggleLive.set(enabled)
-        quick.quickToggleEphemeral.set(enabled)
         quick.quickToggleUnsend.set(enabled)
         quick.quickToggleReplays.set(enabled)
         quick.quickTogglePermanentView.set(enabled)
@@ -954,6 +1062,21 @@ class FeaturesRootSection : Routes.Route() {
     internal fun setInstagramDmMarkSeenControlMode(mode: String, onConfigChanged: () -> Unit) {
         val normalizedMode = if (mode == "hold_gallery") "hold_gallery" else "eye"
         context.config.root.instagram.privacy.dmMarkSeenControlMode.set(normalizedMode)
+        context.config.writeConfig()
+        context.mirrorInstagramFeaturePrefs()
+        onConfigChanged()
+    }
+
+    internal fun instagramReelDownloadControlMode(): String {
+        return context.config.root.instagram.downloader.reelDownloadControlMode.get()
+    }
+
+    internal fun setInstagramReelDownloadControlMode(mode: String, onConfigChanged: () -> Unit) {
+        val normalizedMode = when (mode) {
+            "like_long_press", "both" -> mode
+            else -> "menu"
+        }
+        context.config.root.instagram.downloader.reelDownloadControlMode.set(normalizedMode)
         context.config.writeConfig()
         context.mirrorInstagramFeaturePrefs()
         onConfigChanged()
@@ -2675,6 +2798,12 @@ class FeaturesRootSection : Routes.Route() {
                                 onConfigChanged = { configRefreshNonce++ }
                             )
                         }
+                        item(key = "instagram_reel_download_mode") {
+                            InstagramReelDownloadModeCard(
+                                refreshNonce = configRefreshNonce,
+                                onConfigChanged = { configRefreshNonce++ }
+                            )
+                        }
                     }
                     if (showInstagramEmojiFontTools && !isActiveSearch) {
                         item(key = "instagram_emoji_font_tools") {
@@ -3466,6 +3595,110 @@ class FeaturesRootSection : Routes.Route() {
         )
     }
 
+    @Composable
+    internal fun InstagramReelDownloadModeCard(
+        refreshNonce: Int,
+        onConfigChanged: () -> Unit
+    ) {
+        val cardShape = RoundedCornerShape(22.dp)
+        val cardBorder = remember {
+            Brush.linearGradient(
+                listOf(
+                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
+                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                )
+            )
+        }
+        var selectedMode by remember(refreshNonce) { mutableStateOf(instagramReelDownloadControlMode()) }
+        val options = listOf(
+            "menu" to (
+                context.translation[
+                    "features.properties.instagram.properties.downloader.reel_download_menu"
+                ] ?: "Context menu"
+                ),
+            "like_long_press" to (
+                context.translation[
+                    "features.properties.instagram.properties.downloader.reel_download_like_long_press"
+                ] ?: "Like long-press"
+                ),
+            "both" to (
+                context.translation[
+                    "features.properties.instagram.properties.downloader.reel_download_both"
+                ] ?: "Both"
+                )
+        )
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            shape = cardShape,
+            color = Color.Transparent,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .border(BorderStroke(1.dp, cardBorder), cardShape)
+                    .padding(horizontal = 14.dp, vertical = 16.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = context.translation[
+                                "features.properties.instagram.properties.downloader.reel_download_mode_title"
+                            ] ?: "Reel download trigger",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = PurrfectPalette.textPrimary
+                        )
+                        Text(
+                            text = context.translation[
+                                "features.properties.instagram.properties.downloader.reel_download_mode_description"
+                            ] ?: "Choose how Reel video downloads are triggered.",
+                            fontSize = 13.sp,
+                            lineHeight = 16.sp,
+                            color = PurrfectPalette.textSecondary
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        options.forEach { (mode, label) ->
+                            val selected = selectedMode == mode
+                            Button(
+                                onClick = {
+                                    selectedMode = mode
+                                    setInstagramReelDownloadControlMode(mode, onConfigChanged)
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (selected) {
+                                        PurrfectPalette.glowPrimary.copy(alpha = 0.34f)
+                                    } else {
+                                        Color.White.copy(alpha = 0.08f)
+                                    },
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text(
+                                    text = label,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 12.sp,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun parseInstagramNavigationCsv(raw: String): List<String> {
         val known = instagramNavigationTabs.map { it.first }.toSet()
         return raw.split(',')
@@ -3501,6 +3734,8 @@ class FeaturesRootSection : Routes.Route() {
             "navigationTabOrder" -> InstagramNavigationOrderDialog(property, onDismiss, onPersist)
             "navigationDefaultTab" -> InstagramNavigationDefaultTabDialog(property, onDismiss, onPersist)
             "storyRingSize" -> InstagramStoryRingSizeDialog(property, onDismiss, onPersist)
+            "likeReactionAnimation" -> InstagramLikeReactionAnimationDialog(property, onDismiss, onPersist)
+            "confirmRefreshScope" -> InstagramConfirmRefreshScopeDialog(property, onDismiss, onPersist)
             "notesSpoofMapLocation" -> InstagramNotesLocationMapDialog(onDismiss, onPersist)
             "hiddenChatNames" -> InstagramHiddenChatsDialog(property, onDismiss, onPersist)
             else -> {}
@@ -3840,6 +4075,103 @@ class FeaturesRootSection : Routes.Route() {
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     visibleTabs.forEach { (value, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { selected = value }
+                                .background(Color.White.copy(alpha = 0.06f))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selected == value, onClick = { selected = value })
+                            Text(label, color = Color.White, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    @Composable
+    private fun InstagramLikeReactionAnimationDialog(
+        property: PropertyPair<String>,
+        onDismiss: () -> Unit,
+        onPersist: () -> Unit
+    ) {
+        val allowed = instagramLikeReactionAnimations.map { it.first }.toSet()
+        var selected by remember {
+            mutableStateOf(property.value.get().takeIf { it in allowed } ?: "ARES_LIKE_ACTIVATION")
+        }
+        AestheticDialog(
+            onDismissRequest = onDismiss,
+            title = "Change Like Reactions",
+            text = "",
+            icon = Icons.Filled.Favorite,
+            dismissButtonText = context.translation["button.negative"] ?: "Cancel",
+            onDismiss = onDismiss,
+            confirmButtonText = context.translation["ig_dialog_save"] ?: "Save",
+            onConfirm = {
+                property.value.setAny(selected)
+                onPersist()
+                context.shortToast("Like reaction updated")
+            },
+            customContent = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 430.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    instagramLikeReactionAnimations.forEach { (value, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { selected = value }
+                                .background(Color.White.copy(alpha = 0.06f))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selected == value, onClick = { selected = value })
+                            Text(label, color = Color.White, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    @Composable
+    private fun InstagramConfirmRefreshScopeDialog(
+        property: PropertyPair<String>,
+        onDismiss: () -> Unit,
+        onPersist: () -> Unit
+    ) {
+        val allowed = instagramConfirmRefreshScopes.map { it.first }.toSet()
+        var selected by remember {
+            mutableStateOf(property.value.get().takeIf { it in allowed } ?: "both")
+        }
+        AestheticDialog(
+            onDismissRequest = onDismiss,
+            title = "Confirm refresh",
+            text = "Choose where refresh confirmation is shown.",
+            icon = Icons.Filled.Refresh,
+            dismissButtonText = context.translation["button.negative"] ?: "Cancel",
+            onDismiss = onDismiss,
+            confirmButtonText = context.translation["ig_dialog_save"] ?: "Save",
+            onConfirm = {
+                property.value.setAny(selected)
+                onPersist()
+                context.shortToast("Refresh confirmation scope updated")
+            },
+            customContent = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    instagramConfirmRefreshScopes.forEach { (value, label) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

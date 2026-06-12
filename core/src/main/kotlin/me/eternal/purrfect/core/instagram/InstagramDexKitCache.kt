@@ -1,8 +1,10 @@
 package me.eternal.purrfect.core.instagram
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import de.robv.android.xposed.XposedBridge
+import me.eternal.purrfect.common.BuildConfig
 import java.lang.reflect.Method
 
 internal object InstagramDexKitCache {
@@ -13,7 +15,9 @@ internal object InstagramDexKitCache {
     private const val SEP = '\u0000'
 
     private var prefs: android.content.SharedPreferences? = null
+    private var localPrefs: android.content.SharedPreferences? = null
     @Volatile private var cacheValid = false
+    @Volatile private var instagramVersion = ""
 
     fun init(context: Context) {
         val version = runCatching {
@@ -26,7 +30,25 @@ internal object InstagramDexKitCache {
                 info.versionCode.toLong()
             }.toString()
         }.getOrDefault("")
-        prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        instagramVersion = version
+        localPrefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+
+        val modulePrefs = tryLoadModulePrefs()
+        if (modulePrefs != null) {
+            val moduleStored = modulePrefs.getString(KEY_VERSION, "").orEmpty()
+            val moduleSchema = modulePrefs.getString(KEY_SCHEMA, "").orEmpty()
+            if (moduleStored == version && moduleSchema == SCHEMA_VERSION && version.isNotEmpty()) {
+                prefs = modulePrefs
+                cacheValid = true
+                log("DexKit cache valid via module prefs for Instagram $version")
+                return
+            }
+            log("Module prefs version mismatch: $moduleStored/$moduleSchema vs $version/$SCHEMA_VERSION")
+        } else {
+            log("DexKit cache using local prefs (cross-process unavailable)")
+        }
+
+        prefs = localPrefs
         val stored = prefs?.getString(KEY_VERSION, "").orEmpty()
         val storedSchema = prefs?.getString(KEY_SCHEMA, "").orEmpty()
         if (stored == version && storedSchema == SCHEMA_VERSION && version.isNotEmpty()) {
@@ -36,6 +58,33 @@ internal object InstagramDexKitCache {
             cacheValid = false
             prefs?.edit()?.clear()?.putString(KEY_VERSION, version)?.putString(KEY_SCHEMA, SCHEMA_VERSION)?.apply()
             log("Version $stored/$storedSchema -> $version/$SCHEMA_VERSION, cache cleared")
+            requestBackgroundScan(context)
+        }
+    }
+
+    private fun tryLoadModulePrefs(): android.content.SharedPreferences? {
+        return runCatching {
+            val prefsClass = Class.forName("de.robv.android.xposed.XSharedPreferences")
+            val prefs = prefsClass.getConstructor(String::class.java, String::class.java)
+                .newInstance(BuildConfig.APPLICATION_ID, PREF_NAME)
+            runCatching { prefsClass.getMethod("makeWorldReadable").invoke(prefs) }
+            runCatching { prefsClass.getMethod("reload").invoke(prefs) }
+            prefs as android.content.SharedPreferences
+        }.getOrNull()
+    }
+
+    private fun requestBackgroundScan(context: Context) {
+        if (instagramVersion.isEmpty()) return
+        runCatching {
+            val intent = Intent("${BuildConfig.APPLICATION_ID}.action.INSTAGRAM_DEXKIT_SCAN").apply {
+                setPackage(BuildConfig.APPLICATION_ID)
+                putExtra("apk_path", context.packageCodePath)
+                putExtra("app_version", instagramVersion)
+            }
+            context.sendBroadcast(intent)
+            log("Requested background DexKit scan for Instagram $instagramVersion")
+        }.onFailure {
+            log("Failed to request background DexKit scan: ${it.message}")
         }
     }
 

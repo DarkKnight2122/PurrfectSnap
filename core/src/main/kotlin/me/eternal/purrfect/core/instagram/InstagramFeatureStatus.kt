@@ -32,15 +32,17 @@ internal object InstagramFeatureStatus {
         Entry("Hide View Once Opened") { it.isGhostViewOnce },
         Entry("Unlimited View-Once Replays") { it.enableUnlimitedReplays },
         Entry("Hide Story Views") { it.isGhostStory },
-        Entry("Hide Live Presence") { it.isGhostLive },
+        Entry("Hide Live Stream Presence") { it.isGhostLive },
         Entry("Hide Voice Message Listens") { it.hideVoiceMessageSeen },
         Entry("Allow Screenshots in DMs") { it.allowScreenshots },
-        Entry("Keep Disappearing Messages") { it.keepEphemeralMessages },
         Entry("Keep Unsent Messages") { it.keepUnsentMessages },
         Entry("Permanent View Once Media") { it.permanentViewMode },
         Entry("Mark texts as seen after reply") { it.markTextsSeenAfterReply },
         Entry("Seen on Story Interaction") { it.storyInteractionSendsSeen },
         Entry("Hide Suggestions in Feed") { it.hideSuggestionsInFeed },
+        Entry("Hide Suggested for You in Feed") { it.hideSuggestedForYouInFeed },
+        Entry("Hide Suggestions in DM") { it.hideSuggestionsInDm },
+        Entry("Hide Discover People in Profile") { it.hideDiscoverPeopleInProfile },
         Entry("Disable Tracking Links") { it.disableTrackingLinks },
         Entry("Strip tracing parameters when sharing links") { it.stripShareTrackingParameters },
         Entry("Do Not Save Recent Searches") { it.doNotSaveRecentSearches },
@@ -50,18 +52,25 @@ internal object InstagramFeatureStatus {
         Entry("Story tray long-press actions") { it.enableStoryTrayLongPressActions },
         Entry("Show Follower Toast") { it.showFollowerToast },
         Entry("View Story Mentions") { it.enableStoryMentions },
+        Entry("Local Instagram Plus") { it.localInstagramPlus },
+        Entry("Send custom emoji reactions to story") { it.sendCustomEmojiReactionsToStory },
+        Entry("Change Like Reactions") { it.changeLikeReactions },
+        Entry("Disable group creation from sharesheet") { it.disableGroupCreationFromShareSheet },
+        Entry("Improve image viewing") { it.improveImageViewing },
+        Entry("More options on post") { it.moreOptionsOnPost },
+        Entry("Remove empty bottom space") { it.removeEmptyBottomSpace },
         Entry("Remove Build Expired Popup") { it.removeBuildExpiredPopup },
         Entry("Download Posts") { it.enablePostDownload },
         Entry("Download Stories") { it.enableStoryDownload },
         Entry("Download Reels") { it.enableReelDownload },
         Entry("Download Profile Pictures") { it.enableProfileDownload },
+        Entry("DM Context Menu Options") { it.enableDmContextMenuOptions },
         Entry("Download Reel Thumbnails") { it.enableReelThumbnailDownload },
         Entry("Story \"Mark as Seen\" Button") { it.enableStoryMarkSeenButton },
         Entry("Story Repost Button") { it.enableStoryRepostButton },
         Entry("Copy Profile Bio") { it.enableCopyBio },
         Entry("High Quality Story Upload") { it.enableHighQualityStoryUpload },
         Entry("Disable Double Tap to Like") { it.disableDoubleTapLike },
-        Entry("Monet theme") { it.enableMonetTheme },
         Entry("Custom Emoji Font") { it.customEmojiFontEnabled },
         Entry("Share sheet emoji shortcuts") { it.enableShareSheetEmojiShortcuts },
         Entry("Activity History Logging") { it.enableActivityHistory },
@@ -69,10 +78,10 @@ internal object InstagramFeatureStatus {
         Entry("Location spoof for Notes tray") { it.enableNotesLocationSpoof },
         Entry("Hide conversations") { it.enableHideChats },
         Entry("DM any-file upload picker") { it.enableDmAnyFileUpload },
-        Entry("Download GIF comments") { it.enableGifCommentDownload },
+        Entry("Upload Instants from Gallery") { it.enableUploadInstantsFromGallery },
         Entry("Start Feed Videos With Sound") { it.feedVideosStartWithSound || it.storiesStartWithSound },
         Entry("Navigation Tab Customizer") { it.enableNavigationTabCustomization },
-        Entry("Story Ring Size") { it.storyRingSize != "default" },
+        Entry("Customize Story Ring Size") { it.customizeStoryRingSize && it.storyRingSize != "default" },
         Entry("Hide UI Elements") { it.hiddenUiElementIdSet.isNotEmpty() || it.hiddenUiElementSelectorSet.isNotEmpty() },
         Entry("Capture UI Element ID Overlay") { it.captureUiElementIdsEnabled }
     )
@@ -149,6 +158,7 @@ internal object InstagramSettingsBackup {
     private fun defaultBoolean(key: String): Boolean {
         return key == "keepUnsentMessages" ||
             key == "quickToggleUnsend" ||
+            key == "enableDmContextMenuOptions" ||
             key == "customDateFormatFeed" ||
             key == "customDateFormatComments" ||
             key == "customDateFormatReels" ||
@@ -163,6 +173,7 @@ internal object InstagramSettingsBackup {
             "navigationTabOrder" -> "home,search,reels,create,direct,shop,profile"
             "navigationDefaultTab" -> "home"
             "storyRingSize" -> "default"
+            "likeReactionAnimation" -> "ARES_LIKE_ACTIVATION"
             "customDateFormat" -> "yyyy-MM-dd HH:mm"
             else -> ""
         }

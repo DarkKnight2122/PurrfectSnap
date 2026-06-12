@@ -322,6 +322,7 @@ dependencies {
     implementation(files("libs/ManifestEditor-1.0.2.jar"))
     implementation(libs.apksig)
     implementation(libs.dexlib2)
+    implementation(libs.dexkit)
     implementation(libs.jsoup)
     implementation("com.google.auto.value:auto-value-annotations:1.10.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

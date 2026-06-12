@@ -98,26 +98,32 @@ class InstagramConfigProvider : ContentProvider() {
             "isGhostModeEnabled", "isGhostSeen", "markTextsSeenAfterReply", "isGhostTyping", "isGhostStory",
             "storyInteractionSendsSeen", "isGhostLive", "hideVoiceMessageSeen",
             "allowScreenshots", "isGhostScreenshot", "isGhostViewOnce",
-            "enableUnlimitedReplays", "permanentViewMode", "keepEphemeralMessages",
+            "enableUnlimitedReplays", "permanentViewMode",
             "keepUnsentMessages", "quickToggleSeen", "quickToggleTyping",
             "quickToggleScreenshot", "quickToggleViewOnce", "quickToggleStory",
-            "quickToggleLive", "quickToggleEphemeral", "quickToggleUnsend",
+            "quickToggleLive", "quickToggleUnsend",
             "quickToggleReplays", "quickTogglePermanentView", "quickToggleAllowScreenshots",
             "isExtremeMode", "isDistractionFree", "disableStories", "disableFeed",
             "disableReels", "disableReelsExceptDM", "disableExplore", "disableComments",
             "isAdBlockEnabled", "isAnalyticsBlocked", "disableTrackingLinks",
             "stripShareTrackingParameters", "openLinksExternally", "replaceShareLinkDomain",
-            "hideSuggestionsInFeed", "doNotSaveRecentSearches", "enablePostDownload", "enableStoryDownload",
+            "hideSuggestionsInFeed", "hideSuggestedForYouInFeed", "hideSuggestionsInDm",
+            "hideDiscoverPeopleInProfile", "doNotSaveRecentSearches", "enablePostDownload", "enableStoryDownload",
             "enableReelDownload", "enableProfileDownload",
+            "enableDmContextMenuOptions",
             "enableReelThumbnailDownload", "enableStoryMarkSeenButton", "enableStoryRepostButton",
             "enableCopyBio", "enableHighQualityStoryUpload",
-            "enableDmAnyFileUpload", "enableGifCommentDownload", "downloaderUsernameFolder",
+            "enableDmAnyFileUpload", "enableUploadInstantsFromGallery",
+            "preventDmMessageListAutoscroll", "downloaderUsernameFolder",
             "downloaderAddTimestamp", "isMiscEnabled", "disableStoryFlipping", "disableVideoAutoPlay",
             "feedVideosStartWithSound", "storiesStartWithSound", "disableDoubleTapLike",
-            "enableConfirmRefresh", "enableMonetTheme", "customEmojiFontEnabled",
+            "enableConfirmRefresh", "customEmojiFontEnabled",
             "enableShareSheetEmojiShortcuts", "enableNavigationTabCustomization",
             "enableStoryTrayLongPressActions", "captureUiElementIdsEnabled",
             "showFollowerToast", "showFeatureToasts", "enableStoryMentions",
+            "localInstagramPlus", "sendCustomEmojiReactionsToStory", "changeLikeReactions",
+            "customizeStoryRingSize", "disableGroupCreationFromShareSheet",
+            "improveImageViewing", "moreOptionsOnPost", "removeEmptyBottomSpace",
             "enableHideChats", "enableActivityHistory",
             "enableCopyComment", "enableCustomDateFormat", "customDateFormatFeed",
             "customDateFormatComments", "customDateFormatReels", "customDateFormatStories",
@@ -128,14 +134,16 @@ class InstagramConfigProvider : ContentProvider() {
             "dmMarkSeenControlMode", "shareLinkReplacementDomain", "downloaderCustomPath",
             "downloaderCustomUri", "customEmojiFontPath", "customEmojiFontName",
             "customEmojiFontUri", "navigationTabOrder", "navigationTabHidden",
-            "navigationDefaultTab", "storyRingSize", "hiddenUiElementIds",
+            "navigationDefaultTab", "storyRingSize", "likeReactionAnimation", "hiddenUiElementIds",
             "hiddenUiElementSelectors", "hiddenChatNames", "knownChatNames",
-            "customDateFormat", "notesSpoofLatitude", "notesSpoofLongitude", "notesSpoofMapLocation"
+            "customDateFormat", "confirmRefreshScope", "reelDownloadControlMode",
+            "notesSpoofLatitude", "notesSpoofLongitude", "notesSpoofMapLocation"
         )
 
         fun defaultBoolean(key: String): Boolean {
             return key == "keepUnsentMessages" ||
                 key == "quickToggleUnsend" ||
+                key == "enableDmContextMenuOptions" ||
                 key == "customDateFormatFeed" ||
                 key == "customDateFormatComments" ||
                 key == "customDateFormatReels" ||
@@ -150,7 +158,10 @@ class InstagramConfigProvider : ContentProvider() {
                 "navigationTabOrder" -> "home,search,reels,create,direct,shop,profile"
                 "navigationDefaultTab" -> "home"
                 "storyRingSize" -> "default"
+                "likeReactionAnimation" -> "ARES_LIKE_ACTIVATION"
                 "customDateFormat" -> "yyyy-MM-dd HH:mm"
+                "confirmRefreshScope" -> "both"
+                "reelDownloadControlMode" -> "menu"
                 else -> ""
             }
         }
