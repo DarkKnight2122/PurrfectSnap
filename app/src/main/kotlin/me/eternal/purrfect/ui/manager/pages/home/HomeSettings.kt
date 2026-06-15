@@ -49,6 +49,7 @@ import androidx.work.WorkManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.eternal.purrfect.R
+import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.action.EnumAction
 import me.eternal.purrfect.common.bridge.InternalFileHandleType
@@ -147,9 +148,30 @@ class HomeSettings : Routes.Route() {
 
     internal fun launchTargetInstallSetup(targetApp: TargetApp) {
         val currentContext = context.activity ?: context.androidContext
+        if (targetApp == TargetApp.WHATSAPP || targetApp == TargetApp.INSTAGRAM) {
+            val packageName = context.packageNameForTargetApp(targetApp)
+            val label = targetDisplayName(targetApp)
+            val marketIntent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("market://details?id=$packageName")
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val webIntent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://play.google.com/store/apps/details?id=$packageName")
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            runCatching {
+                currentContext.startActivity(marketIntent)
+            }.onFailure {
+                runCatching { currentContext.startActivity(webIntent) }
+                    .onFailure { context.shortToast("$label is not installed") }
+            }
+            return
+        }
         val requirement = when (targetApp) {
             TargetApp.SNAPCHAT -> Requirements.INSTALL_SNAPCHAT
             TargetApp.REDDIT -> Requirements.INSTALL_REDDIT
+            TargetApp.WHATSAPP -> Requirements.INSTALL_SNAPCHAT
+            TargetApp.INSTAGRAM -> Requirements.INSTALL_SNAPCHAT
         }
         Intent(currentContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java).apply {
             putExtra("requirements", requirement)
@@ -167,7 +189,20 @@ class HomeSettings : Routes.Route() {
     }
 
     internal fun isTargetReady(targetApp: TargetApp): Boolean {
-        return SetupPreferences.hasCompletedTarget(context.sharedPreferences, targetApp)
+        if (SetupPreferences.hasCompletedTarget(context.sharedPreferences, targetApp)) return true
+        val packageName = context.packageNameForTargetApp(targetApp)
+        return runCatching {
+            context.androidContext.packageManager.getPackageInfo(packageName, 0)
+        }.isSuccess
+    }
+
+    internal fun targetDisplayName(targetApp: TargetApp): String {
+        return when (targetApp) {
+            TargetApp.SNAPCHAT -> "Snapchat"
+            TargetApp.REDDIT -> "Reddit"
+            TargetApp.WHATSAPP -> "WhatsApp"
+            TargetApp.INSTAGRAM -> "Instagram"
+        }
     }
 
     internal fun targetSwitchLabel(targetApp: TargetApp): String {
@@ -175,11 +210,15 @@ class HomeSettings : Routes.Route() {
             return when (targetApp) {
                 TargetApp.SNAPCHAT -> translation["switch_to_snapchat_button"] ?: "Switch to Snapchat"
                 TargetApp.REDDIT -> translation["switch_to_reddit_button"] ?: "Switch to Reddit"
+                TargetApp.WHATSAPP -> translation["switch_to_whatsapp_button"] ?: "Switch to WhatsApp"
+                TargetApp.INSTAGRAM -> translation["switch_to_instagram_button"] ?: "Switch to Instagram"
             }
         }
         return when (targetApp) {
             TargetApp.SNAPCHAT -> translation["install_snapchat_button"] ?: "Snapchat Available: Install!"
             TargetApp.REDDIT -> translation["install_reddit_button"] ?: "Reddit Available: Install!"
+            TargetApp.WHATSAPP -> translation["install_whatsapp_button"] ?: "Install WhatsApp"
+            TargetApp.INSTAGRAM -> translation["install_instagram_button"] ?: "Install Instagram"
         }
     }
 
@@ -202,16 +241,22 @@ class HomeSettings : Routes.Route() {
         val hapticFeedback = LocalHapticFeedback.current
         val skin = LocalPurrfectSkin.current
         val currentTarget = context.activeTargetApp
+        var showSwitcher by remember { mutableStateOf(false) }
         val title = when (currentTarget) {
             TargetApp.REDDIT -> translation["reddit_settings_title"]
+            TargetApp.WHATSAPP -> translation["whatsapp_settings_title"] ?: "WhatsApp Mode"
+            TargetApp.INSTAGRAM -> translation["instagram_settings_title"] ?: "Instagram Mode"
             TargetApp.SNAPCHAT -> translation["target_app_title"]
         }
         val icon = Icons.Filled.Forum
-        fun switchTo(targetApp: TargetApp) {
+        fun openSwitcher() {
             if (context.config.root.global.uiSettings.hapticFeedback.get()) {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
             }
-            handleTargetSwitch(targetApp)
+            showSwitcher = true
+        }
+        if (showSwitcher) {
+            TargetSwitcherDialog(onDismiss = { showSwitcher = false })
         }
         Box(
             modifier = Modifier
@@ -231,7 +276,12 @@ class HomeSettings : Routes.Route() {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = skin.textPrimary,
+                    tint = when (currentTarget) {
+                        TargetApp.WHATSAPP -> Color(0xFF25D366)
+                        TargetApp.INSTAGRAM -> Color(0xFFE4405F)
+                        TargetApp.REDDIT -> Color(0xFFFF4500)
+                        else -> skin.textPrimary
+                    },
                     modifier = Modifier.size(48.dp)
                 )
                 Text(
@@ -241,21 +291,88 @@ class HomeSettings : Routes.Route() {
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
-                listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT)
-                    .filter { it != currentTarget }
-                    .forEach { targetApp ->
-                        Button(
-                            onClick = { switchTo(targetApp) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = skin.textPrimary,
-                                contentColor = skin.cardOverlayColor
-                            )
-                        ) {
-                            Icon(Icons.Filled.Forum, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                targetSwitchLabel(targetApp)
-                            )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.WHATSAPP, TargetApp.INSTAGRAM)
+                        .filter { it != currentTarget }
+                        .forEach { targetApp ->
+                            Button(
+                                onClick = { handleTargetSwitch(targetApp) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = skin.textPrimary.copy(alpha = 0.85f),
+                                    contentColor = skin.cardOverlayColor
+                                )
+                            ) {
+                                Text(targetSwitchLabel(targetApp), fontSize = 12.sp)
+                            }
+                        }
+                    
+                    Button(
+                        onClick = { openSwitcher() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = skin.textPrimary,
+                            contentColor = skin.cardOverlayColor
+                        )
+                    ) {
+                        Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(translation["switch_target_button"] ?: "Switch", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    internal fun TargetSwitcherDialog(onDismiss: () -> Unit) {
+        val hapticFeedback = LocalHapticFeedback.current
+        val skin = LocalPurrfectSkin.current
+        Dialog(onDismissRequest = onDismiss) {
+            Surface(
+                shape = RoundedCornerShape(22.dp),
+                color = skin.cardOverlayColor,
+                border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.2f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = translation["switch_target_dialog_title"] ?: "Switch Target App",
+                        color = skin.textPrimary,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    TargetApp.entries
+                        .filter { it != context.activeTargetApp }
+                        .forEach { targetApp ->
+                            Button(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = {
+                                    if (context.config.root.global.uiSettings.hapticFeedback.get()) {
+                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    }
+                                    onDismiss()
+                                    handleTargetSwitch(targetApp)
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = when (targetApp) {
+                                        TargetApp.WHATSAPP -> Color(0xFF25D366)
+                                        TargetApp.INSTAGRAM -> Color(0xFFE4405F)
+                                        TargetApp.REDDIT -> Color(0xFFFF4500)
+                                        else -> skin.textPrimary
+                                    },
+                                    contentColor = if (targetApp == TargetApp.SNAPCHAT) skin.cardOverlayColor else Color.White
+                                )
+                            ) {
+                                Icon(Icons.Filled.Forum, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(targetSwitchLabel(targetApp))
+                            }
                         }
                 }
             }

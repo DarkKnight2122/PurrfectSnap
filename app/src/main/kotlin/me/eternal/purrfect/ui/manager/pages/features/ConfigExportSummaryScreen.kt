@@ -162,9 +162,14 @@ class ConfigExportSummaryScreen : Routes.Route() {
     override val content: @Composable (androidx.navigation.NavBackStackEntry) -> Unit = { navBackStackEntry ->
         val avenirNext = remember { FontFamily(Font(R.font.avenir_next_medium, FontWeight.Medium)) }
         val exportSensitiveData = navBackStackEntry.arguments?.getString("exportSensitiveData")?.toBoolean() ?: false
-        val includeSavedLocations = !context.isRedditMode &&
+        val includeSavedLocations = !context.isRedditMode && !context.isInstagramMode &&
             (navBackStackEntry.arguments?.getString("includeSavedLocations")?.toBoolean() ?: false)
-        val defaultFileName = if (context.isRedditMode) "reddit-config.json" else "snap-config.json"
+        val defaultFileName = when {
+            context.isRedditMode -> "reddit-config.json"
+            context.isWhatsAppMode -> "whatsapp-config.json"
+            context.isInstagramMode -> "instagram-config.json"
+            else -> "snap-config.json"
+        }
         val exportLabel = context.translation["manager.sections.features.export_option"] ?: "Confirm Export"
         val parser = remember { ConfigParser() }
 

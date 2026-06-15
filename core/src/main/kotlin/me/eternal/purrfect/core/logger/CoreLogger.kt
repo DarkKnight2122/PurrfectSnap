@@ -20,12 +20,10 @@ class CoreLogger(
 
         fun xposedLog(message: Any?, tag: String = TAG) {
             Log.println(Log.INFO, tag, message.toString())
-            Log.i(tag, message.toString())
         }
 
         fun xposedLog(message: Any?, throwable: Throwable, tag: String = TAG) {
-            Log.println(Log.INFO, tag, message.toString())
-            Log.i(tag, message.toString(), throwable)
+            Log.println(Log.INFO, tag, "${message}\n${throwable.stackTraceToString()}")
         }
     }
 

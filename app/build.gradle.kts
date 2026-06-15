@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.security.KeyStore
 import java.io.File
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -100,8 +101,26 @@ fun computeKeystoreCertSha256(storeFile: File, storePass: String, keyAlias: Stri
     }.getOrNull()
 }
 
+fun userHomeGradleProperty(name: String): String? {
+    val homeDirs = listOfNotNull(
+        System.getProperty("user.home"),
+        System.getenv("USERPROFILE"),
+        System.getenv("HOME")
+    ).distinct()
+
+    return homeDirs.firstNotNullOfOrNull { home ->
+        val file = File(home, ".gradle/gradle.properties")
+        if (!file.exists()) return@firstNotNullOfOrNull null
+        runCatching {
+            val props = Properties()
+            file.inputStream().use(props::load)
+            props.getProperty(name)?.takeIf { it.isNotBlank() }
+        }.getOrNull()
+    }
+}
+
 fun gradleOrEnv(name: String, providers: org.gradle.api.provider.ProviderFactory): String? {
-    return providers.gradleProperty(name).orNull ?: System.getenv(name)
+    return providers.gradleProperty(name).orNull ?: System.getenv(name) ?: userHomeGradleProperty(name)
 }
 
 android {
@@ -303,6 +322,7 @@ dependencies {
     implementation(files("libs/ManifestEditor-1.0.2.jar"))
     implementation(libs.apksig)
     implementation(libs.dexlib2)
+    implementation(libs.dexkit)
     implementation(libs.jsoup)
     implementation("com.google.auto.value:auto-value-annotations:1.10.4")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

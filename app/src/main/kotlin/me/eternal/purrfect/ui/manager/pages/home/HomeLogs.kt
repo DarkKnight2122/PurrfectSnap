@@ -96,6 +96,8 @@ class HomeLogs : Routes.Route() {
     internal fun exportLogs() {
         val targetPrefix = when (context.activeTargetApp) {
             TargetApp.REDDIT -> "purrfectreddit"
+            TargetApp.WHATSAPP -> "purrfectwa"
+            TargetApp.INSTAGRAM -> "purrfectinsta"
             TargetApp.SNAPCHAT -> "purrfectsnap"
         }
         activityLauncherHelper.saveFile("$targetPrefix-logs-${System.currentTimeMillis()}.zip", "application/zip") { uri ->

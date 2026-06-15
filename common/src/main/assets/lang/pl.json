@@ -197,7 +197,7 @@
         },
         "sections": {
             "home": {
-                "version_title": "v{versionName} \u00b7 by ΞTΞRNAL",
+                "version_title": "v{versionName}",
                 "update_title": "Aktualizacja Purrfect",
                 "update_content": "Wersja {version} jest dostępna!",
                 "update_button": "Pobierz",
@@ -247,7 +247,7 @@
                 "about_tagline": "Moduł Xposed stworzony, by ulepszyć Twoje doświadczenia ze Snapchatem!",
                 "about_lead_developers_title": "Główni programiści",
                 "about_story_title": "Nasza historia",
-                "about_story": "Purrfect został założony 2 października 2025 roku jako fork SnapEnhance przez ΞTΞRNAL z wizją zapewnienia użytkownikom jakości obsługi Snapchata, na jaką zasługują. Ta aplikacja miała być tylko drobną aktualizacją w repozytorium SnapEnhance, ale wkrótce stała się osobną aplikacją, do której współtwórcy dodawali kolejne funkcje. Następnie do zespołu dołączył deweloper <RSR/>, a aplikacja wkrótce odniosła ogromny sukces. Otrzymaliśmy wiele miłości i wsparcia, uzyskując ponad 1000 pobrań w zaledwie dwa dni! Dziękujemy wszystkim użytkownikom i współtwórcom; bez waszego wsparcia nie dotarlibyśmy do tego miejsca. Chcielibyśmy również przekazać ogromne podziękowania dla rhunk, głównego dewelopera SnapEnhance, ponieważ bez niego ta aplikacja by w ogóle nie istniała. Jesteśmy mu niezmiernie wdzięczni. Na koniec chcielibyśmy podziękować wszystkim naszym administratorom, w szczególności: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, którzy byli z nami od samego początku. Dziękujemy również wszystkim testerom, w szczególności Leo & Toxic, którzy nieustannie testowali i zgłaszali błędy. Jesteśmy niezmiernie wdzięczni za wasz wkład.",
+                "about_story": "Purrfect został założony 2 października 2025 roku jako fork SnapEnhance z wizją zapewnienia użytkownikom jakości obsługi Snapchata, na jaką zasługują. Ta aplikacja miała być tylko drobną aktualizacją w repozytorium SnapEnhance, ale wkrótce stała się osobną aplikacją, do której współtwórcy dodawali kolejne funkcje. Następnie do zespołu dołączył deweloper <RSR/>, a aplikacja wkrótce odniosła ogromny sukces. Otrzymaliśmy wiele miłości i wsparcia, uzyskując ponad 1000 pobrań w zaledwie dwa dni! Dziękujemy wszystkim użytkownikom i współtwórcom; bez waszego wsparcia nie dotarlibyśmy do tego miejsca. Chcielibyśmy również przekazać ogromne podziękowania dla rhunk, głównego dewelopera SnapEnhance, ponieważ bez niego ta aplikacja by w ogóle nie istniała. Jesteśmy mu niezmiernie wdzięczni. Na koniec chcielibyśmy podziękować wszystkim naszym administratorom, w szczególności: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, którzy byli z nami od samego początku. Dziękujemy również wszystkim testerom, w szczególności Leo & Toxic, którzy nieustannie testowali i zgłaszali błędy. Jesteśmy niezmiernie wdzięczni za wasz wkład.",
                 "about_thanks_title": "Z miłością, Zespół Purrfect",
                 "about_magic_toast": "Stuknij 5 razy w ten ekran, aby zobaczyć trochę magii 😉!",
                 "github_button": "GitHub",

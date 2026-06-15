@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.eternal.purrfect.R
 import me.eternal.purrfect.common.BuildConfig
+import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import me.eternal.purrfect.common.ui.rememberAsyncMutableStateList
 import me.eternal.purrfect.common.util.ktx.openLink
@@ -102,8 +103,16 @@ fun HomeRootSection.AphelionHomeView(
     val isPurrAuraActive by rememberPreferenceBool("debug_test_mode", true)
     
     // Quick Actions Logic
-    val isRedditMode = remember { context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT }
-    val activeCards = if (isRedditMode) redditCards else cards
+    val activeTarget = context.activeTargetApp
+    val isRedditMode = remember(activeTarget) { activeTarget == TargetApp.REDDIT }
+    val activeCards = remember(activeTarget) {
+        when (activeTarget) {
+            TargetApp.REDDIT -> redditCards
+            TargetApp.WHATSAPP -> whatsAppCards
+            TargetApp.INSTAGRAM -> instagramCards
+            TargetApp.SNAPCHAT -> cards
+        }
+    }
     val allQuickTileNames = remember(activeCards) { activeCards.keys.map { it.first } }
 
     val selectedTiles = rememberAsyncMutableStateList<String>(defaultValue = emptyList()) {

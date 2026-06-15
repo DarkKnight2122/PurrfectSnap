@@ -327,14 +327,20 @@ class RemoteSideContext(
     }
 
     fun forceStopTargetPackage(packageName: String, appLabel: String) {
-        if (packageName != Constants.REDDIT_PACKAGE_NAME) {
-            shortToast("Force stop is only available for Reddit")
+        val action = when (packageName) {
+            Constants.REDDIT_PACKAGE_NAME -> Constants.REDDIT_FORCE_STOP_ACTION
+            Constants.WHATSAPP_PACKAGE_NAME -> Constants.WHATSAPP_FORCE_STOP_ACTION
+            in Constants.INSTAGRAM_PACKAGE_NAMES -> Constants.INSTAGRAM_FORCE_STOP_ACTION
+            else -> null
+        }
+        if (action == null) {
+            shortToast("Force stop is not available for $appLabel")
             return
         }
         runCatching {
             androidContext.sendBroadcast(
-                Intent(Constants.REDDIT_FORCE_STOP_ACTION)
-                    .setPackage(Constants.REDDIT_PACKAGE_NAME)
+                Intent(action)
+                    .setPackage(packageName)
             )
         }.onSuccess {
             shortToast("Close signal sent to $appLabel")
@@ -345,7 +351,38 @@ class RemoteSideContext(
     }
 
     fun setActiveTargetApp(targetApp: TargetApp) {
-        sharedPreferences.edit().putString(TargetApp.PREF_KEY, targetApp.key).apply()
+        sharedPreferences.edit().putString(TargetApp.PREF_KEY, targetApp.key).commit()
+    }
+
+    fun packageNameForTargetApp(targetApp: TargetApp): String {
+        return when (targetApp) {
+            TargetApp.SNAPCHAT -> Constants.SNAPCHAT_PACKAGE_NAME
+            TargetApp.REDDIT -> Constants.REDDIT_PACKAGE_NAME
+            TargetApp.WHATSAPP -> Constants.WHATSAPP_PACKAGE_NAME
+            TargetApp.INSTAGRAM -> installedInstagramPackageName()
+        }
+    }
+
+    private fun installedInstagramPackageName(): String {
+        return Constants.INSTAGRAM_PACKAGE_NAMES.firstOrNull { packageName ->
+            runCatching {
+                @Suppress("DEPRECATION")
+                androidContext.packageManager.getPackageInfo(packageName, 0)
+                true
+            }.getOrDefault(false)
+        } ?: Constants.INSTAGRAM_PACKAGE_NAME
+    }
+
+    private fun inferInstalledTargetApp(): TargetApp? {
+        val installedTargets = TargetApp.entries.filter { targetApp ->
+            runCatching {
+                androidContext.packageManager.getPackageInfo(
+                    packageNameForTargetApp(targetApp),
+                    0
+                )
+            }.isSuccess
+        }
+        return installedTargets.singleOrNull()
     }
 
     fun setTargetAppOverride(targetApp: TargetApp?) {
@@ -420,57 +457,6 @@ class RemoteSideContext(
         }.onFailure {
             log.warn("Failed to broadcast Reddit feature config: ${it.message}")
         }
-    }
-
-    fun getRedditFeaturesJson(): String {
-        return Gson().toJson(
-            mapOf(
-                "block_promoted_posts" to config.root.reddit.blockPromotedPostsEnabled(),
-                "block_comment_ads" to config.root.reddit.blockCommentAdsEnabled(),
-                "unlock_reddit_premium" to config.root.reddit.unlockRedditPremiumEnabled(),
-                "open_links_in_external_browser" to config.root.reddit.openLinksInExternalBrowserEnabled(),
-                "disable_screenshot_popup" to config.root.reddit.disableScreenshotPopupEnabled(),
-                "hide_answers_button" to false,
-                "hide_chat_button" to false,
-                "hide_create_button" to config.root.reddit.hideCreateButtonEnabled(),
-                "hide_discover_communities_button" to false,
-                "hide_games_button" to false,
-                "hide_recently_visited_shelf" to config.root.reddit.hideRecentlyVisitedShelfEnabled(),
-                "hide_games_on_reddit_shelf" to config.root.reddit.hideGamesOnRedditShelfEnabled(),
-                "hide_reddit_pro_shelf" to config.root.reddit.hideRedditProShelfEnabled(),
-                "hide_about_shelf" to config.root.reddit.hideAboutShelfEnabled(),
-                "hide_resources_shelf" to config.root.reddit.hideResourcesShelfEnabled(),
-                "hide_recommended_communities" to false,
-                "hide_trending_today_shelf" to config.root.reddit.hideTrendingTodayShelfEnabled(),
-                "remove_nsfw_warning_dialog" to config.root.reddit.removeNsfwWarningDialogEnabled(),
-                "remove_notification_suggestion_dialog" to config.root.reddit.removeNotificationSuggestionDialogEnabled(),
-                "sanitize_sharing_links" to config.root.reddit.sanitizeSharingLinksEnabled(),
-                "add_scroll_to_top_button" to config.root.reddit.addScrollToTopButtonEnabled(),
-                "color_coded_comment_threads" to false,
-                "restore_deleted_content" to false
-            )
-        )
-    }
-
-    fun resetActiveTargetConfig() {
-        if (isRedditMode) {
-            val defaults = RootConfig().apply { lateInit(androidContext) }
-            config.root.reddit.fromJson(defaults.reddit.toJson())
-        } else {
-            val redditConfig = config.root.reddit.toJson()
-            config.reset()
-            config.root.reddit.fromJson(redditConfig)
-        }
-        config.root.reddit.migrateLegacyFlags()
-        config.writeConfig()
-        mirrorRedditFeaturePrefs()
-    }
-
-    private fun redditFeatureExternalFiles(): List<File> {
-        return listOf(
-            File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE"),
-            File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE")
-        ).distinctBy { it.absolutePath }
     }
 
     fun mirrorWhatsAppFeaturePrefs() {
@@ -599,6 +585,36 @@ class RemoteSideContext(
         }
     }
 
+    fun getRedditFeaturesJson(): String {
+        return Gson().toJson(
+            mapOf(
+                "block_promoted_posts" to config.root.reddit.blockPromotedPostsEnabled(),
+                "block_comment_ads" to config.root.reddit.blockCommentAdsEnabled(),
+                "unlock_reddit_premium" to config.root.reddit.unlockRedditPremiumEnabled(),
+                "open_links_in_external_browser" to config.root.reddit.openLinksInExternalBrowserEnabled(),
+                "disable_screenshot_popup" to config.root.reddit.disableScreenshotPopupEnabled(),
+                "hide_answers_button" to false,
+                "hide_chat_button" to false,
+                "hide_create_button" to config.root.reddit.hideCreateButtonEnabled(),
+                "hide_discover_communities_button" to false,
+                "hide_games_button" to false,
+                "hide_recently_visited_shelf" to config.root.reddit.hideRecentlyVisitedShelfEnabled(),
+                "hide_games_on_reddit_shelf" to config.root.reddit.hideGamesOnRedditShelfEnabled(),
+                "hide_reddit_pro_shelf" to config.root.reddit.hideRedditProShelfEnabled(),
+                "hide_about_shelf" to config.root.reddit.hideAboutShelfEnabled(),
+                "hide_resources_shelf" to config.root.reddit.hideResourcesShelfEnabled(),
+                "hide_recommended_communities" to false,
+                "hide_trending_today_shelf" to config.root.reddit.hideTrendingTodayShelfEnabled(),
+                "remove_nsfw_warning_dialog" to config.root.reddit.removeNsfwWarningDialogEnabled(),
+                "remove_notification_suggestion_dialog" to config.root.reddit.removeNotificationSuggestionDialogEnabled(),
+                "sanitize_sharing_links" to config.root.reddit.sanitizeSharingLinksEnabled(),
+                "add_scroll_to_top_button" to config.root.reddit.addScrollToTopButtonEnabled(),
+                "color_coded_comment_threads" to false,
+                "restore_deleted_content" to false
+            )
+        )
+    }
+
     fun getWhatsAppFeaturesJson(): String {
         return Gson().toJson(getWhatsAppFeaturesMap())
     }
@@ -634,36 +650,37 @@ class RemoteSideContext(
         return config.root.instagram.featureMap()
     }
 
-    fun packageNameForTargetApp(targetApp: TargetApp): String {
-        return when (targetApp) {
-            TargetApp.SNAPCHAT -> Constants.SNAPCHAT_PACKAGE_NAME
-            TargetApp.REDDIT -> Constants.REDDIT_PACKAGE_NAME
-            TargetApp.WHATSAPP -> Constants.WHATSAPP_PACKAGE_NAME
-            TargetApp.INSTAGRAM -> installedInstagramPackageName()
+    fun resetActiveTargetConfig() {
+        val defaults = RootConfig().apply { lateInit(androidContext) }
+        when (activeTargetApp) {
+            TargetApp.REDDIT -> config.root.reddit.fromJson(defaults.reddit.toJson())
+            TargetApp.WHATSAPP -> config.root.whatsapp.fromJson(defaults.whatsapp.toJson())
+            TargetApp.INSTAGRAM -> config.root.instagram.fromJson(defaults.instagram.toJson())
+            TargetApp.SNAPCHAT -> {
+                val redditConfig = config.root.reddit.toJson()
+                val whatsAppConfig = config.root.whatsapp.toJson()
+                val instagramConfig = config.root.instagram.toJson()
+                config.reset()
+                config.root.reddit.fromJson(redditConfig)
+                config.root.whatsapp.fromJson(whatsAppConfig)
+                config.root.instagram.fromJson(instagramConfig)
+            }
         }
+        config.root.reddit.migrateLegacyFlags()
+        config.writeConfig()
+        mirrorRedditFeaturePrefs()
+        mirrorWhatsAppFeaturePrefs()
+        mirrorInstagramFeaturePrefs()
     }
 
-    private fun installedInstagramPackageName(): String {
-        return Constants.INSTAGRAM_PACKAGE_NAMES.firstOrNull { packageName ->
-            runCatching {
-                @Suppress("DEPRECATION")
-                androidContext.packageManager.getPackageInfo(packageName, 0)
-                true
-            }.getOrDefault(false)
-        } ?: Constants.INSTAGRAM_PACKAGE_NAME
+    private fun redditFeatureExternalFiles(): List<File> {
+        return listOf(
+            File("/storage/emulated/0/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE"),
+            File("/sdcard/Android/media/${BuildConfig.APPLICATION_ID}/$REDDIT_FEATURE_CONFIG_FILE")
+        ).distinctBy { it.absolutePath }
     }
 
-    private fun inferInstalledTargetApp(): TargetApp? {
-        val installedTargets = TargetApp.entries.filter { targetApp ->
-            runCatching {
-                androidContext.packageManager.getPackageInfo(
-                    packageNameForTargetApp(targetApp),
-                    0
-                )
-            }.isSuccess
-        }
-        return installedTargets.singleOrNull()
-    }
+
 
     private fun whatsAppFeatureExternalFiles(): List<File> {
         return listOf(

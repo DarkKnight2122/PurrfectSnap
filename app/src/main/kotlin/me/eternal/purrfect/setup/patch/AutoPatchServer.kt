@@ -87,6 +87,8 @@ class AutoPatchServer(
             }
 
             TargetApp.REDDIT -> apkAssets.first()
+            TargetApp.WHATSAPP -> null
+            TargetApp.INSTAGRAM -> null
         }
     }
 
@@ -106,6 +108,9 @@ class AutoPatchServer(
                 GithubRepository("particle-box", "download-reddit"),
                 GithubRepository("curious-freak", "download-reddit")
             )
+
+            TargetApp.WHATSAPP -> emptyList()
+            TargetApp.INSTAGRAM -> emptyList()
         }
     }
 }

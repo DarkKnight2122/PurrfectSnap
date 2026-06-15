@@ -9,6 +9,7 @@
 
 -keep class com.android.tools.smali.dexlib2.** { *; }
 -keep class org.mozilla.javascript.** { *; }
+-keep class org.luckypray.dexkit.** { *; }
 -keep class androidx.compose.material.icons.** { *; }
 -keep class androidx.compose.material3.R$* { *; }
 -keep class androidx.compose.ui.R$* { *; }

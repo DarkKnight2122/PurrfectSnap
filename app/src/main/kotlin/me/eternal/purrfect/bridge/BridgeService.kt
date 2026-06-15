@@ -379,6 +379,16 @@ class BridgeService : Service() {
             return remoteSideContext.getRedditFeaturesJson()
         }
 
+        override fun getWhatsAppFeaturesJson(): String {
+            remoteSideContext.mirrorWhatsAppFeaturePrefs()
+            return remoteSideContext.getWhatsAppFeaturesJson()
+        }
+
+        override fun getInstagramFeaturesJson(): String {
+            remoteSideContext.mirrorInstagramFeaturePrefs()
+            return remoteSideContext.getInstagramFeaturesJson()
+        }
+
         override fun startCallDownload(
             startTimestamp: Long,
             author: String

@@ -429,7 +429,6 @@ open class TargetAppInstallScreen(
                         )
                     )
                     downloadFinished = true
-
                     if (flow == SetupInstallFlow.ROOT) {
                         pushStatus(
                             translation.format(

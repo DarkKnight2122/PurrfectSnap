@@ -130,6 +130,7 @@ class LogManager(
     companion object {
         private val LOG_LIFETIME = 24.hours
         private const val REDDIT_LOG_OFFSET_PREF = "reddit_xposed_log_offset"
+        private const val WHATSAPP_LOG_OFFSET_PREF = "whatsapp_xposed_log_offset"
     }
 
     private val printLogLock = Any()
@@ -156,7 +157,7 @@ class LogManager(
         if (System.currentTimeMillis() - remoteSideContext.sharedPreferences.getLong("last_created", 0) > LOG_LIFETIME.inWholeMilliseconds) {
             newLogFile()
         }
-        syncExternalRedditLogs()
+        syncExternalTargetLogs()
     }
 
     fun internalLog(tag: String, logLevel: LogLevel, message: Any?) {
@@ -202,7 +203,10 @@ class LogManager(
 
     fun clearLogs() {
         logFolder.listFiles()?.forEach { it.delete() }
-        remoteSideContext.sharedPreferences.edit().remove(REDDIT_LOG_OFFSET_PREF).apply()
+        remoteSideContext.sharedPreferences.edit()
+            .remove(REDDIT_LOG_OFFSET_PREF)
+            .remove(WHATSAPP_LOG_OFFSET_PREF)
+            .apply()
         newLogFile()
     }
 
@@ -255,9 +259,13 @@ class LogManager(
 
     fun isLogForTarget(line: LogLine, targetApp: TargetApp): Boolean {
         val isReddit = isRedditLog(line)
+        val isWhatsApp = isWhatsAppLog(line)
+        val isInstagram = isInstagramLog(line)
         return when (targetApp) {
             TargetApp.REDDIT -> isReddit
-            TargetApp.SNAPCHAT -> !isReddit
+            TargetApp.WHATSAPP -> isWhatsApp
+            TargetApp.INSTAGRAM -> isInstagram
+            TargetApp.SNAPCHAT -> !isReddit && !isWhatsApp && !isInstagram
         }
     }
 
@@ -267,52 +275,94 @@ class LogManager(
                 line.message.contains("reddit:", ignoreCase = true)
     }
 
-    private fun markExternalRedditLogs(text: String): String {
+    private fun isWhatsAppLog(line: LogLine): Boolean {
+        return line.tag.contains("whatsapp", ignoreCase = true) ||
+                line.tag.contains("purrfectwa", ignoreCase = true) ||
+                line.message.contains("[whatsapp]", ignoreCase = true) ||
+                line.message.contains("whatsapp:", ignoreCase = true) ||
+                line.message.contains("purrfectwa", ignoreCase = true)
+    }
+
+    private fun isInstagramLog(line: LogLine): Boolean {
+        return line.tag.contains("instagram", ignoreCase = true) ||
+                line.tag.contains("purrfectinsta", ignoreCase = true) ||
+                line.message.contains("[instagram]", ignoreCase = true) ||
+                line.message.contains("instagram:", ignoreCase = true) ||
+                line.message.contains("purrfectinsta", ignoreCase = true)
+    }
+
+    private fun markExternalTargetLogs(text: String, markerTag: String, isTargetLog: (LogLine) -> Boolean): String {
         return text.lineSequence()
             .filter { it.isNotBlank() }
             .joinToString("\n") { rawLine ->
                 val lineBody = rawLine.removePrefix("|").trimEnd()
                 val parsed = LogLine.fromString(lineBody)
-                val marked = if (parsed == null || isRedditLog(parsed)) {
+                val marked = if (parsed == null || isTargetLog(parsed)) {
                     lineBody
                 } else {
-                    LogLine(parsed.logLevel, parsed.dateTime, "PurrfectReddit", parsed.message).toString()
+                    LogLine(parsed.logLevel, parsed.dateTime, markerTag, parsed.message).toString()
                 }
                 "|$marked"
             }
             .let { marked -> if (marked.isBlank()) marked else "$marked\n" }
     }
 
+    private fun markExternalRedditLogs(text: String): String {
+        return markExternalTargetLogs(text, "PurrfectReddit", ::isRedditLog)
+    }
+
+    private fun markExternalWhatsAppLogs(text: String): String {
+        return markExternalTargetLogs(text, "PurrfectWA", ::isWhatsAppLog)
+    }
+
+    private fun syncExternalTargetLogs() {
+        syncExternalRedditLogs()
+        syncExternalWhatsAppLogs()
+    }
+
     private fun syncExternalRedditLogs() {
+        syncExternalLog("reddit_xposed.log", REDDIT_LOG_OFFSET_PREF, ::markExternalRedditLogs)
+    }
+
+    private fun syncExternalWhatsAppLogs() {
+        syncExternalLog("whatsapp_xposed.log", WHATSAPP_LOG_OFFSET_PREF, ::markExternalWhatsAppLogs)
+    }
+
+    private fun syncExternalLog(
+        fileName: String,
+        offsetPreference: String,
+        marker: (String) -> String
+    ) {
         synchronized(printLogLock) {
             runCatching {
-                val redditLog = File(
+                val externalLog = File(
                     "/storage/emulated/0/Android/media/${remoteSideContext.androidContext.packageName}/logs",
-                    "reddit_xposed.log"
+                    fileName
                 )
-                if (!redditLog.exists()) return
+                if (!externalLog.exists()) return@runCatching
                 val prefs = remoteSideContext.sharedPreferences
-                val storedOffset = prefs.getLong(REDDIT_LOG_OFFSET_PREF, 0L)
-                val offset = storedOffset.takeIf { it in 0..redditLog.length() } ?: 0L
-                if (offset >= redditLog.length()) return
-                RandomAccessFile(redditLog, "r").use { input ->
+                val storedOffset = prefs.getLong(offsetPreference, 0L)
+                val offset = storedOffset.takeIf { it in 0..externalLog.length() } ?: 0L
+                if (offset >= externalLog.length()) return@runCatching
+                RandomAccessFile(externalLog, "r").use { input ->
                     input.seek(offset)
-                    val bytes = ByteArray((redditLog.length() - offset).coerceAtMost(256 * 1024L).toInt())
+                    val bytes = ByteArray((externalLog.length() - offset).coerceAtMost(256 * 1024L).toInt())
                     val read = input.read(bytes)
-                    if (read <= 0) return
-                    val text = String(bytes, 0, read, Charsets.UTF_8)
-                    val completeText = if (text.endsWith("\n")) text else text.substringBeforeLast("\n", "")
-                    if (completeText.isNotBlank()) {
-                        logFile?.appendText(markExternalRedditLogs(completeText), Charsets.UTF_8)
+                    if (read > 0) {
+                        val text = String(bytes, 0, read, Charsets.UTF_8)
+                        val completeText = if (text.endsWith("\n")) text else text.substringBeforeLast("\n", "")
+                        if (completeText.isNotBlank()) {
+                            logFile?.appendText(marker(completeText), Charsets.UTF_8)
+                        }
+                        prefs.edit().putLong(offsetPreference, input.filePointer).apply()
                     }
-                    prefs.edit().putLong(REDDIT_LOG_OFFSET_PREF, input.filePointer).apply()
                 }
             }
         }
     }
 
     fun newReader(onAddLine: (LogLine) -> Unit): LogReader {
-        syncExternalRedditLogs()
+        syncExternalTargetLogs()
         return LogReader(logFile!!).also {
             lineAddListener = { line -> it.incrementLineCount(); onAddLine(line) }
         }

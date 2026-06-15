@@ -180,8 +180,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                 ) {
                     GlassCard {
                         RowTitle(title = translation["target_app_title"] ?: "Target App")
-                        val targetApp = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.SNAPCHAT) me.eternal.purrfect.common.TargetApp.REDDIT else me.eternal.purrfect.common.TargetApp.SNAPCHAT
-                        AphelionTargetAppSwitchRow(targetApp)
+                        AphelionTargetAppSwitchRow()
                     }
 
                     // THEME SWITCHER
@@ -1430,7 +1429,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
 }
 
 @Composable
-private fun HomeSettings.AphelionTargetAppSwitchRow(targetApp: me.eternal.purrfect.common.TargetApp) {
+private fun HomeSettings.AphelionTargetAppSwitchRow() {
     val managerTheme = context.config.root.global.uiSettings.managerTheme.get()
     val activeSkin = LocalPurrfectSkin.current
     val skin = remember(managerTheme, activeSkin) { if (managerTheme == "APHELION") activeSkin else PurrfectPalette }
@@ -1438,10 +1437,15 @@ private fun HomeSettings.AphelionTargetAppSwitchRow(targetApp: me.eternal.purrfe
     val currentLabel = when (context.activeTargetApp) {
         me.eternal.purrfect.common.TargetApp.SNAPCHAT -> translation["target_app_snapchat_summary"] ?: "Current: Snapchat"
         me.eternal.purrfect.common.TargetApp.REDDIT -> translation["target_app_reddit_summary"] ?: "Current: Reddit"
+        me.eternal.purrfect.common.TargetApp.WHATSAPP -> translation["target_app_whatsapp_summary"] ?: "Current: WhatsApp"
+        me.eternal.purrfect.common.TargetApp.INSTAGRAM -> translation["target_app_instagram_summary"] ?: "Current: Instagram"
     }
-    val buttonLabel = when (targetApp) {
-        me.eternal.purrfect.common.TargetApp.SNAPCHAT -> targetSwitchLabel(me.eternal.purrfect.common.TargetApp.SNAPCHAT)
-        me.eternal.purrfect.common.TargetApp.REDDIT -> targetSwitchLabel(me.eternal.purrfect.common.TargetApp.REDDIT)
+    val buttonLabel = translation["switch_target_button"] ?: "Switch"
+
+    var showSwitcher by remember { mutableStateOf(false) }
+
+    if (showSwitcher) {
+        TargetSwitcherDialog(onDismiss = { showSwitcher = false })
     }
 
     ShiftedRow {
@@ -1458,7 +1462,7 @@ private fun HomeSettings.AphelionTargetAppSwitchRow(targetApp: me.eternal.purrfe
             Button(
                 onClick = {
                     if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                    handleTargetSwitch(targetApp)
+                    showSwitcher = true
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1543,8 +1547,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
             Spacer(Modifier.height(controlsHeight))
             GlassCard {
                 RowTitle(title = translation["target_app_title"] ?: "Target App")
-                val targetApp = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.SNAPCHAT) me.eternal.purrfect.common.TargetApp.REDDIT else me.eternal.purrfect.common.TargetApp.SNAPCHAT
-                AphelionTargetAppSwitchRow(targetApp)
+                AphelionTargetAppSwitchRow()
             }
             GlassCard {
                 RowTitle(title = translation["actions_title"] ?: "Actions")
