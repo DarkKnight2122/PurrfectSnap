@@ -1,4 +1,4 @@
-use std::{fs::File, os::unix::io::AsRawFd, sync::Mutex};
+use std::{fs::File, io::{Read, Seek, SeekFrom}, os::unix::io::AsRawFd, sync::Mutex};
 
 use nix::libc;
 use procfs::process::MMPermissions;
@@ -53,6 +53,38 @@ fn read_region_bytes(start: usize, size: usize) -> Option<Vec<u8>> {
     }
 
     None
+}
+
+fn read_region_bytes_from_file(region: &crate::mapped_lib::MappedRegion) -> Option<Vec<u8>> {
+    let size = (region.end - region.start) as usize;
+    let mut file = match File::open(&region.path) {
+        Ok(file) => file,
+        Err(error) => {
+            warn!("Failed to open mapped file {:?}: {}", region.path, error);
+            return None;
+        }
+    };
+    if let Err(error) = file.seek(SeekFrom::Start(region.offset)) {
+        warn!(
+            "Failed to seek mapped file {:?} to {:#x}: {}",
+            region.path,
+            region.offset,
+            error
+        );
+        return None;
+    }
+    let mut buffer = vec![0u8; size];
+    if let Err(error) = file.read_exact(&mut buffer) {
+        warn!(
+            "Failed to read mapped file {:?} at {:#x} for {} bytes: {}",
+            region.path,
+            region.offset,
+            size,
+            error
+        );
+        return None;
+    }
+    Some(buffer)
 }
 
 pub fn find_signatures(module_base: usize, bytes_buffer: &[u8], pattern: &str, once: bool) -> Vec<usize> {
@@ -117,8 +149,20 @@ pub fn find_signature_executable(mapped_lib: &MappedLib, pattern: &str) -> Optio
             let bytes_buffer = match read_region_bytes(module_base, size) {
                 Some(buffer) => buffer,
                 None => {
-                    warn!("Unable to read executable region: {:#x} - {:#x}", region.start, region.end);
-                    continue;
+                    warn!(
+                        "Unable to read executable region from /proc/self/mem: {:#x} - {:#x}; trying mapped file {:?} offset {:#x}",
+                        region.start,
+                        region.end,
+                        region.path,
+                        region.offset
+                    );
+                    match read_region_bytes_from_file(region) {
+                        Some(buffer) => buffer,
+                        None => {
+                            warn!("Unable to read executable region: {:#x} - {:#x}", region.start, region.end);
+                            continue;
+                        }
+                    }
                 }
             };
             let results = find_signatures(module_base, &bytes_buffer, pattern, true);
