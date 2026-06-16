@@ -3493,12 +3493,14 @@ class FeaturesRootSection : Routes.Route() {
     internal fun InstagramDeveloperToolsCard(
         onConfigChanged: () -> Unit
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
         val cardBorder = remember {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
@@ -3514,7 +3516,7 @@ class FeaturesRootSection : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(skin.cardOverlayColor, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
                     .padding(horizontal = 14.dp, vertical = 16.dp)
             ) {
@@ -4471,12 +4473,14 @@ class FeaturesRootSection : Routes.Route() {
         onToggle: (Boolean) -> Unit,
         enabled: Boolean = true
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
         val cardBorder = remember {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
@@ -4493,7 +4497,7 @@ class FeaturesRootSection : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(skin.cardOverlayColor, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
                     .graphicsLayer { if (!enabled) alpha = 0.5f }
                     .padding(horizontal = 14.dp, vertical = 16.dp)
@@ -4540,12 +4544,14 @@ class FeaturesRootSection : Routes.Route() {
         refreshNonce: Int,
         onConfigChanged: () -> Unit
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
         val cardBorder = remember {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
@@ -4568,7 +4574,7 @@ class FeaturesRootSection : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(skin.cardOverlayColor, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
                     .padding(horizontal = 14.dp, vertical = 16.dp)
             ) {
@@ -4633,12 +4639,14 @@ class FeaturesRootSection : Routes.Route() {
         refreshNonce: Int,
         onConfigChanged: () -> Unit
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
         val cardBorder = remember {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
@@ -4655,7 +4663,7 @@ class FeaturesRootSection : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(skin.cardOverlayColor, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
                     .padding(horizontal = 14.dp, vertical = 16.dp)
             ) {

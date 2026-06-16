@@ -1,6 +1,8 @@
 package me.eternal.purrfect.core.bridge
 
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -177,10 +179,37 @@ class BridgeClient(
                         with(context.androidContext) {
                             //ensure the remote process is running
                             runCatching {
-                                startActivity(Intent()
+                                val intent = Intent()
                                     .setClassName(Constants.MODULE_PACKAGE_NAME, "me.eternal.purrfect.bridge.ForceStartActivity")
                                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                                
+                                val pendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                                } else {
+                                    PendingIntent.FLAG_ONE_SHOT
+                                }
+                                
+                                val pendingIntent = PendingIntent.getActivity(
+                                    this,
+                                    0,
+                                    intent,
+                                    pendingFlags
                                 )
+                                
+                                val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    alarmManager.setExactAndAllowWhileIdle(
+                                        AlarmManager.RTC_WAKEUP,
+                                        System.currentTimeMillis() + 100,
+                                        pendingIntent
+                                    )
+                                } else {
+                                    alarmManager.set(
+                                        AlarmManager.RTC_WAKEUP,
+                                        System.currentTimeMillis() + 100,
+                                        pendingIntent
+                                    )
+                                }
                             }
 
                             runCatching {

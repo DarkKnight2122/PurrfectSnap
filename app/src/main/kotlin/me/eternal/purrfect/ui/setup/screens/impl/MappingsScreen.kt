@@ -167,7 +167,11 @@ class MappingsScreen : SetupScreen() {
                 if (isFailure) {
                     isGenerating = false
                 } else {
-                    showNotice = true
+                    if (isFirstRunFlow) {
+                        showNotice = true
+                    } else {
+                        finishMappings()
+                    }
                 }
             }
 
@@ -210,7 +214,11 @@ class MappingsScreen : SetupScreen() {
                     }
 
                     withContext(Dispatchers.Main) {
-                        showNotice = true
+                        if (isFirstRunFlow) {
+                            showNotice = true
+                        } else {
+                            finishMappings()
+                        }
                     }
                 }.onFailure {
                     isGenerating = false

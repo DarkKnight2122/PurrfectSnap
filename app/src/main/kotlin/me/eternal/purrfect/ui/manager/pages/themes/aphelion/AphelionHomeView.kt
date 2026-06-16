@@ -429,8 +429,20 @@ fun HomeRootSection.AphelionHomeView(
                     Text(
                         text = buildAnnotatedString {
                             append("Purrfect")
-                            withStyle(SpanStyle(color = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) Color(0xFFFF4500) else Color(0xFFFFE100))) {
-                                append(if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) "Reddit" else "Snap")
+                            val targetAccent = when (context.activeTargetApp) {
+                                me.eternal.purrfect.common.TargetApp.SNAPCHAT -> Color(0xFFFFE100)
+                                me.eternal.purrfect.common.TargetApp.REDDIT -> Color(0xFFFF4500)
+                                me.eternal.purrfect.common.TargetApp.WHATSAPP -> Color(0xFF25D366)
+                                me.eternal.purrfect.common.TargetApp.INSTAGRAM -> Color(0xFFE4405F)
+                            }
+                            val targetSuffix = when (context.activeTargetApp) {
+                                me.eternal.purrfect.common.TargetApp.SNAPCHAT -> "Snap"
+                                me.eternal.purrfect.common.TargetApp.REDDIT -> "Reddit"
+                                me.eternal.purrfect.common.TargetApp.WHATSAPP -> "WA"
+                                me.eternal.purrfect.common.TargetApp.INSTAGRAM -> "Insta"
+                            }
+                            withStyle(SpanStyle(color = targetAccent)) {
+                                append(targetSuffix)
                             }
                         },
                         color = skin.textPrimary,
