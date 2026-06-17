@@ -24,6 +24,10 @@ class AutoPatchServer(
         .build()
 ) {
     private val snapchatAssetRandom = SecureRandom()
+    private val releaseApiBases = listOf(
+        "https://www.purrfectgit.com/api/repos",
+        "https://api.github.com/repos"
+    )
 
     data class LatestApk(
         val tagName: String,
@@ -46,35 +50,47 @@ class AutoPatchServer(
         targetApp: TargetApp,
         repository: GithubRepository
     ): LatestApk? {
-        val request = Request.Builder()
-            .url("https://api.github.com/repos/${repository.owner}/${repository.name}/releases/latest")
-            .build()
-
-        okHttpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val json = response.body?.string() ?: return null
-            val release = JsonParser.parseString(json).asJsonObject
-            val tagName = release.getAsJsonPrimitive("tag_name")?.asString ?: "latest"
-
-            val assets = release.getAsJsonArray("assets") ?: return null
-            val apkAssets = assets.mapNotNull { element ->
-                val asset = element.asJsonObject
-                val name = asset.getAsJsonPrimitive("name")?.asString ?: return@mapNotNull null
-                val downloadUrl = asset.getAsJsonPrimitive("browser_download_url")?.asString ?: return@mapNotNull null
-                if (!name.endsWith(".apk", ignoreCase = true)) return@mapNotNull null
-                name to downloadUrl
-            }
-
-            val selected = selectApkAsset(targetApp, apkAssets) ?: return null
-
-            return LatestApk(
-                tagName = tagName,
-                apkName = selected.first,
-                downloadUrl = selected.second,
-            )
+        releaseApiBases.forEach { apiBase ->
+            fetchLatestApkFromApi(targetApp, repository, apiBase)?.let { return it }
         }
+        return null
     }
 
+    private fun fetchLatestApkFromApi(
+        targetApp: TargetApp,
+        repository: GithubRepository,
+        apiBase: String
+    ): LatestApk? {
+        val request = Request.Builder()
+            .url("$apiBase/${repository.owner}/${repository.name}/releases/latest")
+            .build()
+
+        return runCatching {
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@runCatching null
+                val json = response.body?.string() ?: return@runCatching null
+                val release = JsonParser.parseString(json).asJsonObject
+                val tagName = release.getAsJsonPrimitive("tag_name")?.asString ?: "latest"
+
+                val assets = release.getAsJsonArray("assets") ?: return@runCatching null
+                val apkAssets = assets.mapNotNull { element ->
+                    val asset = element.asJsonObject
+                    val name = asset.getAsJsonPrimitive("name")?.asString ?: return@mapNotNull null
+                    val downloadUrl = asset.getAsJsonPrimitive("browser_download_url")?.asString ?: return@mapNotNull null
+                    if (!name.endsWith(".apk", ignoreCase = true)) return@mapNotNull null
+                    name to downloadUrl
+                }
+
+                val selected = selectApkAsset(targetApp, apkAssets) ?: return@runCatching null
+
+                LatestApk(
+                    tagName = tagName,
+                    apkName = selected.first,
+                    downloadUrl = selected.second,
+                )
+            }
+        }.getOrNull()
+    }
     private fun selectApkAsset(
         targetApp: TargetApp,
         apkAssets: List<Pair<String, String>>
