@@ -115,7 +115,7 @@ class Purrfect {
                     buildString {
                         append("Snapchat timed out while trying to connect to Purrfect\n\n")
                         append("Make sure you:\n")
-                        append(" - Have installed the latest Purrfect version (https://github.com/particle-box/Purrfect)\n")
+                        append(" - Have installed the latest Purrfect version (https://www.purrfectgit.com/r/particle-box/purrfect)\n")
                         append(" - Disabled battery optimizations\n")
                         append(" - Excluded Purrfect and Snapchat in HideMyApplist")
                     },

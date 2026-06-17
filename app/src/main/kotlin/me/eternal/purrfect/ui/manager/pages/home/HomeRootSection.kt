@@ -167,22 +167,19 @@ class HomeRootSection : Routes.Route() {
 
     internal val changelogClient by lazy { OkHttpClient() }
     internal val changelogStableUrls = listOf(
-        "https://raw.githubusercontent.com/particle-box/Purrfect/dev/changelogs-stable.txt",
-        "https://raw.githubusercontent.com/curious-freak/Purrfect/dev/changelogs-stable.txt",
+        "https://www.purrfectgit.com/r/particle-box/purrfect/file?branch=dev&path=changelogs-stable.txt",
     )
     internal val changelogPrereleaseUrls = listOf(
-        "https://raw.githubusercontent.com/particle-box/Purrfect/dev/changelogs-prerelease.txt",
-        "https://raw.githubusercontent.com/curious-freak/Purrfect/dev/changelogs-prerelease.txt",
+        "https://www.purrfectgit.com/r/particle-box/purrfect/file?branch=dev&path=changelogs-prerelease.txt",
     )
     internal val announcementsUrls = listOf(
-        "https://raw.githubusercontent.com/particle-box/Purrfect/dev/announcements.txt",
-        "https://raw.githubusercontent.com/curious-freak/Purrfect/dev/announcements.txt",
+        "https://www.purrfectgit.com/r/particle-box/purrfect/file?branch=dev&path=announcements.txt",
     )
     internal val changelogStableUrl = changelogStableUrls.first()
     internal val changelogPrereleaseUrl = changelogPrereleaseUrls.first()
     internal val announcementsUrl = announcementsUrls.first()
-    internal val purrfectRepositoryUrl = "https://github.com/particle-box/Purrfect"
-    internal val purrfectFallbackRepositoryUrl = "https://github.com/curious-freak/Purrfect"
+    internal val purrfectRepositoryUrl = "https://www.purrfectgit.com/r/particle-box/purrfect"
+    internal val purrfectFallbackRepositoryUrl = "https://www.purrfectgit.com/r/particle-box/purrfect"
 
     internal suspend fun fetchTextWithFallback(urls: List<String>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         var lastError: Throwable? = null

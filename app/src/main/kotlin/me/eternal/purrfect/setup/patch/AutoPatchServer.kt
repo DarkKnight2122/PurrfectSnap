@@ -16,7 +16,6 @@ class AutoPatchServer(
         .addInterceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
-                    .addHeader("Accept", "application/vnd.github+json")
                     .addHeader("User-Agent", "Purrfect")
                     .build()
             )
@@ -24,10 +23,6 @@ class AutoPatchServer(
         .build()
 ) {
     private val snapchatAssetRandom = SecureRandom()
-    private val releaseApiBases = listOf(
-        "https://www.purrfectgit.com/api/repos",
-        "https://api.github.com/repos"
-    )
 
     data class LatestApk(
         val tagName: String,
@@ -48,21 +43,10 @@ class AutoPatchServer(
 
     private fun fetchLatestApkFromRepository(
         targetApp: TargetApp,
-        repository: GithubRepository
-    ): LatestApk? {
-        releaseApiBases.forEach { apiBase ->
-            fetchLatestApkFromApi(targetApp, repository, apiBase)?.let { return it }
-        }
-        return null
-    }
-
-    private fun fetchLatestApkFromApi(
-        targetApp: TargetApp,
-        repository: GithubRepository,
-        apiBase: String
+        repository: ReleaseRepository
     ): LatestApk? {
         val request = Request.Builder()
-            .url("$apiBase/${repository.owner}/${repository.name}/releases/latest")
+            .url(repository.latestReleaseApiUrl)
             .build()
 
         return runCatching {
@@ -91,6 +75,7 @@ class AutoPatchServer(
             }
         }.getOrNull()
     }
+
     private fun selectApkAsset(
         targetApp: TargetApp,
         apkAssets: List<Pair<String, String>>
@@ -98,31 +83,36 @@ class AutoPatchServer(
         if (apkAssets.isEmpty()) return null
 
         return when (targetApp) {
-            TargetApp.SNAPCHAT -> {
-                apkAssets[snapchatAssetRandom.nextInt(apkAssets.size)]
-            }
-
+            TargetApp.SNAPCHAT -> apkAssets[snapchatAssetRandom.nextInt(apkAssets.size)]
             TargetApp.REDDIT -> apkAssets.first()
             TargetApp.WHATSAPP -> null
             TargetApp.INSTAGRAM -> null
         }
     }
 
-    private data class GithubRepository(
+    private data class ReleaseRepository(
         val owner: String,
-        val name: String
-    )
+        val name: String,
+        val host: Host = Host.GITHUB
+    ) {
+        enum class Host { GITHUB, PURRFECT_GIT }
 
-    private fun TargetApp.releaseRepositories(): List<GithubRepository> {
+        val latestReleaseApiUrl: String
+            get() = when (host) {
+                Host.GITHUB -> "https://api.github.com/repos/$owner/$name/releases/latest"
+                Host.PURRFECT_GIT -> "https://www.purrfectgit.com/api/repos/$owner/$name/releases/latest"
+            }
+    }
+
+    private fun TargetApp.releaseRepositories(): List<ReleaseRepository> {
         return when (this) {
             TargetApp.SNAPCHAT -> listOf(
-                GithubRepository("particle-box", "download-snap"),
-                GithubRepository("curious-freak", "download-snap")
+                ReleaseRepository("particle-box", "download-snap", ReleaseRepository.Host.PURRFECT_GIT)
             )
 
             TargetApp.REDDIT -> listOf(
-                GithubRepository("particle-box", "download-reddit"),
-                GithubRepository("curious-freak", "download-reddit")
+                ReleaseRepository("particle-box", "download-reddit"),
+                ReleaseRepository("curious-freak", "download-reddit")
             )
 
             TargetApp.WHATSAPP -> emptyList()

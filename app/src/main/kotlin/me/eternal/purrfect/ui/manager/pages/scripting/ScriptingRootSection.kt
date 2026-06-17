@@ -545,7 +545,7 @@ class ScriptingRootSection : Routes.Route() {
                 onManageRepos = { routes.navController.navigate("manage_repos") },
                 onDocs = {
                     context.androidContext.openLink(
-                        "https://github.com/particle-box/Purrfect/wiki/Scripting",
+                        "https://www.purrfectgit.com/r/particle-box/purrfect/wiki/Scripting",
                         context.translation["toast_open_link_failed"]
                     )
                 },

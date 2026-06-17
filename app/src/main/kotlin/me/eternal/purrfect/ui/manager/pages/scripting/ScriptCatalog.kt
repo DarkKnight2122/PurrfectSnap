@@ -182,7 +182,7 @@ fun ScriptCatalog(root: ScriptingRootSection) {
                     Button(
                         onClick = {
                             context.androidContext.openLink(
-                                "https://github.com/particle-box/Purrfect/blob/dev/app/src/main/kotlin/me/eternal/purrfect/ui/manager/pages/scripting/ScriptRepos.md", 
+                                "https://www.purrfectgit.com/r/particle-box/purrfect/file?branch=dev&path=app/src/main/kotlin/me/eternal/purrfect/ui/manager/pages/scripting/ScriptRepos.md",
                                 context.translation["toast_open_link_failed"]
                             )
                         },

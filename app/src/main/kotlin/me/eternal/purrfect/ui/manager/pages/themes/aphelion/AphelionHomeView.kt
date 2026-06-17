@@ -706,7 +706,7 @@ fun HomeRootSection.AphelionHomeView(
                         }
                         OutlinedButton(
                             modifier = Modifier.weight(1f).height(44.dp),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://github.com/particle-box/Purrfect", context.translation["toast_open_link_failed"]) },
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://www.purrfectgit.com/r/particle-box/purrfect", context.translation["toast_open_link_failed"]) },
                             border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.glowPrimary.copy(alpha = 0.45f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.35f)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary),
                             contentPadding = PaddingValues(horizontal = 12.dp)
