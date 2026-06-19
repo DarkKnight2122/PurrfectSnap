@@ -178,8 +178,8 @@ class HomeRootSection : Routes.Route() {
     internal val changelogStableUrl = changelogStableUrls.first()
     internal val changelogPrereleaseUrl = changelogPrereleaseUrls.first()
     internal val announcementsUrl = announcementsUrls.first()
-    internal val purrfectRepositoryUrl = "https://www.purrfectgit.com/r/particle-box/purrfect"
-    internal val purrfectFallbackRepositoryUrl = "https://www.purrfectgit.com/r/particle-box/purrfect"
+    internal val purrfectRepositoryUrl = "https://github.com/particle-box/PurrfectSnap.git"
+    internal val purrfectFallbackRepositoryUrl = "https://github.com/particle-box/PurrfectSnap.git"
 
     internal suspend fun fetchTextWithFallback(urls: List<String>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         var lastError: Throwable? = null

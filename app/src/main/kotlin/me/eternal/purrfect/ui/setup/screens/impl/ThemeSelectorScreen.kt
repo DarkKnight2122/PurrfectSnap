@@ -503,7 +503,7 @@ private fun SetupSkinPicker(
     val skin = LocalPurrfectSkin.current
     val scrollState = rememberScrollState()
 
-    val showCyberware = false
+    val showCyberware = true
 
     val skins = remember {
         listOfNotNull(

@@ -81,6 +81,28 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
     val lastTapTime = remember { mutableLongStateOf(0L) }
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
 
+    val targetAccent = when (context.activeTargetApp) {
+        me.eternal.purrfect.common.TargetApp.SNAPCHAT -> Color(0xFFFFE100)
+        me.eternal.purrfect.common.TargetApp.REDDIT -> Color(0xFFFF4500)
+        me.eternal.purrfect.common.TargetApp.WHATSAPP -> Color(0xFF25D366)
+        me.eternal.purrfect.common.TargetApp.INSTAGRAM -> Color(0xFFE4405F)
+    }
+    val targetSuffix = when (context.activeTargetApp) {
+        me.eternal.purrfect.common.TargetApp.SNAPCHAT -> "Snap"
+        me.eternal.purrfect.common.TargetApp.REDDIT -> "Reddit"
+        me.eternal.purrfect.common.TargetApp.WHATSAPP -> "WA"
+        me.eternal.purrfect.common.TargetApp.INSTAGRAM -> "Insta"
+    }
+    val targetAppName = when (context.activeTargetApp) {
+        me.eternal.purrfect.common.TargetApp.SNAPCHAT -> "Snapchat"
+        me.eternal.purrfect.common.TargetApp.REDDIT -> "Reddit"
+        me.eternal.purrfect.common.TargetApp.WHATSAPP -> "WhatsApp"
+        me.eternal.purrfect.common.TargetApp.INSTAGRAM -> "Instagram"
+    }
+    val aboutTagline = remember(context.activeTargetApp) {
+        (translation["about_tagline"] ?: "").replace("Snapchat", targetAppName)
+    }
+
     LaunchedEffect(scrollState.value) {
         routes.navigation?.globalScrollOffset = scrollState.value
     }
@@ -121,8 +143,8 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                         Text(
                             text = buildAnnotatedString {
                                 append("Purrfect")
-                                pushStyle(SpanStyle(color = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) Color(0xFFFF4500) else Color(0xFFFFE100)))
-                                append(if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) "Reddit" else "Snap")
+                                pushStyle(SpanStyle(color = targetAccent))
+                                append(targetSuffix)
                                 pop()
                             },
                             fontSize = 32.sp,
@@ -148,7 +170,7 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                             )
                         )
                         Text(
-                            text = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) (translation["about_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["about_tagline"] ?: "",
+                            text = aboutTagline,
                             fontSize = 14.sp,
                             color = AboutSkinPalette.textSecondary,
                             textAlign = TextAlign.Center,
@@ -249,7 +271,7 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                 ) {
                     Text(text = translation["about_thanks_title"] ?: "Special Thanks", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AboutSkinPalette.textPrimary, textAlign = TextAlign.Center)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://www.purrfectgit.com/r/particle-box/purrfect", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = AboutSkinPalette.textPrimary, contentColor = AboutSkinPalette.cardOverlayColor), shape = RoundedCornerShape(14.dp)) {
+                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://github.com/particle-box/PurrfectSnap.git", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = AboutSkinPalette.textPrimary, contentColor = AboutSkinPalette.cardOverlayColor), shape = RoundedCornerShape(14.dp)) {
                             Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = translation["github_button"] ?: "GitHub", maxLines = 1, overflow = TextOverflow.Ellipsis)

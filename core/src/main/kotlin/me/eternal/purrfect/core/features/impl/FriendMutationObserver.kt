@@ -104,8 +104,17 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                             val databaseFriend = context.database.getFriendInfo(userId) ?: return@forEach
                             if (FriendLinkType.fromValue(databaseFriend.friendLinkType) != FriendLinkType.MUTUAL) return@forEach
 
-                            if (config.contains("remove_friend") && friend.get("direction")?.asString == "OUTGOING" && !friend.has("fidelius_info")) {
-                                sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                            if (friend.get("direction")?.asString == "OUTGOING" && !friend.has("fidelius_info")) {
+                                val isDeactivated = friend.get("deactivated")?.takeIf { it.isJsonPrimitive }?.asBoolean == true || friend.has("deactivated_timestamp")
+                                if (isDeactivated) {
+                                    if (config.contains("deactivated_friend")) {
+                                        sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_deactivated", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                    }
+                                } else {
+                                    if (config.contains("remove_friend")) {
+                                        sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                    }
+                                }
                                 return@forEach
                             }
 

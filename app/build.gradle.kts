@@ -169,7 +169,7 @@ android {
         applicationId = rootProject.ext["applicationId"].toString()
         versionCode = rootProject.ext["appVersionCode"].toString().toInt()
         versionName = rootProject.ext["appVersionName"].toString()
-        minSdk = 30
+        minSdk = 28
         targetSdk = 36
         multiDexEnabled = true
         buildConfigField("String", "EXPECTED_CERT_SHA256", "\"${expectedCertSha256.get()}\"")

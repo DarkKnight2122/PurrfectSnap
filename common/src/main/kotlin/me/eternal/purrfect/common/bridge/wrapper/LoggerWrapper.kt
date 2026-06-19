@@ -463,7 +463,8 @@ class LoggerWrapper(
         }
     }
 
-    override fun deleteMessage(conversationId: String, messageId: Long) {
+    override fun deleteMessage(conversationId: String?, messageId: Long) {
+        if (conversationId.isNullOrEmpty()) return
         coroutineScope.launch {
             database.execSQL("DELETE FROM messages WHERE conversation_id = ? AND message_id = ?", arrayOf(conversationId, messageId.toString()))
             database.execSQL("DELETE FROM chat_edits WHERE conversation_id = ? AND message_id = ?", arrayOf(conversationId, messageId.toString()))
@@ -491,24 +492,24 @@ class LoggerWrapper(
     }
 
     override fun logTrackerEvent(
-        conversationId: String,
+        conversationId: String?,
         conversationTitle: String?,
         isGroup: Boolean,
-        username: String,
-        userId: String,
-        eventType: String,
-        data: String
+        username: String?,
+        userId: String?,
+        eventType: String?,
+        data: String?
     ) {
         runBlocking(coroutineScope.coroutineContext) {
             database.insert("tracker_events", null, ContentValues().apply {
                 put("timestamp", System.currentTimeMillis())
-                put("conversation_id", conversationId)
+                put("conversation_id", conversationId ?: "")
                 put("conversation_title", conversationTitle)
                 put("is_group", isGroup)
-                put("username", username)
-                put("user_id", userId)
-                put("event_type", eventType)
-                put("data", data)
+                put("username", username ?: "unknown")
+                put("user_id", userId ?: "")
+                put("event_type", eventType ?: "")
+                put("data", data ?: "")
             })
         }
     }
@@ -840,7 +841,8 @@ class LoggerWrapper(
         return total
     }
 
-    override fun getChatEdits(conversationId: String, messageId: Long): List<LoggedChatEdit> {
+    override fun getChatEdits(conversationId: String?, messageId: Long): List<LoggedChatEdit> {
+        if (conversationId.isNullOrEmpty()) return emptyList()
         val edits = mutableListOf<LoggedChatEdit>()
         database.rawQuery(
             "SELECT added_timestamp, message_text FROM chat_edits WHERE conversation_id = ? AND message_id = ? ORDER BY added_timestamp ASC",

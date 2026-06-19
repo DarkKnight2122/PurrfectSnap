@@ -4562,6 +4562,7 @@
             },
             "friend_mutation_notifier": {
                 "remove_friend": "Notify when someone removes you as a friend",
+                "deactivated_friend": "Notify when a friend deactivates/deletes their account",
                 "birthday_changes": "Notify when someone changes their birthday",
                 "bitmoji_selfie_changes": "Notify when someone changes their Bitmoji selfie",
                 "bitmoji_avatar_changes": "Notify when someone changes their Bitmoji avatar",
@@ -5269,6 +5270,7 @@
     "friend_mutation_observer": {
         "notification_channel_name": "Friend Mutation Observer",
         "friend_removed": "{username} has removed you as a friend",
+        "friend_deactivated": "{username} has deactivated or deleted their account",
         "birthday_removed": "{username} has removed their birthday ({birthday})",
         "birthday_added": "{username} has added their birthday ({birthday})",
         "birthday_changed": "{username} has changed their birthday from {oldBirthday} to {newBirthday}",

@@ -151,7 +151,11 @@ object PurrfectSkins {
             glowPrimary = accent,
             glowSecondary = if (effectiveAccentName == "CYBER") (if (isDark) Color(0xFF0083B0) else Color(0xFF00FFD1)) else flavor.lavender,
             laserBorder = accent.copy(alpha = 0.25f),
-            primaryButtonText = if (isDark) flavor.surface0 else flavor.text // Inherited cutout logic
+            primaryButtonText = if (effectiveAccentName.uppercase() == "BLACK") {
+                Color.White
+            } else {
+                if (isDark) flavor.surface0 else flavor.text
+            }
         )
     }
 
@@ -198,7 +202,11 @@ object PurrfectSkins {
             glowSecondary = if (accentName == "CYBER") (if (isDark) Color(0xFF0083B0) else Color(0xFF00FFD1)) else flavor.lavender,
             textPrimary = flavor.text,
             textSecondary = flavor.subtext1,
-            primaryButtonText = if (isDark) flavor.surface0 else flavor.text, // Cutout Effect
+            primaryButtonText = if (accentName.uppercase() == "BLACK") {
+                Color.White
+            } else {
+                if (isDark) flavor.surface0 else flavor.text
+            },
             iconTint = flavor.text
         )
     }

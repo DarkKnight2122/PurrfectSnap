@@ -67,15 +67,26 @@ fun HomeAbout.AphelionAboutContent(nav: NavBackStackEntry) {
     val activeSkin = LocalPurrfectSkin.current
     val skin = remember(managerTheme, activeSkin) { if (managerTheme == "APHELION") activeSkin else me.eternal.purrfect.common.ui.theme.PurrfectPalette }
 
-    val isRedditMode = remember(context.activeTargetApp) { context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT }
-    val targetAccent = if (isRedditMode) Color(0xFFFF4500) else Color(0xFFFFE100)
-    val targetSuffix = if (isRedditMode) "Reddit" else "Snap"
-    val aboutTagline = remember(isRedditMode) {
-        if (isRedditMode) {
-            (translation["about_tagline"] ?: "").replace("Snapchat", "Reddit")
-        } else {
-            translation["about_tagline"] ?: ""
-        }
+    val targetAccent = when (context.activeTargetApp) {
+        me.eternal.purrfect.common.TargetApp.SNAPCHAT -> Color(0xFFFFE100)
+        me.eternal.purrfect.common.TargetApp.REDDIT -> Color(0xFFFF4500)
+        me.eternal.purrfect.common.TargetApp.WHATSAPP -> Color(0xFF25D366)
+        me.eternal.purrfect.common.TargetApp.INSTAGRAM -> Color(0xFFE4405F)
+    }
+    val targetSuffix = when (context.activeTargetApp) {
+        me.eternal.purrfect.common.TargetApp.SNAPCHAT -> "Snap"
+        me.eternal.purrfect.common.TargetApp.REDDIT -> "Reddit"
+        me.eternal.purrfect.common.TargetApp.WHATSAPP -> "WA"
+        me.eternal.purrfect.common.TargetApp.INSTAGRAM -> "Insta"
+    }
+    val targetAppName = when (context.activeTargetApp) {
+        me.eternal.purrfect.common.TargetApp.SNAPCHAT -> "Snapchat"
+        me.eternal.purrfect.common.TargetApp.REDDIT -> "Reddit"
+        me.eternal.purrfect.common.TargetApp.WHATSAPP -> "WhatsApp"
+        me.eternal.purrfect.common.TargetApp.INSTAGRAM -> "Instagram"
+    }
+    val aboutTagline = remember(context.activeTargetApp) {
+        (translation["about_tagline"] ?: "").replace("Snapchat", targetAppName)
     }
 
     LaunchedEffect(scrollState.value) {
@@ -242,7 +253,7 @@ fun HomeAbout.AphelionAboutContent(nav: NavBackStackEntry) {
                 ) {
                     Text(text = translation["about_thanks_title"] ?: "Special Thanks", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = skin.textPrimary, textAlign = TextAlign.Center, fontFamily = avenirNext)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://www.purrfectgit.com/r/particle-box/purrfect", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary, contentColor = skin.cardOverlayColor), shape = RoundedCornerShape(14.dp)) {
+                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://github.com/particle-box/PurrfectSnap.git", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary, contentColor = skin.cardOverlayColor), shape = RoundedCornerShape(14.dp)) {
                             Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(text = translation["github_button"] ?: "GitHub", maxLines = 1, overflow = TextOverflow.Ellipsis, fontFamily = avenirNext)

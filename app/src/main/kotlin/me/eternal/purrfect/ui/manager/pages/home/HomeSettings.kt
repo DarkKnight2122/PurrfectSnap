@@ -295,7 +295,7 @@ class HomeSettings : Routes.Route() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.WHATSAPP, TargetApp.INSTAGRAM)
+                    listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.INSTAGRAM)
                         .filter { it != currentTarget }
                         .forEach { targetApp ->
                             Button(
@@ -348,7 +348,7 @@ class HomeSettings : Routes.Route() {
                         textAlign = TextAlign.Center
                     )
                     TargetApp.entries
-                        .filter { it != context.activeTargetApp }
+                        .filter { it != context.activeTargetApp && it != TargetApp.WHATSAPP }
                         .forEach { targetApp ->
                             Button(
                                 modifier = Modifier.fillMaxWidth(),

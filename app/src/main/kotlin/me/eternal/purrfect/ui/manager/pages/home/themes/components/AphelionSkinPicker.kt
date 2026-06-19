@@ -46,7 +46,7 @@ fun AphelionSkinPicker(
     val skin = LocalPurrfectSkin.current
     val scrollState = rememberScrollState()
 
-    val showCyberware = false
+    val showCyberware = true
 
     val skins = remember {
         listOfNotNull(
@@ -219,10 +219,11 @@ private fun SkinCard(
                 modifier = Modifier.alpha(unavailableAlpha),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Name and Indicator on the same line
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // Name and Indicator dynamically wrapped
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = option.name,
@@ -240,6 +241,8 @@ private fun SkinCard(
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = skin.glowPrimary,
+                                maxLines = 1,
+                                softWrap = false,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                             )
                         }

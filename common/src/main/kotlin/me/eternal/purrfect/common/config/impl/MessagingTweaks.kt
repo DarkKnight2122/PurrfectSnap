@@ -302,6 +302,7 @@ class MessagingTweaks : ConfigContainer() {
     }
     val friendMutationNotifier = multiple("friend_mutation_notifier",
         "remove_friend",
+        "deactivated_friend",
         "birthday_changes",
         "bitmoji_selfie_changes",
         "bitmoji_avatar_changes",

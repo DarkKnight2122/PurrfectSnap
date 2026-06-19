@@ -138,101 +138,137 @@ class NewChatActionMenu : AbstractMenu() {
                             .padding(2.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly,
                     ) {
-                        Button(onClick = {
-                            val arroyoMessage = lastFocusedMessage ?: return@Button
-                            debugAlertDialog(context,
-                                "Message Info",
-                                StringBuilder().apply {
-                                    runCatching {
-                                        append("conversation_id: ${arroyoMessage.clientConversationId}\n")
-                                        append("sender_id: ${arroyoMessage.senderId}\n")
-                                        append("client_id: ${arroyoMessage.clientMessageId}, server_id: ${arroyoMessage.serverMessageId}\n")
-                                        append("content_type: ${ContentType.fromId(arroyoMessage.contentType)} (${arroyoMessage.contentType})\n")
-                                        append("parsed_content_type: ${
-                                            ContentType.fromMessageContainer(
-                                                ProtoReader(arroyoMessage.messageContent!!).followPath(4, 4)
-                                            ).let { "$it (${it?.id})" }}\n")
-                                        append("creation_timestamp: ${
-                                            SimpleDateFormat.getDateTimeInstance().format(
-                                                Date(arroyoMessage.creationTimestamp)
-                                            )} (${arroyoMessage.creationTimestamp})\n")
-                                        append("read_timestamp: ${
-                                            SimpleDateFormat.getDateTimeInstance().format(
-                                                Date(arroyoMessage.readTimestamp)
-                                            )} (${arroyoMessage.readTimestamp})\n")
-                                        append("ml_deleted: ${messageLogger.isMessageDeleted(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong())}, ")
-                                        append("ml_stored: ${messageLogger.getMessageObject(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong()) != null}\n")
-                                    }
-                                }.toString()
+                        Button(
+                            onClick = {
+                                val arroyoMessage = lastFocusedMessage ?: return@Button
+                                debugAlertDialog(context,
+                                    "Message Info",
+                                    StringBuilder().apply {
+                                        runCatching {
+                                            append("conversation_id: ${arroyoMessage.clientConversationId}\n")
+                                            append("sender_id: ${arroyoMessage.senderId}\n")
+                                            append("client_id: ${arroyoMessage.clientMessageId}, server_id: ${arroyoMessage.serverMessageId}\n")
+                                            append("content_type: ${ContentType.fromId(arroyoMessage.contentType)} (${arroyoMessage.contentType})\n")
+                                            append("parsed_content_type: ${
+                                                ContentType.fromMessageContainer(
+                                                    ProtoReader(arroyoMessage.messageContent!!).followPath(4, 4)
+                                                ).let { "$it (${it?.id})" }}\n")
+                                            append("creation_timestamp: ${
+                                                SimpleDateFormat.getDateTimeInstance().format(
+                                                    Date(arroyoMessage.creationTimestamp)
+                                                )} (${arroyoMessage.creationTimestamp})\n")
+                                            append("read_timestamp: ${
+                                                SimpleDateFormat.getDateTimeInstance().format(
+                                                    Date(arroyoMessage.readTimestamp)
+                                                )} (${arroyoMessage.readTimestamp})\n")
+                                            append("ml_deleted: ${messageLogger.isMessageDeleted(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong())}, ")
+                                            append("ml_stored: ${messageLogger.getMessageObject(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong()) != null}\n")
+                                        }
+                                    }.toString()
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = skin.glowPrimary,
+                                contentColor = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
                             )
-                        }) {
-                            Text(this@NewChatActionMenu.context.translation["debug_dialogs.info"])
+                        ) {
+                            Text(
+                                text = this@NewChatActionMenu.context.translation["debug_dialogs.info"],
+                                color = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
+                            )
                         }
-                        Button(onClick = {
-                            val arroyoMessage = lastFocusedMessage ?: return@Button
-                            messaging.conversationManager?.fetchMessage(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong(), onSuccess = { message ->
-                                val decodedAttachments = MessageDecoder.decode(message.messageContent!!)
+                        Button(
+                            onClick = {
+                                val arroyoMessage = lastFocusedMessage ?: return@Button
+                                messaging.conversationManager?.fetchMessage(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong(), onSuccess = { message ->
+                                    val decodedAttachments = MessageDecoder.decode(message.messageContent!!)
+                                    debugAlertDialog(
+                                        context,
+                                        this@NewChatActionMenu.context.translation["debug_dialogs.media_references"],
+                                        decodedAttachments.mapIndexed { index, attachment ->
+                                            StringBuilder().apply {
+                                                append("---- media $index ----\n")
+                                                append("resolveProto: ${attachment.boltKey}\n")
+                                                append("type: ${attachment.type}\n")
+                                                attachment.attachmentInfo?.apply {
+                                                    encryption?.let {
+                                                        append("encryption:\n  - key: ${it.key}\n  - iv: ${it.iv}\n")
+                                                    }
+                                                    resolution?.let {
+                                                        append("resolution: ${it.first}x${it.second}\n")
+                                                    }
+                                                    duration?.let {
+                                                        append("duration: $it\n")
+                                                    }
+                                                }
+                                                runCatching {
+                                                    attachment.boltKey?.let {
+                                                        val mediaHeaders = RemoteMediaResolver.getMediaHeaders(
+                                                            Base64.UrlSafe.decode(it))
+                                                        append("content-type: ${mediaHeaders["content-type"]}\n")
+                                                        append("content-length: ${Formatter.formatShortFileSize(context, mediaHeaders["content-length"]?.toLongOrNull() ?: 0)}\n")
+                                                        append("creation-date: ${mediaHeaders["last-modified"]}\n")
+                                                    }
+                                                    attachment.directUrl?.let {
+                                                        append("url: $it\n")
+                                                    }
+                                                }
+                                            }.toString()
+                                        }.joinToString("\n\n")
+                                    )
+                                })
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = skin.glowPrimary,
+                                contentColor = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
+                            )
+                        ) {
+                            Text(
+                                text = this@NewChatActionMenu.context.translation["debug_dialogs.refs"],
+                                color = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                val message = lastFocusedMessage ?: return@Button
                                 debugAlertDialog(
                                     context,
-                                    this@NewChatActionMenu.context.translation["debug_dialogs.media_references"],
-                                    decodedAttachments.mapIndexed { index, attachment ->
-                                        StringBuilder().apply {
-                                            append("---- media $index ----\n")
-                                            append("resolveProto: ${attachment.boltKey}\n")
-                                            append("type: ${attachment.type}\n")
-                                            attachment.attachmentInfo?.apply {
-                                                encryption?.let {
-                                                    append("encryption:\n  - key: ${it.key}\n  - iv: ${it.iv}\n")
-                                                }
-                                                resolution?.let {
-                                                    append("resolution: ${it.first}x${it.second}\n")
-                                                }
-                                                duration?.let {
-                                                    append("duration: $it\n")
-                                                }
-                                            }
-                                            runCatching {
-                                                attachment.boltKey?.let {
-                                                    val mediaHeaders = RemoteMediaResolver.getMediaHeaders(
-                                                        Base64.UrlSafe.decode(it))
-                                                    append("content-type: ${mediaHeaders["content-type"]}\n")
-                                                    append("content-length: ${Formatter.formatShortFileSize(context, mediaHeaders["content-length"]?.toLongOrNull() ?: 0)}\n")
-                                                    append("creation-date: ${mediaHeaders["last-modified"]}\n")
-                                                }
-                                                attachment.directUrl?.let {
-                                                    append("url: $it\n")
-                                                }
-                                            }
-                                        }.toString()
-                                    }.joinToString("\n\n")
+                                    this@NewChatActionMenu.context.translation["debug_dialogs.arroyo_proto"],
+                                    message.messageContent?.let { ProtoReader(it) }?.toString() ?: "empty"
                                 )
-                            })
-                        }) {
-                            Text(this@NewChatActionMenu.context.translation["debug_dialogs.refs"])
-                        }
-                        Button(onClick = {
-                            val message = lastFocusedMessage ?: return@Button
-                            debugAlertDialog(
-                                context,
-                                this@NewChatActionMenu.context.translation["debug_dialogs.arroyo_proto"],
-                                message.messageContent?.let { ProtoReader(it) }?.toString() ?: "empty"
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = skin.glowPrimary,
+                                contentColor = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
                             )
-                        }) {
-                            Text(this@NewChatActionMenu.context.translation["debug_dialogs.arroyo"])
+                        ) {
+                            Text(
+                                text = this@NewChatActionMenu.context.translation["debug_dialogs.arroyo"],
+                                color = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
+                            )
                         }
-                        Button(onClick = {
-                            val arroyoMessage = lastFocusedMessage ?: return@Button
-                            messaging.conversationManager?.fetchMessage(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong(), onSuccess = { message ->
-                                                        debugAlertDialog(
-                                context,
-                                this@NewChatActionMenu.context.translation["debug_dialogs.message_proto"],
-                                    message.messageContent?.content?.let { ProtoReader(it) }?.toString() ?: "empty"
-                                )
-                            }, onError = {
-                                this@NewChatActionMenu.context.shortToast(this@NewChatActionMenu.context.translation["error_messages.failed_to_fetch_message"].replace("{error}", it.toString()))
-                            })
-                        }) {
-                            Text(this@NewChatActionMenu.context.translation["debug_dialogs.message"])
+                        Button(
+                            onClick = {
+                                val arroyoMessage = lastFocusedMessage ?: return@Button
+                                messaging.conversationManager?.fetchMessage(arroyoMessage.clientConversationId!!, arroyoMessage.clientMessageId.toLong(), onSuccess = { message ->
+                                                            debugAlertDialog(
+                                    context,
+                                    this@NewChatActionMenu.context.translation["debug_dialogs.message_proto"],
+                                        message.messageContent?.content?.let { ProtoReader(it) }?.toString() ?: "empty"
+                                    )
+                                }, onError = {
+                                    this@NewChatActionMenu.context.shortToast(this@NewChatActionMenu.context.translation["error_messages.failed_to_fetch_message"].replace("{error}", it.toString()))
+                                })
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = skin.glowPrimary,
+                                contentColor = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
+                            )
+                        ) {
+                            Text(
+                                text = this@NewChatActionMenu.context.translation["debug_dialogs.message"],
+                                color = if (skin.isDark) Color.Black else Color(0xFF1D1B20)
+                            )
                         }
                     }
                 }
