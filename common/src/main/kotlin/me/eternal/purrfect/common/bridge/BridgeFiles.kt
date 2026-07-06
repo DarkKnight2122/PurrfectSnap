@@ -30,6 +30,8 @@ enum class InternalFileHandleType(
 ) {
     CONFIG("config", "config.json"),
     MAPPINGS("mappings", "mappings.json"),
+    MAPPINGS_GENERATION_STATE("mappings_generation_state", "mappings_generation_state.txt"),
+    SNAPCHAT_THEME_SURFACES("snapchat_theme_surfaces", "snapchat_theme_surfaces.json"),
     MESSAGE_LOGGER("message_logger", "message_logger.db", isDatabase = true),
     PINNED_BEST_FRIEND("pinned_best_friend", "pinned_best_friend.txt"),
     NATIVE_SIG_CACHE("native_sig_cache", "native_sig_cache.txt");

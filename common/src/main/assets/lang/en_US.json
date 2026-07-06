@@ -268,7 +268,7 @@
                 "switch_to_reddit_button": "Reddit",
                 "switch_to_snapchat_button": "Snapchat",
                 "wiki_button": "Wiki",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram",
                 "channel_label_stable": "Stable",
                 "channel_label_prerelease": "Pre-release",
@@ -309,7 +309,7 @@
                 "about_story": "Purrfect was founded on 2nd of October, 2025, as a fork of SnapEnhance by \u039eT\u039eRNAL with a vision to provide users the quality Snapchat experience they deserve. This app was just meant to be a minor update in the SnapEnhance repository, but it soon became a separate app wherein the contributors kept adding features. Then the developer <RSR/> joined the team, and this app soon became a huge success.\n\nWe would also like to convey our huge thanks to rhunk, the lead developer of SnapEnhance, as without him, this app wouldn't even exist. We are immensely grateful to him.\n\nWe received much love and support and gained 1K+ downloads in just two days! We thank all users and contributors; without your support, we wouldn't have reached this place.\n\nLastly, we would like to thank all our admins, notably: CLASSIC GENIUS, Harry, Sujal, Zain & 𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝, who were right there with us from the very beginning. We would also like to thank all testers, notably Leo & Toxic, who tested and reported bugs continuously. We are immensely grateful for your contribution.",
                 "about_thanks_title": "With love, Purrfect Team",
                 "about_magic_toast": "Tap 5 times in this screen to see some magic \ud83d\ude09!",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram"
             },
             "home_logs": {
@@ -2091,6 +2091,10 @@
                                 "name": "Local Instagram Plus",
                                 "description": "Unlock Instagram Plus benefits that Instagram checks locally"
                             },
+                            "restoreOldPostReelContextMenu": {
+                                "name": "Restore old post/reel menu",
+                                "description": "Use the classic post and Reel three-dot menu on accounts that receive the Meta AI menu"
+                            },
                             "sendCustomEmojiReactionsToStory": {
                                 "name": "Send custom emoji reactions to story",
                                 "description": "Enable Instagram's local Plus custom emoji reaction picker from story replies"
@@ -2386,6 +2390,33 @@
                         "name": "Hide UI Components",
                         "description": "Select which UI components to hide"
                     },
+                    "ui_elements": {
+                        "name": "UI Elements",
+                        "description": "Capture and hide selected Snapchat interface elements",
+                        "hidden_elements_title": "Hidden Elements",
+                        "hidden_elements_empty": "No hidden elements yet",
+                        "unhide_all": "Unhide All",
+                        "resource_id_label": "Resource ID",
+                        "selector_label": "Exact selector",
+                        "properties": {
+                            "hide_ui_elements": {
+                                "name": "Hide UI Elements",
+                                "description": "Hide Snapchat views saved by the UI element picker"
+                            },
+                            "capture_ui_elements": {
+                                "name": "Select UI Element To Hide",
+                                "description": "Show a draggable ID button in Snapchat that can select any visible element and hide it"
+                            },
+                            "hidden_ui_element_ids": {
+                                "name": "Hidden UI Element IDs",
+                                "description": "Resource IDs hidden by the picker, one per line"
+                            },
+                            "hidden_ui_element_selectors": {
+                                "name": "Hidden UI Element Selectors",
+                                "description": "Exact selectors for hidden views that do not have stable resource IDs"
+                            }
+                        }
+                    },
                     "opera_media_quick_info": {
                         "name": "Opera Media Quick Info",
                         "description": "Shows useful information of media such as creation date in opera viewer context menu"
@@ -2453,6 +2484,36 @@
                     "force_amoled_theme": {
                         "name": "Force AMOLED Theme",
                         "description": "Force a true black AMOLED theme across the app UI"
+                    },
+                    "custom_theme": {
+                        "name": "Custom Theme",
+                        "description": "Customize Snapchat surfaces, captured elements, and image backgrounds",
+                        "properties": {
+                            "enabled": {
+                                "name": "Enable Custom Theme",
+                                "description": "Apply custom Snapchat theme colors and backgrounds"
+                            },
+                            "capture_theme_surfaces": {
+                                "name": "Select Theme Surface",
+                                "description": "Show the TH selector in Snapchat so you can choose exact UI surfaces to recolor"
+                            },
+                            "surface_color_overrides": {
+                                "name": "Surface Color Overrides",
+                                "description": "Advanced custom theme surface color data"
+                            },
+                            "custom_surface_rules": {
+                                "name": "Captured Surface Rules",
+                                "description": "Advanced custom theme rules captured from Snapchat"
+                            },
+                            "screen_backgrounds": {
+                                "name": "Screen Backgrounds",
+                                "description": "Advanced custom theme image background data"
+                            },
+                            "preview_surface": {
+                                "name": "Preview Surface",
+                                "description": "Advanced custom theme preview target"
+                            }
+                        }
                     },
                     "settings_menu": {
                         "name": "Settings Menu",

@@ -460,7 +460,7 @@ class SecurityFeatures(
                                     Icon(Icons.Rounded.NotInterested, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(110.dp))
                                     Spacer(Modifier.height(50.dp))
                                     Text(
-                                        "Purrfect can't be used to login or signup because your Snapchat version isn't the recommended one. Please downgrade to Snapchat v${MOD_DETECTION_VERSION_CHECK.maxVersion?.first ?: "0.0.0"} or disable Purrfect in LSPosed to continue.\n\nFor more details, join t.me/purrfect_official",
+                                        "Purrfect can't be used to login or signup because your Snapchat version isn't the recommended one. Please downgrade to Snapchat v${MOD_DETECTION_VERSION_CHECK.maxVersion?.first ?: "0.0.0"} or disable Purrfect in LSPosed to continue.\n\nFor more details, join t.me/purrfect_tg",
                                         color = MaterialTheme.colorScheme.onSurface,
                                         textAlign = TextAlign.Center,
                                     )

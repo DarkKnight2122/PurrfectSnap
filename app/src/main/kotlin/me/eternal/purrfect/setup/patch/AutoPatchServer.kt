@@ -34,6 +34,8 @@ class AutoPatchServer(
 
     fun fetchLatestRedditApk(): LatestApk? = fetchLatestApk(TargetApp.REDDIT)
 
+    fun fetchLatestInstagramApk(): LatestApk? = fetchLatestApk(TargetApp.INSTAGRAM)
+
     fun fetchLatestApk(targetApp: TargetApp): LatestApk? {
         targetApp.releaseRepositories().forEach { repository ->
             fetchLatestApkFromRepository(targetApp, repository)?.let { return it }
@@ -85,8 +87,8 @@ class AutoPatchServer(
         return when (targetApp) {
             TargetApp.SNAPCHAT -> apkAssets[snapchatAssetRandom.nextInt(apkAssets.size)]
             TargetApp.REDDIT -> apkAssets.first()
+            TargetApp.INSTAGRAM -> apkAssets.first()
             TargetApp.WHATSAPP -> null
-            TargetApp.INSTAGRAM -> null
         }
     }
 
@@ -115,8 +117,11 @@ class AutoPatchServer(
                 ReleaseRepository("curious-freak", "download-reddit")
             )
 
+            TargetApp.INSTAGRAM -> listOf(
+                ReleaseRepository("particle-box", "download-insta", ReleaseRepository.Host.PURRFECT_GIT)
+            )
+
             TargetApp.WHATSAPP -> emptyList()
-            TargetApp.INSTAGRAM -> emptyList()
         }
     }
 }

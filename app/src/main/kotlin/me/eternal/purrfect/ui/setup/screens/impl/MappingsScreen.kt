@@ -27,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -239,7 +238,7 @@ class MappingsScreen : SetupScreen() {
             Spacer(modifier = Modifier.height(12.dp))
             Surface(
                 shape = if (skin.id == "AETHER") G2RoundedRectangle(20.dp) else RoundedCornerShape(20.dp),
-                color = if (skin.id == "AETHER") skin.cardOverlayColor else Color.White.copy(alpha = 0.05f),
+                color = if (skin.id == "AETHER") skin.cardOverlayColor else skin.textPrimary.copy(alpha = 0.05f),
                 border = BorderStroke(
                     1.dp,
                     Brush.linearGradient(
@@ -268,7 +267,7 @@ class MappingsScreen : SetupScreen() {
                                 .fillMaxWidth()
                                 .height(10.dp),
                             color = skin.glowPrimary,
-                            trackColor = Color.White.copy(alpha = 0.12f)
+                            trackColor = skin.textPrimary.copy(alpha = 0.12f)
                         )
                     }
                 }

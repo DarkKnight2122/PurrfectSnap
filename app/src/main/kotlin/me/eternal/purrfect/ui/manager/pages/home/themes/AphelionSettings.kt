@@ -1413,10 +1413,13 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
             titleAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.headerHeightTracker { controlsHeight = it },
             actions = {
-                IconButton(onClick = {
-                    if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    routes.navigation?.openBottomBarCustomization = true
-                }) {
+                IconButton(
+                    modifier = Modifier.size(44.dp),
+                    onClick = {
+                        if (context.config.root.global.uiSettings.hapticFeedback.get()) hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                        routes.navigation?.openBottomBarCustomization = true
+                    }
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Tune,
                         contentDescription = null,
@@ -2010,7 +2013,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
             enableMorph = true,
             titleAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.headerHeightTracker { controlsHeight = it },
-            actions = {}
+            actions = { Spacer(Modifier.size(44.dp)) }
         )
     }
 }

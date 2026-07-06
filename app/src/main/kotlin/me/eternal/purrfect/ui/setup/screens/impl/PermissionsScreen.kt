@@ -223,11 +223,12 @@ class PermissionsScreen(
     override fun Content() {
         val coroutineScope = rememberCoroutineScope()
         val selectedApps = selectedAppsProvider()
-        val redditOnly = selectedApps == setOf(TargetApp.REDDIT)
+        val redditStylePermissions = selectedApps.isNotEmpty() &&
+                selectedApps.all { it == TargetApp.REDDIT || it == TargetApp.INSTAGRAM }
         val grantedPermissions = remember {
             mutableStateMapOf<String, Boolean>()
         }
-        val permissions = remember(redditOnly) {
+        val permissions = remember(redditStylePermissions) {
             listOf(
                 PermissionData(
                     translationKey = "notification_access",
@@ -282,7 +283,7 @@ class PermissionsScreen(
                         }
                     }
                 )
-            ).filterNot { redditOnly && it.translationKey == "display_over_other_apps" }
+            ).filterNot { redditStylePermissions && it.translationKey == "display_over_other_apps" }
         }
 
         fun updateState() {
@@ -321,7 +322,7 @@ class PermissionsScreen(
                         label = context.translation["setup.permissions.${perm.translationKey}"],
                         translationKey = perm.translationKey,
                         granted = grantedPermissions[perm.translationKey] == true,
-                        redditOnly = redditOnly
+                        redditOnly = redditStylePermissions
                     ) {
                         if (perm.isPermissionGranted()) {
                             grantedPermissions[perm.translationKey] = true

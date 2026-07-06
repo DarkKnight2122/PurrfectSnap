@@ -111,7 +111,7 @@ abstract class SetupScreen {
                 .fillMaxWidth()
                 .then(heightModifier),
             shape = RoundedCornerShape(28.dp),
-            color = Color.White.copy(alpha = 0.04f),
+            color = skin.textPrimary.copy(alpha = 0.04f),
             tonalElevation = 0.dp,
             shadowElevation = 0.dp,
             border = BorderStroke(
@@ -176,6 +176,7 @@ private fun SetupCardScrollbar(
             .fillMaxHeight()
     ) {
         val density = LocalDensity.current
+        val skin = LocalPurrfectSkin.current
         val trackHeightPx = with(density) { maxHeight.toPx() }
         val minThumbHeightPx = with(density) { 58.dp.toPx() }.coerceAtMost(trackHeightPx)
         val viewportHeightPx = trackHeightPx.coerceAtLeast(1f)
@@ -190,9 +191,8 @@ private fun SetupCardScrollbar(
                 .align(Alignment.Center)
                 .width(3.dp)
                 .fillMaxHeight()
-                .background(Color.White.copy(alpha = 0.12f), CircleShape)
+                .background(skin.textPrimary.copy(alpha = 0.12f), CircleShape)
         )
-        val skin = LocalPurrfectSkin.current
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -210,7 +210,7 @@ private fun SetupCardScrollbar(
                 )
                 .border(
                     width = 1.dp,
-                    color = Color.White.copy(alpha = 0.28f),
+                    color = skin.textPrimary.copy(alpha = 0.28f),
                     shape = CircleShape
                 )
         )

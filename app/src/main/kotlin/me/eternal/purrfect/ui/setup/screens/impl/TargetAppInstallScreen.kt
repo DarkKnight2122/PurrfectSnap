@@ -79,7 +79,6 @@ import me.eternal.purrfect.ui.manager.ManagerAssistantDialog
 import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.data.Updater
 import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.common.ui.util.G2RoundedRectangle
 import me.eternal.purrfect.ui.manager.theme.WavyCircularProgressIndicator
 import me.eternal.purrfect.ui.manager.theme.WavyProgress
@@ -197,12 +196,10 @@ open class TargetAppInstallScreen(
             }
         }
 
-        fun isTargetInstalled(target: SetupInstallTarget): Boolean {
-            return target.packageNames.any { packageName ->
-                runCatching {
-                    context.androidContext.packageManager.getPackageInfo(packageName, 0)
-                }.isSuccess
-            }
+        fun isDefaultTargetPackageInstalled(target: SetupInstallTarget): Boolean {
+            return runCatching {
+                context.androidContext.packageManager.getPackageInfo(target.packageName, 0)
+            }.isSuccess
         }
 
         fun resetTargetState() {
@@ -384,7 +381,7 @@ open class TargetAppInstallScreen(
                 )
                 pushQueueLog()
                 runCatching {
-                    if (!allowInstalledTarget && flow != SetupInstallFlow.REPATCH && isTargetInstalled(target)) {
+                    if (!allowInstalledTarget && flow != SetupInstallFlow.REPATCH && isDefaultTargetPackageInstalled(target)) {
                         pushStatus(
                             translation.format(
                                 "$stringPrefix.uninstall_prompt_status",
@@ -451,7 +448,7 @@ open class TargetAppInstallScreen(
                             printLog = { pushLog("[LSPatch] $it") }
                         )
                         val outputs = withContext(Dispatchers.IO) {
-                            if (target.targetApp == TargetApp.REDDIT) {
+                            if (target.targetApp == TargetApp.REDDIT || target.targetApp == TargetApp.INSTAGRAM) {
                                 mapOf("base.apk" to lsPatch.patchBaseApk(downloaded))
                             } else {
                                 lsPatch.patchSplits(listOf(downloaded))
@@ -661,7 +658,7 @@ open class TargetAppInstallScreen(
                                 } else {
                                     LinearProgressIndicator(
                                         color = skin.glowPrimary,
-                                        trackColor = Color.White.copy(alpha = 0.12f),
+                                        trackColor = skin.textPrimary.copy(alpha = 0.12f),
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(8.dp)
@@ -930,9 +927,9 @@ private fun LogsPanel(
     var expanded by rememberSaveable { mutableStateOf(false) }
     val animatedBrush = Brush.linearGradient(
         colors = listOf(
-            PurrfectPalette.glowPrimary.copy(alpha = 0.18f + 0.1f * pulse),
+            skin.glowPrimary.copy(alpha = 0.18f + 0.1f * pulse),
             Color.Transparent,
-            PurrfectPalette.glowSecondary.copy(alpha = 0.12f + 0.1f * (1 - pulse))
+            skin.glowSecondary.copy(alpha = 0.12f + 0.1f * (1 - pulse))
         ),
         start = Offset.Zero,
         end = Offset(400f * (0.6f + pulse), 260f * (0.4f + (1 - pulse)))

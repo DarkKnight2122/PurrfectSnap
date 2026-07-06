@@ -53,6 +53,7 @@ internal object InstagramFeatureStatus {
         Entry("Show Follower Toast") { it.showFollowerToast },
         Entry("View Story Mentions") { it.enableStoryMentions },
         Entry("Local Instagram Plus") { it.localInstagramPlus },
+        Entry("Restore old post/reel menu") { it.restoreOldPostReelContextMenu },
         Entry("Send custom emoji reactions to story") { it.sendCustomEmojiReactionsToStory },
         Entry("Change Like Reactions") { it.changeLikeReactions },
         Entry("Disable group creation from sharesheet") { it.disableGroupCreationFromShareSheet },
@@ -156,7 +157,7 @@ internal object InstagramSettingsBackup {
     }
 
     private fun defaultBoolean(key: String): Boolean {
-        return key == "keepUnsentMessages" ||
+        return key == "restoreOldPostReelContextMenu" ||
             key == "quickToggleUnsend" ||
             key == "enableDmContextMenuOptions" ||
             key == "customDateFormatFeed" ||

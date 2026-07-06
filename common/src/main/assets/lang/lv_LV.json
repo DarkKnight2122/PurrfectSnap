@@ -209,7 +209,7 @@
                 "purr_aura_inactive_label": "PurrAura neaktīvs",
                 "open_settings_button": "Atvērt iestatījumus",
                 "wiki_button": "Wiki",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram",
                 "channel_label_stable": "Stabils",
                 "channel_label_prerelease": "Pirmsizlaides",
@@ -250,7 +250,7 @@
                 "about_story": "Purrfect tika dibināts 2025. gada 2. oktobrī kā SnapEnhance atzars (fork) ar vīziju sniegt lietotājiem kvalitatīvu Snapchat pieredzi, ko viņi ir pelnījuši. Šai lietotnei bija jābūt tikai nelielam atjauninājumam SnapEnhance repozitorijā, taču drīz tā kļuva par atsevišķu lietotni, kurā līdzautori turpināja pievienot funkcijas. Tad komandai pievienojās izstrādātājs <RSR/>, un šī lietotne drīz vien guva milzīgus panākumus. Mēs saņēmām daudz mīlestības un atbalsta, un tikai divu dienu laikā ieguvām 1000+ lejupielādes! Mēs pateicamies visiem lietotājiem un atbalstītājiem; bez jūsu atbalsta mēs nebūtu sasnieguši šo vietu. Mēs vēlamies arī izteikt lielu paldies rhunk, SnapEnhance galvenajam izstrādātājam, jo bez viņa šī lietotne pat nepastāvētu. Mēs esam viņam bezgala pateicīgi. Visbeidzot, mēs vēlamies pateikties visiem mūsu administratoriem, īpaši: CLASSIC GENIUS, Harry, Sujal, Zain un schrodingerspet, kuri bija kopā ar mums no pašiem pirmsākumiem. Mēs vēlamies pateikties arī visiem testeriem, īpaši Leo un Toxic, kuri nepārtraukti testēja un ziņoja par kļūdām. Mēs esam bezgala pateicīgi par jūsu ieguldījumu.",
                 "about_thanks_title": "Ar mīlestību, Purrfect komanda",
                 "about_magic_toast": "Pieskarieties 5 reizes šajā ekrānā, lai redzētu maģiju 😉!",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram"
             },
             "home_logs": {

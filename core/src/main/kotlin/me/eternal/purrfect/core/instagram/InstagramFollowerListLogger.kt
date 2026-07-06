@@ -102,6 +102,16 @@ internal object InstagramFollowerListLogger {
         cachedAuthUpdatedAtMs = System.currentTimeMillis()
     }
 
+    fun currentInstagramAuthHeaders(context: Context): Map<String, String> {
+        val app = context.applicationContext ?: context
+        val auth = cachedAuth.takeIf { it.hasUsableAuth } ?: AuthSnapshot.from(app, null)
+        if (auth.hasUsableAuth) {
+            cachedAuth = cachedAuth.merge(auth)
+            cachedAuthUpdatedAtMs = System.currentTimeMillis()
+        }
+        return auth.requestHeaders()
+    }
+
     fun fetchMediaInfoVideoUrl(context: Context, mediaId: String): String? {
         if (!isMediaInfoId(mediaId)) return null
         val auth = cachedAuth.takeIf { it.hasUsableAuth } ?: AuthSnapshot.from(context, null)
@@ -127,6 +137,40 @@ internal object InstagramFollowerListLogger {
             }
         }
         return null
+    }
+
+    fun fetchMediaInfoDownloadUrls(context: Context, mediaId: String): List<String> {
+        if (!isMediaInfoId(mediaId)) return emptyList()
+        val auth = cachedAuth.takeIf { it.hasUsableAuth } ?: AuthSnapshot.from(context, null)
+        if (!auth.hasUsableAuth) {
+            log("Media info download lookup has no usable auth")
+            return emptyList()
+        }
+        cachedAuth = cachedAuth.merge(auth)
+        cachedAuthUpdatedAtMs = System.currentTimeMillis()
+        val encoded = Uri.encode(mediaId)
+        val urls = listOf(
+            "https://i.instagram.com/api/v1/media/$encoded/info/",
+            "https://i.instagram.com/api/v1/clips/media/$encoded/info/"
+        )
+        urls.forEach { url ->
+            runCatching {
+                val json = requestJson(url, auth)
+                mediaDownloadUrlsFromInfo(json)
+            }.onSuccess { mediaUrls ->
+                if (mediaUrls.isNotEmpty()) {
+                    log(
+                        "Media info download lookup hit path=${URL(url).path} id=${mediaId.take(12)} " +
+                            "count=${mediaUrls.size} types=${mediaUrls.joinToString(",") { if (looksLikeVideoUrl(it)) "video" else "image" }}"
+                    )
+                    return mediaUrls
+                }
+            }.onFailure {
+                log("Media info download lookup failed path=${URL(url).path} id=${mediaId.take(12)}: ${it.message ?: it.javaClass.simpleName}")
+            }
+        }
+        log("Media info download lookup empty id=${mediaId.take(12)}")
+        return emptyList()
     }
 
     fun resolveProfileForActivityHistory(context: Context, username: String): ActivityProfile {
@@ -769,10 +813,87 @@ internal object InstagramFollowerListLogger {
         }
     }
 
+    private fun mediaDownloadUrlsFromInfo(json: JSONObject): List<String> {
+        val items = json.optJSONArray("items")
+        if (items != null && items.length() > 0) {
+            val out = LinkedHashSet<String>()
+            for (index in 0 until items.length()) {
+                out += mediaDownloadUrlsFromItem(items.optJSONObject(index) ?: continue)
+            }
+            return out.toList().take(20)
+        }
+        return mediaDownloadUrlsFromItem(json).distinct().take(20)
+    }
+
+    private fun mediaDownloadUrlsFromItem(item: JSONObject): List<String> {
+        val carousel = item.optJSONArray("carousel_media")
+        if (carousel != null && carousel.length() > 0) {
+            val out = LinkedHashSet<String>()
+            for (index in 0 until carousel.length()) {
+                bestMediaInfoItemUrl(carousel.optJSONObject(index) ?: continue)?.let(out::add)
+            }
+            return out.toList()
+        }
+        val out = LinkedHashSet<String>()
+        bestMediaInfoVideoUrl(item)?.let(out::add)
+        bestMediaInfoImageUrl(item)?.let(out::add)
+        return out.toList()
+    }
+
+    private fun bestMediaInfoItemUrl(item: JSONObject): String? {
+        return bestMediaInfoVideoUrl(item) ?: bestMediaInfoImageUrl(item)
+    }
+
+    private fun bestMediaInfoVideoUrl(item: JSONObject): String? {
+        val versions = item.optJSONArray("video_versions") ?: return null
+        var bestUrl = ""
+        var bestScore = -1
+        for (index in 0 until versions.length()) {
+            val candidate = versions.optJSONObject(index) ?: continue
+            val url = candidate.optString("url").takeIf(::looksLikeVideoUrl) ?: continue
+            val area = candidate.optInt("width", 0).coerceAtLeast(1) * candidate.optInt("height", 0).coerceAtLeast(1)
+            val bitrate = candidate.optInt("bandwidth", 0).coerceAtLeast(candidate.optInt("bitrate", 0))
+            val score = area + bitrate / 8
+            if (score > bestScore) {
+                bestScore = score
+                bestUrl = url
+            }
+        }
+        return bestUrl.takeIf { it.isNotBlank() }
+    }
+
+    private fun bestMediaInfoImageUrl(item: JSONObject): String? {
+        val candidates = item.optJSONObject("image_versions2")?.optJSONArray("candidates") ?: return null
+        var bestUrl = ""
+        var bestArea = -1
+        for (index in 0 until candidates.length()) {
+            val candidate = candidates.optJSONObject(index) ?: continue
+            val url = candidate.optString("url").takeIf(::looksLikeMediaInfoImageUrl) ?: continue
+            val area = candidate.optInt("width", 0).coerceAtLeast(1) * candidate.optInt("height", 0).coerceAtLeast(1)
+            if (area > bestArea) {
+                bestArea = area
+                bestUrl = url
+            }
+        }
+        return bestUrl.takeIf { it.isNotBlank() }
+    }
+
     private fun looksLikeVideoUrl(url: String): Boolean {
         val lower = url.lowercase(Locale.US)
         return lower.startsWith("http") &&
             (lower.contains(".mp4") || lower.contains("/m86/") || lower.contains("%2fm86%2f") || lower.contains("t50."))
+    }
+
+    private fun looksLikeMediaInfoImageUrl(url: String): Boolean {
+        val lower = url.lowercase(Locale.US)
+        if (!lower.startsWith("http")) return false
+        if (looksLikeVideoUrl(url)) return false
+        return lower.contains("fbcdn") ||
+            lower.contains("cdninstagram") ||
+            lower.contains(".jpg") ||
+            lower.contains(".jpeg") ||
+            lower.contains(".webp") ||
+            lower.contains(".png")
     }
 
     private fun fetchMediaLikers(mediaId: String, auth: AuthSnapshot): List<Follower> {
@@ -2568,6 +2689,19 @@ internal object InstagramFollowerListLogger {
         fun debugSummary(): String {
             val keys = cookies.keys.sorted().joinToString(",").ifBlank { "none" }
             return " (auth=${authorization != null}, user=${requestUserId != null}, cookies=$keys)"
+        }
+
+        fun requestHeaders(): Map<String, String> {
+            val headers = linkedMapOf<String, String>()
+            authorization?.let { headers["Authorization"] = it }
+            csrfToken?.let { headers["X-CSRFToken"] = it }
+            requestUserId?.let { userId ->
+                headers["IG-INTENDED-USER-ID"] = userId
+                headers["IG-U-DS-USER-ID"] = userId
+                headers["X-IG-User-ID"] = userId
+            }
+            cookieHeader.takeIf { it.isNotBlank() }?.let { headers["Cookie"] = it }
+            return headers
         }
 
         fun merge(other: AuthSnapshot): AuthSnapshot {

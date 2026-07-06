@@ -103,6 +103,15 @@
             android:theme="@android:style/Theme.NoDisplay"
             android:excludeFromRecents="true"
             android:exported="true" />
+        <activity android:name=".bridge.MappingGenerationActivity"
+            android:theme="@android:style/Theme.NoDisplay"
+            android:excludeFromRecents="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.action.GENERATE_MAPPINGS" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
         <activity android:name=".bridge.BiometricPromptActivity"
             android:theme="@style/BiometricPromptTheme"
             android:excludeFromRecents="true"
@@ -129,6 +138,27 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="me.eternal.purrfect.REDDIT_LOG" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".debug.ConfigUpdateReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.action.DEBUG_UPDATE_CONFIG" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".snapchat.SnapchatUiElementCaptureReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.action.SNAPCHAT_UI_ELEMENT_CAPTURED" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".snapchat.SnapchatThemeSurfaceCaptureReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.action.SNAPCHAT_THEME_SURFACE_CAPTURED" />
             </intent-filter>
         </receiver>
         <receiver
@@ -196,6 +226,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
+        <provider
+            android:name=".snapchat.SnapchatThemeBackgroundProvider"
+            android:authorities="${applicationId}.snapchat.themebackground"
+            android:exported="true"
+            android:grantUriPermissions="true" />
         <provider
             android:name=".reddit.RedditConfigProvider"
             android:authorities="me.eternal.purrfect.reddit.config"

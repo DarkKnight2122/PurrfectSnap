@@ -13,7 +13,7 @@ internal data class SetupInstallTarget(
         get() = linkedSetOf(packageName).apply { addAll(alternatePackageNames) }
 }
 
-internal val setupTargetOrder = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.WHATSAPP, TargetApp.INSTAGRAM)
+internal val setupTargetOrder = listOf(TargetApp.SNAPCHAT, TargetApp.INSTAGRAM, TargetApp.REDDIT, TargetApp.WHATSAPP)
 
 internal fun TargetApp.toSetupInstallTarget(): SetupInstallTarget {
     return when (this) {

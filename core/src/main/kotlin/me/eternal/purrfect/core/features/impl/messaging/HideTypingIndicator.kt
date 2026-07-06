@@ -18,12 +18,6 @@ class HideTypingIndicator : MessagingRuleFeature("Hide Typing Indicator", Messag
     }
 
     override fun init() {
-        context.classCache.presenceSession.hook("processTypingActivity", HookStage.BEFORE, {
-            shouldHideTypingIndicator(currentConversationId())
-        }) {
-            it.setResult(null)
-        }
-
         context.classCache.conversationManager.hook("sendTypingNotification", HookStage.BEFORE, { param ->
             val conversationId = currentConversationId() ?: param.argNullable<Any>(0)?.let {
                 runCatching { SnapUUID(it).toString() }.getOrNull()

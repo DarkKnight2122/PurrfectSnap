@@ -7,8 +7,8 @@ import me.eternal.purrfect.mapper.ext.getClassName
 import me.eternal.purrfect.mapper.ext.getSuperClassName
 import me.eternal.purrfect.mapper.ext.isFinal
 
-class CallbackMapper : AbstractClassMapper("Callbacks") {
-    val callbacks = map("callbacks")
+class CallbackMapper : AbstractClassMapper(MAPPER_NAME) {
+    val callbacks = map(CALLBACKS_KEY)
 
     init {
         mapper {
@@ -37,5 +37,10 @@ class CallbackMapper : AbstractClassMapper("Callbacks") {
 
             callbacks.get()?.putAll(callbackClasses)
         }
+    }
+
+    companion object {
+        const val MAPPER_NAME = "Callbacks"
+        const val CALLBACKS_KEY = "callbacks"
     }
 }

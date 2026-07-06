@@ -22,6 +22,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.LruCache
@@ -87,6 +88,7 @@ internal object InstagramActivityHistoryHooks {
     private val recentProfileThumbnails = ConcurrentHashMap<String, String>()
     private val recentProfileImageSamples = mutableListOf<TimedThumbnail>()
     private val recentMediaObjects = Collections.synchronizedMap(WeakHashMap<Any, Long>())
+    private val resourceNameCache = Collections.synchronizedMap(WeakHashMap<View, String>())
     @Volatile private var recentProfileHeaderThumbnail: TimedThumbnail? = null
     private val mountedNativePages = Collections.synchronizedMap(WeakHashMap<Activity, Boolean>())
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -118,6 +120,7 @@ internal object InstagramActivityHistoryHooks {
     @Volatile private var callbackFailureLogs = 0
     @Volatile private var storyVideoVersionIntfClass: Class<*>? = null
     @Volatile private var storyVideoVersionGetUrl: Method? = null
+    @Volatile private var scrollBusyUntilMs = 0L
 
     private const val TAG_REEL_MEDIA = 1521086594
     private const val CACHE_STORY_SEEN_MISSING = "ActivityHistory_story_seen_missing_v1"
@@ -149,6 +152,10 @@ internal object InstagramActivityHistoryHooks {
         suppressHistoryOpenUntilMs = System.currentTimeMillis() + 8_000L
     }
 
+    fun noteScrollBusyUntil(untilMs: Long) {
+        if (untilMs > scrollBusyUntilMs) scrollBusyUntilMs = untilMs
+    }
+
     private fun initStoryVideoVersionReflection(classLoader: ClassLoader) {
         if (storyVideoVersionIntfClass != null && storyVideoVersionGetUrl != null) return
         runCatching {
@@ -160,12 +167,11 @@ internal object InstagramActivityHistoryHooks {
 
     fun recordNetworkRequest(context: Context, uri: URI) {
         if (!InstagramFeatureStateStore.current.enableActivityHistory || isHistoryOpenLoggingSuppressed()) return
+        if (!isNetworkHistoryCandidate(uri)) return
         val app = context.applicationContext ?: context
         appContext = app
         safeCallback("network request") {
             val path = uri.path.orEmpty()
-            val query = uri.query.orEmpty()
-            val full = uri.toString()
 
             mediaInfoPath.matcher(path).takeIf { it.matches() }?.let { matcher ->
                 val mediaId = matcher.group(1)
@@ -176,6 +182,7 @@ internal object InstagramActivityHistoryHooks {
             }
 
             if (path.contains("/clips/item/") || path.contains("/clips/items/")) {
+                val query = uri.query.orEmpty()
                 val mediaId = firstQueryValue(query, "clips_media_id", "media_id", "clips_media_ids")
                 if (!mediaId.isNullOrBlank()) {
                     record(app, InstagramActivityHistoryStore.TYPE_REEL, "", "Reel opened", "", mediaId, instagramReelUrl(mediaId), "", "network:clips_item")
@@ -184,6 +191,7 @@ internal object InstagramActivityHistoryHooks {
             }
 
             if (path.contains("/clips/write_seen_state")) {
+                val query = uri.query.orEmpty()
                 val mediaId = firstQueryValue(query, "media_id", "clips_media_id", "reel_media_id", "clip_media_id")
                 if (!mediaId.isNullOrBlank()) {
                     record(app, InstagramActivityHistoryStore.TYPE_REEL, "", "Reel watched", "", mediaId, instagramReelUrl(mediaId), "", "network:clips_seen")
@@ -199,41 +207,55 @@ internal object InstagramActivityHistoryHooks {
                 return
             }
 
-            if (full.contains("instagram.com") || full.startsWith("instagram://")) {
+            if (shouldRecordNetworkInstagramUri(uri, path)) {
+                val full = uri.toString()
                 recordInstagramUri(app, Uri.parse(full), "network:url")
             }
         }
     }
 
     fun recordVisibleView(view: View) {
+        if (!InstagramFeatureStateStore.current.enableActivityHistory || !view.isAttachedToWindow) return
+        if (SystemClock.uptimeMillis() <= scrollBusyUntilMs) return
+        val context = view.context ?: return
+        appContext = context.applicationContext ?: context
+        ensureIds(context)
+        val id = view.id
+        val hasId = id != View.NO_ID && id != 0
+        val matchesKnownId = hasId && (
+            id == feedLikeId ||
+                id == feedSaveId ||
+                id == reelLikeId ||
+                id == clipsUfiLikeId ||
+                id == profileHeaderId ||
+                id == rowProfileHeaderId
+            )
+        var idName = ""
+        val needsFallbackName = hasId && (!matchesKnownId || clipsUfiLikeId == 0 || profileHeaderId == 0 || rowProfileHeaderId == 0)
+        val matchesFallbackName = needsFallbackName && cachedResourceName(view).also { idName = it }.let { name ->
+            name == "profile_header_container" ||
+                name == "row_profile_header" ||
+                (clipsUfiLikeId == 0 && name.contains("clips_ufi_like", ignoreCase = true))
+        }
+        val hasPotentialUrl = !matchesKnownId && !matchesFallbackName && hasPotentialInstagramUrl(view)
+        if (!matchesKnownId && !matchesFallbackName && !hasPotentialUrl) return
         safeCallback("visible view") {
-            if (!InstagramFeatureStateStore.current.enableActivityHistory || !view.isAttachedToWindow) return
-            val id = view.id
-            val canMatchById = id != View.NO_ID && id != 0 &&
-                (id == feedLikeId || id == feedSaveId || id == reelLikeId || id == clipsUfiLikeId ||
-                    id == profileHeaderId || id == rowProfileHeaderId || clipsUfiLikeId == 0)
-            if (!canMatchById && !hasPotentialInstagramUrl(view)) return
-
             val isFeedAnchor = (feedLikeId != 0 && id == feedLikeId) || (feedSaveId != 0 && id == feedSaveId)
-            var idName = ""
             val isReelAnchor = (reelLikeId != 0 && id == reelLikeId) ||
                 (clipsUfiLikeId != 0 && id == clipsUfiLikeId) ||
-                (clipsUfiLikeId == 0 && id != View.NO_ID && resourceName(view).also { idName = it }.contains("clips_ufi_like", ignoreCase = true))
+                (clipsUfiLikeId == 0 && idName.contains("clips_ufi_like", ignoreCase = true))
             val isProfileHeader = (profileHeaderId != 0 && id == profileHeaderId) ||
                 (rowProfileHeaderId != 0 && id == rowProfileHeaderId) ||
-                (idName.ifBlank { if (id != View.NO_ID) resourceName(view).also { idName = it } else "" } == "profile_header_container") ||
+                (idName == "profile_header_container") ||
                 idName == "row_profile_header"
-            val hasPotentialUrl = !isFeedAnchor && !isReelAnchor && !isProfileHeader && hasPotentialInstagramUrl(view)
+            val shouldExtractPotentialUrl = hasPotentialUrl && !isFeedAnchor && !isReelAnchor && !isProfileHeader
 
-            if (!isFeedAnchor && !isReelAnchor && !isProfileHeader && !hasPotentialUrl) return
+            if (!isFeedAnchor && !isReelAnchor && !isProfileHeader && !shouldExtractPotentialUrl) return
 
             val now = System.currentTimeMillis()
             val last = visibleViews[view] ?: 0L
             if (now - last < 2_000L) return
             visibleViews[view] = now
-            val context = view.context ?: return
-            appContext = context.applicationContext ?: context
-            ensureIds(context)
 
             if (isProfileHeader) tryRecordProfilePage(view)
 
@@ -246,7 +268,7 @@ internal object InstagramActivityHistoryHooks {
                     scheduleNearbyMediaRecord(context, view, isReelAnchor)
                 }
             }
-            if (hasPotentialUrl) {
+            if (shouldExtractPotentialUrl) {
                 extractInstagramUrls(view).forEach { url ->
                     recordInstagramUri(context, Uri.parse(url), "view:url")
                 }
@@ -1723,6 +1745,33 @@ internal object InstagramActivityHistoryHooks {
             containsUrl(view.tag?.toString())
     }
 
+    private fun isNetworkHistoryCandidate(uri: URI): Boolean {
+        val path = uri.path.orEmpty()
+        if (path.contains("/media/") && path.contains("/info/")) return true
+        if (path.contains("/clips/item/") ||
+            path.contains("/clips/items/") ||
+            path.contains("/clips/write_seen_state")
+        ) {
+            return true
+        }
+        return shouldRecordNetworkInstagramUri(uri, path)
+    }
+
+    private fun shouldRecordNetworkInstagramUri(uri: URI, path: String = uri.path.orEmpty()): Boolean {
+        val scheme = uri.scheme?.lowercase(Locale.US).orEmpty()
+        if (scheme == "instagram") return true
+        val host = uri.host?.lowercase(Locale.US).orEmpty()
+        if (!host.endsWith("instagram.com") && !host.endsWith("instagr.am")) {
+            val query = uri.rawQuery.orEmpty()
+            return query.contains("instagram.com", ignoreCase = true) ||
+                query.contains("instagr.am", ignoreCase = true) ||
+                query.contains("instagram%3A%2F%2F", ignoreCase = true)
+        }
+        val first = path.trimStart('/').substringBefore('/').lowercase(Locale.US)
+        if (first in setOf("p", "reel", "reels", "tv", "stories")) return true
+        return isPublicWebProfileHost(host) && isProfileSlug(first)
+    }
+
     private fun extractInstagramUrls(view: View): List<String> {
         val output = linkedSetOf<String>()
         fun scanText(value: String?) {
@@ -1761,6 +1810,13 @@ internal object InstagramActivityHistoryHooks {
         val id = view.id
         if (id == View.NO_ID || id == 0) return ""
         return runCatching { view.resources.getResourceEntryName(id) }.getOrDefault("")
+    }
+
+    private fun cachedResourceName(view: View): String {
+        resourceNameCache[view]?.let { return it }
+        val value = resourceName(view)
+        if (value.isNotBlank()) resourceNameCache[view] = value
+        return value
     }
 
     private fun isMediaThumbnailPath(segments: List<String>): Boolean {

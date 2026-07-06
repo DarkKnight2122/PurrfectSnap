@@ -7,19 +7,29 @@ static NATIVE_LIB_INSTANCE: OnceCell<GlobalRef> = OnceCell::new();
 static JAVA_VM: OnceCell<usize> = OnceCell::new();
 
 pub static CLIENT_MODULE: Lazy<MappedLib> = Lazy::new(|| {
-    let mut client_module = MappedLib::new("libclient.so".into());
+    let candidates = ["libclient.so", "split_config.arm"];
+    let mut search_errors = Vec::new();
+    let mut fallback_module = MappedLib::new(candidates[0].into());
 
-    if let Err(error) = client_module.search() {
-        warn!("Unable to find libclient.so: {}", error);
-
-        client_module = MappedLib::new("split_config.arm".into());
-
-        if let Err(error) = client_module.search() {
-            error!("Unable to find split_config.arm: {}", error);
+    for candidate in candidates {
+        let mut module = MappedLib::new(candidate.into());
+        match module.search() {
+            Ok(_) => {
+                debug!("Using Snapchat native mapping: {}", candidate);
+                return module;
+            }
+            Err(error) => {
+                search_errors.push(format!("{}: {}", candidate, error));
+                fallback_module = module;
+            }
         }
     }
 
-    client_module
+    error!(
+        "Unable to find Snapchat native mapping: {}",
+        search_errors.join("; ")
+    );
+    fallback_module
 });
 
 

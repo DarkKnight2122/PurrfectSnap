@@ -57,6 +57,7 @@ class InstagramJsonImportActivity : Activity() {
                         sendBroadcast(
                             Intent(action)
                                 .setPackage(targetPackage)
+                                .addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
                                 .putExtra(Constants.INSTAGRAM_DEV_CONFIG_JSON_EXTRA, json)
                                 .putExtra("json_content", json)
                         )

@@ -9,7 +9,13 @@ class SnapClassCache (
     val snapShimsUUID by lazy { runCatching { classLoader.loadClass("com.snapchat.client.shims.UUID") }.getOrNull() }
     val snapManager by lazy { findClass("com.snapchat.client.messaging.SnapManager\$CppProxy") }
     val conversationManager by lazy { findClass("com.snapchat.client.messaging.ConversationManager\$CppProxy") }
-    val presenceSession by lazy { findClass("com.snapchat.talkcorev3.PresenceSession\$CppProxy") }
+    val legacyPresenceSession by lazy {
+        findFirstClassOrNull(
+            "com.snapchat.talkcorev4.PresenceSession\$CppProxy",
+            "com.snapchat.talkcorev3.PresenceSession\$CppProxy",
+            "com.snapchat.talkcore.PresenceSession\$CppProxy"
+        )
+    }
     val message by lazy { findClass("com.snapchat.client.messaging.Message") }
     val messageUpdateEnum by lazy { findClass("com.snapchat.client.messaging.MessageUpdate") }
     val serverMessageIdentifier by lazy { findClass("com.snapchat.client.messaging.ServerMessageIdentifier") }
@@ -71,5 +77,13 @@ class SnapClassCache (
         } catch (e: ClassNotFoundException) {
             throw RuntimeException("Failed to find class $className", e)
         }
+    }
+
+    private fun findFirstClassOrNull(vararg classNames: String): Class<*>? {
+        for (className in classNames) {
+            val clazz = runCatching { classLoader.loadClass(className) }.getOrNull()
+            if (clazz != null) return clazz
+        }
+        return null
     }
 }

@@ -89,6 +89,119 @@ class Messaging : Feature("Messaging") {
         }
     }
 
+    private fun hookLegacyPresenceSession(
+        stealthMode: StealthMode,
+        hideTypingIndicator: HideTypingIndicator
+    ): Boolean {
+        val presenceSession = context.classCache.legacyPresenceSession ?: return false
+
+        arrayOf("activate", "deactivate", "processTypingActivity").forEach { hook ->
+            presenceSession.hook(hook, HookStage.BEFORE, {
+                shouldHideBitmojiPresence(stealthMode)
+            }) {
+                it.setResult(null)
+            }
+        }
+
+        presenceSession.hook("startPeeking", HookStage.BEFORE, {
+            shouldHidePeek(stealthMode)
+        }) { it.setResult(null) }
+
+        presenceSession.hook("processTypingActivity", HookStage.BEFORE, {
+            shouldHideTyping(stealthMode, hideTypingIndicator)
+        }) {
+            it.setResult(null)
+        }
+
+        context.log.verbose("Hooked legacy PresenceSession: ${presenceSession.name}", key)
+        return true
+    }
+
+    private fun hookPlatformPresenceActionWrapper(
+        stealthMode: StealthMode,
+        hideTypingIndicator: HideTypingIndicator
+    ): Boolean {
+        var hooked = false
+
+        context.mappings.useMapper(PlatformPresenceActionWrapperMapper::class) {
+            classLoader = context.androidContext.classLoader
+
+            fun isMissingTargets(): Boolean {
+                return classReference.getAsClass() == null ||
+                    listOf(
+                        chatVisibleMethod.get(),
+                        chatHiddenMethod.get(),
+                        startPeekingMethod.get(),
+                        typingMethod.get(),
+                        usingReplyCameraMethod.get(),
+                        viewingChatMediaMethod.get()
+                    ).any { it.isNullOrBlank() }
+            }
+
+            if (isMissingTargets()) {
+                runCatching { context.mappings.refresh() }.onFailure {
+                    context.log.error("Failed to refresh mappings for PlatformPresenceActionWrapper", it)
+                }
+            }
+
+            val wrapperClass = classReference.getAsClass() ?: return@useMapper
+
+            fun requireMethod(methodName: String?, actionName: String): String {
+                return methodName ?: throw RuntimeException(
+                    "Failed to map PlatformPresenceActionWrapper method for $actionName"
+                )
+            }
+
+            fun hookAction(
+                methodName: String?,
+                actionName: String,
+                shouldBlock: () -> Boolean
+            ) {
+                wrapperClass.hook(
+                    requireMethod(methodName, actionName),
+                    HookStage.BEFORE,
+                    { _ -> shouldBlock() }
+                ) {
+                    it.setResult(null)
+                }
+            }
+
+            hookAction(chatVisibleMethod.get(), "PlatformChatVisibleAction") {
+                shouldHideBitmojiPresence(stealthMode)
+            }
+            hookAction(chatHiddenMethod.get(), "PlatformChatHiddenAction") {
+                shouldHideBitmojiPresence(stealthMode)
+            }
+            hookAction(startPeekingMethod.get(), "PlatformStartPeekingAction") {
+                shouldHidePeek(stealthMode)
+            }
+            hookAction(typingMethod.get(), "PlatformTypingAction") {
+                shouldHideTyping(stealthMode, hideTypingIndicator)
+            }
+            hookAction(usingReplyCameraMethod.get(), "PlatformUsingReplyCameraAction") {
+                shouldSpoofReplyCameraPresence(stealthMode)
+            }
+            hookAction(viewingChatMediaMethod.get(), "PlatformViewingChatMediaAction") {
+                shouldSpoofViewingGalleryPresence(stealthMode)
+            }
+
+            wrapperClass.hookConstructor(HookStage.AFTER) { param ->
+                val instance = param.thisObject<Any>()
+                clearField(instance, "PlatformChatVisibleAction", shouldHideBitmojiPresence(stealthMode))
+                clearField(instance, "PlatformChatHiddenAction", shouldHideBitmojiPresence(stealthMode))
+                clearField(instance, "PlatformViewingChatMediaAction", shouldSpoofViewingGalleryPresence(stealthMode))
+                clearField(instance, "PlatformUsingReplyCameraAction", shouldSpoofReplyCameraPresence(stealthMode))
+                clearField(instance, "PlatformTypingAction", shouldHideTyping(stealthMode, hideTypingIndicator))
+                clearField(instance, "PlatformStartPeekingAction", shouldHidePeek(stealthMode))
+            }
+
+            context.log.verbose("Hooked PlatformPresenceActionWrapper: ${wrapperClass.name}", key)
+            hooked = true
+        }
+
+        return hooked
+    }
+
     override fun init() {
         val stealthMode = context.feature(StealthMode::class)
         val hideTypingIndicator = context.feature(HideTypingIndicator::class)
@@ -151,126 +264,16 @@ class Messaging : Feature("Messaging") {
         }
 
         defer {
-            arrayOf("activate", "deactivate", "processTypingActivity").forEach { hook ->
-                context.classCache.presenceSession.hook(hook, HookStage.BEFORE, {
-                    shouldHideBitmojiPresence(stealthMode)
-                }) {
-                    it.setResult(null)
-                }
+            val legacyPresenceHooked = hookLegacyPresenceSession(stealthMode, hideTypingIndicator)
+            val platformPresenceHooked = hookPlatformPresenceActionWrapper(stealthMode, hideTypingIndicator)
+            if (!legacyPresenceHooked && !platformPresenceHooked) {
+                throw RuntimeException("Failed to hook Snapchat presence actions")
             }
-
-            context.classCache.presenceSession.hook("startPeeking", HookStage.BEFORE, {
-                shouldHidePeek(stealthMode)
-            }) { it.setResult(null) }
 
             context.classCache.conversationManager.hook("sendTypingNotification", HookStage.BEFORE, {
                 shouldHideTyping(stealthMode, hideTypingIndicator)
             }) {
                 it.setResult(null)
-            }
-
-            context.mappings.useMapper(PlatformPresenceActionWrapperMapper::class) {
-                classLoader = context.androidContext.classLoader
-                if (classReference.getAsClass() == null) {
-                    runCatching { context.mappings.refresh() }.onFailure {
-                        context.log.error("Failed to refresh mappings for PlatformPresenceActionWrapper", it)
-                    }
-                }
-
-                classReference.getAsClass()?.let { wrapperClass ->
-                    val bitmojiMethodNames = mutableSetOf<String>()
-                    val viewingGalleryMethodNames = mutableSetOf<String>()
-                    val replyCameraMethodNames = mutableSetOf<String>()
-                    val typingMethodNames = mutableSetOf<String>()
-                    val peekingMethodNames = mutableSetOf<String>()
-
-                    wrapperClass.methods.forEach { method ->
-                        val parameterTypes = method.parameterTypes
-
-                        if (parameterTypes.any { parameterType ->
-                                listOf(
-                                    "PlatformChatVisibleAction",
-                                    "PlatformChatHiddenAction"
-                                ).any { parameterType.name.contains(it) }
-                            }) {
-                            bitmojiMethodNames.add(method.name)
-                        }
-
-                        if (parameterTypes.any { parameterType ->
-                                parameterType.name.contains("PlatformViewingChatMediaAction")
-                            }) {
-                            viewingGalleryMethodNames.add(method.name)
-                        }
-
-                        if (parameterTypes.any { parameterType ->
-                                parameterType.name.contains("PlatformUsingReplyCameraAction")
-                            }) {
-                            replyCameraMethodNames.add(method.name)
-                        }
-
-                        if (parameterTypes.any { parameterType ->
-                                parameterType.name.contains("PlatformTypingAction")
-                            }) {
-                            typingMethodNames.add(method.name)
-                        }
-
-                        if (parameterTypes.any { parameterType ->
-                                parameterType.name.contains("PlatformStartPeekingAction")
-                            }) {
-                            peekingMethodNames.add(method.name)
-                        }
-                    }
-
-                    bitmojiMethodNames.forEach { methodName ->
-                        wrapperClass.hook(methodName, HookStage.BEFORE, {
-                            shouldHideBitmojiPresence(stealthMode)
-                        }) {
-                            it.setResult(null)
-                        }
-                    }
-
-                    viewingGalleryMethodNames.forEach { methodName ->
-                        wrapperClass.hook(methodName, HookStage.BEFORE, {
-                            shouldSpoofViewingGalleryPresence(stealthMode)
-                        }) {
-                            it.setResult(null)
-                        }
-                    }
-
-                    replyCameraMethodNames.forEach { methodName ->
-                        wrapperClass.hook(methodName, HookStage.BEFORE, {
-                            shouldSpoofReplyCameraPresence(stealthMode)
-                        }) {
-                            it.setResult(null)
-                        }
-                    }
-
-                    typingMethodNames.forEach { methodName ->
-                        wrapperClass.hook(methodName, HookStage.BEFORE, {
-                            shouldHideTyping(stealthMode, hideTypingIndicator)
-                        }) {
-                            it.setResult(null)
-                        }
-                    }
-
-                    peekingMethodNames.forEach { methodName ->
-                        wrapperClass.hook(methodName, HookStage.BEFORE, {
-                            shouldHidePeek(stealthMode)
-                        }) {
-                            it.setResult(null)
-                        }
-                    }
-
-                    wrapperClass.hookConstructor(HookStage.AFTER) { param ->
-                        val instance = param.thisObject<Any>()
-                        clearField(instance, "PlatformChatVisibleAction", shouldHideBitmojiPresence(stealthMode))
-                        clearField(instance, "PlatformChatHiddenAction", shouldHideBitmojiPresence(stealthMode))
-                        clearField(instance, "PlatformViewingChatMediaAction", shouldSpoofViewingGalleryPresence(stealthMode))
-                        clearField(instance, "PlatformUsingReplyCameraAction", shouldSpoofReplyCameraPresence(stealthMode))
-                        clearField(instance, "PlatformTypingAction", shouldHideTyping(stealthMode, hideTypingIndicator))
-                        clearField(instance, "PlatformStartPeekingAction", shouldHidePeek(stealthMode))
-                    }
-                }
             }
 
             //get last opened snap for media downloader

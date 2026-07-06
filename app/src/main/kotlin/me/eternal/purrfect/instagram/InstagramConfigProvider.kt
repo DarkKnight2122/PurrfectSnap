@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import me.eternal.purrfect.RemoteSideContext
+import me.eternal.purrfect.common.Constants
 import org.json.JSONObject
 import java.io.File
 
@@ -90,7 +91,7 @@ class InstagramConfigProvider : ContentProvider() {
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
 
     companion object {
-        const val AUTHORITY = "me.eternal.purrfect.instagram.config"
+        val AUTHORITY get() = Constants.INSTAGRAM_CONFIG_PROVIDER_AUTHORITY
         const val METHOD_GET_FEATURES = "getInstagramFeatures"
 
         val BOOLEAN_FEATURE_KEYS = listOf(
@@ -121,7 +122,7 @@ class InstagramConfigProvider : ContentProvider() {
             "enableShareSheetEmojiShortcuts", "enableNavigationTabCustomization",
             "enableStoryTrayLongPressActions", "captureUiElementIdsEnabled",
             "showFollowerToast", "showFeatureToasts", "enableStoryMentions",
-            "localInstagramPlus", "sendCustomEmojiReactionsToStory", "changeLikeReactions",
+            "localInstagramPlus", "restoreOldPostReelContextMenu", "sendCustomEmojiReactionsToStory", "changeLikeReactions",
             "customizeStoryRingSize", "disableGroupCreationFromShareSheet",
             "improveImageViewing", "moreOptionsOnPost", "removeEmptyBottomSpace",
             "enableHideChats", "enableActivityHistory",
@@ -141,7 +142,7 @@ class InstagramConfigProvider : ContentProvider() {
         )
 
         fun defaultBoolean(key: String): Boolean {
-            return key == "keepUnsentMessages" ||
+            return key == "restoreOldPostReelContextMenu" ||
                 key == "quickToggleUnsend" ||
                 key == "enableDmContextMenuOptions" ||
                 key == "customDateFormatFeed" ||

@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
 import kotlinx.coroutines.*
@@ -57,12 +58,20 @@ class BridgeClient(
 
     private val onConnectedCallbacks = mutableListOf<suspend () -> Unit>()
     private var cachePurrfectApkPath: String? = null
+    @Volatile
+    private var isEmbeddedBridge = false
 
     private val serviceDeathRecipient = IBinder.DeathRecipient {
         clearConnectedService()
     }
 
     private fun clearConnectedServiceLocked() {
+        if (isEmbeddedBridge) {
+            serviceBinder = null
+            service = null
+            isEmbeddedBridge = false
+            return
+        }
         serviceBinder?.let { binder ->
             runCatching { binder.unlinkToDeath(serviceDeathRecipient, 0) }
         }
@@ -79,6 +88,7 @@ class BridgeClient(
     private fun attachConnectedService(binder: IBinder): Boolean {
         synchronized(serviceStateLock) {
             clearConnectedServiceLocked()
+            isEmbeddedBridge = false
             serviceBinder = binder
             service = BridgeInterface.Stub.asInterface(binder)
             return runCatching {
@@ -89,6 +99,34 @@ class BridgeClient(
                 clearConnectedServiceLocked()
                 false
             }
+        }
+    }
+
+    private suspend fun attachEmbeddedBridge(reason: String?): Boolean {
+        val embeddedBridge = EmbeddedBridge(context, reason)
+        synchronized(serviceStateLock) {
+            clearConnectedServiceLocked()
+            service = embeddedBridge
+            serviceBinder = embeddedBridge.asBinder()
+            isEmbeddedBridge = true
+            isBound = false
+        }
+        cachePurrfectApkPath = embeddedBridge.applicationApkPath
+        runConnectedCallbacks()
+        return true
+    }
+
+    private fun canResolveBridgeService(): Boolean {
+        val intent = Intent()
+            .setClassName(Constants.MODULE_PACKAGE_NAME, "me.eternal.purrfect.bridge.BridgeService")
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.androidContext.packageManager.resolveService(
+                intent,
+                PackageManager.ResolveInfoFlags.of(0)
+            ) != null
+        } else {
+            @Suppress("DEPRECATION")
+            context.androidContext.packageManager.resolveService(intent, 0) != null
         }
     }
 
@@ -104,6 +142,17 @@ class BridgeClient(
             if (!binder.isBinderAlive || !binder.pingBinder()) throw DeadObjectException()
             return currentService
         }
+
+    private suspend fun runConnectedCallbacks() {
+        val callbacks = synchronized(onConnectedCallbacks) { onConnectedCallbacks.toList() }
+        callbacks.forEach {
+            runCatching {
+                it()
+            }.onFailure {
+                context.log.error("Failed to run onConnectedCallback", it)
+            }
+        }
+    }
 
     private fun Context.unbindBridgeIfNeeded() {
         if (!isBound) return
@@ -165,6 +214,10 @@ class BridgeClient(
     suspend fun connect(onFailure: (Throwable) -> Unit): Boolean? {
         if (isServiceAlive()) {
             return true
+        }
+
+        if (!canResolveBridgeService()) {
+            return attachEmbeddedBridge("BridgeService is not installed or not visible")
         }
 
         val connectionTimeout = 15000L
@@ -236,7 +289,7 @@ class BridgeClient(
                 }
             }
 
-            false
+            attachEmbeddedBridge("BridgeService bind timed out")
         }
     }
 
@@ -248,15 +301,7 @@ class BridgeClient(
                 return
             }
 
-            runBlocking {
-                onConnectedCallbacks.forEach {
-                    runCatching {
-                        it()
-                    }.onFailure {
-                        context.log.error("Failed to run onConnectedCallback", it)
-                    }
-                }
-            }
+            runBlocking { runConnectedCallbacks() }
             val remoteApkPath = runCatching {
                 connectedService.applicationApkPath
             }.getOrElse { throwable ->
@@ -462,6 +507,10 @@ class BridgeClient(
     fun registerConfigStateListener(listener: ConfigStateListener) = safeServiceCall { connectedService.registerConfigStateListener(listener) }
 
     fun getDebugProp(name: String, defaultValue: String? = null): String? = safeServiceCall { connectedService.getDebugProp(name, defaultValue) }
+
+    fun openMappingsGenerator(reason: String, completionMode: String): Boolean = safeServiceCall {
+        connectedService.openMappingsGenerator(reason, completionMode)
+    }
 
     fun startCallDownload(
         startTimestamp: Long,

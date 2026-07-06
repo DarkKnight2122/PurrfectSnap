@@ -1,5 +1,9 @@
 package me.eternal.purrfect.common.config.impl
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.RemoveRedEye
+import me.eternal.purrfect.common.config.ConfigFlag
 import me.eternal.purrfect.common.config.ConfigContainer
 import me.eternal.purrfect.common.config.FeatureNotice
 import me.eternal.purrfect.common.config.RES_OBF_VERSION_CHECK
@@ -19,6 +23,40 @@ class UserInterfaceTweaks : ConfigContainer() {
         val amount = integer("amount", defaultValue = 1)
     }
 
+    inner class UiElements : ConfigContainer() {
+        val hideUiElements = boolean("hide_ui_elements")
+        val captureUiElements = boolean("capture_ui_elements")
+        val hiddenUiElementIds = string("hidden_ui_element_ids") {
+            inputCheck = { true }
+            addFlags(ConfigFlag.HIDDEN)
+        }
+        val hiddenUiElementSelectors = string("hidden_ui_element_selectors") {
+            inputCheck = { true }
+            addFlags(ConfigFlag.HIDDEN)
+        }
+    }
+
+    inner class CustomTheme : ConfigContainer() {
+        val enabled = boolean("enabled")
+        val captureThemeSurfaces = boolean("capture_theme_surfaces")
+        val surfaceColorOverrides = string("surface_color_overrides") {
+            inputCheck = { true }
+            addFlags(ConfigFlag.HIDDEN)
+        }
+        val customSurfaceRules = string("custom_surface_rules") {
+            inputCheck = { true }
+            addFlags(ConfigFlag.HIDDEN)
+        }
+        val screenBackgrounds = string("screen_backgrounds") {
+            inputCheck = { true }
+            addFlags(ConfigFlag.HIDDEN)
+        }
+        val previewSurface = string("preview_surface") {
+            inputCheck = { true }
+            addFlags(ConfigFlag.HIDDEN)
+        }
+    }
+
 
     val friendFeedMenuButtons = multiple(
         "friend_feed_menu_buttons","conversation_info", "mark_chat_as_read", "mark_snaps_as_seen", "mark_stories_as_seen_locally", *MessagingRuleType.entries.filter { it.showInFriendMenu }.map { it.key }.toTypedArray()
@@ -30,6 +68,7 @@ class UserInterfaceTweaks : ConfigContainer() {
     val snapPreview = boolean("snap_preview") { addNotices(FeatureNotice.UNSTABLE); requireRestart() }
     val bootstrapOverride = container("bootstrap_override", BootstrapOverride()) { requireRestart() }
     val forceAmoledTheme = boolean("force_amoled_theme") { requireRestart() }
+    val customTheme = container("custom_theme", CustomTheme()) { icon = Icons.Default.Palette }
     val mapFriendNameTags = boolean("map_friend_nametags") { requireRestart() }
     val preventMessageListAutoScroll = boolean("prevent_message_list_auto_scroll") { requireRestart(); addNotices(FeatureNotice.UNSTABLE) }
     val streakExpirationInfo = boolean("streak_expiration_info") { requireRestart() }
@@ -49,7 +88,8 @@ class UserInterfaceTweaks : ConfigContainer() {
         "hide_billboard_prompt",
         "hide_snapchat_plus_gift_reminders",
         "hide_map_reactions",
-    ) { requireRestart(); versionCheck = RES_OBF_VERSION_CHECK }
+    ) { requireRestart(); versionCheck = RES_OBF_VERSION_CHECK; addFlags(ConfigFlag.HIDDEN) }
+    val uiElements = container("ui_elements", UiElements()) { icon = Icons.Default.RemoveRedEye }
     val operaMediaQuickInfo = boolean("opera_media_quick_info") { requireRestart() }
     val storyCounter = boolean("story_counter") { requireRestart() }
     val storySourceIndicator = boolean("story_source_indicator") { requireRestart() }

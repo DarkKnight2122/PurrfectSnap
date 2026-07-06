@@ -33,7 +33,7 @@ fn read_region_bytes(start: usize, size: usize) -> Option<Vec<u8>> {
                 )
             };
             if read < 0 {
-                warn!(
+                debug!(
                     "Failed to read /proc/self/mem at {:#x}: {}",
                     start,
                     std::io::Error::last_os_error()
@@ -49,7 +49,7 @@ fn read_region_bytes(start: usize, size: usize) -> Option<Vec<u8>> {
         if offset == size {
             return Some(buffer);
         }
-        warn!("Short read from /proc/self/mem at {:#x}: {} < {}", start, offset, size);
+        debug!("Short read from /proc/self/mem at {:#x}: {} < {}", start, offset, size);
     }
 
     None
@@ -148,22 +148,22 @@ pub fn find_signature_executable(mapped_lib: &MappedLib, pattern: &str) -> Optio
         if size > 0 {
             let bytes_buffer = match read_region_bytes(module_base, size) {
                 Some(buffer) => buffer,
-                None => {
-                    warn!(
-                        "Unable to read executable region from /proc/self/mem: {:#x} - {:#x}; trying mapped file {:?} offset {:#x}",
-                        region.start,
-                        region.end,
-                        region.path,
-                        region.offset
-                    );
-                    match read_region_bytes_from_file(region) {
-                        Some(buffer) => buffer,
-                        None => {
-                            warn!("Unable to read executable region: {:#x} - {:#x}", region.start, region.end);
-                            continue;
-                        }
+                None => match read_region_bytes_from_file(region) {
+                    Some(buffer) => {
+                        debug!(
+                            "Read executable region from mapped file {:?} offset {:#x} after /proc/self/mem fallback: {:#x} - {:#x}",
+                            region.path,
+                            region.offset,
+                            region.start,
+                            region.end
+                        );
+                        buffer
                     }
-                }
+                    None => {
+                        warn!("Unable to read executable region: {:#x} - {:#x}", region.start, region.end);
+                        continue;
+                    }
+                },
             };
             let results = find_signatures(module_base, &bytes_buffer, pattern, true);
 

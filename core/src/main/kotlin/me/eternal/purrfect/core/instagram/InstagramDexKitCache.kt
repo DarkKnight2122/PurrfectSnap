@@ -11,7 +11,7 @@ internal object InstagramDexKitCache {
     private const val PREF_NAME = "purrfect_insta_dexkit_cache"
     private const val KEY_VERSION = "_v"
     private const val KEY_SCHEMA = "_schema"
-    private const val SCHEMA_VERSION = "3"
+    private const val SCHEMA_VERSION = "4"
     private const val SEP = '\u0000'
 
     private var prefs: android.content.SharedPreferences? = null
@@ -58,7 +58,7 @@ internal object InstagramDexKitCache {
             cacheValid = false
             prefs?.edit()?.clear()?.putString(KEY_VERSION, version)?.putString(KEY_SCHEMA, SCHEMA_VERSION)?.apply()
             log("Version $stored/$storedSchema -> $version/$SCHEMA_VERSION, cache cleared")
-            requestBackgroundScan(context)
+            requestBackgroundScan(context, "cache invalid")
         }
     }
 
@@ -73,16 +73,24 @@ internal object InstagramDexKitCache {
         }.getOrNull()
     }
 
-    private fun requestBackgroundScan(context: Context) {
+    fun requestBackgroundScan(context: Context, reason: String = "manual") {
         if (instagramVersion.isEmpty()) return
         runCatching {
             val intent = Intent("${BuildConfig.APPLICATION_ID}.action.INSTAGRAM_DEXKIT_SCAN").apply {
                 setPackage(BuildConfig.APPLICATION_ID)
                 putExtra("apk_path", context.packageCodePath)
+                val apkPaths = buildList {
+                    context.packageCodePath?.takeIf { it.isNotBlank() }?.let { add(it) }
+                    context.applicationInfo.sourceDir?.takeIf { it.isNotBlank() }?.let { add(it) }
+                    context.applicationInfo.splitSourceDirs
+                        ?.filter { it.isNotBlank() }
+                        ?.let { addAll(it) }
+                }.distinct()
+                putExtra("apk_paths", apkPaths.toTypedArray())
                 putExtra("app_version", instagramVersion)
             }
             context.sendBroadcast(intent)
-            log("Requested background DexKit scan for Instagram $instagramVersion")
+            log("Requested background DexKit scan for Instagram $instagramVersion ($reason)")
         }.onFailure {
             log("Failed to request background DexKit scan: ${it.message}")
         }

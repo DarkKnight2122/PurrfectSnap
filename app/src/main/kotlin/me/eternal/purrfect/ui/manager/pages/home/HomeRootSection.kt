@@ -178,8 +178,8 @@ class HomeRootSection : Routes.Route() {
     internal val changelogStableUrl = changelogStableUrls.first()
     internal val changelogPrereleaseUrl = changelogPrereleaseUrls.first()
     internal val announcementsUrl = announcementsUrls.first()
-    internal val purrfectRepositoryUrl = "https://github.com/particle-box/PurrfectSnap.git"
-    internal val purrfectFallbackRepositoryUrl = "https://github.com/particle-box/PurrfectSnap.git"
+    internal val purrfectRepositoryUrl = "https://www.purrfectgit.com/r/particle-box/purrfect"
+    internal val purrfectFallbackRepositoryUrl = "https://www.purrfectgit.com/r/particle-box/purrfect"
 
     internal suspend fun fetchTextWithFallback(urls: List<String>): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         var lastError: Throwable? = null
@@ -569,6 +569,23 @@ class HomeRootSection : Routes.Route() {
         val skin = LocalPurrfectSkin.current
         val heroShape = RoundedCornerShape(36.dp)
         val gitHashShort = remember { (context.installationSummary.modInfo?.gitHash ?: BuildConfig.GIT_HASH).take(7) }
+        val activeTarget = context.activeTargetApp
+        val targetSuffix = remember(activeTarget) {
+            when (activeTarget) {
+                me.eternal.purrfect.common.TargetApp.SNAPCHAT -> "Snap"
+                me.eternal.purrfect.common.TargetApp.REDDIT -> "Reddit"
+                me.eternal.purrfect.common.TargetApp.WHATSAPP -> "WA"
+                me.eternal.purrfect.common.TargetApp.INSTAGRAM -> "Insta"
+            }
+        }
+        val targetAppName = remember(activeTarget) {
+            when (activeTarget) {
+                me.eternal.purrfect.common.TargetApp.SNAPCHAT -> "Snapchat"
+                me.eternal.purrfect.common.TargetApp.REDDIT -> "Reddit"
+                me.eternal.purrfect.common.TargetApp.WHATSAPP -> "WhatsApp"
+                me.eternal.purrfect.common.TargetApp.INSTAGRAM -> "Instagram"
+            }
+        }
         Box(
             modifier = Modifier
                 .padding(horizontal = cardMargin, vertical = 6.dp)
@@ -588,20 +605,14 @@ class HomeRootSection : Routes.Route() {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "PurrfectSnap",
+                        text = "Purrfect$targetSuffix",
                         color = skin.textPrimary,
                         fontSize = 34.sp,
                         fontWeight = FontWeight.ExtraBold,
                         fontFamily = avenirNext
                     )
                     Text(
-                        text = "By ΞTΞRNAL",
-                        color = skin.textPrimary.copy(alpha = 0.75f),
-                        fontSize = 14.sp,
-                        fontFamily = avenirNext
-                    )
-                    Text(
-                        text = translation["hero_tagline"],
+                        text = (translation["hero_tagline"] ?: "").replace("Snapchat", targetAppName),
                         color = skin.textPrimary.copy(alpha = 0.9f),
                         fontSize = 15.sp,
                         lineHeight = 20.sp,
@@ -739,30 +750,32 @@ class HomeRootSection : Routes.Route() {
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = skin.glowPrimary.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.2f)),
-                            tonalElevation = 0.dp,
-                            shadowElevation = 0.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.SNAPCHAT) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = skin.glowPrimary.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.2f)),
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .clip(RoundedCornerShape(50))
-                                        .background(if (isPurrAuraActive) skin.glowPrimary else Color(0xFF8C8CA3))
-                                )
-                                Text(
-                                    text = if (isPurrAuraActive) translation["purr_aura_active_label"] else translation["purr_aura_inactive_label"],
-                                    color = skin.textPrimary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .background(if (isPurrAuraActive) skin.glowPrimary else Color(0xFF8C8CA3))
+                                    )
+                                    Text(
+                                        text = if (isPurrAuraActive) translation["purr_aura_active_label"] else translation["purr_aura_inactive_label"],
+                                        color = skin.textPrimary,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
                         }
 
@@ -813,13 +826,13 @@ class HomeRootSection : Routes.Route() {
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
                         ) {
                             Icon(
-                                imageVector = ImageVector.vectorResource(id = R.drawable.ic_github),
+                                imageVector = ImageVector.vectorResource(id = R.drawable.ic_git),
                                 contentDescription = null,
                                 tint = skin.textPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = translation["github_button"], maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(text = translation["github_button"] ?: "PurrfectGit", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                         ExternalLinkIcon(
                             imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),

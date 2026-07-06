@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cancel
@@ -47,6 +49,7 @@ import kotlin.reflect.KClass
 import kotlin.system.exitProcess
 import kotlin.system.measureTimeMillis
 
+private const val MAPPINGS_GENERATION_STATE_TTL_MS = 10 * 60 * 1000L
 
 class Purrfect {
     companion object {
@@ -61,6 +64,10 @@ class Purrfect {
     private var android9ValdiBindDisabled = false
     private var android9ValdiBindDisableLogged = false
     private val nativeLateInitTriggered = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val earlyMappingsActivityHookInstalled = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val mappingsBlockHandled = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile
+    private var pendingMappingsBlockReason: String? = null
     private var syncCallback: SyncCallback? = null
 
     private fun FriendInfo.isCurrentSocialFriend(): Boolean {
@@ -125,10 +132,18 @@ class Purrfect {
                 return@runBlocking
             }
             if (!canLoad) exitProcess(1)
+            var mappingsBlockedStartup = false
             runCatching {
-                LSPatchUpdater.onBridgeConnected(appContext)
+                installEarlyMappingsBlockActivityHook()
+                mappingsBlockedStartup = checkMappingsBeforeFullInit()
+                if (!mappingsBlockedStartup) {
+                    LSPatchUpdater.onBridgeConnected(appContext)
+                }
             }.onFailure {
                 appContext.log.error("Failed to init LSPatchUpdater", it)
+            }
+            if (mappingsBlockedStartup) {
+                return@runBlocking
             }
             jetpackComposeResourceHook()
             runCatching {
@@ -140,7 +155,12 @@ class Purrfect {
 
                 hookMainActivity("onPostCreate") {
                     appContext.mainActivity = this
+                    pendingMappingsBlockReason?.let { reason ->
+                        handleVisibleMappingsBlock(this, reason)
+                        return@hookMainActivity
+                    }
                     if (!appContext.mappings.isMappingsLoaded) return@hookMainActivity
+                    if (appContext.mappings.isMappingsOutdated()) return@hookMainActivity
                     appContext.isMainActivityPaused = false
                     onActivityCreate(this)
                     appContext.actionManager.onNewIntent(intent)
@@ -198,7 +218,7 @@ class Purrfect {
             userInterface.init()
             
             // Check mappings status with detailed logging
-            log.verbose("Checking mappings status...")
+            log.verbose("Checking mappings status before feature initialization...")
             log.verbose("Mappings loaded: ${mappings.isMappingsLoaded}")
             log.verbose("Mappings outdated: ${mappings.isMappingsOutdated()}")
             
@@ -207,16 +227,16 @@ class Purrfect {
                 log.warn("Mappings not loaded, skipping features initialization")
                 log.warn("Mappings file exists: ${mappings.exists()}")
                 log.warn("Generated build number: ${mappings.getGeneratedBuildNumber()}")
-                // Trigger auto-generation by launching manager app
-                triggerMappingsGeneration()
+                blockSnapchatUntilMappingsRegenerated("missing")
                 return
             }
             
-            // Also check if mappings are outdated and trigger regeneration
             if (mappings.isMappingsOutdated()) {
                 log.warn("Mappings are outdated, triggering auto-generation check")
-                triggerMappingsGeneration()
+                blockSnapchatUntilMappingsRegenerated("outdated")
+                return
             }
+            clearMappingsGenerationState("mappings-current")
             
             log.verbose("Initializing features...")
             runCatching {
@@ -261,23 +281,208 @@ class Purrfect {
     }
 
 
-    private fun triggerMappingsGeneration() {
-        runCatching {
+    private fun installEarlyMappingsBlockActivityHook() {
+        if (!earlyMappingsActivityHookInstalled.compareAndSet(false, true)) return
+        Activity::class.java.hook("onCreate", HookStage.BEFORE) { param ->
+            val activity = param.thisObject() as Activity
+            if (!activity.packageName.equals(Constants.SNAPCHAT_PACKAGE_NAME)) return@hook
+            pendingMappingsBlockReason?.let { reason ->
+                appContext.mainActivity = activity
+                appContext.log.warn(
+                    "Early Snapchat activity creation intercepted for stale mappings; " +
+                        "activity=${activity::class.java.name} reason=$reason"
+                )
+                handleVisibleMappingsBlock(activity, reason)
+            }
+        }
+    }
+
+    private fun checkMappingsBeforeFullInit(): Boolean {
+        with(appContext) {
+            log.verbose("Checking mappings status at early startup gate...")
+            log.verbose("Mappings loaded: ${mappings.isMappingsLoaded}")
+            log.verbose("Mappings outdated: ${mappings.isMappingsOutdated()}")
+            if (!mappings.isMappingsLoaded) {
+                log.warn("Mappings not loaded at early startup gate, blocking Snapchat before full init")
+                log.warn("Mappings file exists: ${mappings.exists()}")
+                log.warn("Generated build number: ${mappings.getGeneratedBuildNumber()}")
+                blockSnapchatUntilMappingsRegenerated("missing")
+                return true
+            }
+            if (mappings.isMappingsOutdated()) {
+                log.warn("Mappings are outdated at early startup gate, blocking Snapchat before full init")
+                blockSnapchatUntilMappingsRegenerated("outdated")
+                return true
+            }
+            clearMappingsGenerationState("early-mappings-current")
+            return false
+        }
+    }
+
+    private fun blockSnapchatUntilMappingsRegenerated(reason: String) {
+        if (isMappingsGenerationInProgress()) {
+            appContext.log.warn(
+                "Mappings generation already in progress; blocking duplicate Snapchat startup; reason=$reason"
+            )
+            terminateSnapchatForMappings("$reason generation-in-progress", 0L)
+            return
+        }
+        pendingMappingsBlockReason = reason
+        mappingsBlockHandled.set(false)
+        appContext.log.warn(
+            "Blocking Snapchat startup until mappings are regenerated; reason=$reason waitingForVisibleActivity=true"
+        )
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (pendingMappingsBlockReason == reason && mappingsBlockHandled.compareAndSet(false, true)) {
+                val launchedGenerator = triggerMappingsGeneration(
+                    reason = reason,
+                    completionMode = Constants.MAPPINGS_COMPLETION_MODE_BACKGROUND
+                )
+                appContext.log.warn(
+                    "No visible Snapchat activity before mapping block timeout; " +
+                        "launched fallback generator=$launchedGenerator reason=$reason"
+                )
+                terminateSnapchatForMappings(reason, 25L)
+            }
+        }, 8000L)
+    }
+
+    private fun handleVisibleMappingsBlock(activity: Activity, reason: String) {
+        if (!mappingsBlockHandled.compareAndSet(false, true)) return
+        pendingMappingsBlockReason = null
+        val launchedGenerator = triggerMappingsGeneration(
+            reason = reason,
+            activity = activity,
+            completionMode = Constants.MAPPINGS_COMPLETION_MODE_FOREGROUND
+        )
+        appContext.log.warn(
+            "Visible Snapchat activity reached; launched mapping generator=$launchedGenerator reason=$reason"
+        )
+        terminateSnapchatForMappings(reason, 0L)
+    }
+
+    private fun triggerMappingsGeneration(
+        reason: String,
+        activity: Activity? = null,
+        completionMode: String
+    ): Boolean {
+        var markedInProgress = false
+        return runCatching {
             val autoGen = appContext.bridgeClient.getDebugProp("auto_generate_mappings", "true")
             if (autoGen != "true") {
-                appContext.log.verbose("Auto-generation disabled via debug prop")
-                return
+                appContext.log.verbose("Auto-generation disabled via debug prop; reason=$reason")
+                return@runCatching false
             }
-            
-            val intent = Intent().apply {
-                setClassName(Constants.MODULE_PACKAGE_NAME, "${Constants.MODULE_PACKAGE_NAME}.ui.setup.SetupActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra("requirements", 4) // Requirements.MAPPINGS = 4
+
+            if (!markMappingsGenerationInProgress(reason, completionMode)) {
+                return@runCatching false
             }
-            appContext.androidContext.startActivity(intent)
-            appContext.log.verbose("Triggered mappings generation via SetupActivity")
+            markedInProgress = true
+
+            val intent = mappingGenerationIntent(reason, completionMode).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            val launched = if (activity != null) {
+                activity.startActivity(intent)
+                true
+            } else {
+                appContext.bridgeClient.openMappingsGenerator(reason, completionMode)
+            }
+            if (!launched) {
+                clearMappingsGenerationState("mapping-generator-launch-failed")
+            } else {
+                appContext.log.verbose(
+                    "Triggered mappings generation via MappingGenerationActivity; " +
+                        "reason=$reason completionMode=$completionMode foreground=${activity != null}"
+                )
+            }
+            launched
         }.onFailure {
-            appContext.log.verbose("Could not trigger mappings generation: ${it.message}")
+            appContext.log.warn("Could not trigger mappings generation via MappingGenerationActivity: ${it.message}")
+            if (markedInProgress) {
+                clearMappingsGenerationState("mapping-generator-launch-exception")
+            }
+        }.getOrDefault(false)
+    }
+
+    private fun mappingGenerationIntent(reason: String, completionMode: String): Intent {
+        return Intent(Constants.MAPPINGS_GENERATION_ACTION).apply {
+            setClassName(Constants.MODULE_PACKAGE_NAME, "${Constants.MODULE_PACKAGE_NAME}.bridge.MappingGenerationActivity")
+            putExtra(Constants.MAPPINGS_GENERATION_REASON_EXTRA, reason)
+            putExtra(Constants.MAPPINGS_COMPLETION_MODE_EXTRA, completionMode)
+        }
+    }
+
+    private fun mappingsGenerationStateFile() = appContext.fileHandlerManager
+        .getFileHandle(FileHandleScope.INTERNAL.key, InternalFileHandleType.MAPPINGS_GENERATION_STATE.key)
+        .toWrapper()
+
+    private fun isMappingsGenerationInProgress(): Boolean {
+        return runCatching {
+            val file = mappingsGenerationStateFile()
+            if (!file.exists()) return@runCatching false
+            val state = file.readBytes().toString(Charsets.UTF_8)
+            val startedAt = state.substringBefore('|').toLongOrNull()
+            if (startedAt == null) {
+                appContext.log.warn("Clearing invalid mappings generation state: $state")
+                file.delete()
+                return@runCatching false
+            }
+            val ageMs = System.currentTimeMillis() - startedAt
+            if (ageMs in 0..MAPPINGS_GENERATION_STATE_TTL_MS) {
+                appContext.log.warn("Mappings generation state is active; ageMs=$ageMs state=$state")
+                true
+            } else {
+                appContext.log.warn("Clearing stale mappings generation state; ageMs=$ageMs state=$state")
+                file.delete()
+                false
+            }
+        }.onFailure {
+            appContext.log.warn("Failed to read mappings generation state: ${it.message}")
+        }.getOrDefault(false)
+    }
+
+    private fun markMappingsGenerationInProgress(reason: String, completionMode: String): Boolean {
+        if (isMappingsGenerationInProgress()) return false
+        return runCatching {
+            val state = listOf(
+                System.currentTimeMillis().toString(),
+                completionMode,
+                reason,
+                android.os.Process.myPid().toString()
+            ).joinToString(separator = "|")
+            mappingsGenerationStateFile().writeBytes(state.toByteArray(Charsets.UTF_8))
+            appContext.log.verbose(
+                "Marked mappings generation in progress; reason=$reason completionMode=$completionMode state=$state"
+            )
+            true
+        }.onFailure {
+            appContext.log.warn("Failed to mark mappings generation in progress: ${it.message}")
+        }.getOrDefault(false)
+    }
+
+    private fun clearMappingsGenerationState(reason: String) {
+        runCatching {
+            val file = mappingsGenerationStateFile()
+            if (file.exists()) {
+                val deleted = file.delete()
+                appContext.log.verbose("Cleared mappings generation state; reason=$reason deleted=$deleted")
+            }
+        }.onFailure {
+            appContext.log.warn("Failed to clear mappings generation state; reason=$reason error=${it.message}")
+        }
+    }
+
+    private fun terminateSnapchatForMappings(reason: String, delayMs: Long = 75L) {
+        val terminate = Runnable {
+            appContext.log.warn("Terminating Snapchat process for stale mappings; reason=$reason")
+            android.os.Process.killProcess(android.os.Process.myPid())
+            exitProcess(0)
+        }
+        if (delayMs <= 0L) {
+            terminate.run()
+        } else {
+            Handler(Looper.getMainLooper()).postDelayed(terminate, delayMs)
         }
     }
 

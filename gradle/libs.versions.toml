@@ -72,6 +72,7 @@ dexkit = { module = "org.luckypray:dexkit", version.ref = "dexkit" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
 junit = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junit" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 osmdroid-android = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid-android" }

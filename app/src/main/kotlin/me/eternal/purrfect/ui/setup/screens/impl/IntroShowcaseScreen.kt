@@ -81,6 +81,17 @@ class IntroShowcaseScreen(
                     )
                 ),
                 SupportedAppShowcase(
+                    targetApp = TargetApp.INSTAGRAM,
+                    name = "Instagram",
+                    iconRes = R.drawable.setup_app_instagram,
+                    features = listOf(
+                        "Download posts, reels, stories, and profile media",
+                        "Keep unsent messages and add DM controls",
+                        "Block ads, analytics, tracking links, and suggestions",
+                        "Customize reels, feed, and hidden UI elements"
+                    )
+                ),
+                SupportedAppShowcase(
                     targetApp = TargetApp.REDDIT,
                     name = "Reddit",
                     iconRes = R.drawable.setup_app_reddit,

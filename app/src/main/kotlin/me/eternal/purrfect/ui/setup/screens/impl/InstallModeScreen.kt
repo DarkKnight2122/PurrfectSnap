@@ -17,8 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.Help
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Warning
@@ -243,8 +241,8 @@ class InstallModeScreen(
                     icon = Icons.Filled.Shield,
                     accent = Brush.horizontalGradient(
                         listOf(
-                            Color(0xFF7DD3FC),
-                            Color(0xFF6366F1)
+                            skin.glowPrimary.copy(alpha = 0.45f),
+                            skin.glowSecondary.copy(alpha = 0.55f)
                         )
                     ),
                     selected = choice == InstallMode.NON_ROOT,

@@ -628,7 +628,7 @@ private class ManagerAssistantEngine(
     private fun githubReply(normalized: String): AssistantResult? {
         val relevant = normalized.contains("github link") || normalized.contains("where is github")
         if (!relevant) return null
-        return AssistantResult("Go to the homepage of Purrfect and tap on the GitHub button.")
+        return AssistantResult("Go to the homepage of Purrfect and tap on the PurrfectGit button.")
     }
 
     private fun iosEmojiReply(normalized: String): AssistantResult? {

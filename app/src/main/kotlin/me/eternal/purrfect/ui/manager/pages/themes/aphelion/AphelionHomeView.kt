@@ -105,6 +105,15 @@ fun HomeRootSection.AphelionHomeView(
     // Quick Actions Logic
     val activeTarget = context.activeTargetApp
     val isRedditMode = remember(activeTarget) { activeTarget == TargetApp.REDDIT }
+    val isSnapchatMode = remember(activeTarget) { activeTarget == TargetApp.SNAPCHAT }
+    val targetAppName = remember(activeTarget) {
+        when (activeTarget) {
+            TargetApp.SNAPCHAT -> "Snapchat"
+            TargetApp.REDDIT -> "Reddit"
+            TargetApp.WHATSAPP -> "WhatsApp"
+            TargetApp.INSTAGRAM -> "Instagram"
+        }
+    }
     val activeCards = remember(activeTarget) {
         when (activeTarget) {
             TargetApp.REDDIT -> redditCards
@@ -128,16 +137,18 @@ fun HomeRootSection.AphelionHomeView(
     var fullChangelogText by rememberSaveable { mutableStateOf<String?>(null) }
 
     val onShowAnnouncements = {
+        announcementsText = null
+        showAnnouncementsDialog = true
         coroutineScope.launch {
             announcementsText = fetchTextWithFallback(announcementsUrls)
-            showAnnouncementsDialog = true
         }
     }
 
     val onShowFullChangelog = {
+        fullChangelogText = null
+        showFullChangelogDialog = true
         coroutineScope.launch {
             fullChangelogText = fetchTextWithFallback(changelogStableUrls)
-            showFullChangelogDialog = true
         }
     }
 
@@ -479,13 +490,7 @@ fun HomeRootSection.AphelionHomeView(
                         )
                     )
                     Text(
-                        text = "By ΞTΞRNAL",
-                        color = skin.textPrimary.copy(alpha = 0.75f),
-                        fontSize = 14.sp,
-                        fontFamily = avenirNext
-                    )
-                    Text(
-                        text = if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) (translation["hero_tagline"] ?: "").replace("Snapchat", "Reddit") else translation["hero_tagline"] ?: "",
+                        text = (translation["hero_tagline"] ?: "").replace("Snapchat", targetAppName),
                         color = skin.textPrimary.copy(alpha = 0.9f),
                         fontSize = 15.sp,
                         lineHeight = 20.sp,
@@ -493,7 +498,7 @@ fun HomeRootSection.AphelionHomeView(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Switch to ${if (context.activeTargetApp == me.eternal.purrfect.common.TargetApp.REDDIT) "Snapchat" else "Reddit"} in settings",
+                        text = "Switch Apps in Settings",
                         color = skin.textPrimary.copy(alpha = 0.5f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
@@ -660,7 +665,7 @@ fun HomeRootSection.AphelionHomeView(
                 ) {
                     val unifiedButtonWidth = 180.dp
                     Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (!isRedditMode) {
+                        if (isSnapchatMode) {
                             Surface(
                                 shape = RoundedCornerShape(50),
                                 color = skin.cardOverlayColor.copy(alpha = 0.6f),
@@ -718,20 +723,20 @@ fun HomeRootSection.AphelionHomeView(
                         }
                         OutlinedButton(
                             modifier = Modifier.weight(1f).height(44.dp),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://github.com/particle-box/PurrfectSnap.git", context.translation["toast_open_link_failed"]) },
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://www.purrfectgit.com/r/particle-box/purrfect", context.translation["toast_open_link_failed"]) },
                             border = BorderStroke(1.dp, if (skin.id == "AETHER") skin.glowPrimary.copy(alpha = 0.45f) else (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.35f)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                                Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_git), contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                PurrfectMarqueeText(text = translation["github_button"] ?: "", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = skin.textPrimary)
+                                PurrfectMarqueeText(text = translation["github_button"] ?: "PurrfectGit", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold), color = skin.textPrimary)
                             }
                         }
                         ExternalLinkIcon(
                             imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram),
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://t.me/purrfectsnap_official", context.translation["toast_open_link_failed"]) },
+                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"]) },
                             tint = skin.textPrimary, containerColor = skin.cardOverlayColor.copy(alpha = 0.6f),
                             haptic = haptic
                         )

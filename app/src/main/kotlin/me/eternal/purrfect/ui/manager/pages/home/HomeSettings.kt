@@ -148,7 +148,7 @@ class HomeSettings : Routes.Route() {
 
     internal fun launchTargetInstallSetup(targetApp: TargetApp) {
         val currentContext = context.activity ?: context.androidContext
-        if (targetApp == TargetApp.WHATSAPP || targetApp == TargetApp.INSTAGRAM) {
+        if (targetApp == TargetApp.WHATSAPP) {
             val packageName = context.packageNameForTargetApp(targetApp)
             val label = targetDisplayName(targetApp)
             val marketIntent = Intent(
@@ -171,7 +171,7 @@ class HomeSettings : Routes.Route() {
             TargetApp.SNAPCHAT -> Requirements.INSTALL_SNAPCHAT
             TargetApp.REDDIT -> Requirements.INSTALL_REDDIT
             TargetApp.WHATSAPP -> Requirements.INSTALL_SNAPCHAT
-            TargetApp.INSTAGRAM -> Requirements.INSTALL_SNAPCHAT
+            TargetApp.INSTAGRAM -> Requirements.INSTALL_INSTAGRAM
         }
         Intent(currentContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java).apply {
             putExtra("requirements", requirement)
@@ -295,7 +295,7 @@ class HomeSettings : Routes.Route() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.INSTAGRAM)
+                    listOf(TargetApp.SNAPCHAT, TargetApp.INSTAGRAM, TargetApp.REDDIT)
                         .filter { it != currentTarget }
                         .forEach { targetApp ->
                             Button(

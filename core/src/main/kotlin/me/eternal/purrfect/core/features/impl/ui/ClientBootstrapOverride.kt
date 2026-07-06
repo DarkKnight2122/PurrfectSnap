@@ -16,12 +16,18 @@ class ClientBootstrapOverride: Feature("ClientBootstrapOverride") {
 
     override fun init() {
         val bootstrapOverrideConfig = context.config.userInterface.bootstrapOverride
+        val forceAmoledTheme = context.config.userInterface.forceAmoledTheme.get()
+        val effectiveAppAppearance = if (forceAmoledTheme) {
+            "always_dark"
+        } else {
+            bootstrapOverrideConfig.appAppearance.getNullable()
+        }
 
-        if (!clientBootstrapFolder.exists() && (bootstrapOverrideConfig.appAppearance.getNullable() != null || bootstrapOverrideConfig.homeTab.getNullable() != null)) {
+        if (!clientBootstrapFolder.exists() && (effectiveAppAppearance != null || bootstrapOverrideConfig.homeTab.getNullable() != null)) {
             clientBootstrapFolder.mkdirs()
         }
 
-        bootstrapOverrideConfig.appAppearance.getNullable()?.also { appearance ->
+        effectiveAppAppearance?.also { appearance ->
             val state = when (appearance) {
                 "always_light" -> 0
                 "always_dark" -> 1

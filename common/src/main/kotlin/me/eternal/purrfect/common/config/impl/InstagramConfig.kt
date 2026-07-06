@@ -72,7 +72,7 @@ class InstagramConfig : ConfigContainer() {
             requireRestart()
             addFlags(ConfigFlag.HIDDEN)
         }
-        val keepUnsentMessages = boolean("keepUnsentMessages", defaultValue = true) { requireRestart() }
+        val keepUnsentMessages = boolean("keepUnsentMessages") { requireRestart() }
         val dmMarkSeenControlMode = string("dmMarkSeenControlMode", defaultValue = "eye") {
             requireRestart()
             inputCheck = { it == "eye" || it == "hold_gallery" }
@@ -259,6 +259,10 @@ class InstagramConfig : ConfigContainer() {
         val localInstagramPlus = boolean("localInstagramPlus") {
             requireRestart()
             keepTranslationFrom("social_and_text", "localInstagramPlus")
+        }
+        val restoreOldPostReelContextMenu = boolean("restoreOldPostReelContextMenu", defaultValue = true) {
+            requireRestart()
+            keepTranslationFrom("social_and_text", "restoreOldPostReelContextMenu")
         }
         val sendCustomEmojiReactionsToStory = boolean("sendCustomEmojiReactionsToStory") {
             requireRestart()
@@ -509,6 +513,7 @@ class InstagramConfig : ConfigContainer() {
         "showFeatureToasts" to misc.showFeatureToasts.get(),
         "enableStoryMentions" to misc.enableStoryMentions.get(),
         "localInstagramPlus" to misc.localInstagramPlus.get(),
+        "restoreOldPostReelContextMenu" to misc.restoreOldPostReelContextMenu.get(),
         "sendCustomEmojiReactionsToStory" to misc.sendCustomEmojiReactionsToStory.get(),
         "changeLikeReactions" to misc.changeLikeReactions.get(),
         "likeReactionAnimation" to misc.likeReactionAnimation.get(),

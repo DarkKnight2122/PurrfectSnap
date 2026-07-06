@@ -7,6 +7,7 @@ import android.view.ViewGroup.MarginLayoutParams
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.core.event.events.impl.AddViewEvent
 import me.eternal.purrfect.core.event.events.impl.BindViewEvent
 import me.eternal.purrfect.core.features.Feature
@@ -41,10 +42,18 @@ fun getChatInputBar(event: AddViewEvent): Lazy<ViewGroup?>? {
 
 class UITweaks : Feature("UITweaks") {
     private val identifierCache = mutableMapOf<String, Int>()
+    private var loggedUnreadHintFallback = false
+    private val uiElementHider by lazy { SnapchatUiElementHider(context) }
 
     fun getId(name: String, defType: String): Int {
         return identifierCache.getOrPut("$name:$defType") {
             context.resources.getIdentifier(name, defType)
+        }
+    }
+
+    private fun getOptionalId(name: String, defType: String): Int {
+        return identifierCache.getOrPut("optional:$name:$defType") {
+            context.resources.getIdentifier(name, defType, Constants.SNAPCHAT_PACKAGE_NAME)
         }
     }
 
@@ -88,22 +97,22 @@ class UITweaks : Feature("UITweaks") {
         return viewChain.firstOrNull { it.id in spotlightNavIds }
     }
 
-    private fun findSpotlightHeaderTabsTarget(view: View): View? {
-        fun collectTextLabels(current: View, depth: Int = 0, maxDepth: Int = 2): List<String> {
-            if (depth > maxDepth) return emptyList()
+    private fun collectTextLabels(current: View, depth: Int = 0, maxDepth: Int = 2): List<String> {
+        if (depth > maxDepth) return emptyList()
 
-            val ownText = listOfNotNull(
-                current.contentDescription?.toString(),
-                (current as? TextView)?.text?.toString()
-            ).filter { it.isNotBlank() }
+        val ownText = listOfNotNull(
+            current.contentDescription?.toString(),
+            (current as? TextView)?.text?.toString()
+        ).filter { it.isNotBlank() }
 
-            if (current !is ViewGroup) return ownText
+        if (current !is ViewGroup) return ownText
 
-            return ownText + current.children().flatMap { child ->
-                collectTextLabels(child, depth + 1, maxDepth)
-            }
+        return ownText + current.children().flatMap { child ->
+            collectTextLabels(child, depth + 1, maxDepth)
         }
+    }
 
+    private fun findSpotlightHeaderTabsTarget(view: View): View? {
         fun isHeaderMarkerText(value: String): Boolean {
             val lower = value.lowercase()
             return lower.contains("spotlight") || lower.contains("discover") || lower.contains("following")
@@ -147,6 +156,66 @@ class UITweaks : Feature("UITweaks") {
         return null
     }
 
+    private fun findUnreadHintTarget(event: AddViewEvent, legacyUnreadHintButtonId: Int): View? {
+        val viewChain = buildList {
+            var current: View? = event.view
+            repeat(7) {
+                current ?: return@repeat
+                add(current!!)
+                current = current?.parent as? View
+            }
+        }
+
+        if (legacyUnreadHintButtonId != 0) {
+            viewChain.firstOrNull { it.id == legacyUnreadHintButtonId }?.let { return it }
+        }
+
+        return viewChain
+            .filter { isUnreadHintCandidate(it) }
+            .lastOrNull()
+            ?.also {
+                if (!loggedUnreadHintFallback) {
+                    context.log.verbose("Hiding unread chat hint using label fallback")
+                    loggedUnreadHintFallback = true
+                }
+            }
+    }
+
+    private fun isUnreadHintCandidate(view: View): Boolean {
+        val labels = collectTextLabels(view, maxDepth = 3)
+            .map { it.trim().replace(Regex("\\s+"), " ") }
+            .filter { it.isNotBlank() }
+
+        if (labels.none(::isUnreadHintLabel)) return false
+
+        val density = context.resources.displayMetrics.density
+        val screenWidth = context.resources.displayMetrics.widthPixels
+        val viewWidth = view.width.takeIf { it > 0 }
+            ?: view.measuredWidth.takeIf { it > 0 }
+            ?: view.layoutParams?.width?.takeIf { it > 0 }
+        val viewHeight = view.height.takeIf { it > 0 }
+            ?: view.measuredHeight.takeIf { it > 0 }
+            ?: view.layoutParams?.height?.takeIf { it > 0 }
+
+        val maxHintWidth = (screenWidth * 0.80f).toInt()
+        val maxHintHeight = (96 * density).toInt()
+
+        return (viewWidth == null || viewWidth <= maxHintWidth) &&
+            (viewHeight == null || viewHeight <= maxHintHeight)
+    }
+
+    private fun isUnreadHintLabel(value: String): Boolean {
+        val lower = value.lowercase()
+        return lower == "more new chats" ||
+            lower == "new chats" ||
+            lower == "unread chat" ||
+            lower == "unread chats" ||
+            (lower.contains("more") && lower.contains("new") && lower.contains("chat")) ||
+            (lower.contains("unread") &&
+                lower.contains("chat") &&
+                (lower.contains("hint") || lower.contains("jump") || lower.contains("button")))
+    }
+
     private fun onActivityCreate() {
         val blockAds by context.config.global.blockAds
         val hiddenElements by context.config.userInterface.hideUiComponents
@@ -157,18 +226,20 @@ class UITweaks : Feature("UITweaks") {
         val displayMetrics = context.resources.displayMetrics
         val deviceAspectRatio = displayMetrics.widthPixels.toFloat() / displayMetrics.heightPixels.toFloat()
 
-        val chatNoteRecordButton = getId("chat_note_record_button", "id")
-        val unreadHintButton = getId("unread_hint_button", "id")
-        val spotlightNavIds = listOf(
-            getId("hova_nav_spotlight", "id"),
-            getId("ngs_hova_nav_spotlight", "id"),
-            getId("hova_nav_spotlight_tab", "id"),
-            getId("hova_nav_spotlight_button", "id"),
-            getId("hova_nav_discover", "id"),
-            getId("ngs_hova_nav_discover", "id"),
-            getId("hova_nav_discover_tab", "id"),
-            getId("hova_nav_discover_button", "id")
-        ).filter { it != 0 }.toSet()
+        val chatNoteRecordButton by lazy { getOptionalId("chat_note_record_button", "id") }
+        val unreadHintButton by lazy { getOptionalId("unread_hint_button", "id") }
+        val spotlightNavIds by lazy {
+            listOf(
+                getOptionalId("hova_nav_spotlight", "id"),
+                getOptionalId("ngs_hova_nav_spotlight", "id"),
+                getOptionalId("hova_nav_spotlight_tab", "id"),
+                getOptionalId("hova_nav_spotlight_button", "id"),
+                getOptionalId("hova_nav_discover", "id"),
+                getOptionalId("ngs_hova_nav_discover", "id"),
+                getOptionalId("hova_nav_discover_tab", "id"),
+                getOptionalId("hova_nav_discover_button", "id")
+            ).filter { it != 0 }.toSet()
+        }
 
         Resources::class.java.methods.first { it.name == "getDimensionPixelSize" }.hook(
             HookStage.AFTER,
@@ -236,13 +307,15 @@ class UITweaks : Feature("UITweaks") {
                 hideStorySection(event)
             }
 
-            findSpotlightNavTarget(event, spotlightNavIds)?.takeIf { disableSpotlight }?.let { targetView ->
-                targetView.hideViewCompletely()
-                if (targetView !== view) {
-                    view.hideViewCompletely()
+            if (disableSpotlight) {
+                findSpotlightNavTarget(event, spotlightNavIds)?.let { targetView ->
+                    targetView.hideViewCompletely()
+                    if (targetView !== view) {
+                        view.hideViewCompletely()
+                    }
+                    event.canceled = true
+                    return@subscribe
                 }
-                event.canceled = true
-                return@subscribe
             }
 
             if (isImmersiveCamera) {
@@ -334,18 +407,30 @@ class UITweaks : Feature("UITweaks") {
                 }
             }
 
-            if (viewId == chatNoteRecordButton && hiddenElements.contains("hide_voice_record_button")) {
+            if (
+                hiddenElements.contains("hide_voice_record_button") &&
+                chatNoteRecordButton != 0 &&
+                viewId == chatNoteRecordButton
+            ) {
                 view.hideViewCompletely()
             }
 
-            if (viewId == unreadHintButton && hiddenElements.contains("hide_unread_chat_hint")) {
-                event.canceled = true
+            if (hiddenElements.contains("hide_unread_chat_hint")) {
+                findUnreadHintTarget(event, unreadHintButton)?.let { targetView ->
+                    targetView.hideViewCompletely()
+                    if (targetView !== view) {
+                        view.hideViewCompletely()
+                    }
+                    event.canceled = true
+                }
             }
         }
     }
 
     override fun init() {
+        uiElementHider.init()
         onNextActivityCreate {
+            uiElementHider.onActivityVisible(it, "activity-create")
             onActivityCreate()
         }
     }

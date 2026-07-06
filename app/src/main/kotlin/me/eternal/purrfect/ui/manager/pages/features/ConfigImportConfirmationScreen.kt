@@ -398,10 +398,19 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                 Button(
                     onClick = {
                         activeTargetJson?.let { json ->
-                            runCatching {
+                            val importResult = runCatching {
                                 val savedLocationsJson = context.config.loadFromString(json)
                                 savedLocationsJson?.let { locationsArray ->
                                     importSavedLocations(locationsArray)
+                                }
+                                if (context.isInstagramMode) {
+                                    context.mirrorInstagramFeaturePrefs()
+                                }
+                            }
+                            importResult.onSuccess {
+                                context.shortToast(translation["config_imported_toast"] ?: "Settings imported successfully")
+                                context.coroutineScope.launch(Dispatchers.Main) {
+                                    routes.features.navigateReload()
                                 }
                             }.onFailure { err ->
                                 context.longToast(
@@ -410,10 +419,6 @@ class ConfigImportConfirmationScreen : Routes.Route() {
                                         "error" to (err.message ?: context.translation["common.unknown_error"])
                                     )
                                 )
-                            }
-                            context.shortToast(translation["config_imported_toast"] ?: "Settings imported successfully")
-                            context.coroutineScope.launch(Dispatchers.Main) {
-                                routes.features.navigateReload()
                             }
                         }
                     },

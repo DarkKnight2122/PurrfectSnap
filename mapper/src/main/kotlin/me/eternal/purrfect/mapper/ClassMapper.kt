@@ -13,11 +13,19 @@ import java.io.InputStream
 import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 
+data class ApkLoadStats(
+    val path: String,
+    val dexFiles: Int,
+    val classes: Int,
+    val fromLspatchOrigin: Boolean,
+)
+
 class ClassMapper(
     private vararg val mappers: AbstractClassMapper = DEFAULT_MAPPERS,
 ) {
     private val classes = mutableListOf<ClassDef>()
     private val warnings = mutableListOf<String>()
+    private val loadedApkStats = mutableListOf<ApkLoadStats>()
 
     companion object {
         val DEFAULT_MAPPERS get() = arrayOf(
@@ -46,39 +54,61 @@ class ClassMapper(
     }
 
 
-    fun loadApk(path: String) {
-        val apkFile = ZipFile(path)
-        val apkEntries = apkFile.entries().toList()
+    fun loadApk(path: String): ApkLoadStats {
+        var loadedDexFiles = 0
+        var loadedClasses = 0
+        var fromLspatchOrigin = false
 
         fun readClass(stream: InputStream) = runCatching {
-            classes.addAll(
-                DexBackedDexFile.fromInputStream(Opcodes.getDefault(), BufferedInputStream(stream)).classes
-            )
+            val dexClasses = DexBackedDexFile.fromInputStream(Opcodes.getDefault(), BufferedInputStream(stream)).classes
+            classes.addAll(dexClasses)
+            loadedDexFiles += 1
+            loadedClasses += dexClasses.size
         }.onFailure {
             throw Throwable("Failed to load dex file", it)
         }
 
         fun filterDexClasses(name: String) = name.startsWith("classes") && name.endsWith(".dex")
 
-        apkEntries.firstOrNull { it.name.endsWith("lspatch/origin.apk") }?.let { origin ->
-            val originApk = ZipInputStream(apkFile.getInputStream(origin))
-            var nextEntry = originApk.nextEntry
-            while (nextEntry != null) {
-                if (filterDexClasses(nextEntry.name)) {
-                    readClass(originApk)
+        ZipFile(path).use { apkFile ->
+            val apkEntries = apkFile.entries().toList()
+            apkEntries.firstOrNull { it.name.endsWith("lspatch/origin.apk") }?.let { origin ->
+                fromLspatchOrigin = true
+                ZipInputStream(apkFile.getInputStream(origin)).use { originApk ->
+                    var nextEntry = originApk.nextEntry
+                    while (nextEntry != null) {
+                        if (filterDexClasses(nextEntry.name)) {
+                            readClass(originApk)
+                        }
+                        originApk.closeEntry()
+                        nextEntry = originApk.nextEntry
+                    }
                 }
-                originApk.closeEntry()
-                nextEntry = originApk.nextEntry
+                return@use
             }
-            return
+
+            apkEntries.filter { filterDexClasses(it.name) }.forEach {
+                apkFile.getInputStream(it).use { stream ->
+                    readClass(stream)
+                }
+            }
         }
 
-        apkEntries.toList().filter { filterDexClasses(it.name) }.forEach {
-            readClass(apkFile.getInputStream(it))
-        }
+        return ApkLoadStats(
+            path = path,
+            dexFiles = loadedDexFiles,
+            classes = loadedClasses,
+            fromLspatchOrigin = fromLspatchOrigin,
+        ).also { loadedApkStats.add(it) }
     }
 
     fun getWarns() = warnings
+
+    fun getLoadedApkStats() = loadedApkStats.toList()
+
+    fun getLoadedClassCount() = classes.size
+
+    fun getLoadedTypeCount() = classes.asSequence().map { it.type }.distinct().count()
 
     suspend fun run(): JsonObject {
         val context = MapperContext(classes.associateBy { it.type })

@@ -2,12 +2,13 @@ package me.eternal.purrfect.core.util
 
 import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.core.ModContext
-import me.eternal.purrfect.core.util.ktx.getStaticObjectField
 import java.io.File
 import java.util.zip.ZipFile
 
 object LSPatchUpdater {
     private const val TAG = "LSPatchUpdater"
+    private const val XPOSED_INIT_ENTRY = "assets/xposed_init"
+    private const val XPOSED_LOADER_CLASS = "me.eternal.purrfect.core.XposedLoader"
 
     var HAS_LSPATCH = false
         private set
@@ -38,25 +39,7 @@ object LSPatchUpdater {
     fun onBridgeConnected(context: ModContext) {
         ensureTranslationsLoaded(context)
 
-        val obfuscatedModulePath by lazy {
-            (runCatching {
-                context::class.java.classLoader?.loadClass("org.lsposed.lspatch.share.Constants")
-            }.getOrNull())?.let { clazz ->
-                runCatching { clazz.getStaticObjectField("MANAGER_PACKAGE_NAME") as? String }.getOrNull()
-            }
-        }
-
-        val embeddedModule = context.androidContext.cacheDir
-            .resolve("lspatch")
-            .resolve(Constants.MODULE_PACKAGE_NAME).let { moduleDir ->
-                if (!moduleDir.exists()) return@let null
-                moduleDir.listFiles()?.firstOrNull { it.extension == "apk" }
-            } ?: obfuscatedModulePath?.let { path ->
-                context.androidContext.cacheDir.resolve(path).let dir@{ moduleDir ->
-                    if (!moduleDir.exists()) return@dir null
-                    moduleDir.listFiles()?.firstOrNull { it.extension == "apk" }
-                } ?: return
-            } ?: return
+        val embeddedModule = findEmbeddedModule(context) ?: return
 
         HAS_LSPATCH = true
         context.log.verbose("Found embedded Purrfect at ${embeddedModule.absolutePath}", TAG)
@@ -110,6 +93,40 @@ object LSPatchUpdater {
         )
         context.log.verbose("updated", TAG)
         context.softRestartApp()
+    }
+
+    private fun findEmbeddedModule(context: ModContext): File? {
+        val roots = listOfNotNull(context.androidContext.filesDir, context.androidContext.cacheDir)
+
+        roots.asSequence()
+            .flatMap { root ->
+                sequenceOf(
+                    File(root, "lspatch/modules/${Constants.MODULE_PACKAGE_NAME}"),
+                    File(root, "lspatch/${Constants.MODULE_PACKAGE_NAME}"),
+                    File(root, "org.lsposed.lspatch/${Constants.MODULE_PACKAGE_NAME}")
+                )
+            }
+            .flatMap { dir -> dir.listFiles()?.asSequence() ?: emptySequence() }
+            .firstOrNull(::isEmbeddedPurrfectModule)
+            ?.let { return it }
+
+        return roots.asSequence()
+            .filter { it.exists() && it.isDirectory }
+            .flatMap { it.walkTopDown() }
+            .filter { it.isFile && it.extension.equals("apk", ignoreCase = true) }
+            .firstOrNull(::isEmbeddedPurrfectModule)
+    }
+
+    private fun isEmbeddedPurrfectModule(file: File): Boolean {
+        if (!file.isFile || !file.canRead() || !file.extension.equals("apk", ignoreCase = true)) return false
+        return runCatching {
+            ZipFile(file).use { zip ->
+                val entry = zip.getEntry(XPOSED_INIT_ENTRY) ?: return@use false
+                zip.getInputStream(entry).bufferedReader().use { reader ->
+                    reader.lineSequence().any { it.trim() == XPOSED_LOADER_CLASS }
+                }
+            }
+        }.getOrDefault(false)
     }
 }
 

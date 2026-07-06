@@ -253,10 +253,10 @@ fun HomeAbout.AphelionAboutContent(nav: NavBackStackEntry) {
                 ) {
                     Text(text = translation["about_thanks_title"] ?: "Special Thanks", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = skin.textPrimary, textAlign = TextAlign.Center, fontFamily = avenirNext)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://github.com/particle-box/PurrfectSnap.git", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary, contentColor = skin.cardOverlayColor), shape = RoundedCornerShape(14.dp)) {
-                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(18.dp))
+                        Button(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://www.purrfectgit.com/r/particle-box/purrfect", context.translation["toast_open_link_failed"] ?: "") }, colors = ButtonDefaults.buttonColors(containerColor = skin.textPrimary, contentColor = skin.cardOverlayColor), shape = RoundedCornerShape(14.dp)) {
+                            Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_git), contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = translation["github_button"] ?: "GitHub", maxLines = 1, overflow = TextOverflow.Ellipsis, fontFamily = avenirNext)
+                            Text(text = translation["github_button"] ?: "PurrfectGit", maxLines = 1, overflow = TextOverflow.Ellipsis, fontFamily = avenirNext)
                         }
                         OutlinedButton(modifier = Modifier.weight(1f), onClick = { context.androidContext.openLink("https://t.me/purrfect_tg", context.translation["toast_open_link_failed"] ?: "") }, border = BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.35f)), colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary), shape = RoundedCornerShape(14.dp)) {   
                             Icon(imageVector = ImageVector.vectorResource(id = R.drawable.ic_telegram), contentDescription = null, modifier = Modifier.size(18.dp), tint = skin.textPrimary)

@@ -15,6 +15,8 @@
 -keep class androidx.compose.ui.R$* { *; }
 -keep class androidx.navigation.** { *; }
 -keep class me.eternal.purrfect.** { *; }
+-keep class kotlin.reflect.jvm.internal.ReflectionFactoryImpl { *; }
+-keep class kotlin.reflect.jvm.internal.** { *; }
 -keep class androidx.core.content.res.ResourcesCompat { *; }
 
 -keepclassmembers class * implements android.os.Parcelable {

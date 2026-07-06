@@ -69,22 +69,36 @@ class InstagramRuntime(
 
     private fun registerDevConfigBroadcastReceiver(androidContext: Context) {
         val filter = IntentFilter().apply {
+            addAction(Constants.INSTAGRAM_CONFIG_JSON_IMPORT_ACTION)
+            addAction(Constants.INSTAGRAM_CONFIG_JSON_EXPORT_ACTION)
             addAction(Constants.INSTAGRAM_DEV_CONFIG_IMPORT_ACTION)
             addAction(Constants.INSTAGRAM_DEV_CONFIG_EXPORT_REQUEST_ACTION)
+            addAction(Constants.INSTAGRAM_DEV_CONFIG_RESET_ACTION)
             addAction(Constants.INSTAGRAM_SETTINGS_RESTORE_ACTION)
         }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                val requestId = intent.getStringExtra("request_id") ?: "-"
+                log(
+                    androidContext,
+                    "Developer receiver got action=${intent.action} requestId=$requestId package=${androidContext.packageName} extras=${intent.extras?.keySet()?.joinToString().orEmpty()}"
+                )
                 when (intent.action) {
+                    Constants.INSTAGRAM_CONFIG_JSON_IMPORT_ACTION,
                     Constants.INSTAGRAM_DEV_CONFIG_IMPORT_ACTION -> {
                         val json = (intent.getStringExtra(Constants.INSTAGRAM_DEV_CONFIG_JSON_EXTRA)
+                            ?: intent.getStringExtra(Constants.INSTAGRAM_CONFIG_JSON_EXTRA)
                             ?: intent.getStringExtra("json_content"))
                             .orEmpty()
                             .trim()
                         importMobileConfigOverride(androidContext, json)
                     }
+                    Constants.INSTAGRAM_CONFIG_JSON_EXPORT_ACTION,
                     Constants.INSTAGRAM_DEV_CONFIG_EXPORT_REQUEST_ACTION -> {
                         exportMobileConfigOverride(androidContext)
+                    }
+                    Constants.INSTAGRAM_DEV_CONFIG_RESET_ACTION -> {
+                        resetMobileConfigOverride(androidContext)
                     }
                     Constants.INSTAGRAM_SETTINGS_RESTORE_ACTION -> {
                         val json = (intent.getStringExtra(Constants.INSTAGRAM_DEV_CONFIG_JSON_EXTRA)
@@ -106,6 +120,28 @@ class InstagramRuntime(
             log(androidContext, "Registered Instagram developer config broadcast receiver")
         }.onFailure { throwable ->
             log(androidContext, "Failed to register developer config receiver: ${throwable.stackTraceToString()}")
+        }
+    }
+
+    private fun resetMobileConfigOverride(androidContext: Context) {
+        Thread {
+            runCatching {
+                val source = File(androidContext.filesDir, "mobileconfig/mc_overrides.json")
+                if (source.exists() && !source.delete()) error("Unable to delete mc_overrides.json")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(androidContext.applicationContext, "Dev Config reset.", Toast.LENGTH_LONG).show()
+                }
+                log(androidContext, "Developer config reset; deleted mobileconfig/mc_overrides.json")
+            }.onFailure { throwable ->
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(androidContext.applicationContext, "Reset failed: ${throwable.message}", Toast.LENGTH_LONG).show()
+                }
+                log(androidContext, "Developer config reset failed: ${throwable.message}")
+            }
+        }.apply {
+            name = "PurrfectInstaDevConfigReset"
+            isDaemon = true
+            start()
         }
     }
 

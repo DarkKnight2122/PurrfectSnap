@@ -1,4 +1,4 @@
-package me.eternal.purrfect.ui.manager.pages.features
+﻿package me.eternal.purrfect.ui.manager.pages.features
 
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +49,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
@@ -80,15 +80,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.common.config.*
 import me.eternal.purrfect.common.config.FeatureNotice
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.github.skydoves.colorpicker.compose.*
 import me.eternal.purrfect.common.ui.TopBarActionButton
 import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import me.eternal.purrfect.common.ui.rememberAsyncMutableStateList
+import me.eternal.purrfect.common.bridge.FileHandleScope
+import me.eternal.purrfect.common.bridge.InternalFileHandleType
+import me.eternal.purrfect.common.bridge.toWrapper
+import me.eternal.purrfect.common.theme.SnapchatThemeMappedSurface
+import me.eternal.purrfect.common.theme.SnapchatThemeSurfaceMap
+import me.eternal.purrfect.common.theme.SnapchatThemeSurfaceMapCodec
 import me.eternal.purrfect.core.features.impl.experiments.RandomizedDeviceProfile
 import me.eternal.purrfect.core.features.impl.experiments.RandomizedDeviceProfileStore
 import me.eternal.purrfect.core.whatsapp.WhatsAppUiElementSelector
@@ -102,7 +110,6 @@ import me.eternal.purrfect.common.ui.theme.PurrfectPalette
 import me.eternal.purrfect.ui.util.*
 import me.eternal.purrfect.ui.util.Dialog
 import me.eternal.purrfect.ui.util.DialogProperties
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.Locale
@@ -114,6 +121,17 @@ import kotlin.math.roundToInt
 class FeaturesRootSection : Routes.Route() {
     private var showResetConfirmationDialog by mutableStateOf(false)
     private var showExportDialog by mutableStateOf(false)
+    private val snapchatThemeGlobalBackgroundKeys = setOf(
+        "background",
+        "appbackground",
+        "valdi.token.backgroundmain",
+        "valdi.token.backgroundsubscreen",
+        "android.attr.colorbackground",
+        "android.attr.windowbackground",
+        "android.attr.0x1010031",
+        "android.attr.0x1010054"
+    )
+
     override val title: @Composable (() -> Unit)? = @Composable {
         val navBackStackEntry by routes.navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
@@ -274,6 +292,86 @@ class FeaturesRootSection : Routes.Route() {
         val isSelector: Boolean
     )
 
+    internal data class SnapchatThemeCatalogEntry(
+        val key: String,
+        val title: String,
+        val description: String,
+        val defaultColor: Int = 0xFF000000.toInt(),
+        val category: String = "Built-in",
+        val source: String = "builtin",
+        val hitCount: Int = 0,
+        val lastSeenMs: Long = 0L,
+        val attributeName: String? = null,
+        val className: String? = null,
+        val resourceName: String? = null,
+        val selector: String? = null,
+        val selectorDisplayName: String? = null,
+        val screenHint: String? = null,
+        val role: String? = null,
+        val screenBounds: String? = null,
+        val localBounds: String? = null,
+        val valueSummary: String? = null,
+        val confidence: Float = 0f,
+        val details: Map<String, String> = emptyMap()
+    ) {
+        val searchKey: String = listOf(
+            title,
+            description,
+            key,
+            category,
+            source,
+            attributeName.orEmpty(),
+            className.orEmpty(),
+            resourceName.orEmpty(),
+            selector.orEmpty(),
+            selectorDisplayName.orEmpty(),
+            screenHint.orEmpty(),
+            role.orEmpty(),
+            screenBounds.orEmpty(),
+            localBounds.orEmpty(),
+            valueSummary.orEmpty(),
+            confidence.toString(),
+            details.entries.joinToString(" ") { "${it.key} ${it.value}" }
+        ).joinToString(" ").lowercase(Locale.US)
+    }
+
+    internal data class SnapchatThemeCatalogState(
+        val entries: List<SnapchatThemeCatalogEntry>,
+        val mappedSurfaceCount: Int,
+        val uniqueHash: Long,
+        val snapchatVersionLabel: String,
+        val updatedAtMs: Long
+    )
+
+    internal data class SnapchatThemeSurfaceRule(
+        val target: String,
+        val isSelector: Boolean,
+        val label: String,
+        val color: Int
+    )
+
+    internal data class SnapchatThemeSurfaceOverride(
+        val key: String,
+        val label: String,
+        val color: Int
+    )
+
+    internal data class SnapchatThemeBackgroundRule(
+        val target: String,
+        val isSelector: Boolean,
+        val label: String,
+        val path: String,
+        val name: String
+    )
+
+    internal data class SnapchatThemeColorEditRequest(
+        val target: String,
+        val isSelector: Boolean,
+        val label: String,
+        val currentColor: Int,
+        val isCatalogSurface: Boolean
+    )
+
     internal data class HiddenUiIdCatalogEntry(
         val name: String,
         val hexId: String
@@ -288,14 +386,22 @@ class FeaturesRootSection : Routes.Route() {
         val catalogByName = catalog.associateBy { it.name }
         val rawIds: String
         val rawSelectors: String
-        if (context.isInstagramMode) {
-            val uiElements = context.config.root.instagram.hiddenUiElements
-            rawIds = uiElements.hiddenUiElementIds.getNullable().orEmpty()
-            rawSelectors = uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
-        } else {
-            val uiElements = context.config.root.whatsapp.uiElements
-            rawIds = uiElements.hiddenUiElementIds.getNullable().orEmpty()
-            rawSelectors = uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
+        when {
+            context.isInstagramMode -> {
+                val uiElements = context.config.root.instagram.hiddenUiElements
+                rawIds = uiElements.hiddenUiElementIds.getNullable().orEmpty()
+                rawSelectors = uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
+            }
+            context.isWhatsAppMode -> {
+                val uiElements = context.config.root.whatsapp.uiElements
+                rawIds = uiElements.hiddenUiElementIds.getNullable().orEmpty()
+                rawSelectors = uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
+            }
+            else -> {
+                val uiElements = context.config.root.userInterface.uiElements
+                rawIds = uiElements.hiddenUiElementIds.getNullable().orEmpty()
+                rawSelectors = uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
+            }
         }
         val ids = splitHiddenUiElementValues(rawIds)
             .map(::normalizeHiddenUiElementId)
@@ -323,19 +429,19 @@ class FeaturesRootSection : Routes.Route() {
     }
 
     internal fun selectedHiddenUiElementIds(): List<String> {
-        val rawIds = if (context.isInstagramMode) {
-            context.config.root.instagram.hiddenUiElements.hiddenUiElementIds.getNullable().orEmpty()
-        } else {
-            context.config.root.whatsapp.uiElements.hiddenUiElementIds.getNullable().orEmpty()
+        val rawIds = when {
+            context.isInstagramMode -> context.config.root.instagram.hiddenUiElements.hiddenUiElementIds.getNullable().orEmpty()
+            context.isWhatsAppMode -> context.config.root.whatsapp.uiElements.hiddenUiElementIds.getNullable().orEmpty()
+            else -> context.config.root.userInterface.uiElements.hiddenUiElementIds.getNullable().orEmpty()
         }
         return splitHiddenUiElementValues(rawIds).map(::normalizeHiddenUiElementId).filter { it.isNotEmpty() }.distinct()
     }
 
     internal fun selectedHiddenUiElementSelectors(): List<String> {
-        val rawSelectors = if (context.isInstagramMode) {
-            context.config.root.instagram.hiddenUiElements.hiddenUiElementSelectors.getNullable().orEmpty()
-        } else {
-            context.config.root.whatsapp.uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
+        val rawSelectors = when {
+            context.isInstagramMode -> context.config.root.instagram.hiddenUiElements.hiddenUiElementSelectors.getNullable().orEmpty()
+            context.isWhatsAppMode -> context.config.root.whatsapp.uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
+            else -> context.config.root.userInterface.uiElements.hiddenUiElementSelectors.getNullable().orEmpty()
         }
         return splitHiddenUiElementValues(rawSelectors).map(::normalizeHiddenUiElementSelector).filter { it.isNotEmpty() }.distinct()
     }
@@ -376,7 +482,14 @@ class FeaturesRootSection : Routes.Route() {
         if (slashIndex >= 0 && slashIndex < clean.length - 1) clean = clean.substring(slashIndex + 1).trim()
         val dotIndex = clean.lastIndexOf(".id.")
         if (dotIndex >= 0 && dotIndex + 4 < clean.length) clean = clean.substring(dotIndex + 4).trim()
+        if (isObfuscatedResourcePlaceholder(clean)) return ""
         return clean
+    }
+
+    internal fun isObfuscatedResourcePlaceholder(value: String): Boolean {
+        return value.endsWith("_resource_name_obfuscated") ||
+            value == "0" ||
+            value.matches(Regex("\\d+_resource_name_obfuscated"))
     }
 
     internal fun normalizeHiddenUiElementSelector(rawSelector: String): String {
@@ -389,14 +502,22 @@ class FeaturesRootSection : Routes.Route() {
         selectors: List<String>,
         onConfigChanged: () -> Unit
     ) {
-        if (context.isInstagramMode) {
-            val uiElements = context.config.root.instagram.hiddenUiElements
-            uiElements.hiddenUiElementIds.set(ids.joinToString("\n"))
-            uiElements.hiddenUiElementSelectors.set(selectors.joinToString("\n"))
-        } else {
-            val uiElements = context.config.root.whatsapp.uiElements
-            uiElements.hiddenUiElementIds.set(ids.joinToString("\n"))
-            uiElements.hiddenUiElementSelectors.set(selectors.joinToString("\n"))
+        when {
+            context.isInstagramMode -> {
+                val uiElements = context.config.root.instagram.hiddenUiElements
+                uiElements.hiddenUiElementIds.set(ids.joinToString("\n"))
+                uiElements.hiddenUiElementSelectors.set(selectors.joinToString("\n"))
+            }
+            context.isWhatsAppMode -> {
+                val uiElements = context.config.root.whatsapp.uiElements
+                uiElements.hiddenUiElementIds.set(ids.joinToString("\n"))
+                uiElements.hiddenUiElementSelectors.set(selectors.joinToString("\n"))
+            }
+            else -> {
+                val uiElements = context.config.root.userInterface.uiElements
+                uiElements.hiddenUiElementIds.set(ids.joinToString("\n"))
+                uiElements.hiddenUiElementSelectors.set(selectors.joinToString("\n"))
+            }
         }
         context.config.writeConfig()
         context.mirrorWhatsAppFeaturePrefs()
@@ -436,6 +557,838 @@ class FeaturesRootSection : Routes.Route() {
             selectors = emptyList(),
             onConfigChanged = onConfigChanged
         )
+    }
+
+    internal fun snapchatThemeCatalog(): List<SnapchatThemeCatalogEntry> {
+        return listOf(
+            SnapchatThemeCatalogEntry(
+                key = "background",
+                title = "App background",
+                description = "Root page surfaces and generic background fallbacks"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundmain",
+                title = "Main pages",
+                description = "Camera, Chat, Stories, Spotlight, and Map base pages"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundsubscreen",
+                title = "Subscreens",
+                description = "Secondary pages opened from Chat, Profile, Spotlight, and settings"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.attr.background",
+                title = "Composer background attribute",
+                description = "Generic Valdi/Composer background attribute"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.attr.backgroundcolor",
+                title = "Composer background color",
+                description = "Explicit Composer backgroundColor values"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundsurface",
+                title = "Sheets and panels",
+                description = "Bottom sheets, popups, modal panels, and raised containers"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundsurfaceup",
+                title = "Raised sheets",
+                description = "Elevated cards and overlays above the main surface"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundsurfacedown",
+                title = "Inset sheets",
+                description = "Lowered panels, pressed sheet states, and inset surfaces"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundobject",
+                title = "Rows and cards",
+                description = "Chat rows, list cells, profile cards, and repeated objects"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundobjectdown",
+                title = "Pressed rows",
+                description = "Pressed or selected row and card states"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundabovesurface",
+                title = "Above-surface blocks",
+                description = "Floating blocks rendered above sheets and cards"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgrounddisabled",
+                title = "Disabled surfaces",
+                description = "Disabled buttons, inactive fields, and unavailable row states"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "valdi.token.backgroundoverlay",
+                title = "Overlays and scrims",
+                description = "Snackbar overlays, translucent panels, and dimmed surface layers"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "surface",
+                title = "Generic surface",
+                description = "Fallback for any token or attribute named surface"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "surfacecolor",
+                title = "Generic surface color",
+                description = "Fallback for explicit surfaceColor values"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "container",
+                title = "Containers",
+                description = "General containers around lists, toolbars, and grouped controls"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "containercolor",
+                title = "Container colors",
+                description = "Explicit containerColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "card",
+                title = "Cards",
+                description = "Standalone cards and grouped content blocks"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "cardcolor",
+                title = "Card colors",
+                description = "Explicit cardColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "panel",
+                title = "Panels",
+                description = "Panels inside profiles, menus, search, and creation flows"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "panelcolor",
+                title = "Panel colors",
+                description = "Explicit panelColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "sheet",
+                title = "Bottom sheets",
+                description = "Action sheets, create-chat sheets, share sheets, and menus"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "sheetcolor",
+                title = "Bottom sheet colors",
+                description = "Explicit sheetColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "rowbackground",
+                title = "List row backgrounds",
+                description = "Friend rows, search rows, settings rows, and menu options"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "rowbackgroundcolor",
+                title = "List row background colors",
+                description = "Explicit rowBackgroundColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "cellbackground",
+                title = "Grid and table cells",
+                description = "Cells in grids, pickers, lenses, and compact selectors"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "cellbackgroundcolor",
+                title = "Grid and table cell colors",
+                description = "Explicit cellBackgroundColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "backgroundfill",
+                title = "Filled backgrounds",
+                description = "Newer Composer backgroundFill attributes used by generated surfaces"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "itembackground",
+                title = "Item backgrounds",
+                description = "Friend picker, create-chat, menu, and search item containers"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "itembackgroundcolor",
+                title = "Item background colors",
+                description = "Explicit itemBackgroundColor attributes in newer Snapchat screens"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "selectedbackground",
+                title = "Selected item backgrounds",
+                description = "Selected friends, pressed items, and active row states"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "selectedbackgroundcolor",
+                title = "Selected item background colors",
+                description = "Explicit selectedBackgroundColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "primaryfill",
+                title = "Primary fills",
+                description = "Primary generated fills on profile, spotlight, and creation surfaces"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "primaryfillcolor",
+                title = "Primary fill colors",
+                description = "Explicit primaryFillColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "secondaryfill",
+                title = "Secondary fills",
+                description = "Secondary generated fills on cards, sheets, and grouped controls"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "secondaryfillcolor",
+                title = "Secondary fill colors",
+                description = "Explicit secondaryFillColor attributes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "chromecolor",
+                title = "Chrome colors",
+                description = "Toolbar, header, and system-like chrome requested by Snapchat surfaces"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "android.attr.background",
+                title = "Android view backgrounds",
+                description = "Native Android view backgrounds used around Composer screens"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "android.attr.0x10100d4",
+                title = "Framework background attribute",
+                description = "The raw android:background attribute for native views"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "android.attr.colorbackground",
+                title = "Android window background",
+                description = "System colorBackground used by native screens and windows"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "android.attr.windowbackground",
+                title = "Android window drawable",
+                description = "Window background requested by native screens"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "android.attr.navigationbarcolor",
+                title = "Navigation bar color",
+                description = "Native navigation bar and lower system chrome"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "android.attr.statusbarcolor",
+                title = "Status bar color",
+                description = "Native status bar and upper system chrome"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "android.attr.coloraccent",
+                title = "Accent color",
+                description = "Accent surfaces, selected controls, and active highlights"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "fill",
+                title = "Generic fills",
+                description = "Fallback fill colors for surfaces without a named token"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "fillcolor",
+                title = "Generic fill colors",
+                description = "Explicit fillColor values on Composer nodes"
+            ),
+            SnapchatThemeCatalogEntry(
+                key = "color",
+                title = "Last-resort color",
+                description = "Very broad fallback for unnamed Composer surface color values"
+            )
+        )
+    }
+
+    internal fun readSnapchatThemeSurfaceMap(): SnapchatThemeSurfaceMap? {
+        return runCatching {
+            val handle = context.fileHandleManager
+                .getFileHandle(FileHandleScope.INTERNAL.key, InternalFileHandleType.SNAPCHAT_THEME_SURFACES.key)
+                ?: run {
+                    context.log.verbose("[THEME MAP UI] surface map handle missing")
+                    return null
+                }
+            if (!handle.exists()) {
+                context.log.verbose("[THEME MAP UI] surface map file does not exist")
+                return null
+            }
+            val raw = handle.toWrapper().readBytes().toString(Charsets.UTF_8)
+            if (raw.isBlank()) {
+                context.log.verbose("[THEME MAP UI] surface map file is blank")
+                return null
+            }
+            SnapchatThemeSurfaceMapCodec.parse(raw).also { map ->
+                context.log.verbose(
+                    "[THEME MAP UI] surface map parsed bytes=${raw.length} surfaces=${map.surfaces.size} " +
+                        "hash=${map.uniqueHash} snap=${map.snapchatVersionName}/${map.snapchatVersionCode} " +
+                        "updated=${map.updatedAtMs} sample=${map.surfaces.take(20).joinToString { "${it.key}:${it.source}:${it.hitCount}" }}"
+                )
+            }
+        }.onFailure {
+            context.log.warn("Failed to read Snapchat theme surface map: ${it.message}")
+        }.getOrNull()
+    }
+
+    internal fun mappedSnapchatThemeDescription(surface: SnapchatThemeMappedSurface): String {
+        val details = buildList {
+            add(surface.category)
+            surface.attributeName?.takeIf { it.isNotBlank() }?.let { add("attr $it") }
+            surface.className?.takeIf { it.isNotBlank() }?.substringAfterLast('.')?.let { add("class $it") }
+            surface.resourceName?.takeIf { it.isNotBlank() }?.let { add("id $it") }
+            surface.selectorDisplayName?.takeIf { it.isNotBlank() }?.let { add("selector $it") }
+            surface.role?.takeIf { it.isNotBlank() }?.let { add(it) }
+            surface.screenHint?.takeIf { it.isNotBlank() }?.let { add("screen $it") }
+            surface.screenBounds?.takeIf { it.isNotBlank() }?.let { add("bounds $it") }
+            if (surface.hitCount > 0) add("${surface.hitCount} hits")
+            surface.source.takeIf { it.isNotBlank() }?.let { add(it) }
+        }.joinToString(" - ")
+        val description = surface.description.takeIf { it.isNotBlank() }
+            ?: surface.valueSummary?.takeIf { it.isNotBlank() }
+            ?: details
+        return buildString {
+            append(description.take(150))
+            if (details.isNotBlank() && details !in description) {
+                append(" - ").append(details.take(120))
+            }
+        }
+    }
+
+    internal fun mappedSnapchatThemeCatalogEntry(surface: SnapchatThemeMappedSurface): SnapchatThemeCatalogEntry? {
+        val key = normalizeSnapchatThemeSurfaceKey(surface.key)
+        if (key.isBlank()) return null
+        return SnapchatThemeCatalogEntry(
+            key = key,
+            title = surface.label.ifBlank { SnapchatThemeSurfaceMapCodec.friendlyLabelForKey(key) },
+            description = mappedSnapchatThemeDescription(surface),
+            defaultColor = surface.defaultColor ?: 0xFF000000.toInt(),
+            category = surface.category,
+            source = surface.source,
+            hitCount = surface.hitCount,
+            lastSeenMs = surface.lastSeenMs,
+            attributeName = surface.attributeName,
+            className = surface.className ?: surface.viewClass,
+            resourceName = surface.resourceName,
+            selector = surface.selector,
+            selectorDisplayName = surface.selectorDisplayName,
+            screenHint = surface.screenHint,
+            role = surface.role,
+            screenBounds = surface.screenBounds,
+            localBounds = surface.localBounds,
+            valueSummary = surface.valueSummary,
+            confidence = surface.confidence,
+            details = surface.details
+        )
+    }
+
+    internal fun snapchatThemeCatalogState(): SnapchatThemeCatalogState {
+        val builtIns = snapchatThemeCatalog()
+        val map = readSnapchatThemeSurfaceMap()
+        val merged = linkedMapOf<String, SnapchatThemeCatalogEntry>()
+        builtIns.forEach { entry ->
+            merged[normalizeSnapchatThemeSurfaceKey(entry.key)] = entry
+        }
+        map?.surfaces
+            ?.mapNotNull(::mappedSnapchatThemeCatalogEntry)
+            ?.forEach { mapped ->
+                val key = normalizeSnapchatThemeSurfaceKey(mapped.key)
+                val existing = merged[key]
+                merged[key] = if (existing == null) {
+                    mapped
+                } else {
+                    existing.copy(
+                        description = if (mapped.hitCount > 0) {
+                            "${existing.description} - mapped ${mapped.hitCount}x via ${mapped.source}"
+                        } else {
+                            existing.description
+                        },
+                        category = mapped.category,
+                        source = mapped.source,
+                        hitCount = mapped.hitCount,
+                        lastSeenMs = mapped.lastSeenMs,
+                        attributeName = mapped.attributeName,
+                        className = mapped.className,
+                        resourceName = mapped.resourceName,
+                        selector = mapped.selector,
+                        selectorDisplayName = mapped.selectorDisplayName,
+                        screenHint = mapped.screenHint,
+                        role = mapped.role,
+                        screenBounds = mapped.screenBounds,
+                        localBounds = mapped.localBounds,
+                        valueSummary = mapped.valueSummary,
+                        confidence = mapped.confidence,
+                        details = mapped.details
+                    )
+                }
+            }
+        context.log.verbose(
+            "[THEME MAP UI] catalog loaded builtIns=${builtIns.size} mapped=${map?.surfaces?.size ?: 0} " +
+                "merged=${merged.size} uniqueHash=${map?.uniqueHash ?: -1} updated=${map?.updatedAtMs ?: 0}"
+        )
+        val versionLabel = map?.let {
+            val name = it.snapchatVersionName?.takeIf { version -> version.isNotBlank() } ?: "Snapchat"
+            "$name (${it.snapchatVersionCode})"
+        } ?: "not built yet"
+        return SnapchatThemeCatalogState(
+            entries = merged.values.sortedWith(
+                compareByDescending<SnapchatThemeCatalogEntry> { it.hitCount > 0 }
+                    .thenBy { it.category }
+                    .thenBy { it.title.lowercase(Locale.US) }
+            ),
+            mappedSurfaceCount = map?.surfaces?.size ?: 0,
+            uniqueHash = map?.uniqueHash ?: -1L,
+            snapchatVersionLabel = versionLabel,
+            updatedAtMs = map?.updatedAtMs ?: 0L
+        )
+    }
+
+    internal fun requestSnapchatThemeSurfaceMapRefresh() {
+        val targetPackage = context.packageNameForTargetApp(TargetApp.SNAPCHAT)
+        val deleted = runCatching {
+            context.fileHandleManager
+                .getFileHandle(FileHandleScope.INTERNAL.key, InternalFileHandleType.SNAPCHAT_THEME_SURFACES.key)
+                ?.delete() == true
+        }.onFailure {
+            context.log.warn("Failed to delete Snapchat theme surface map before refresh: ${it.message}")
+        }.getOrDefault(false)
+        context.androidContext.sendBroadcast(
+            Intent(Constants.SNAPCHAT_THEME_SURFACE_MAP_REFRESH_ACTION)
+                .setPackage(targetPackage)
+        )
+        context.log.verbose("[THEME MAP UI] manual refresh requested deleted=$deleted targetPackage=$targetPackage")
+        context.shortToast("Theme surface map refresh requested")
+    }
+
+    internal fun rebuildSnapchatThemeApkMappings(): Boolean {
+        context.log.verbose("[THEME MAP UI] full APK theme mapper refresh requested")
+        return runCatching {
+            context.mappings.init(context.androidContext)
+            val warnings = context.mappings.refresh()
+            if (warnings.isNotEmpty()) {
+                context.log.warn("[THEME MAP UI] APK mapper refresh completed with ${warnings.size} warnings:\n${warnings.joinToString("\n")}")
+            }
+            context.log.verbose("[THEME MAP UI] full APK theme mapper refresh completed warnings=${warnings.size}")
+            true
+        }.onFailure {
+            context.log.error("[THEME MAP UI] full APK theme mapper refresh failed", it)
+            context.shortToast("Theme APK mapper refresh failed: ${it.message}")
+        }.getOrDefault(false)
+    }
+
+    internal suspend fun rebuildSnapchatThemeMapperAndRefreshCache(): Boolean {
+        return withContext(Dispatchers.IO) {
+            context.log.verbose("[THEME MAP UI] mapper+cache refresh start thread=${Thread.currentThread().name}")
+            val rebuilt = rebuildSnapchatThemeApkMappings()
+            requestSnapchatThemeSurfaceMapRefresh()
+            context.log.verbose("[THEME MAP UI] mapper+cache refresh end rebuilt=$rebuilt")
+            rebuilt
+        }
+    }
+
+    internal fun parseSnapchatThemeColor(value: String?): Int? {
+        val raw = value?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        return runCatching { android.graphics.Color.parseColor(raw) }.getOrNull()
+            ?: runCatching {
+                val clean = raw.removePrefix("0x").removePrefix("#")
+                val parsed = clean.toLong(16)
+                when (clean.length) {
+                    6 -> 0xFF000000.toInt() or parsed.toInt()
+                    8 -> parsed.toInt()
+                    else -> null
+                }
+            }.getOrNull()
+    }
+
+    internal fun snapchatThemeColorToHex(color: Int): String {
+        return "#%08X".format(Locale.US, color)
+    }
+
+    internal fun normalizeSnapchatThemeSurfaceKey(value: String): String {
+        return value.trim()
+            .lowercase(Locale.US)
+            .replace(Regex("[^a-z0-9_.-]+"), "_")
+            .trim('_', '.', '-')
+    }
+
+    internal fun isSnapchatThemeSelectorTarget(value: String): Boolean {
+        return value.startsWith("selector:v1|") || value.startsWith("snapvirtual:v1|")
+    }
+
+    internal fun snapchatThemeSelectorDisplayName(value: String): String {
+        if (value.startsWith("snapvirtual:v1|")) {
+            val text = snapchatVirtualSelectorValue(value, "text")
+            val description = snapchatVirtualSelectorValue(value, "desc")
+            val viewId = snapchatVirtualSelectorValue(value, "view_id")?.substringAfterLast('/')
+            val className = snapchatVirtualSelectorValue(value, "class")?.substringAfterLast('.')
+            val raw = text ?: description ?: viewId ?: className ?: "Virtual surface"
+            val label = raw
+                .replace('_', ' ')
+                .replace('-', ' ')
+                .split(' ')
+                .filter { it.isNotBlank() }
+                .joinToString(" ") { word ->
+                    word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+                }
+                .ifBlank { "Virtual surface" }
+            val bounds = snapchatVirtualSelectorValue(value, "bounds")
+            return if (!bounds.isNullOrBlank()) "$label\n$bounds" else label
+        }
+        return WhatsAppUiElementSelector.toDisplayName(value)
+    }
+
+    private fun snapchatVirtualSelectorValue(selector: String, key: String): String? {
+        if (!selector.startsWith("snapvirtual:v1|")) return null
+        return selector.substring("snapvirtual:v1|".length)
+            .split('|')
+            .mapNotNull { part ->
+                val equals = part.indexOf('=')
+                if (equals <= 0) null else part.substring(0, equals) to unescapeSnapchatVirtualSelectorValue(part.substring(equals + 1))
+            }
+            .firstOrNull { it.first == key }
+            ?.second
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun unescapeSnapchatVirtualSelectorValue(value: String): String {
+        return value
+            .replace("%0A", "\n")
+            .replace("%3D", "=")
+            .replace("%7C", "|")
+            .replace("%25", "%")
+    }
+
+    internal fun snapchatThemeCatalogSupportsBackgroundImage(entry: SnapchatThemeCatalogEntry): Boolean {
+        val key = normalizeSnapchatThemeSurfaceKey(entry.key)
+        return !entry.selector.isNullOrBlank() ||
+            key in snapchatThemeGlobalBackgroundKeys ||
+            key.startsWith("android.view.") ||
+            !entry.resourceName.isNullOrBlank() ||
+            entry.category.contains("Android view", ignoreCase = true)
+    }
+
+    internal fun snapchatThemeCatalogMetaLine(entry: SnapchatThemeCatalogEntry): String {
+        val values = buildList {
+            add(entry.category)
+            add(entry.source)
+            if (entry.hitCount > 0) add("${entry.hitCount} hits")
+            if (entry.confidence > 0f) add("${(entry.confidence * 100f).roundToInt()}% confidence")
+            entry.attributeName?.takeIf { it.isNotBlank() }?.let { add("attr $it") }
+            entry.className?.takeIf { it.isNotBlank() }?.substringAfterLast('.')?.let { add("class $it") }
+            entry.resourceName?.takeIf { it.isNotBlank() }?.let { add("id $it") }
+            entry.selectorDisplayName?.takeIf { it.isNotBlank() }?.let { add("selector $it") }
+            entry.role?.takeIf { it.isNotBlank() }?.let { add(it) }
+            entry.screenHint?.takeIf { it.isNotBlank() }?.let { add("screen $it") }
+            entry.screenBounds?.takeIf { it.isNotBlank() }?.let { add("bounds $it") }
+            entry.valueSummary?.takeIf { it.isNotBlank() && it != "none" }?.let { add(it.take(90)) }
+        }
+        return values.distinct().joinToString(" - ")
+    }
+
+    internal fun parseSnapchatThemeSurfaceOverrides(raw: String): List<SnapchatThemeSurfaceOverride> {
+        if (raw.isBlank()) return emptyList()
+        val values = linkedMapOf<String, SnapchatThemeSurfaceOverride>()
+        raw.lineSequence().forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty()) return@forEach
+            val parsed = runCatching {
+                if (line.startsWith("{")) {
+                    val json = JSONObject(line)
+                    val key = normalizeSnapchatThemeSurfaceKey(
+                        json.optString("key").ifEmpty { json.optString("surface") }
+                    )
+                    val color = parseSnapchatThemeColor(json.optString("color"))
+                    if (key.isNotEmpty() && color != null) {
+                        SnapchatThemeSurfaceOverride(
+                            key = key,
+                            label = json.optString("label").trim().ifEmpty { key },
+                            color = color
+                        )
+                    } else {
+                        null
+                    }
+                } else {
+                    val key = normalizeSnapchatThemeSurfaceKey(line.substringBefore('=').trim())
+                    val color = parseSnapchatThemeColor(line.substringAfter('=', "").trim())
+                    if (key.isNotEmpty() && color != null) {
+                        SnapchatThemeSurfaceOverride(key = key, label = key, color = color)
+                    } else {
+                        null
+                    }
+                }
+            }.getOrNull()
+            if (parsed != null) values[parsed.key] = parsed
+        }
+        return values.values.toList()
+    }
+
+    internal fun parseSnapchatThemeSurfaceRules(raw: String): List<SnapchatThemeSurfaceRule> {
+        if (raw.isBlank()) return emptyList()
+        val values = linkedMapOf<String, SnapchatThemeSurfaceRule>()
+        raw.lineSequence().forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty()) return@forEach
+            val parsed = runCatching {
+                val json = JSONObject(line)
+                val target = json.optString("target").trim()
+                val color = parseSnapchatThemeColor(json.optString("color")) ?: return@runCatching null
+                if (target.isEmpty()) return@runCatching null
+                SnapchatThemeSurfaceRule(
+                    target = target,
+                    isSelector = json.optBoolean("selector", isSnapchatThemeSelectorTarget(target)),
+                    label = json.optString("label").trim().ifEmpty {
+                        if (isSnapchatThemeSelectorTarget(target)) {
+                            snapchatThemeSelectorDisplayName(target)
+                        } else {
+                            target
+                        }
+                    },
+                    color = color
+                )
+            }.getOrNull()
+            if (parsed != null) values["${parsed.isSelector}:${parsed.target}"] = parsed
+        }
+        return values.values.toList()
+    }
+
+    internal fun parseSnapchatThemeBackgroundRules(raw: String): List<SnapchatThemeBackgroundRule> {
+        if (raw.isBlank()) return emptyList()
+        val values = linkedMapOf<String, SnapchatThemeBackgroundRule>()
+        raw.lineSequence().forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty()) return@forEach
+            val parsed = runCatching {
+                val json = JSONObject(line)
+                val target = json.optString("target").trim()
+                val path = json.optString("path").trim()
+                if (target.isEmpty() || path.isEmpty()) return@runCatching null
+                SnapchatThemeBackgroundRule(
+                    target = target,
+                    isSelector = json.optBoolean("selector", isSnapchatThemeSelectorTarget(target)),
+                    label = json.optString("label").trim().ifEmpty {
+                        if (isSnapchatThemeSelectorTarget(target)) snapchatThemeSelectorDisplayName(target) else target
+                    },
+                    path = path,
+                    name = json.optString("name").trim().ifEmpty { File(path).name }
+                )
+            }.getOrNull()
+            if (parsed != null) values["${parsed.isSelector}:${parsed.target}"] = parsed
+        }
+        return values.values.toList()
+    }
+
+    internal fun serializeSnapchatThemeOverride(entry: SnapchatThemeSurfaceOverride): String {
+        return JSONObject()
+            .put("key", entry.key)
+            .put("label", entry.label)
+            .put("color", snapchatThemeColorToHex(entry.color))
+            .toString()
+    }
+
+    internal fun serializeSnapchatThemeRule(rule: SnapchatThemeSurfaceRule): String {
+        return JSONObject()
+            .put("target", rule.target)
+            .put("selector", rule.isSelector)
+            .put("label", rule.label)
+            .put("color", snapchatThemeColorToHex(rule.color))
+            .toString()
+    }
+
+    internal fun serializeSnapchatThemeBackground(rule: SnapchatThemeBackgroundRule): String {
+        return JSONObject()
+            .put("target", rule.target)
+            .put("selector", rule.isSelector)
+            .put("label", rule.label)
+            .put("path", rule.path)
+            .put("name", rule.name)
+            .toString()
+    }
+
+    internal fun sendSnapchatThemeConfigChangedBroadcast() {
+        val targetPackage = context.packageNameForTargetApp(TargetApp.SNAPCHAT)
+        context.androidContext.sendBroadcast(
+            Intent(Constants.SNAPCHAT_THEME_CONFIG_CHANGED_ACTION)
+                .setPackage(targetPackage)
+        )
+        context.log.verbose("[THEME MAP UI] config changed broadcast sent targetPackage=$targetPackage")
+    }
+
+    internal fun persistSnapchatThemeConfig(onConfigChanged: () -> Unit) {
+        context.config.writeConfig()
+        context.log.verbose("[THEME MAP UI] custom theme config persisted")
+        sendSnapchatThemeConfigChangedBroadcast()
+        onConfigChanged()
+    }
+
+    internal fun setSnapchatThemeCaptureEnabled(enabled: Boolean, onConfigChanged: () -> Unit) {
+        context.log.verbose("[THEME MAP UI] captureThemeSurfaces set enabled=$enabled")
+        context.config.root.userInterface.customTheme.captureThemeSurfaces.set(enabled)
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun setSnapchatThemeEnabled(enabled: Boolean, onConfigChanged: () -> Unit) {
+        context.log.verbose("[THEME MAP UI] custom theme enabled set enabled=$enabled")
+        context.config.root.userInterface.customTheme.enabled.set(enabled)
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun setSnapchatThemeSurfaceOverride(
+        key: String,
+        label: String,
+        color: Int,
+        onConfigChanged: () -> Unit
+    ) {
+        val customTheme = context.config.root.userInterface.customTheme
+        val values = parseSnapchatThemeSurfaceOverrides(customTheme.surfaceColorOverrides.getNullable().orEmpty())
+            .associateBy { it.key }
+            .toMutableMap()
+        values[normalizeSnapchatThemeSurfaceKey(key)] = SnapchatThemeSurfaceOverride(
+            key = normalizeSnapchatThemeSurfaceKey(key),
+            label = label,
+            color = color
+        )
+        customTheme.enabled.set(true)
+        customTheme.surfaceColorOverrides.set(values.values.joinToString("\n", transform = ::serializeSnapchatThemeOverride))
+        context.log.verbose(
+            "[THEME MAP UI] surface override set key=${normalizeSnapchatThemeSurfaceKey(key)} label=$label " +
+                "color=${snapchatThemeColorToHex(color)} total=${values.size}"
+        )
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun removeSnapchatThemeSurfaceOverride(key: String, onConfigChanged: () -> Unit) {
+        val customTheme = context.config.root.userInterface.customTheme
+        val normalizedKey = normalizeSnapchatThemeSurfaceKey(key)
+        val values = parseSnapchatThemeSurfaceOverrides(customTheme.surfaceColorOverrides.getNullable().orEmpty())
+            .filterNot { it.key == normalizedKey }
+        customTheme.surfaceColorOverrides.set(values.joinToString("\n", transform = ::serializeSnapchatThemeOverride))
+        context.log.verbose("[THEME MAP UI] surface override removed key=$normalizedKey remaining=${values.size}")
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun setSnapchatThemeSurfaceRule(
+        rule: SnapchatThemeSurfaceRule,
+        onConfigChanged: () -> Unit
+    ) {
+        val customTheme = context.config.root.userInterface.customTheme
+        val values = parseSnapchatThemeSurfaceRules(customTheme.customSurfaceRules.getNullable().orEmpty())
+            .associateBy { "${it.isSelector}:${it.target}" }
+            .toMutableMap()
+        values["${rule.isSelector}:${rule.target}"] = rule
+        customTheme.enabled.set(true)
+        customTheme.customSurfaceRules.set(values.values.joinToString("\n", transform = ::serializeSnapchatThemeRule))
+        context.log.verbose(
+            "[THEME MAP UI] surface selector rule set target=${rule.target} selector=${rule.isSelector} " +
+                "label=${rule.label} color=${snapchatThemeColorToHex(rule.color)} total=${values.size}"
+        )
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun removeSnapchatThemeSurfaceRule(
+        rule: SnapchatThemeSurfaceRule,
+        onConfigChanged: () -> Unit
+    ) {
+        val customTheme = context.config.root.userInterface.customTheme
+        val targetKey = "${rule.isSelector}:${rule.target}"
+        val values = parseSnapchatThemeSurfaceRules(customTheme.customSurfaceRules.getNullable().orEmpty())
+            .filterNot { "${it.isSelector}:${it.target}" == targetKey }
+        customTheme.customSurfaceRules.set(values.joinToString("\n", transform = ::serializeSnapchatThemeRule))
+        context.log.verbose("[THEME MAP UI] surface selector rule removed key=$targetKey remaining=${values.size}")
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun setSnapchatThemeBackgroundRule(
+        rule: SnapchatThemeBackgroundRule,
+        onConfigChanged: () -> Unit
+    ) {
+        val customTheme = context.config.root.userInterface.customTheme
+        val values = parseSnapchatThemeBackgroundRules(customTheme.screenBackgrounds.getNullable().orEmpty())
+            .associateBy { "${it.isSelector}:${it.target}" }
+            .toMutableMap()
+        values["${rule.isSelector}:${rule.target}"] = rule
+        customTheme.enabled.set(true)
+        customTheme.screenBackgrounds.set(values.values.joinToString("\n", transform = ::serializeSnapchatThemeBackground))
+        context.log.verbose(
+            "[THEME MAP UI] background rule set target=${rule.target} selector=${rule.isSelector} " +
+                "label=${rule.label} path=${rule.path} name=${rule.name} total=${values.size}"
+        )
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun removeSnapchatThemeBackgroundRule(
+        rule: SnapchatThemeBackgroundRule,
+        onConfigChanged: () -> Unit
+    ) {
+        val customTheme = context.config.root.userInterface.customTheme
+        val targetKey = "${rule.isSelector}:${rule.target}"
+        val values = parseSnapchatThemeBackgroundRules(customTheme.screenBackgrounds.getNullable().orEmpty())
+            .filterNot { "${it.isSelector}:${it.target}" == targetKey }
+        customTheme.screenBackgrounds.set(values.joinToString("\n", transform = ::serializeSnapchatThemeBackground))
+        context.log.verbose("[THEME MAP UI] background rule removed key=$targetKey remaining=${values.size}")
+        persistSnapchatThemeConfig(onConfigChanged)
+    }
+
+    internal fun sendSnapchatThemePreview(target: String, isSelector: Boolean, color: Int?) {
+        val targetPackage = context.packageNameForTargetApp(TargetApp.SNAPCHAT)
+        context.androidContext.sendBroadcast(
+            Intent(Constants.SNAPCHAT_THEME_PREVIEW_ACTION)
+                .setPackage(targetPackage)
+                .putExtra(Constants.SNAPCHAT_THEME_SURFACE_VALUE_EXTRA, target)
+                .putExtra(Constants.SNAPCHAT_THEME_SURFACE_IS_SELECTOR_EXTRA, isSelector)
+                .putExtra(Constants.SNAPCHAT_THEME_SURFACE_COLOR_EXTRA, color?.let(::snapchatThemeColorToHex).orEmpty())
+        )
+        context.log.verbose(
+            "[THEME MAP UI] preview broadcast sent target=$target selector=$isSelector " +
+                "color=${color?.let(::snapchatThemeColorToHex) ?: "default"} targetPackage=$targetPackage"
+        )
+    }
+
+    internal fun importSnapchatThemeBackground(
+        target: String,
+        isSelector: Boolean,
+        label: String,
+        onConfigChanged: () -> Unit
+    ) {
+        activityLauncher {
+            openFile("image/*") { uriString ->
+                if (uriString.isBlank()) return@openFile
+                val uri = uriString.toUri()
+                runCatching {
+                    val appContext = context.androidContext
+                    val displayName = queryDisplayName(uri).ifBlank { uri.lastPathSegment ?: "snapchat-background" }
+                    val extension = displayName.substringAfterLast('.', "img").take(12).ifBlank { "img" }
+                    val backgroundDir = File(appContext.filesDir, "snapchat_theme_backgrounds")
+                    backgroundDir.mkdirs()
+                    val targetName = target
+                        .replace(Regex("[^A-Za-z0-9._-]+"), "_")
+                        .trim('_')
+                        .take(80)
+                        .ifBlank { "surface" }
+                    val backgroundFile = File(backgroundDir, "${targetName}_${System.currentTimeMillis()}.$extension")
+                    appContext.contentResolver.openInputStream(uri)?.use { input ->
+                        backgroundFile.outputStream().use { output -> input.copyTo(output) }
+                    } ?: error("Unable to open selected image")
+                    makeWorldReadable(backgroundFile)
+                    val backgroundUri = Uri.parse(Constants.SNAPCHAT_THEME_BACKGROUND_BASE_URI)
+                        .buildUpon()
+                        .appendPath(backgroundFile.name)
+                        .build()
+                        .toString()
+                    setSnapchatThemeBackgroundRule(
+                        SnapchatThemeBackgroundRule(
+                            target = target,
+                            isSelector = isSelector,
+                            label = label,
+                            path = backgroundUri,
+                            name = displayName
+                        ),
+                        onConfigChanged
+                    )
+                    context.shortToast("Snapchat background image saved")
+                }.onFailure {
+                    context.log.error("Failed to import Snapchat background image", it)
+                    context.shortToast("Failed to import background image")
+                }
+            }
+        }
     }
 
     internal fun backupRandomizedProfile(onConfigChanged: () -> Unit) {
@@ -563,9 +1516,10 @@ class FeaturesRootSection : Routes.Route() {
                                 context.androidContext.contentResolver.openInputStream(uri)?.use {
                                     val json = it.readBytes().toString(Charsets.UTF_8)
                                     context.androidContext.sendBroadcast(
-                                        Intent(Constants.INSTAGRAM_CONFIG_JSON_IMPORT_ACTION)
+                                        Intent(Constants.INSTAGRAM_DEV_CONFIG_IMPORT_ACTION)
                                             .setPackage(context.packageNameForTargetApp(TargetApp.INSTAGRAM))
-                                            .putExtra(Constants.INSTAGRAM_CONFIG_JSON_EXTRA, json)
+                                            .putExtra(Constants.INSTAGRAM_DEV_CONFIG_JSON_EXTRA, json)
+                                            .putExtra("json_content", json)
                                     )
                                     context.shortToast(translation["instagram_json_sent"] ?: "Sent to Instagram")
                                 }
@@ -578,10 +1532,7 @@ class FeaturesRootSection : Routes.Route() {
                 })
                 list.add(Triple(translation["export_option"] ?: "Export Instagram JSON", Icons.Filled.DatasetLinked) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    context.androidContext.sendBroadcast(
-                        Intent(Constants.INSTAGRAM_CONFIG_JSON_EXPORT_ACTION)
-                            .setPackage(context.packageNameForTargetApp(TargetApp.INSTAGRAM))
-                    )
+                    exportInstagramDevConfigFromManager()
                 })
                 list.add(Triple(translation["instagram_db_update"] ?: "Update Instagram Database", Icons.Filled.Storage) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -702,6 +1653,7 @@ class FeaturesRootSection : Routes.Route() {
         "showFeatureToasts",
         "enableStoryMentions",
         "localInstagramPlus",
+        "restoreOldPostReelContextMenu",
         "sendCustomEmojiReactionsToStory",
         "changeLikeReactions",
         "enableCopyComment",
@@ -811,14 +1763,8 @@ class FeaturesRootSection : Routes.Route() {
         if (!wasDevEnabled) persistDevEnabled(true)
 
         val packages = installedInstagramPackages().ifEmpty { listOf(Constants.INSTAGRAM_PACKAGE_NAME) }
-        packages.forEach { packageName ->
-            runCatching {
-                context.androidContext.sendBroadcast(
-                    Intent(Constants.INSTAGRAM_FORCE_STOP_ACTION).setPackage(packageName)
-                )
-            }
-        }
-        Handler(Looper.getMainLooper()).postDelayed({
+        Handler(Looper.getMainLooper()).post {
+            // Do not force-stop here: the receiver can race and kill the freshly launched dev-options activity.
             var launched = false
             val deepLinks = listOf(
                 "instagram://settings_devoptions",
@@ -851,14 +1797,12 @@ class FeaturesRootSection : Routes.Route() {
             if (!launched) {
                 if (!wasDevEnabled) persistDevEnabled(false)
                 context.shortToast("Unable to open Instagram developer options")
-                return@postDelayed
+                return@post
             }
-            if (!wasDevEnabled) {
-                Handler(Looper.getMainLooper()).postDelayed({
-                    persistDevEnabled(false)
-                }, 8000L)
-            }
-        }, 800L)
+            // Keep Developer Mode enabled after an explicit open request. The Instagram process may
+            // receive the deep link before its session is ready, and reverting this flag races the
+            // on-demand fragment fallback.
+        }
     }
 
     internal fun isInstagramAdsAndLinksCoreEnabled(): Boolean {
@@ -895,6 +1839,7 @@ class FeaturesRootSection : Routes.Route() {
             "showFeatureToasts" -> instagram.misc.showFeatureToasts.get()
             "enableStoryMentions" -> instagram.misc.enableStoryMentions.get()
             "localInstagramPlus" -> instagram.misc.localInstagramPlus.get()
+            "restoreOldPostReelContextMenu" -> instagram.misc.restoreOldPostReelContextMenu.get()
             "sendCustomEmojiReactionsToStory" -> instagram.misc.sendCustomEmojiReactionsToStory.get()
             "changeLikeReactions" -> instagram.misc.changeLikeReactions.get()
             "enableCopyComment" -> instagram.misc.enableCopyComment.get()
@@ -955,6 +1900,7 @@ class FeaturesRootSection : Routes.Route() {
             "showFeatureToasts" -> instagram.misc.showFeatureToasts.set(enabled)
             "enableStoryMentions" -> instagram.misc.enableStoryMentions.set(enabled)
             "localInstagramPlus" -> instagram.misc.localInstagramPlus.set(enabled)
+            "restoreOldPostReelContextMenu" -> instagram.misc.restoreOldPostReelContextMenu.set(enabled)
             "sendCustomEmojiReactionsToStory" -> instagram.misc.sendCustomEmojiReactionsToStory.set(enabled)
             "changeLikeReactions" -> instagram.misc.changeLikeReactions.set(enabled)
             "enableCopyComment" -> instagram.misc.enableCopyComment.set(enabled)
@@ -1258,6 +2204,7 @@ class FeaturesRootSection : Routes.Route() {
         }
     }
 
+
     override val content: @Composable (NavBackStackEntry) -> Unit = { nav ->
         val themeId by produceState(initialValue = context.config.root.global.uiSettings.managerTheme.get()) {
             while (true) {
@@ -1279,17 +2226,23 @@ class FeaturesRootSection : Routes.Route() {
     override val customComposables: NavGraphBuilder.() -> Unit = {
         routeInfo.childIds.addAll(listOf(FEATURE_CONTAINER_ROUTE, SEARCH_FEATURE_ROUTE))
 
-        composable(FEATURE_CONTAINER_ROUTE, enterTransition = {
-            slideIntoContainer(
-                AnimatedContentTransitionScope.SlideDirection.Left,
-                animationSpec = tween(140)
-            )
-        }, exitTransition = {
-            slideOutOfContainer(
-                AnimatedContentTransitionScope.SlideDirection.Right,
-                animationSpec = tween(160)
-            )
-        }) { backStackEntry ->
+        composable(
+            FEATURE_CONTAINER_ROUTE,
+            enterTransition = {
+                fadeIn(animationSpec = tween(120)) +
+                    slideInHorizontally(animationSpec = tween(140)) { it / 6 }
+            },
+            exitTransition = {
+                fadeOut(animationSpec = tween(90))
+            },
+            popEnterTransition = {
+                fadeIn(animationSpec = tween(100))
+            },
+            popExitTransition = {
+                fadeOut(animationSpec = tween(100)) +
+                    slideOutHorizontally(animationSpec = tween(120)) { it / 6 }
+            }
+        ) { backStackEntry ->
             backStackEntry.arguments?.getString("name")?.let { containerName ->
                 allContainers[containerName]?.let {
                     val containerTitle = translation[it.key.propertyName()]
@@ -1325,6 +2278,7 @@ class FeaturesRootSection : Routes.Route() {
                 )
             }
         }
+
     }
 
     @Composable
@@ -2113,7 +3067,7 @@ class FeaturesRootSection : Routes.Route() {
 
         val cardShape = RoundedCornerShape(22.dp)
         val interactionSource = remember { MutableInteractionSource() }
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
                     skin.glowPrimary.copy(alpha = 0.55f),
@@ -2777,6 +3731,7 @@ class FeaturesRootSection : Routes.Route() {
         searchKeyword: String? = null,
         enableGlobalSearch: Boolean = false,
         showWhatsAppHiddenUiElementsManager: Boolean = false,
+        showSnapchatCustomThemeManager: Boolean = false,
         showInstagramDeveloperTools: Boolean = false,
         showInstagramAdsAndLinksTools: Boolean = false,
         showInstagramGhostSettingsTools: Boolean = false,
@@ -2954,6 +3909,14 @@ class FeaturesRootSection : Routes.Route() {
                         )
                     }
                 }
+                if (showSnapchatCustomThemeManager && !isActiveSearch) {
+                    item {
+                        SnapchatCustomThemeManager(
+                            refreshNonce = configRefreshNonce,
+                            onConfigChanged = { configRefreshNonce++ }
+                        )
+                    }
+                }
                 if (showInstagramAdsAndLinksTools && !isActiveSearch) {
                     item {
                         InstagramAdsAndLinksToolsCard(
@@ -3120,7 +4083,11 @@ class FeaturesRootSection : Routes.Route() {
         }
 
         val entries = remember(refreshNonce) { hiddenUiElementEntries() }
-        val translationPrefix = "features.properties.whatsapp.properties.ui_elements"
+        val translationPrefix = if (context.isWhatsAppMode) {
+            "features.properties.whatsapp.properties.ui_elements"
+        } else {
+            "features.properties.user_interface.properties.ui_elements"
+        }
         val cardShape = RoundedCornerShape(22.dp)
         val cardBorder = remember {
             Brush.linearGradient(
@@ -3236,10 +4203,884 @@ class FeaturesRootSection : Routes.Route() {
     }
 
     @Composable
+    internal fun SnapchatCustomThemeManager(
+        refreshNonce: Int,
+        onConfigChanged: () -> Unit
+    ) {
+        val customTheme = context.config.root.userInterface.customTheme
+        val coroutineScope = rememberCoroutineScope()
+        var mapRefreshNonce by remember { mutableStateOf(0) }
+        var isThemeMapperRefreshing by remember { mutableStateOf(false) }
+        DisposableEffect(Unit) {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(receiverContext: Context, intent: Intent) {
+                    if (intent.action != Constants.SNAPCHAT_THEME_SURFACE_MAP_UPDATED_ACTION) return
+                    mapRefreshNonce++
+                    context.log.verbose("[THEME MAP UI] received map update broadcast nonce=$mapRefreshNonce")
+                }
+            }
+            val filter = IntentFilter(Constants.SNAPCHAT_THEME_SURFACE_MAP_UPDATED_ACTION)
+            runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.androidContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+                } else {
+                    context.androidContext.registerReceiver(receiver, filter)
+                }
+            }.onFailure {
+                context.log.warn("Failed to register Snapchat theme map update receiver: ${it.message}")
+            }
+            onDispose {
+                runCatching { context.androidContext.unregisterReceiver(receiver) }
+            }
+        }
+        val catalogState = remember(refreshNonce, mapRefreshNonce) { snapchatThemeCatalogState() }
+        val catalog = catalogState.entries
+        val overrides = remember(refreshNonce) {
+            parseSnapchatThemeSurfaceOverrides(customTheme.surfaceColorOverrides.getNullable().orEmpty())
+                .associateBy { it.key }
+        }
+        val rules = remember(refreshNonce) {
+            parseSnapchatThemeSurfaceRules(customTheme.customSurfaceRules.getNullable().orEmpty())
+        }
+        val rulesByTarget = remember(rules) {
+            rules.associateBy { "${it.isSelector}:${it.target}" }
+        }
+        val backgrounds = remember(refreshNonce) {
+            parseSnapchatThemeBackgroundRules(customTheme.screenBackgrounds.getNullable().orEmpty())
+        }
+        val backgroundByTarget = remember(backgrounds) {
+            backgrounds.associateBy { "${it.isSelector}:${it.target}" }
+        }
+        var query by rememberSaveable { mutableStateOf("") }
+        var colorEditRequest by remember { mutableStateOf<SnapchatThemeColorEditRequest?>(null) }
+        var surfaceDetailsRequest by remember {
+            mutableStateOf<Pair<SnapchatThemeCatalogEntry, SnapchatThemeBackgroundRule?>?>(null)
+        }
+        val normalizedQuery = query.trim().lowercase(Locale.US)
+        val filteredCatalog = remember(catalog, overrides, rulesByTarget, normalizedQuery) {
+            val rows = catalog.filter { entry ->
+                normalizedQuery.isEmpty() || entry.searchKey.contains(normalizedQuery)
+            }
+            fun isCustomized(entry: SnapchatThemeCatalogEntry): Boolean {
+                val selector = entry.selector?.takeIf { it.isNotBlank() }
+                return if (selector != null) {
+                    rulesByTarget.containsKey("true:$selector")
+                } else {
+                    overrides.containsKey(entry.key)
+                }
+            }
+            rows.filter(::isCustomized) + rows.filterNot(::isCustomized)
+        }
+        val filteredRules = remember(rules, normalizedQuery) {
+            rules.filter { rule ->
+                normalizedQuery.isEmpty() ||
+                    rule.label.lowercase(Locale.US).contains(normalizedQuery) ||
+                    rule.target.lowercase(Locale.US).contains(normalizedQuery)
+            }
+        }
+        val activeSurfaceCount = overrides.size + rules.size
+        val cardShape = RoundedCornerShape(22.dp)
+        val cardBorder = remember {
+            Brush.linearGradient(
+                listOf(
+                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
+                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                )
+            )
+        }
+
+        colorEditRequest?.let { request ->
+            SnapchatThemeColorPickerDialog(
+                title = request.label,
+                initialColor = request.currentColor,
+                onPreview = { color ->
+                    sendSnapchatThemePreview(request.target, request.isSelector, color)
+                },
+                onDismiss = { colorEditRequest = null },
+                onConfirm = { color ->
+                    if (request.isCatalogSurface) {
+                        setSnapchatThemeSurfaceOverride(
+                            key = request.target,
+                            label = request.label,
+                            color = color,
+                            onConfigChanged = onConfigChanged
+                        )
+                    } else {
+                        setSnapchatThemeSurfaceRule(
+                            SnapchatThemeSurfaceRule(
+                                target = request.target,
+                                isSelector = request.isSelector,
+                                label = request.label,
+                                color = color
+                            ),
+                            onConfigChanged = onConfigChanged
+                        )
+                    }
+                    colorEditRequest = null
+                }
+            )
+        }
+
+        surfaceDetailsRequest?.let { (entry, background) ->
+            val selector = entry.selector?.takeIf { it.isNotBlank() }
+            val activeColor = if (selector != null) {
+                rulesByTarget["true:$selector"]?.color
+            } else {
+                overrides[entry.key]?.color
+            }
+            SnapchatThemeSurfaceDetailsDialog(
+                entry = entry,
+                activeColor = activeColor,
+                background = background,
+                onDismiss = { surfaceDetailsRequest = null }
+            )
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            shape = cardShape,
+            color = Color.Transparent,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .border(BorderStroke(1.dp, cardBorder), cardShape)
+                    .padding(horizontal = 14.dp, vertical = 16.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Snapchat Custom Theme",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = PurrfectPalette.textPrimary
+                            )
+                            Text(
+                                text = "$activeSurfaceCount customized / ${backgrounds.size} images / ${catalogState.mappedSurfaceCount} mapped",
+                                fontSize = 12.sp,
+                                color = PurrfectPalette.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "On",
+                                fontSize = 11.sp,
+                                color = PurrfectPalette.textSecondary
+                            )
+                            Switch(
+                                checked = customTheme.enabled.get(),
+                                onCheckedChange = { setSnapchatThemeEnabled(it, onConfigChanged) },
+                                colors = purrfectSwitchColors()
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Text(
+                                text = "Live surface picker",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PurrfectPalette.textPrimary
+                            )
+                            Text(
+                                text = "Shows the TH selector inside Snapchat for exact elements and per-screen backgrounds.",
+                                fontSize = 12.sp,
+                                lineHeight = 15.sp,
+                                color = PurrfectPalette.textSecondary
+                            )
+                        }
+                        Switch(
+                            checked = customTheme.captureThemeSurfaces.get(),
+                            onCheckedChange = { setSnapchatThemeCaptureEnabled(it, onConfigChanged) },
+                            colors = purrfectSwitchColors()
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                importSnapchatThemeBackground(
+                                    target = "__global__",
+                                    isSelector = false,
+                                    label = "Global app background",
+                                    onConfigChanged = onConfigChanged
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+                        ) {
+                            Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Global image", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                if (isThemeMapperRefreshing) return@OutlinedButton
+                                isThemeMapperRefreshing = true
+                                context.shortToast("Refreshing Snapchat theme mapper")
+                                coroutineScope.launch {
+                                    val rebuilt = rebuildSnapchatThemeMapperAndRefreshCache()
+                                    mapRefreshNonce++
+                                    isThemeMapperRefreshing = false
+                                    context.shortToast(
+                                        if (rebuilt) {
+                                            "Theme mapper refreshed"
+                                        } else {
+                                            "Theme cache refreshed; APK mapper kept previous data"
+                                        }
+                                    )
+                                }
+                            },
+                            enabled = !isThemeMapperRefreshing,
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+                        ) {
+                            if (isThemeMapperRefreshing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                            } else {
+                                Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                customTheme.surfaceColorOverrides.set("")
+                                customTheme.customSurfaceRules.set("")
+                                customTheme.screenBackgrounds.set("")
+                                persistSnapchatThemeConfig(onConfigChanged)
+                            },
+                            enabled = activeSurfaceCount > 0 || backgrounds.isNotEmpty(),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f))
+                        ) {
+                            Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                    }
+
+                    Text(
+                        text = "Mapper: ${catalogState.snapchatVersionLabel} / hash ${catalogState.uniqueHash} / updated ${catalogState.updatedAtMs}",
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                        color = PurrfectPalette.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    TextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(Icons.Filled.Search, contentDescription = null)
+                        },
+                        placeholder = {
+                            Text("Search theme surfaces")
+                        },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White.copy(alpha = 0.07f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = Color.White,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedPlaceholderColor = PurrfectPalette.textSecondary,
+                            unfocusedPlaceholderColor = PurrfectPalette.textSecondary,
+                            focusedLeadingIconColor = Color.White,
+                            unfocusedLeadingIconColor = Color.White.copy(alpha = 0.85f)
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+
+                    if (filteredCatalog.isEmpty() && filteredRules.isEmpty()) {
+                        Text(
+                            text = "No matching theme surfaces",
+                            fontSize = 13.sp,
+                            lineHeight = 16.sp,
+                            color = PurrfectPalette.textSecondary
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 560.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            items(filteredCatalog, key = { "catalog:${it.key}" }) { entry ->
+                                val selectorTarget = entry.selector?.takeIf { it.isNotBlank() }
+                                val target = selectorTarget ?: entry.key
+                                val isSelector = selectorTarget != null
+                                val selectorRule = if (isSelector) rulesByTarget["true:$target"] else null
+                                val override = if (isSelector) null else overrides[entry.key]
+                                val activeColor = selectorRule?.color ?: override?.color
+                                val background = backgroundByTarget["$isSelector:$target"]
+                                val supportsBackgroundImage = snapchatThemeCatalogSupportsBackgroundImage(entry)
+                                SnapchatThemeCatalogRow(
+                                    entry = entry,
+                                    activeColor = activeColor,
+                                    background = background,
+                                    supportsBackgroundImage = supportsBackgroundImage,
+                                    onEditColor = {
+                                        colorEditRequest = SnapchatThemeColorEditRequest(
+                                            target = target,
+                                            isSelector = isSelector,
+                                            label = entry.title,
+                                            currentColor = activeColor ?: entry.defaultColor,
+                                            isCatalogSurface = !isSelector
+                                        )
+                                    },
+                                    onPreview = {
+                                        sendSnapchatThemePreview(
+                                            target = target,
+                                            isSelector = isSelector,
+                                            color = activeColor ?: entry.defaultColor
+                                        )
+                                    },
+                                    onReset = {
+                                        if (isSelector) {
+                                            selectorRule?.let { removeSnapchatThemeSurfaceRule(it, onConfigChanged) }
+                                        } else {
+                                            removeSnapchatThemeSurfaceOverride(entry.key, onConfigChanged)
+                                        }
+                                    },
+                                    onPickBackground = {
+                                        importSnapchatThemeBackground(
+                                            target = target,
+                                            isSelector = isSelector,
+                                            label = entry.title,
+                                            onConfigChanged = onConfigChanged
+                                        )
+                                    },
+                                    onRemoveBackground = {
+                                        background?.let { removeSnapchatThemeBackgroundRule(it, onConfigChanged) }
+                                    },
+                                    onShowDetails = {
+                                        surfaceDetailsRequest = entry to background
+                                    }
+                                )
+                            }
+                            if (filteredRules.isNotEmpty()) {
+                                item(key = "captured_theme_header") {
+                                    Text(
+                                        text = "Captured live surfaces",
+                                        modifier = Modifier.padding(top = 12.dp, bottom = 5.dp),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PurrfectPalette.textSecondary
+                                    )
+                                }
+                            }
+                            items(filteredRules, key = { "rule:${it.isSelector}:${it.target}" }) { rule ->
+                                val background = backgroundByTarget["${rule.isSelector}:${rule.target}"]
+                                SnapchatThemeCapturedRow(
+                                    rule = rule,
+                                    background = background,
+                                    onEditColor = {
+                                        colorEditRequest = SnapchatThemeColorEditRequest(
+                                            target = rule.target,
+                                            isSelector = rule.isSelector,
+                                            label = rule.label,
+                                            currentColor = rule.color,
+                                            isCatalogSurface = false
+                                        )
+                                    },
+                                    onPreview = {
+                                        sendSnapchatThemePreview(rule.target, rule.isSelector, rule.color)
+                                    },
+                                    onPickBackground = {
+                                        importSnapchatThemeBackground(
+                                            target = rule.target,
+                                            isSelector = rule.isSelector,
+                                            label = rule.label,
+                                            onConfigChanged = onConfigChanged
+                                        )
+                                    },
+                                    onRemoveBackground = {
+                                        background?.let { removeSnapchatThemeBackgroundRule(it, onConfigChanged) }
+                                    },
+                                    onRemove = {
+                                        removeSnapchatThemeSurfaceRule(rule, onConfigChanged)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    internal fun SnapchatThemeCatalogRow(
+        entry: SnapchatThemeCatalogEntry,
+        activeColor: Int?,
+        background: SnapchatThemeBackgroundRule?,
+        supportsBackgroundImage: Boolean,
+        onEditColor: () -> Unit,
+        onPreview: () -> Unit,
+        onReset: () -> Unit,
+        onPickBackground: () -> Unit,
+        onRemoveBackground: () -> Unit,
+        onShowDetails: () -> Unit
+    ) {
+        Column {
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SnapchatThemeColorSwatch(activeColor ?: entry.defaultColor, activeColor != null)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = entry.title,
+                        fontSize = 14.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PurrfectPalette.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = entry.description,
+                        fontSize = 12.sp,
+                        lineHeight = 15.sp,
+                        color = PurrfectPalette.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val metaLine = snapchatThemeCatalogMetaLine(entry)
+                    if (metaLine.isNotBlank()) {
+                        Text(
+                            text = if (background != null) "$metaLine - ${background.name}" else metaLine,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            color = PurrfectPalette.textSecondary.copy(alpha = 0.82f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                SnapchatThemeIconButton(Icons.Filled.Visibility, onPreview)
+                SnapchatThemeIconButton(Icons.Filled.Palette, onEditColor)
+                SnapchatThemeIconButton(
+                    icon = Icons.Filled.Image,
+                    onClick = onPickBackground,
+                    enabled = supportsBackgroundImage
+                )
+                if (background != null) {
+                    SnapchatThemeIconButton(Icons.Filled.Close, onRemoveBackground)
+                }
+                SnapchatThemeIconButton(Icons.Filled.Info, onShowDetails)
+                SnapchatThemeIconButton(
+                    icon = Icons.Filled.RestartAlt,
+                    onClick = onReset,
+                    enabled = activeColor != null
+                )
+            }
+        }
+    }
+
+    @Composable
+    internal fun SnapchatThemeCapturedRow(
+        rule: SnapchatThemeSurfaceRule,
+        background: SnapchatThemeBackgroundRule?,
+        onEditColor: () -> Unit,
+        onPreview: () -> Unit,
+        onPickBackground: () -> Unit,
+        onRemoveBackground: () -> Unit,
+        onRemove: () -> Unit
+    ) {
+        Column {
+            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 70.dp)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                SnapchatThemeColorSwatch(rule.color, true)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = rule.label,
+                        fontSize = 14.sp,
+                        lineHeight = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = PurrfectPalette.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (background != null) {
+                            "${if (rule.isSelector) "Exact selector" else "Resource ID"} - ${background.name}"
+                        } else if (rule.isSelector) {
+                            "Exact selector"
+                        } else {
+                            "Resource ID"
+                        },
+                        fontSize = 12.sp,
+                        color = PurrfectPalette.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                SnapchatThemeIconButton(Icons.Filled.Visibility, onPreview)
+                SnapchatThemeIconButton(Icons.Filled.Palette, onEditColor)
+                SnapchatThemeIconButton(Icons.Filled.Image, onPickBackground)
+                SnapchatThemeIconButton(
+                    icon = Icons.Filled.Close,
+                    onClick = onRemoveBackground,
+                    enabled = background != null
+                )
+                SnapchatThemeIconButton(Icons.Filled.Delete, onRemove)
+            }
+        }
+    }
+
+    @Composable
+    internal fun SnapchatThemeColorSwatch(color: Int, active: Boolean) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(Color(color))
+                .border(
+                    BorderStroke(
+                        width = 1.dp,
+                        color = if (active) Color.White.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.18f)
+                    ),
+                    CircleShape
+                )
+        )
+    }
+
+    @Composable
+    internal fun SnapchatThemeIconButton(
+        icon: ImageVector,
+        onClick: () -> Unit,
+        enabled: Boolean = true
+    ) {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.size(36.dp),
+            colors = IconButtonDefaults.iconButtonColors(
+                contentColor = Color.White,
+                disabledContentColor = Color.White.copy(alpha = 0.24f)
+            )
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
+    }
+
+    @Composable
+    internal fun SnapchatThemeSurfaceDetailsDialog(
+        entry: SnapchatThemeCatalogEntry,
+        activeColor: Int?,
+        background: SnapchatThemeBackgroundRule?,
+        onDismiss: () -> Unit
+    ) {
+        val detailLines = remember(entry, activeColor, background) {
+            buildList {
+                fun addValue(label: String, value: String?) {
+                    val clean = value?.trim().orEmpty()
+                    if (clean.isNotEmpty()) add("$label: $clean")
+                }
+                addValue("Key", entry.key)
+                addValue("Title", entry.title)
+                addValue("Category", entry.category)
+                addValue("Source", entry.source)
+                if (entry.hitCount > 0) add("Hits: ${entry.hitCount}")
+                if (entry.confidence > 0f) add("Confidence: ${(entry.confidence * 100f).roundToInt()}%")
+                addValue("Default color", snapchatThemeColorToHex(entry.defaultColor))
+                activeColor?.let { addValue("Custom color", snapchatThemeColorToHex(it)) }
+                addValue("Background image", background?.name)
+                addValue("Background uri", background?.path)
+                addValue("Attribute", entry.attributeName)
+                addValue("Class", entry.className)
+                addValue("Resource", entry.resourceName)
+                addValue("Selector", entry.selectorDisplayName)
+                addValue("Selector raw", entry.selector)
+                addValue("Role", entry.role)
+                addValue("Screen", entry.screenHint)
+                addValue("Screen bounds", entry.screenBounds)
+                addValue("Local bounds", entry.localBounds)
+                addValue("Value", entry.valueSummary)
+                if (entry.details.isNotEmpty()) {
+                    add("Mapped details:")
+                    entry.details.toSortedMap().forEach { (key, value) ->
+                        add("  $key = $value")
+                    }
+                }
+            }.joinToString("\n")
+        }
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
+                }
+            },
+            title = {
+                Text(
+                    text = entry.title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = entry.description,
+                        fontSize = 13.sp,
+                        lineHeight = 17.sp,
+                        color = PurrfectPalette.textSecondary
+                    )
+                    SelectionContainer {
+                        Text(
+                            text = detailLines,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            color = PurrfectPalette.textPrimary
+                        )
+                    }
+                }
+            },
+            containerColor = PurrfectPalette.cardOverlayColor,
+            titleContentColor = PurrfectPalette.textPrimary,
+            textContentColor = PurrfectPalette.textPrimary
+        )
+    }
+
+    @Composable
+    internal fun SnapchatThemeColorPickerDialog(
+        title: String,
+        initialColor: Int,
+        onPreview: (Int?) -> Unit,
+        onDismiss: () -> Unit,
+        onConfirm: (Int) -> Unit
+    ) {
+        var currentColor by remember(initialColor) { mutableStateOf(Color(initialColor)) }
+        var hexText by remember(initialColor) { mutableStateOf(snapchatThemeColorToHex(initialColor)) }
+        val controller = remember(initialColor) { ColorPickerController() }
+
+        fun updateColor(color: Color, updatePicker: Boolean = false) {
+            currentColor = color
+            hexText = snapchatThemeColorToHex(color.toArgb())
+            if (updatePicker) {
+                controller.selectByColor(color, true)
+            }
+        }
+
+        LaunchedEffect(currentColor) {
+            delay(120)
+            onPreview(currentColor.toArgb())
+        }
+
+        DisposableEffect(Unit) {
+            onDispose {
+                onPreview(null)
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            confirmButton = {
+                TextButton(onClick = { onConfirm(currentColor.toArgb()) }) {
+                    Text("Apply")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
+            },
+            title = {
+                Text(
+                    text = title,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(currentColor)
+                            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)), RoundedCornerShape(14.dp))
+                    )
+
+                    TextField(
+                        value = hexText,
+                        onValueChange = { next ->
+                            hexText = next.take(9)
+                            parseSnapchatThemeColor(hexText)?.let { parsed ->
+                                updateColor(Color(parsed), updatePicker = true)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("ARGB hex") },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White.copy(alpha = 0.07f),
+                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+
+                    HsvColorPicker(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(260.dp)
+                            .padding(top = 2.dp),
+                        initialColor = remember(initialColor) { Color(initialColor) },
+                        controller = controller,
+                        onColorChanged = {
+                            if (!it.fromUser) return@HsvColorPicker
+                            updateColor(it.color)
+                        }
+                    )
+
+                    AlphaSlider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(34.dp),
+                        initialColor = remember(initialColor) { Color(initialColor) },
+                        controller = controller
+                    )
+
+                    BrightnessSlider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(34.dp),
+                        initialColor = remember(initialColor) { Color(initialColor) },
+                        controller = controller
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AlphaTile(
+                            modifier = Modifier
+                                .size(58.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)), RoundedCornerShape(12.dp)),
+                            controller = controller
+                        )
+                        Text(
+                            text = "Drag on the color field, then fine-tune alpha and brightness.",
+                            modifier = Modifier.weight(1f),
+                            fontSize = 12.sp,
+                            lineHeight = 15.sp,
+                            color = PurrfectPalette.textSecondary
+                        )
+                    }
+                }
+            },
+            containerColor = PurrfectPalette.cardOverlayColor,
+            titleContentColor = PurrfectPalette.textPrimary,
+            textContentColor = PurrfectPalette.textPrimary
+        )
+    }
+
+    @Composable
+    internal fun SnapchatThemeColorSlider(
+        label: String,
+        value: Int,
+        color: Color,
+        onValueChange: (Int) -> Unit
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(label, fontSize = 12.sp, color = PurrfectPalette.textSecondary)
+                Text(value.toString(), fontSize = 12.sp, color = PurrfectPalette.textSecondary)
+            }
+            Slider(
+                value = value.toFloat(),
+                onValueChange = { onValueChange(it.roundToInt().coerceIn(0, 255)) },
+                valueRange = 0f..255f,
+                steps = 254,
+                colors = SliderDefaults.colors(
+                    thumbColor = color,
+                    activeTrackColor = color.copy(alpha = 0.75f),
+                    inactiveTrackColor = Color.White.copy(alpha = 0.16f)
+                )
+            )
+        }
+    }
+
+    @Composable
     internal fun InstagramHiddenUiElementsManager(
         refreshNonce: Int,
         onConfigChanged: () -> Unit
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val translationPrefix = "features.properties.instagram.properties.hidden_ui_elements"
         val catalog = remember { loadInstagramHiddenUiIdCatalog() }
         val selectedIds = remember(refreshNonce) { selectedHiddenUiElementIds().toSet() }
@@ -3265,15 +5106,14 @@ class FeaturesRootSection : Routes.Route() {
         val totalResults = selectedSelectorRows.size + catalogRows.size
         val hiddenCount = selectedIds.size + selectedSelectors.size
         val cardShape = RoundedCornerShape(22.dp)
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
-
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -3285,7 +5125,7 @@ class FeaturesRootSection : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(skin.cardOverlay, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
                     .padding(horizontal = 14.dp, vertical = 16.dp)
             ) {
@@ -3304,7 +5144,7 @@ class FeaturesRootSection : Routes.Route() {
                                     ?: "Hide UI Elements",
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = PurrfectPalette.textPrimary
+                                color = skin.textPrimary
                             )
                             Text(
                                 text = if (normalizedQuery.isEmpty()) {
@@ -3317,13 +5157,13 @@ class FeaturesRootSection : Routes.Route() {
                                         ?: "$totalResults results / ${catalog.size} IDs"
                                 },
                                 fontSize = 12.sp,
-                                color = PurrfectPalette.textSecondary
+                                color = skin.textSecondary
                             )
                         }
                         TextButton(
                             onClick = { clearHiddenUiElements(onConfigChanged) },
                             enabled = hiddenCount > 0,
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                            colors = ButtonDefaults.textButtonColors(contentColor = skin.textPrimary)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.DeleteSweep,
@@ -3355,17 +5195,17 @@ class FeaturesRootSection : Routes.Route() {
                             )
                         },
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.White.copy(alpha = 0.07f),
-                            unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                            focusedContainerColor = skin.textPrimary.copy(alpha = 0.07f),
+                            unfocusedContainerColor = skin.textPrimary.copy(alpha = 0.05f),
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent,
-                            cursorColor = Color.White,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedPlaceholderColor = PurrfectPalette.textSecondary,
-                            unfocusedPlaceholderColor = PurrfectPalette.textSecondary,
-                            focusedLeadingIconColor = Color.White,
-                            unfocusedLeadingIconColor = Color.White.copy(alpha = 0.85f)
+                            cursorColor = skin.textPrimary,
+                            focusedTextColor = skin.textPrimary,
+                            unfocusedTextColor = skin.textPrimary,
+                            focusedPlaceholderColor = skin.textSecondary,
+                            unfocusedPlaceholderColor = skin.textSecondary,
+                            focusedLeadingIconColor = skin.textPrimary,
+                            unfocusedLeadingIconColor = skin.textPrimary.copy(alpha = 0.85f)
                         ),
                         shape = RoundedCornerShape(14.dp)
                     )
@@ -3376,7 +5216,7 @@ class FeaturesRootSection : Routes.Route() {
                                 ?: "Instagram resource ID catalog is unavailable.",
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     } else if (totalResults == 0) {
                         Text(
@@ -3384,7 +5224,7 @@ class FeaturesRootSection : Routes.Route() {
                                 ?: "No matching IDs",
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     } else {
                         LazyColumn(
@@ -3450,8 +5290,10 @@ class FeaturesRootSection : Routes.Route() {
         checked: Boolean,
         onCheckedChange: (Boolean) -> Unit
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         Column {
-            HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+            HorizontalDivider(color = skin.textPrimary.copy(alpha = 0.08f))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -3468,14 +5310,14 @@ class FeaturesRootSection : Routes.Route() {
                         fontSize = 14.sp,
                         lineHeight = 17.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = PurrfectPalette.textPrimary,
+                        color = skin.textPrimary,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = label,
                         fontSize = 12.sp,
-                        color = PurrfectPalette.textSecondary,
+                        color = skin.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -3496,13 +5338,115 @@ class FeaturesRootSection : Routes.Route() {
         val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
         val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
                     skin.glowPrimary.copy(alpha = 0.55f),
                     skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
+        }
+        var showResetDevConfigDialog by rememberSaveable { mutableStateOf(false) }
+        var isResetDevConfigLoading by rememberSaveable { mutableStateOf(false) }
+
+        if (showResetDevConfigDialog) {
+            Dialog(onDismissRequest = { if (!isResetDevConfigLoading) showResetDevConfigDialog = false }) {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = skin.cardOverlayColor,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 16.dp,
+                    border = BorderStroke(
+                        1.dp,
+                        Brush.linearGradient(
+                            listOf(
+                                skin.glowPrimary.copy(alpha = 0.55f),
+                                skin.glowSecondary.copy(alpha = 0.45f)
+                            )
+                        )
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Reset Dev Config",
+                            color = skin.textPrimary,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            text = "Remove the imported Instagram developer config file.",
+                            color = skin.textSecondary,
+                            fontSize = 13.sp,
+                            lineHeight = 17.sp
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = { showResetDevConfigDialog = false },
+                                enabled = !isResetDevConfigLoading,
+                                colors = ButtonDefaults.textButtonColors(contentColor = skin.textSecondary)
+                            ) {
+                                Text("Cancel")
+                            }
+                            Button(
+                                onClick = {
+                                    isResetDevConfigLoading = true
+                                    Thread {
+                                        val result = runCatching {
+                                            val packages = installedInstagramPackages().ifEmpty { listOf(Constants.INSTAGRAM_PACKAGE_NAME) }
+                                            if (packages.isEmpty()) error("Instagram package not found")
+                                            packages.forEach { packageName ->
+                                                context.androidContext.sendBroadcast(
+                                                    Intent(Constants.INSTAGRAM_DEV_CONFIG_RESET_ACTION)
+                                                        .setPackage(packageName)
+                                                )
+                                            }
+                                        }
+                                        Handler(Looper.getMainLooper()).post {
+                                            isResetDevConfigLoading = false
+                                            showResetDevConfigDialog = false
+                                            context.shortToast(
+                                                result.fold(
+                                                    onSuccess = { "Dev Config reset sent." },
+                                                    onFailure = { it.message ?: "Reset failed." }
+                                                )
+                                            )
+                                            if (result.isSuccess) onConfigChanged()
+                                        }
+                                    }.apply {
+                                        name = "PurrfectInstagramResetDevConfig"
+                                        isDaemon = true
+                                        start()
+                                    }
+                                },
+                                enabled = !isResetDevConfigLoading,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFF453A).copy(alpha = 0.28f),
+                                    contentColor = skin.textPrimary
+                                )
+                            ) {
+                                if (isResetDevConfigLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = skin.textPrimary,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Icon(Icons.Filled.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                }
+                                Spacer(Modifier.width(6.dp))
+                                Text("Reset")
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Surface(
@@ -3528,7 +5472,7 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "Config",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurrfectPalette.textPrimary
+                            color = skin.textPrimary
                         )
                     }
 
@@ -3536,8 +5480,8 @@ class FeaturesRootSection : Routes.Route() {
                         onClick = { openInstagramDevOptionsFromManager(onConfigChanged) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.30f),
-                            contentColor = Color.White
+                            containerColor = skin.glowPrimary.copy(alpha = 0.30f),
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -3556,7 +5500,7 @@ class FeaturesRootSection : Routes.Route() {
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF30D158).copy(alpha = 0.26f),
-                            contentColor = Color.White
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Icon(Icons.Filled.FileDownload, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -3575,7 +5519,7 @@ class FeaturesRootSection : Routes.Route() {
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF0A84FF).copy(alpha = 0.28f),
-                            contentColor = Color.White
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Icon(Icons.Filled.SaveAlt, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -3588,6 +5532,22 @@ class FeaturesRootSection : Routes.Route() {
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+
+                    OutlinedButton(
+                        onClick = { showResetDevConfigDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(1.dp, Color(0xFFFF453A).copy(alpha = 0.34f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.textPrimary)
+                    ) {
+                        Icon(Icons.Filled.RestartAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Reset Dev Config",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
                 }
             }
         }
@@ -3690,12 +5650,14 @@ class FeaturesRootSection : Routes.Route() {
         refreshNonce: Int,
         onConfigChanged: () -> Unit
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
@@ -3729,7 +5691,7 @@ class FeaturesRootSection : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(skin.cardOverlay, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
                     .padding(horizontal = 14.dp, vertical = 16.dp)
             ) {
@@ -3741,7 +5703,7 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "Reel download trigger",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurrfectPalette.textPrimary
+                            color = skin.textPrimary
                         )
                         Text(
                             text = context.translation[
@@ -3749,7 +5711,7 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "Choose how Reel video downloads are triggered.",
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     }
                     Row(
@@ -3766,11 +5728,11 @@ class FeaturesRootSection : Routes.Route() {
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (selected) {
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.34f)
+                                        skin.glowPrimary.copy(alpha = 0.34f)
                                     } else {
-                                        Color.White.copy(alpha = 0.08f)
+                                        skin.textPrimary.copy(alpha = 0.08f)
                                     },
-                                    contentColor = Color.White
+                                    contentColor = skin.textPrimary
                                 )
                             ) {
                                 Text(
@@ -3847,8 +5809,8 @@ class FeaturesRootSection : Routes.Route() {
         val lower = clean.lowercase(Locale.US).trim('\u200e', '\u200f', ' ')
         if (Regex("^\\d{4}-\\d{2}-\\d{2}(?:\\s+\\d{1,2}:\\d{2})?$").matches(lower)) return false
         if (Regex("^\\d{1,2}:\\d{2}.*").matches(lower)) return false
-        if (lower.contains(" ·") || lower.contains("·")) return false
-        if (lower.endsWith("...") || lower.endsWith("…")) return false
+        if (lower.contains(" Â·") || lower.contains("Â·")) return false
+        if (lower.endsWith("...") || lower.endsWith("â€¦")) return false
         val blocked = setOf(
             "notes", "note", "your note", "add note", "map", "play", "requests", "messages",
             "just curious", "inspo needed", "start your first note", "try sharing a song",
@@ -4381,12 +6343,14 @@ class FeaturesRootSection : Routes.Route() {
         refreshNonce: Int,
         onConfigChanged: () -> Unit
     ) {
+        val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
+        val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
-                    PurrfectPalette.glowPrimary.copy(alpha = 0.55f),
-                    PurrfectPalette.glowSecondary.copy(alpha = 0.35f)
+                    skin.glowPrimary.copy(alpha = 0.55f),
+                    skin.glowSecondary.copy(alpha = 0.35f)
                 )
             )
         }
@@ -4404,7 +6368,7 @@ class FeaturesRootSection : Routes.Route() {
         ) {
             Box(
                 modifier = Modifier
-                    .background(PurrfectPalette.cardOverlay, cardShape)
+                    .background(skin.cardOverlay, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
                     .padding(horizontal = 14.dp, vertical = 16.dp)
             ) {
@@ -4416,21 +6380,21 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "Custom Emoji Font",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurrfectPalette.textPrimary
+                            color = skin.textPrimary
                         )
                         Text(
                             text = title,
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     }
                     Button(
                         onClick = { importInstagramEmojiFontFromManager(onConfigChanged) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PurrfectPalette.glowPrimary.copy(alpha = 0.30f),
-                            contentColor = Color.White
+                            containerColor = skin.glowPrimary.copy(alpha = 0.30f),
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -4447,7 +6411,7 @@ class FeaturesRootSection : Routes.Route() {
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFFF453A).copy(alpha = 0.24f),
-                            contentColor = Color.White
+                            contentColor = skin.textPrimary
                         )
                     ) {
                         Icon(Icons.Filled.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -4476,7 +6440,7 @@ class FeaturesRootSection : Routes.Route() {
         val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
         val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
                     skin.glowPrimary.copy(alpha = 0.55f),
@@ -4515,13 +6479,13 @@ class FeaturesRootSection : Routes.Route() {
                             text = title,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurrfectPalette.textPrimary
+                            color = skin.textPrimary
                         )
                         Text(
                             text = description,
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     }
                     Switch(
@@ -4547,7 +6511,7 @@ class FeaturesRootSection : Routes.Route() {
         val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
         val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
                     skin.glowPrimary.copy(alpha = 0.55f),
@@ -4586,7 +6550,7 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "DM mark-as-seen control",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurrfectPalette.textPrimary
+                            color = skin.textPrimary
                         )
                         Text(
                             text = context.translation[
@@ -4594,7 +6558,7 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "Choose the manual seen control shown in Direct messages.",
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     }
                     Row(
@@ -4611,11 +6575,11 @@ class FeaturesRootSection : Routes.Route() {
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (selected) {
-                                        PurrfectPalette.glowPrimary.copy(alpha = 0.34f)
+                                        skin.glowPrimary.copy(alpha = 0.34f)
                                     } else {
-                                        Color.White.copy(alpha = 0.08f)
+                                        skin.textPrimary.copy(alpha = 0.08f)
                                     },
-                                    contentColor = Color.White
+                                    contentColor = skin.textPrimary
                                 )
                             ) {
                                 Text(
@@ -4642,7 +6606,7 @@ class FeaturesRootSection : Routes.Route() {
         val isAphelion = context.config.root.global.uiSettings.managerTheme.get() == "APHELION"
         val skin = if (isAphelion) LocalPurrfectSkin.current else PurrfectPalette
         val cardShape = RoundedCornerShape(22.dp)
-        val cardBorder = remember {
+        val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
                 listOf(
                     skin.glowPrimary.copy(alpha = 0.55f),
@@ -4682,7 +6646,7 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "Enable/Disable All",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = PurrfectPalette.textPrimary
+                            color = skin.textPrimary
                         )
                         Text(
                             text = context.translation[
@@ -4690,7 +6654,7 @@ class FeaturesRootSection : Routes.Route() {
                             ] ?: "Block Ads, Block Analytics, and Disable Tracking Links together.",
                             fontSize = 13.sp,
                             lineHeight = 16.sp,
-                            color = PurrfectPalette.textSecondary
+                            color = skin.textSecondary
                         )
                     }
                     Switch(
@@ -4733,7 +6697,9 @@ class FeaturesRootSection : Routes.Route() {
             enableGlobalSearch = configContainer == featureRootContainer(),
             showWhatsAppHiddenUiElementsManager =
                 configContainer === context.config.root.whatsapp.uiElements ||
-                    configContainer === context.config.root.instagram.hiddenUiElements,
+                    configContainer === context.config.root.instagram.hiddenUiElements ||
+                    configContainer === context.config.root.userInterface.uiElements,
+            showSnapchatCustomThemeManager = configContainer === context.config.root.userInterface.customTheme,
             showInstagramDeveloperTools = context.isInstagramMode &&
                 configContainer === context.config.root.instagram.developer,
             showInstagramAdsAndLinksTools = context.isInstagramMode &&

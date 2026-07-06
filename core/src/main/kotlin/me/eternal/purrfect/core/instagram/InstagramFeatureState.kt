@@ -31,7 +31,7 @@ data class InstagramFeatureState(
     val enableUnlimitedReplays: Boolean = false,
     val permanentViewMode: Boolean = false,
     val keepEphemeralMessages: Boolean = false,
-    val keepUnsentMessages: Boolean = true,
+    val keepUnsentMessages: Boolean = false,
     val quickToggleSeen: Boolean = false,
     val quickToggleTyping: Boolean = false,
     val quickToggleScreenshot: Boolean = false,
@@ -94,6 +94,7 @@ data class InstagramFeatureState(
     val showFeatureToasts: Boolean = false,
     val enableStoryMentions: Boolean = false,
     val localInstagramPlus: Boolean = false,
+    val restoreOldPostReelContextMenu: Boolean = true,
     val sendCustomEmojiReactionsToStory: Boolean = false,
     val changeLikeReactions: Boolean = false,
     val customizeStoryRingSize: Boolean = false,
@@ -199,7 +200,7 @@ data class InstagramFeatureState(
             "enableShareSheetEmojiShortcuts", "enableNavigationTabCustomization",
             "enableStoryTrayLongPressActions", "captureUiElementIdsEnabled",
             "showFollowerToast", "showFeatureToasts", "enableStoryMentions",
-            "localInstagramPlus", "sendCustomEmojiReactionsToStory", "changeLikeReactions",
+            "localInstagramPlus", "restoreOldPostReelContextMenu", "sendCustomEmojiReactionsToStory", "changeLikeReactions",
             "customizeStoryRingSize", "disableGroupCreationFromShareSheet",
             "improveImageViewing", "moreOptionsOnPost", "removeEmptyBottomSpace",
             "enableHideChats", "enableActivityHistory", "enableCopyComment", "enableCustomDateFormat",
@@ -282,8 +283,12 @@ data class InstagramFeatureState(
                     null,
                     null
                 ) ?: return null
-                val source = "provider:${result.getString("source", "unknown")}"
+                val rawSource = result.getString("source")
                 val json = result.getString("json")
+                if (json.isNullOrBlank() && rawSource.isNullOrBlank() && !result.containsKey("json_file_exists")) {
+                    return null
+                }
+                val source = "provider:${rawSource ?: "unknown"}"
                 if (!json.isNullOrBlank()) {
                     cacheInInstagramProcess(androidContext, json)
                     fromJson(json, source).also { logLoadedState(it) }
@@ -521,7 +526,7 @@ data class InstagramFeatureState(
                 enableUnlimitedReplays = getBoolean("enableUnlimitedReplays", false),
                 permanentViewMode = getBoolean("permanentViewMode", false),
                 keepEphemeralMessages = false,
-                keepUnsentMessages = getBoolean("keepUnsentMessages", true),
+                keepUnsentMessages = getBoolean("keepUnsentMessages", false),
                 quickToggleSeen = getBoolean("quickToggleSeen", false),
                 quickToggleTyping = getBoolean("quickToggleTyping", false),
                 quickToggleScreenshot = getBoolean("quickToggleScreenshot", false),
@@ -584,6 +589,7 @@ data class InstagramFeatureState(
                 showFeatureToasts = getBoolean("showFeatureToasts", false),
                 enableStoryMentions = getBoolean("enableStoryMentions", false),
                 localInstagramPlus = getBoolean("localInstagramPlus", false),
+                restoreOldPostReelContextMenu = getBoolean("restoreOldPostReelContextMenu", true),
                 sendCustomEmojiReactionsToStory = getBoolean("sendCustomEmojiReactionsToStory", false),
                 changeLikeReactions = getBoolean("changeLikeReactions", false),
                 customizeStoryRingSize = getBoolean("customizeStoryRingSize", false),
@@ -665,6 +671,8 @@ data class InstagramFeatureState(
             log(
                 "Instagram feature state loaded from ${state.source}: " +
                     "privacy=${state.isGhostSeen || state.isGhostTyping || state.isGhostStory || state.isGhostScreenshot}, " +
+                    "localPlus=${state.localInstagramPlus}, storyLongPress=${state.enableStoryTrayLongPressActions}, " +
+                    "dmContext=${state.enableDmContextMenuOptions}, " +
                     "downloads=${state.enablePostDownload || state.enableStoryDownload || state.enableReelDownload || state.enableProfileDownload}, " +
                     "uiHiddenIds=${state.hiddenUiElementIdSet.size}, uiSelectors=${state.hiddenUiElementSelectorSet.size}, " +
                     "network=${state.isAdBlockEnabled || state.isAnalyticsBlocked || state.disableTrackingLinks}"

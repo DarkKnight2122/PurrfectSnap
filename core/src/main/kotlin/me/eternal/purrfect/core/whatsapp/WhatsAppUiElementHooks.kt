@@ -1220,7 +1220,13 @@ object WhatsAppUiElementSelector {
             null
         } catch (_: Throwable) {
             null
-        }
+        }?.takeUnless(::isObfuscatedResourcePlaceholder)
+    }
+
+    private fun isObfuscatedResourcePlaceholder(value: String): Boolean {
+        return value.endsWith("_resource_name_obfuscated") ||
+            value == "0" ||
+            value.matches(Regex("\\d+_resource_name_obfuscated"))
     }
 
     private fun parse(selector: String): ParsedSelector? {
@@ -1249,6 +1255,7 @@ object WhatsAppUiElementSelector {
         if (expected == actual) return true
         if (expected.startsWith("X.") || actual.startsWith("X.")) return true
         if (expected.startsWith("com.whatsapp.") && actual.startsWith("com.whatsapp.")) return true
+        if (expected.startsWith("com.snapchat.") && actual.startsWith("com.snapchat.")) return true
         return false
     }
 

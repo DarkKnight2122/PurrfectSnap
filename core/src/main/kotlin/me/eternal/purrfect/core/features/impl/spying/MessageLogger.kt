@@ -29,6 +29,7 @@ import me.eternal.purrfect.core.util.ktx.setObjectField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.measureTimeMillis
 
 class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.MESSAGE_LOGGER) {
@@ -51,6 +52,7 @@ class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.ME
     private val deletedMessageCache = EvictingMap<Long, JsonObject>(200) // unique message id -> message json object
 
     private val pendingMessages = mutableListOf<BridgeLoggedMessage>()
+    private val isFlushingMessages = AtomicBoolean(false)
 
     fun isMessageDeleted(conversationId: String, clientMessageId: Long)
         = makeUniqueIdentifier(conversationId, clientMessageId)?.let { deletedMessageCache.containsKey(it) } ?: false
@@ -104,22 +106,55 @@ class MessageLogger : MessagingRuleFeature("MessageLogger", MessagingRuleType.ME
     }
 
     private fun flushMessages() {
+        if (!isFlushingMessages.compareAndSet(false, true)) return
         val list = synchronized(pendingMessages) {
-            if (pendingMessages.isEmpty()) return
+            if (pendingMessages.isEmpty()) {
+                isFlushingMessages.set(false)
+                return
+            }
             val copy = pendingMessages.toList()
             pendingMessages.clear()
             copy
         }
 
-        // Binder limit is 1MB. Chunk into groups of 20 to stay safely under the limit.
-        list.chunked(20).forEach { chunk ->
-            try {
-                loggerInterface.addMessages(chunk)
-            } catch (e: Exception) {
-                if (e !is DeadObjectException) {
-                    context.log.error("Failed to flush message log chunk", e)
+        try {
+            // Binder limit is 1MB. Keep chunks much smaller because message JSON can vary wildly.
+            val chunks = mutableListOf<List<BridgeLoggedMessage>>()
+            var currentChunk = mutableListOf<BridgeLoggedMessage>()
+            var currentBytes = 0
+            val maxChunkBytes = 64 * 1024
+            val maxChunkCount = 8
+
+            list.forEach { message ->
+                val messageBytes = (message.messageData?.size ?: 0) + 512
+                if (currentChunk.isNotEmpty() &&
+                    (currentBytes + messageBytes > maxChunkBytes || currentChunk.size >= maxChunkCount)
+                ) {
+                    chunks += currentChunk.toList()
+                    currentChunk = mutableListOf()
+                    currentBytes = 0
+                }
+                currentChunk += message
+                currentBytes += messageBytes
+            }
+            if (currentChunk.isNotEmpty()) {
+                chunks += currentChunk.toList()
+            }
+
+            chunks.forEach { chunk ->
+                try {
+                    loggerInterface.addMessages(chunk)
+                } catch (e: Exception) {
+                    synchronized(pendingMessages) {
+                        pendingMessages.addAll(0, chunk)
+                    }
+                    if (e !is DeadObjectException) {
+                        context.log.error("Failed to flush message log chunk (${chunk.size} messages)", e)
+                    }
                 }
             }
+        } finally {
+            isFlushingMessages.set(false)
         }
     }
 

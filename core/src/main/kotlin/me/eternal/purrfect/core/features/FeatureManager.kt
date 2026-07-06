@@ -30,6 +30,10 @@ class FeatureManager(
     private val features = mutableMapOf<KClass<out Feature>, Feature>()
     private val onActivityCreateListeners = mutableListOf<(Activity) -> Unit>()
 
+    private fun customThemingFeatures(): Array<Feature> {
+        return if (CustomThemingRuntime.ENABLED) arrayOf(CustomTheming()) else emptyArray()
+    }
+
     fun addActivityCreateListener(block: (Activity) -> Unit) {
         onActivityCreateListeners.add(block)
     }
@@ -165,7 +169,7 @@ class FeatureManager(
             DisableSnapModeRestrictions(),
             MessageTranslator(),
             PreventForcedKeyboard(),
-            CustomTheming(),
+            *customThemingFeatures(),
             HideTypingIndicator(),
             FakeSnapScore(),
         )

@@ -111,6 +111,8 @@ interface BridgeInterface {
 
     @nullable String getDebugProp(String key, @nullable String defaultValue);
 
+    boolean openMappingsGenerator(String reason, String completionMode);
+
     String getRedditFeaturesJson();
 
     String getWhatsAppFeaturesJson();

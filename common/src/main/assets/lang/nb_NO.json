@@ -209,7 +209,7 @@
                 "purr_aura_inactive_label": "PurrAura inaktiv",
                 "open_settings_button": "Åpne innstillinger",
                 "wiki_button": "Wiki",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram",
                 "channel_label_stable": "Stabil",
                 "channel_label_prerelease": "Forhåndsutgivelse",
@@ -250,7 +250,7 @@
                 "about_story": "Purrfect ble grunnlagt 2. oktober 2025, som en fork av SnapEnhance med en visjon om å gi brukere kvalitetsopplevelsen på Snapchat de fortjener. Denne appen var bare ment å være en mindre oppdatering i SnapEnhance-repoet, men ble snart en egen app hvor bidragsyterne fortsatte å legge til funksjoner. Deretter ble utvikleren <RSR/> med på laget, og denne appen ble snart en stor suksess. Vi fikk mye kjærlighet og støtte og oppnådde 1000+ nedlastinger på bare to dager! Vi takker alle brukere og bidragsytere; uten deres støtte ville vi ikke ha nådd hit. Vi vil også rette en stor takk til rhunk, hovedutvikleren av SnapEnhance, da denne appen ikke ville eksistert uten ham. Vi er enormt takknemlige overfor ham. Til slutt vil vi takke alle våre administratorer, spesielt: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, som var med oss fra begynnelsen. Vi vil også takke alle testere, spesielt Leo & Toxic, som testet og rapporterte feil kontinuerlig. Vi er enormt takknemlige for deres bidrag.",
                 "about_thanks_title": "Med kjærlighet, Purrfect-teamet",
                 "about_magic_toast": "Trykk 5 ganger på denne skjermen for å se litt magi 😉!",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram"
             },
             "home_logs": {

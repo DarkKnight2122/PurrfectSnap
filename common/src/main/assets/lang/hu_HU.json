@@ -209,7 +209,7 @@
                 "purr_aura_inactive_label": "PurrAura Inaktív",
                 "open_settings_button": "Beállítások megnyitása",
                 "wiki_button": "Wiki",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram",
                 "channel_label_stable": "Stabil",
                 "channel_label_prerelease": "Előzetes",
@@ -250,7 +250,7 @@
                 "about_story": "A Purrfect 2025. október 2-án alakult a SnapEnhance elágazásaként, azzal a vízióval, hogy a felhasználóknak azt a minőségi Snapchat élményt nyújtsa, amit megérdemelnek. Ez az alkalmazás csak egy kisebb frissítésnek indult a SnapEnhance repository-ban, de hamarosan önálló alkalmazássá vált, ahol a közreműködők folyamatosan új funkciókat adtak hozzá. Aztán csatlakozott a csapathoz <RSR/> fejlesztő, és az alkalmazás hamarosan hatalmas siker lett. Sok szeretetet és támogatást kaptunk, és mindössze két nap alatt elértük az 1000+ letöltést! Köszönjük minden felhasználónak és közreműködőnek; a támogatásotok nélkül nem jutottunk volna el idáig. Szeretnénk továbbá hatalmas köszönetet mondani rhunknak, a SnapEnhance vezető fejlesztőjének, mivel nélküle ez az alkalmazás nem is létezne. Végtelenül hálásak vagyunk neki. Végül szeretnénk köszönetet mondani minden adminunknak, különösen: CLASSIC GENIUS, Harry, Sujal, Zain & schrodingerspet, akik a kezdetektől fogva velünk voltak. Szeretnénk köszönetet mondani minden tesztelőnek is, különösen Leonak és Toxicnak, akik folyamatosan teszteltek és jelentették a hibákat. Végtelenül hálásak vagyunk a hozzájárulásotokért.",
                 "about_thanks_title": "Szeretettel, Purrfect Csapat",
                 "about_magic_toast": "Koppints 5-ször ezen a képernyőn, hogy láss egy kis varázslatot 😉!",
-                "github_button": "GitHub",
+                "github_button": "PurrfectGit",
                 "telegram_button": "Telegram"
             },
             "home_logs": {

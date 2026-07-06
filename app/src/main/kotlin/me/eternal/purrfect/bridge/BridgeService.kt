@@ -1,7 +1,10 @@
 package me.eternal.purrfect.bridge
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.os.ParcelFileDescriptor
 import android.os.RemoteException
@@ -12,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.eternal.purrfect.RemoteSideContext
 import me.eternal.purrfect.SharedContextHolder
+import me.eternal.purrfect.common.Constants
 import me.eternal.purrfect.common.TargetApp
 import me.eternal.purrfect.bridge.call.CallDownloadSession
 import me.eternal.purrfect.bridge.snapclient.MessagingBridge
@@ -372,6 +376,64 @@ class BridgeService : Service() {
 
         override fun getDebugProp(key: String, defaultValue: String?): String? {
             return remoteSideContext.sharedPreferences.all["debug_$key"]?.toString() ?: defaultValue
+        }
+
+        override fun openMappingsGenerator(reason: String, completionMode: String): Boolean {
+            val intent = Intent(Constants.MAPPINGS_GENERATION_ACTION).apply {
+                setClass(this@BridgeService, MappingGenerationActivity::class.java)
+                putExtra(Constants.MAPPINGS_GENERATION_REASON_EXTRA, reason)
+                putExtra(Constants.MAPPINGS_COMPLETION_MODE_EXTRA, completionMode)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+
+            var directLaunchSucceeded = false
+            runCatching {
+                startActivity(intent)
+                directLaunchSucceeded = true
+                remoteSideContext.log.verbose(
+                    "Requested mappings generator from BridgeService via direct start; " +
+                        "reason=$reason completionMode=$completionMode"
+                )
+            }.onFailure {
+                remoteSideContext.log.warn(
+                    "Direct mappings generator start from BridgeService failed: ${it.message}"
+                )
+            }
+
+            if (directLaunchSucceeded) return true
+            return scheduleMappingsGenerator(intent, reason, completionMode)
+        }
+
+        private fun scheduleMappingsGenerator(intent: Intent, reason: String, completionMode: String): Boolean {
+            return runCatching {
+                val pendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+                val pendingIntent = PendingIntent.getActivity(
+                    this@BridgeService,
+                    31337,
+                    intent,
+                    pendingFlags
+                )
+                val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+                val triggerAt = System.currentTimeMillis() + 120L
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+                }
+                remoteSideContext.log.verbose(
+                    "Scheduled mappings generator PendingIntent from BridgeService; " +
+                        "reason=$reason completionMode=$completionMode"
+                )
+                true
+            }.onFailure {
+                remoteSideContext.log.warn(
+                    "Failed to schedule mappings generator from BridgeService: ${it.message}"
+                )
+            }.getOrDefault(false)
         }
 
         override fun getRedditFeaturesJson(): String {

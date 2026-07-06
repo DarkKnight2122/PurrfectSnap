@@ -3,7 +3,12 @@
 package me.eternal.purrfect.ui.setup
 
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -56,6 +61,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.SmartToy
@@ -105,7 +111,6 @@ import me.eternal.purrfect.ui.manager.Routes
 import me.eternal.purrfect.ui.manager.components.AestheticDialog
 import me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin
 import me.eternal.purrfect.common.ui.theme.AphelionSkinProvider
-import me.eternal.purrfect.ui.manager.theme.PurrfectPalette
 import me.eternal.purrfect.common.ui.util.G2RoundedRectangle
 import me.eternal.purrfect.ui.setup.screens.LocalSetupScrollState
 import me.eternal.purrfect.ui.setup.screens.LocalSetupViewportHeight
@@ -125,8 +130,12 @@ import me.eternal.purrfect.ui.setup.screens.impl.toSetupTargetPrefsValue
 import me.eternal.purrfect.ui.util.ActivityLauncherHelper
 import me.eternal.purrfect.ui.util.scaleOnPress
 import kotlinx.coroutines.delay
+import me.eternal.purrfect.common.Constants
+import me.eternal.purrfect.common.bridge.InternalFileHandleType
 
 private const val SETUP_SELECTED_APPS_PREF = SetupPreferences.PROGRESS_SELECTED_TARGET_APPS_PREF
+private const val SNAPCHAT_BACKGROUND_RETRIGGER_ACTION =
+    "me.eternal.purrfect.action.SNAPCHAT_BACKGROUND_RETRIGGER"
 
 private data class SetupStepMeta(
     val route: String,
@@ -142,9 +151,12 @@ class SetupActivity : ComponentActivity() {
         val setupContext = SharedContextHolder.remote(this).apply {
             activity = this@SetupActivity
         }
+        val mappingCompletionMode = intent.getStringExtra(Constants.MAPPINGS_COMPLETION_MODE_EXTRA)
         fun endActivity() {
             setupContext.reload()
             sendBroadcast(Intent("me.eternal.purrfect.RESTART"))
+            clearMappingsGenerationState(setupContext)
+            handleMappingCompletion(mappingCompletionMode, setupContext)
             finish()
         }
         val requirements = intent.getIntExtra("requirements", Requirements.FIRST_RUN)
@@ -152,10 +164,12 @@ class SetupActivity : ComponentActivity() {
         val isSnapchatInstallFlow = requirements and Requirements.INSTALL_SNAPCHAT == Requirements.INSTALL_SNAPCHAT
         val isRedditInstallFlow = requirements and Requirements.INSTALL_REDDIT == Requirements.INSTALL_REDDIT
         val isRedditUpdateFlow = requirements and Requirements.UPDATE_REDDIT == Requirements.UPDATE_REDDIT
-        val isTargetInstallFlow = isSnapchatInstallFlow || isRedditInstallFlow || isRedditUpdateFlow
+        val isInstagramInstallFlow = requirements and Requirements.INSTALL_INSTAGRAM == Requirements.INSTALL_INSTAGRAM
+        val isTargetInstallFlow = isSnapchatInstallFlow || isRedditInstallFlow || isRedditUpdateFlow || isInstagramInstallFlow
         val targetInstallApps = when {
             isSnapchatInstallFlow -> setOf(TargetApp.SNAPCHAT)
             isRedditInstallFlow || isRedditUpdateFlow -> setOf(TargetApp.REDDIT)
+            isInstagramInstallFlow -> setOf(TargetApp.INSTAGRAM)
             else -> emptySet()
         }
         val setupPrefs = setupContext.sharedPreferences
@@ -344,7 +358,7 @@ class SetupActivity : ComponentActivity() {
                     customContent = {
                         Text(
                             text = translation["setup.activity.wrong_apk_message"],
-                            color = PurrfectPalette.textSecondary,
+                            color = skin.textSecondary,
                             lineHeight = 18.sp
                         )
                     }
@@ -367,7 +381,10 @@ class SetupActivity : ComponentActivity() {
                     if (selectedApps.isNotEmpty() && TargetApp.SNAPCHAT !in selectedApps && screen is MappingsScreen) {
                         return@filterNot true
                     }
-                    if (selectedApps == setOf(TargetApp.REDDIT) && screen is SaveFolderScreen) {
+                    if (selectedApps.isNotEmpty() &&
+                        selectedApps.all { it == TargetApp.REDDIT || it == TargetApp.INSTAGRAM } &&
+                        screen is SaveFolderScreen
+                    ) {
                         return@filterNot true
                     }
                     false
@@ -420,7 +437,7 @@ class SetupActivity : ComponentActivity() {
                         val nextRoute = visibleScreens[currentStepIndex + 1].route
                         currentRoute = nextRoute
                     } else {
-                        val preferredTarget = listOf(TargetApp.SNAPCHAT, TargetApp.REDDIT, TargetApp.WHATSAPP, TargetApp.INSTAGRAM)
+                        val preferredTarget = listOf(TargetApp.SNAPCHAT, TargetApp.INSTAGRAM, TargetApp.REDDIT, TargetApp.WHATSAPP)
                             .firstOrNull { it in selectedApps }
                         if (isFirstRunFlow || isTargetInstallFlow) {
                             SetupPreferences.saveSetupChoices(
@@ -464,7 +481,18 @@ class SetupActivity : ComponentActivity() {
                         .background(Color.Transparent)
                 ) {
                     SetupAuroraBackground()
-                    SetupTopBar(onAskAi = { setupAiPrompt = "hi" })
+                    SetupTopBar(
+                        onHome = {
+                            val firstRoute = visibleScreens.firstOrNull()?.route ?: requiredScreens.first().route
+                            if (currentRoute != firstRoute) {
+                                canGoNext = false
+                                skipAction = null
+                                skipLabel = null
+                                currentRoute = firstRoute
+                            }
+                        },
+                        onAskAi = { setupAiPrompt = "hi" }
+                    )
                     val bottomPadding = 80.dp + navBarPadding
                     Column(
                         modifier = Modifier
@@ -591,6 +619,189 @@ class SetupActivity : ComponentActivity() {
             }
         }
     }
+    }
+
+    private fun handleMappingCompletion(mode: String?, setupContext: RemoteSideContext) {
+        when (mode) {
+            Constants.MAPPINGS_COMPLETION_MODE_FOREGROUND -> reopenSnapchatAfterMappings(setupContext)
+            Constants.MAPPINGS_COMPLETION_MODE_BACKGROUND -> retriggerSnapchatInBackground(setupContext)
+        }
+    }
+
+    private fun clearMappingsGenerationState(setupContext: RemoteSideContext) {
+        runCatching {
+            val file = InternalFileHandleType.MAPPINGS_GENERATION_STATE.resolve(applicationContext)
+            val existed = file.exists()
+            val deleted = file.delete()
+            setupContext.log.verbose(
+                "Cleared mappings generation state after setup completion; existed=$existed deleted=$deleted"
+            )
+        }.onFailure {
+            setupContext.log.warn("Failed to clear mappings generation state after setup completion: ${it.message}")
+        }
+    }
+
+    private fun reopenSnapchatAfterMappings(setupContext: RemoteSideContext) {
+        val launchIntent = packageManager.getLaunchIntentForPackage(Constants.SNAPCHAT_PACKAGE_NAME)
+        if (launchIntent == null) {
+            setupContext.log.warn("Mapping completion requested foreground Snapchat reopen, but launch intent was null")
+            return
+        }
+
+        setupContext.log.warn("Mapping completion reopening Snapchat in foreground")
+        startActivity(
+            launchIntent.apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+        )
+    }
+
+    private fun retriggerSnapchatInBackground(setupContext: RemoteSideContext) {
+        setupContext.log.warn("Mapping completion retriggering Snapchat in background")
+        if (sendSnapchatBackgroundRetriggerBroadcast(setupContext)) return
+        if (startSnapchatBackgroundRetriggerService(setupContext)) return
+        setupContext.log.warn(
+            "No non-root Snapchat background retrigger target accepted after mappings; " +
+                "leaving Snapchat closed instead of opening it in foreground"
+        )
+    }
+
+    private fun sendSnapchatBackgroundRetriggerBroadcast(setupContext: RemoteSideContext): Boolean {
+        val candidates = snapchatBackgroundRetriggerReceivers(setupContext)
+        setupContext.log.verbose(
+            "Snapchat background retrigger receiver candidates: " +
+                candidates.joinToString { it.name }
+        )
+        for (receiver in candidates.take(4)) {
+            val delivered = runCatching {
+                val intent = Intent(SNAPCHAT_BACKGROUND_RETRIGGER_ACTION).apply {
+                    component = ComponentName(Constants.SNAPCHAT_PACKAGE_NAME, receiver.name)
+                    setPackage(Constants.SNAPCHAT_PACKAGE_NAME)
+                    addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+                }
+                sendBroadcast(intent)
+                true
+            }.onFailure {
+                setupContext.log.warn(
+                    "Failed Snapchat background retrigger broadcast to ${receiver.name}: ${it.message}"
+                )
+            }.getOrDefault(false)
+            if (delivered) {
+                setupContext.log.warn(
+                    "Sent Snapchat background retrigger broadcast to ${receiver.name}"
+                )
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun startSnapchatBackgroundRetriggerService(setupContext: RemoteSideContext): Boolean {
+        val candidates = snapchatBackgroundRetriggerServices(setupContext)
+        setupContext.log.verbose(
+            "Snapchat background retrigger service candidates: " +
+                candidates.joinToString { it.name }
+        )
+        for (service in candidates.take(2)) {
+            val started = runCatching {
+                val intent = Intent(SNAPCHAT_BACKGROUND_RETRIGGER_ACTION).apply {
+                    component = ComponentName(Constants.SNAPCHAT_PACKAGE_NAME, service.name)
+                    setPackage(Constants.SNAPCHAT_PACKAGE_NAME)
+                }
+                startService(intent)
+                true
+            }.onFailure {
+                setupContext.log.warn(
+                    "Failed Snapchat background retrigger service ${service.name}: ${it.message}"
+                )
+            }.getOrDefault(false)
+            if (started) {
+                setupContext.log.warn(
+                    "Started Snapchat background retrigger service ${service.name}"
+                )
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun snapchatBackgroundRetriggerReceivers(setupContext: RemoteSideContext): List<ActivityInfo> {
+        val receivers = snapPackageInfo(
+            setupContext = setupContext,
+            flags = PackageManager.GET_RECEIVERS
+        )?.receivers.orEmpty()
+        return receivers
+            .asSequence()
+            .filter { it.exported && it.permission.isNullOrBlank() && it.name.isSafeRetriggerComponentName() }
+            .sortedWith(compareByDescending<ActivityInfo> { it.name.receiverRetriggerScore() }.thenBy { it.name })
+            .toList()
+    }
+
+    private fun snapchatBackgroundRetriggerServices(setupContext: RemoteSideContext): List<ServiceInfo> {
+        val services = snapPackageInfo(
+            setupContext = setupContext,
+            flags = PackageManager.GET_SERVICES
+        )?.services.orEmpty()
+        return services
+            .asSequence()
+            .filter { it.exported && it.permission.isNullOrBlank() && it.name.isSafeRetriggerComponentName() }
+            .sortedWith(compareByDescending<ServiceInfo> { it.name.serviceRetriggerScore() }.thenBy { it.name })
+            .toList()
+    }
+
+    private fun snapPackageInfo(setupContext: RemoteSideContext, flags: Int): PackageInfo? {
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(
+                    Constants.SNAPCHAT_PACKAGE_NAME,
+                    PackageManager.PackageInfoFlags.of(flags.toLong())
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(Constants.SNAPCHAT_PACKAGE_NAME, flags)
+            }
+        }.onFailure {
+            setupContext.log.warn("Failed to inspect Snapchat package for background retrigger: ${it.message}")
+        }.getOrNull()
+    }
+
+    private fun String.isSafeRetriggerComponentName(): Boolean {
+        val lowered = lowercase()
+        val blockedTokens = listOf(
+            "otp",
+            "token",
+            "logout",
+            "payment",
+            "razorpay",
+            "rzp",
+            "firebase",
+            "gms",
+            "amazon",
+            "adm",
+            "sms",
+            "authapi"
+        )
+        return blockedTokens.none { lowered.contains(it) }
+    }
+
+    private fun String.receiverRetriggerScore(): Int {
+        val lowered = lowercase()
+        return when {
+            "widgetprovider" in lowered -> 100
+            "notification" in lowered -> 60
+            "telecom" in lowered || "mute" in lowered -> 30
+            else -> 1
+        }
+    }
+
+    private fun String.serviceRetriggerScore(): Int {
+        val lowered = lowercase()
+        return when {
+            "syncservice" in lowered -> 80
+            "authenticatorservice" in lowered -> 40
+            else -> 1
+        }
+    }
 }
 
 @Composable
@@ -659,7 +870,7 @@ private fun SetupScreen.meta(context: RemoteSideContext): SetupStepMeta {
         is IntroShowcaseScreen -> SetupStepMeta(
             route = route,
             title = "Supported apps",
-            subtitle = "Choose Snapchat, Reddit, or both",
+            subtitle = "Choose Snapchat, Reddit, Instagram, or any mix",
             icon = Icons.Filled.AutoAwesome
         )
 
@@ -767,7 +978,10 @@ private fun SetupAuroraBackground() {
 }
 
 @Composable
-private fun SetupTopBar(onAskAi: () -> Unit) {
+private fun SetupTopBar(
+    onHome: () -> Unit,
+    onAskAi: () -> Unit
+) {
     val skin = LocalPurrfectSkin.current
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val contentColor = if (skin.isDark) Color.White else Color.Black.copy(alpha = 0.85f)
@@ -805,6 +1019,26 @@ private fun SetupTopBar(onAskAi: () -> Unit) {
                 fontSize = 18.sp,
                 modifier = Modifier.weight(1f)
             )
+            Surface(
+                modifier = Modifier.size(40.dp),
+                shape = CircleShape,
+                color = skin.textPrimary.copy(alpha = 0.08f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.14f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable(onClick = onHome),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Home,
+                        contentDescription = "Setup home",
+                        tint = contentColor,
+                        modifier = Modifier.size(21.dp)
+                    )
+                }
+            }
             Surface(
                 shape = RoundedCornerShape(40),
                 color = skin.textPrimary.copy(alpha = 0.08f),
@@ -1151,5 +1385,3 @@ private fun NextButton(
         }
     }
 }
-}
-
