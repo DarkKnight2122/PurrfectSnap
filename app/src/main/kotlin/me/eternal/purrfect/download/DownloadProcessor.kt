@@ -685,8 +685,15 @@ class DownloadProcessor (
 
                     if (shouldMergeOverlay) {
                         assert(downloadedMedias.size == 2)
-                        val media = downloadedMedias.entries.first { !it.key.isOverlay }.value
-                        val overlayMedia = downloadedMedias.entries.first { it.key.isOverlay }.value
+                        val overlayEntry = downloadedMedias.entries.firstOrNull { it.key.isOverlay }
+                        val mediaEntry = downloadedMedias.entries.firstOrNull { !it.key.isOverlay }
+
+                        val (media, overlayMedia) = if (overlayEntry != null && mediaEntry != null) {
+                            mediaEntry.value to overlayEntry.value
+                        } else {
+                            val list = downloadedMedias.entries.toList()
+                            list[0].value to list[1].value
+                        }
 
                         val mediaFileType = media.inputStream().buffered().use { FileType.fromInputStream(it) }
                             .takeIf { it != FileType.UNKNOWN } ?: FileType.fromFile(media)

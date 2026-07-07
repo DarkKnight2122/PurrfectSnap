@@ -713,7 +713,12 @@ class InAppOverlay(
         durationMs: Int = 3000,
         showDuration: Boolean = true,
     ) {
-        injectOverlay(context.mainActivity!!)
+        val activity = context.mainActivity
+        if (activity == null) {
+            context.log.verbose("Cannot show custom overlay toast: mainActivity is null", "InAppOverlay")
+            return
+        }
+        injectOverlay(activity)
         toasts.add(Toast(
             composable = {
                 val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
