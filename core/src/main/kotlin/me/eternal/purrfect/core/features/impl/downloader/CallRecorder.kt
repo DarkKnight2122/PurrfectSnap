@@ -26,6 +26,8 @@ import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+
 
 class CallRecorder : Feature("Call Recorder") {
     private var wasInCall = false
@@ -41,12 +43,21 @@ class CallRecorder : Feature("Call Recorder") {
     @Volatile
     private var constructingFallbackMic = false
 
+    private val audioBufferQueue = ConcurrentLinkedQueue<PendingAudioWrite>()
+    private var queueWorkerJob: Job? = null
+    private val maxQueueSize = 250
+
+    private class PendingAudioWrite(
+        val streamWrapper: CallStreamWrapper,
+        val data: ByteArray
+    )
+
     private val uiState get() = context.inAppOverlay.callRecorderState
     private val callRecorderConfig get() = context.config.downloader.callRecorder
 
     inner class CallStreamWrapper(
         private val audioFormat: AudioFormat,
-        private val sourceLabel: String = "unknown",
+        val sourceLabel: String = "unknown",
         private val onStreamOpened: (() -> Unit)? = null,
         private val startTimestamp: Long = System.currentTimeMillis(),
     ) {
@@ -54,7 +65,12 @@ class CallRecorder : Feature("Call Recorder") {
 
         fun write(buffer: ByteArray) {
             if (!uiState.isRecording || callDownloadSession == null) return
-            
+            if (audioBufferQueue.size < maxQueueSize) {
+                audioBufferQueue.add(PendingAudioWrite(this, buffer))
+            }
+        }
+
+        fun writeDirect(buffer: ByteArray) {
             if (stream == null) {
                 runCatching {
                     stream = ParcelFileDescriptor.AutoCloseOutputStream(
@@ -87,9 +103,26 @@ class CallRecorder : Feature("Call Recorder") {
         pendingCallEndJob?.cancel()
         pendingCallEndJob = null
         stopFallbackMicCapture("finalizeSession")
+        queueWorkerJob?.cancel()
+        queueWorkerJob = null
+        audioBufferQueue.clear()
         runCatching { session.end() }
         callDownloadSession = null
         streams.values.forEach { it.close() }
+    }
+
+    private fun startQueueWorker() {
+        queueWorkerJob?.cancel()
+        queueWorkerJob = context.coroutineScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val pending = audioBufferQueue.poll()
+                if (pending != null) {
+                    pending.streamWrapper.writeDirect(pending.data)
+                } else {
+                    delay(10)
+                }
+            }
+        }
     }
 
     private fun startManualRecording() {
@@ -103,6 +136,8 @@ class CallRecorder : Feature("Call Recorder") {
                 callDownloadSession = context.bridgeClient.startCallDownload(System.currentTimeMillis(), uiState.currentAuthor)
             }
             
+            audioBufferQueue.clear()
+            startQueueWorker()
             ensureSessionStarted()
             scheduleFallbackMicCapture()
         }
@@ -295,6 +330,10 @@ class CallRecorder : Feature("Call Recorder") {
             }
         ).also {
             streams[streamId] = it
+            selfSideStreamOpened = true
+            if (audioRecord !== fallbackMicRecord) {
+                stopFallbackMicCapture("internalSelfStreamRegistered:$reason")
+            }
             context.log.verbose(
                 "Registered AudioRecord stream source=$audioSource reason=$reason sampleRate=${format.sampleRate} channels=${format.channelCount}",
                 "CallRecorder"
@@ -322,6 +361,12 @@ class CallRecorder : Feature("Call Recorder") {
     private fun startFallbackMicCapture() {
         if (!shouldCaptureSelfSide() || selfSideStreamOpened || fallbackMicJob != null || !uiState.isRecording) return
 
+        val hasInternalSelfStream = streams.any { it.value.sourceLabel.startsWith("self-internal") }
+        if (hasInternalSelfStream) {
+            selfSideStreamOpened = true
+            return
+        }
+
         val sampleRate = 48_000
         val channelMask = AudioFormat.CHANNEL_IN_MONO
         val encoding = AudioFormat.ENCODING_PCM_16BIT
@@ -340,7 +385,7 @@ class CallRecorder : Feature("Call Recorder") {
         constructingFallbackMic = true
         val audioRecord = runCatching {
             AudioRecord.Builder()
-                .setAudioSource(MediaRecorder.AudioSource.MIC)
+                .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
                 .setAudioFormat(audioFormat)
                 .setBufferSizeInBytes(minBufferSize * 2)
                 .build()
