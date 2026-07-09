@@ -10,12 +10,12 @@ import java.util.concurrent.ConcurrentHashMap
 class ParamMap(obj: Any?) : AbstractWrapper(obj) {
     val paramMapField: Field by lazy {
         instanceNonNull()::class.java.findFields(once = true) {
-            it.type == ConcurrentHashMap::class.java || runCatching { it.get(instance) }.getOrNull() is ConcurrentHashMap<*, *>
+            Map::class.java.isAssignableFrom(it.type) || runCatching { it.get(instance) }.getOrNull() is Map<*, *>
         }.firstOrNull() ?: throw RuntimeException("Could not find paramMap field")
     }
 
-    val concurrentHashMap: ConcurrentHashMap<Any, Any>
-        get() = instanceNonNull().getObjectField(paramMapField.name) as ConcurrentHashMap<Any, Any>
+    val concurrentHashMap: MutableMap<Any, Any>
+        get() = instanceNonNull().getObjectField(paramMapField.name) as MutableMap<Any, Any>
 
     operator fun get(key: String): Any? {
         return concurrentHashMap.keys.firstOrNull{ k: Any -> k.toString() == key }?.let { concurrentHashMap[it] }

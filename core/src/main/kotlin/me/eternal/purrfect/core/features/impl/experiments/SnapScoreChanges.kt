@@ -8,6 +8,7 @@ import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.ui.getValdiContext
 import me.eternal.purrfect.core.ui.getValdiViewNode
 import me.eternal.purrfect.core.util.ktx.getObjectField
+import me.eternal.purrfect.core.util.ktx.getObjectFieldOrNull
 import me.eternal.purrfect.core.wrapper.impl.SnapUUID
 
 class SnapScoreChanges: Feature("Snap Score Changes") {
@@ -37,7 +38,7 @@ class SnapScoreChanges: Feature("Snap Score Changes") {
                 val composerView = (event.view as ViewGroup).getChildAt(0) ?: return@subscribe
                 val composerContext = composerView.getValdiContext() ?: return@subscribe
 
-                lastViewedUserId = composerContext.viewModel?.getObjectField("_userId")?.toString()
+                lastViewedUserId = composerContext.viewModel?.getObjectFieldOrNull("_userId")?.toString()
             }
 
             if (event.viewClassName.endsWith("ProfileFlatlandFriendSnapScoreIdentityPillDialogView")) {
@@ -51,7 +52,7 @@ class SnapScoreChanges: Feature("Snap Score Changes") {
                         } ?: return@enqueueNextRenderCallback
 
 
-                        val currentFriendScore = scores[lastViewedUserId] ?: (event.view.getValdiContext()?.viewModel?.getObjectField("_friendSnapScore") as? Double)?.toLong() ?: return@enqueueNextRenderCallback
+                        val currentFriendScore = scores[lastViewedUserId] ?: (event.view.getValdiContext()?.viewModel?.getObjectFieldOrNull("_friendSnapScore") as? Double)?.toLong() ?: return@enqueueNextRenderCallback
 
                         val oldSnapScore = context.bridgeClient.getTracker().updateFriendScore(
                             lastViewedUserId ?: return@enqueueNextRenderCallback,
