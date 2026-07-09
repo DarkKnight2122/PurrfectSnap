@@ -169,66 +169,68 @@ class BulkMessagingAction : AbstractAction() {
         delay: Pair<Long, Long>,
         action: suspend (id: String, setDialogMessage: (String) -> Unit) -> Unit = { _, _ -> }
     ) = context.coroutineScope.launch {
-        val statusTextView = TextView(ctx)
-        val progressBar = ProgressBar(ctx).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        }
+        val processedCount = mutableStateOf(0)
+        val statusText = mutableStateOf("")
+        val dialogTitle = mutableStateOf("")
+
         val dialog = withContext(Dispatchers.Main) {
-            val d = ViewAppearanceHelper.newAlertDialogBuilder(ctx)
-                .setTitle("...")
-                .setView(LinearLayout(ctx).apply {
-                    val padding = (16 * ctx.resources.displayMetrics.density).toInt()
-                    val spacing = (8 * ctx.resources.displayMetrics.density).toInt()
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER
-                    setPadding(padding, padding, padding, padding)
-                    addView(statusTextView.apply {
-                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                        textAlignment = View.TEXT_ALIGNMENT_CENTER
-                        setSingleLine(false)
-                        setPadding(0, 0, 0, spacing)
-                    })
-                    addView(progressBar)
-                })
-                .setCancelable(false)
-                .show()
-            // Style dialog to match app UI (gradient, app colors)
-            val density = ctx.resources.displayMetrics.density
-            d.window?.setBackgroundDrawable(GradientDrawable(
-                GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(
-                    AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.cardOverlayColor.toArgb())),
-                    AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.glassSurface.toArgb()))
-                )
-            ).apply {
-                cornerRadius = (20 * density).toFloat()
-            })
-            val titleId = ctx.resources.getIdentifier("alertTitle", "id", "android")
-            if (titleId != 0) {
-                (d.window?.decorView?.findViewById<View>(titleId) as? TextView)?.setTextColor(AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.textPrimary.toArgb())))
+            createComposeAlertDialog(ctx, builder = {
+                setCancelable(false)
+            }) {
+                PurrfectOverlayTheme(context) {
+                    val currentSkin = LocalPurrfectSkin.current
+                    me.eternal.purrfect.core.ui.PurrfectGlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        title = dialogTitle.value,
+                        subtitle = "Processing bulk actions",
+                        icon = Icons.Default.WarningAmber
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            LinearProgressIndicator(
+                                progress = { if (ids.isNotEmpty()) processedCount.value.toFloat() / ids.size else 0f },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = currentSkin.glowSecondary,
+                                trackColor = currentSkin.glowPrimary.copy(alpha = 0.18f)
+                            )
+                            Text(
+                                text = "${processedCount.value}/${ids.size}",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = currentSkin.textPrimary
+                            )
+                            if (statusText.value.isNotEmpty()) {
+                                Text(
+                                    text = statusText.value,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = currentSkin.textSecondary,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                    }
+                }
             }
-            statusTextView.setTextColor(AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.textPrimary.toArgb())))
-            progressBar.indeterminateTintList = ColorStateList.valueOf(AndroidColor.parseColor(String.format("#%06X", 0xFFFFFF and skin.glowPrimary.toArgb())))
-            d
         }
 
         ids.forEachIndexed { index, id ->
-            launch(Dispatchers.Main) {
-                dialog.setTitle(
-                    translation.format("progress_status", "index" to (index + 1).toString(), "total" to ids.size.toString())
-                )
+            withContext(Dispatchers.Main) {
+                dialogTitle.value = translation.format("progress_status", "index" to (index + 1).toString(), "total" to ids.size.toString())
             }
             runCatching {
-                action(id) {
-                    launch(Dispatchers.Main) {
-                        statusTextView.text = it
-                    }
+                action(id) { msg ->
+                    statusText.value = msg
                 }
             }.onFailure {
-                context.log.error("Failed to process $it", it)
+                context.log.error("Failed to process $id", it)
                 context.shortToast(translation.format("failed_to_process", "id" to id))
             }
-            delay(Random.nextLong(delay.first, delay.second))
+            withContext(Dispatchers.Main) {
+                processedCount.value = index + 1
+            }
+            delay(kotlin.random.Random.nextLong(delay.first, delay.second))
         }
         withContext(Dispatchers.Main) {
             dialog.dismiss()
