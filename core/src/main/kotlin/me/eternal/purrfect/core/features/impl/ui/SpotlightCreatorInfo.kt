@@ -194,7 +194,12 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
         if (!context.config.global.spotlightCreatorInfo.get()) return
 
         context.event.subscribe(AddViewEvent::class) { event ->
-            if (event.parent.javaClass.superclass?.name?.endsWith("OpenLayout") != true) return@subscribe
+            val parentName = event.parent.javaClass.name
+            val parentSuperName = event.parent.javaClass.superclass?.name ?: ""
+            val isPageContainer = parentName.contains("OpenLayout") || 
+                                  parentSuperName.contains("OpenLayout") || 
+                                  parentName.contains("OperaPage")
+            if (!isPageContainer) return@subscribe
             if (event.view is androidx.compose.ui.platform.ComposeView) return@subscribe
             val viewGroup = event.view as? ViewGroup ?: return@subscribe
             val isWrapped = viewGroup is FrameLayout && viewGroup.childCount == 1 && viewGroup.getChildAt(0) is ViewGroup
@@ -361,7 +366,7 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
                                 return@hook
                             }
 
-                            if (viewState != "FULLY_DISPLAYED") return@hook
+                             if (viewState != "FULLY_DISPLAYED" && viewState != "DISPLAYED") return@hook
 
                             val snapId = params["SNAP_ID"]?.toString() ?: return@hook
                             if (snapId == creatorInfoState.value?.snapId) return@hook
@@ -371,9 +376,9 @@ class SpotlightCreatorInfo : Feature("SpotlightCreatorInfo") {
 
                             if (displayName == null && userId == null) {
                                 context.runOnUiThread {
-                                    isInSpotlightState.value = false
                                     creatorInfoState.value = null
                                     showDialogState.value = false
+                                    isInSpotlightState.value = true
                                     updateAllButtonVisibility()
                                 }
                                 return@hook

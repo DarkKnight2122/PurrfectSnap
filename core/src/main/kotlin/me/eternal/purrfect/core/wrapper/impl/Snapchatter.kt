@@ -24,5 +24,5 @@ class Snapchatter(obj: Any?) : AbstractWrapper(obj) {
     @get:JSGetter @set:JSSetter
     var userId by field("mUserId") { SnapUUID(it) }
     @get:JSGetter @set:JSSetter
-    var username by field<String>("mUsername")
+    var username by field<String?>("mUsername")
 }
