@@ -190,19 +190,12 @@ fun HomeAbout.AphelionAboutScreen(nav: NavBackStackEntry) {
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 DeveloperCard(name = "ΞTΞRNAL", subtitle = null, imageRes = R.drawable.pfp_external, avenirNext = avenirNext, modifier = Modifier.weight(1f))
                                 DeveloperCard(name = "ᴋᴀʟᴀᴅɪɴ", subtitle = null, imageRes = R.drawable.pfp_kaladin, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
                                 DeveloperCard(name = "𝚜𝚌𝚑𝚛𝚘𝚍𝚒𝚗𝚐𝚎𝚛𝚜𝚙𝚎𝚝", subtitle = null, imageRes = R.drawable.pfp_schrodingerspet, avenirNext = avenirNext, modifier = Modifier.weight(1f))
-                                DeveloperCard(name = "<RSR/>", subtitle = null, imageRes = R.drawable.pfp_rsr, avenirNext = avenirNext, modifier = Modifier.weight(1f))
                             }
                         }
                     }
