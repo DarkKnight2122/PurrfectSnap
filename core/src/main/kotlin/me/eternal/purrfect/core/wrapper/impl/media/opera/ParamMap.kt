@@ -8,10 +8,23 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Suppress("UNCHECKED_CAST")
 class ParamMap(obj: Any?) : AbstractWrapper(obj) {
-    val paramMapField: Field by lazy {
-        instanceNonNull()::class.java.findFields(once = true) {
-            Map::class.java.isAssignableFrom(it.type) || runCatching { it.get(instance) }.getOrNull() is Map<*, *>
-        }.firstOrNull() ?: throw RuntimeException("Could not find paramMap field")
+    companion object {
+        @Volatile
+        private var cachedField: Field? = null
+    }
+
+    val paramMapField: Field get() {
+        cachedField?.let { return it }
+        synchronized(this::class.java) {
+            cachedField?.let { return it }
+            val field = instanceNonNull()::class.java.findFields(once = true) {
+                it.type == ConcurrentHashMap::class.java ||
+                it.type == java.util.HashMap::class.java ||
+                runCatching { it.get(instance) }.getOrNull() is Map<*, *>
+            }.firstOrNull() ?: throw RuntimeException("Could not find paramMap field")
+            cachedField = field
+            return field
+        }
     }
 
     val concurrentHashMap: MutableMap<Any, Any>

@@ -493,6 +493,7 @@ class HomeLogs : Routes.Route() {
         BRIDGE("log_category_bridge", listOf("messagingbridge", "bridge", "ipc")),
         SYSTEM("log_category_system", listOf("systemguard", "thermal", "battery", "wakelock")),
         TRACKER("log_category_tracker", listOf("tracker", "friendtracker")),
+        CONVERSATION_TRACKER("log_category_conversation_tracker", listOf("volatile event", "presence", "messaging event", "snap_opened", "conversation messaging")),
         CONTINUOUS_SEND("log_category_continuous_send", listOf("continuoussend", "sendoverride", "scheduledsend"))
     }
 

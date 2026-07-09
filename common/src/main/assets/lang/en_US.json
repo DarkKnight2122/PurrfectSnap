@@ -324,6 +324,7 @@
                 "log_category_bridge": "Bridge",
                 "log_category_system": "System",
                 "log_category_tracker": "Tracker",
+                "log_category_conversation_tracker": "Conversation Tracker",
                 "log_category_continuous_send": "Continuous Send",
                 "clear_logs_button": "Clear Logs",
                 "export_logs_button": "Export Logs",
