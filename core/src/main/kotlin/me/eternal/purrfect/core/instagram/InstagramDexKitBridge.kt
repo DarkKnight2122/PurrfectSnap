@@ -606,6 +606,110 @@ internal class InstagramDexKitBridge(
         }.getOrDefault(emptyList())
     }
 
+    fun findDevOptionsStructuralGate(): Method? {
+        val activeBridge = bridge ?: return null
+        return runCatching {
+            val findMethodClass = Class.forName("org.luckypray.dexkit.query.FindMethod")
+            val methodMatcherClass = Class.forName("org.luckypray.dexkit.query.matchers.MethodMatcher")
+            val methodsMatcherClass = Class.forName("org.luckypray.dexkit.query.matchers.MethodsMatcher")
+            val methodDataClass = Class.forName("org.luckypray.dexkit.result.MethodData")
+
+            // 1. Find getters
+            val getterFindMethod = findMethodClass.getMethod("create").invoke(null)
+            val getterMatcher = methodMatcherClass.getMethod("create").invoke(null)
+            methodMatcherClass.getMethod("declaredClass", String::class.java).invoke(getterMatcher, "com.facebook.mobileconfig.factory.MobileConfigUnsafeContext")
+            methodMatcherClass.getMethod("returnType", String::class.java).invoke(getterMatcher, "boolean")
+            methodMatcherClass.getMethod("paramTypes", Array<String>::class.java).invoke(getterMatcher, arrayOf("long"))
+            findMethodClass.getMethod("matcher", methodMatcherClass).invoke(getterFindMethod, getterMatcher)
+
+            val getters = activeBridge.javaClass.getMethod("findMethod", findMethodClass).invoke(activeBridge, getterFindMethod) as? Iterable<*>
+            if (getters == null || !getters.iterator().hasNext()) return@runCatching null
+
+            // 2. Create MethodsMatcher for invokes
+            val getterInvoke = methodsMatcherClass.getMethod("create").invoke(null)
+            val getDescriptorMethod = methodDataClass.getMethod("getDescriptor")
+            val methodsMatcherAdd = methodsMatcherClass.getMethod("add", methodMatcherClass)
+
+            for (getter in getters) {
+                val descriptor = getDescriptorMethod.invoke(getter) as String
+                val invokeMatcher = methodMatcherClass.getMethod("create", String::class.java).invoke(null, descriptor)
+                methodsMatcherAdd.invoke(getterInvoke, invokeMatcher)
+            }
+
+            // 3. Find candidates
+            val candidateFindMethod = findMethodClass.getMethod("create").invoke(null)
+            val candidateMatcher = methodMatcherClass.getMethod("create").invoke(null)
+            methodMatcherClass.getMethod("returnType", String::class.java).invoke(candidateMatcher, "boolean")
+            methodMatcherClass.getMethod("paramTypes", Array<String>::class.java).invoke(candidateMatcher, arrayOf("com.instagram.common.session.UserSession"))
+            methodMatcherClass.getMethod("invokeMethods", methodsMatcherClass).invoke(candidateMatcher, getterInvoke)
+            findMethodClass.getMethod("matcher", methodMatcherClass).invoke(candidateFindMethod, candidateMatcher)
+
+            val candidates = activeBridge.javaClass.getMethod("findMethod", findMethodClass).invoke(activeBridge, candidateFindMethod) as? Iterable<*>
+            if (candidates == null) return@runCatching null
+
+            var bestMethodData: Any? = null
+            var bestFanIn = 0
+            val getOpCodesMethod = methodDataClass.getMethod("getOpCodes")
+            val getCallersMethod = methodDataClass.getMethod("getCallers")
+            val getClassNameMethod = methodDataClass.getMethod("getClassName")
+
+            for (candidate in candidates) {
+                val opCodes = getOpCodesMethod.invoke(candidate) as? Collection<*>
+                if (opCodes != null && opCodes.size > 16) continue
+
+                val callersObj = runCatching { getCallersMethod.invoke(candidate) }.getOrNull()
+                val callers = if (callersObj is Array<*>) callersObj.toList() else callersObj as? Iterable<*>
+                if (callers != null) {
+                    val callerClasses = mutableSetOf<String>()
+                    for (caller in callers) {
+                        val callerClass = getClassNameMethod.invoke(caller) as String
+                        callerClasses.add(callerClass)
+                    }
+                    if (callerClasses.size > bestFanIn) {
+                        bestFanIn = callerClasses.size
+                        bestMethodData = candidate
+                    }
+                }
+            }
+
+            if (bestFanIn >= 3 && bestMethodData != null) {
+                return@runCatching methodDataClass.getMethod("getMethodInstance", ClassLoader::class.java).invoke(bestMethodData, classLoader) as? Method
+            }
+            null
+        }.onFailure { throwable ->
+            XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit DevOptions structural search failed: ${throwable.message}")
+        }.getOrNull()
+    }
+
+    fun findDevOptionsLegacyConfigId(configId: Long): String? {
+        val activeBridge = bridge ?: return null
+        return runCatching {
+            val findMethodClass = Class.forName("org.luckypray.dexkit.query.FindMethod")
+            val methodMatcherClass = Class.forName("org.luckypray.dexkit.query.matchers.MethodMatcher")
+            
+            val findMethod = findMethodClass.getMethod("create").invoke(null)
+            val matcher = methodMatcherClass.getMethod("create").invoke(null)
+            
+            methodMatcherClass.getMethod("usingNumbers", LongArray::class.java).invoke(matcher, longArrayOf(configId))
+            methodMatcherClass.getMethod("returnType", String::class.java).invoke(matcher, "boolean")
+            methodMatcherClass.getMethod("paramCount", Integer.TYPE).invoke(matcher, 1)
+            
+            findMethodClass.getMethod("matcher", methodMatcherClass).invoke(findMethod, matcher)
+            
+            val results = activeBridge.javaClass.getMethod("findMethod", findMethodClass).invoke(activeBridge, findMethod) as? Iterable<*>
+            if (results != null) {
+                val methodDataClass = Class.forName("org.luckypray.dexkit.result.MethodData")
+                val getClassNameMethod = methodDataClass.getMethod("getClassName")
+                for (data in results) {
+                    return@runCatching getClassNameMethod.invoke(data) as String
+                }
+            }
+            null
+        }.onFailure { throwable ->
+            XposedBridge.log("[${InstagramFeatureState.TAG}] DexKit DevOptions legacy search failed: ${throwable.message}")
+        }.getOrNull()
+    }
+
     override fun close() {
         runCatching { (bridge as? Closeable)?.close() }
     }
