@@ -550,6 +550,7 @@ class InstagramHooks(
     private val keepWarmReceiverGuardHooked = AtomicBoolean(false)
     private val pendingFollowCallbacks = ConcurrentHashMap<Int, String>()
     private val hookedFollowCallbackClasses = Collections.synchronizedSet(mutableSetOf<String>())
+    private val followDisplayNames = ConcurrentHashMap<String, String>()
     private val storyMentionGetterCandidates = Collections.synchronizedList(mutableListOf<Method>())
     private val storySeenMethods = CopyOnWriteArrayList<Method>()
     private val storySeenBuilderMethods = CopyOnWriteArrayList<Method>()
@@ -816,6 +817,9 @@ class InstagramHooks(
     @Volatile private var allowReelsRefreshUntilMs = 0L
     @Volatile private var confirmRefreshUiGuardHookedClasses = 0
     @Volatile private var currentFollowStatusUserId: String? = null
+    @Volatile private var lastFollowToastUserId: String? = null
+    @Volatile private var lastFollowToastAtMs = 0L
+    private val followerToastModelHookInstalled = AtomicBoolean(false)
     @Volatile private var storyMentionGetterMethod: Method? = null
     @Volatile private var notesSpoofLogCount = 0
     @Volatile private var keepUnsentPersistedLoaded = false
@@ -987,6 +991,7 @@ class InstagramHooks(
         installHookStep("MediaDownloadReflection", anyDownloadFeature || initialState.enableDmContextMenuOptions) { initMediaDownloadReflection() }
         installHookStep("CustomEmojiFont", initialState.customEmojiFontEnabled) { InstagramCustomEmojiFontHooks.install(androidContext, appClassLoader) }
         installHookStep("ShareSheetEmojiShortcuts", initialState.enableShareSheetEmojiShortcuts) { InstagramShareSheetEmojiShortcutHooks.install(appClassLoader) }
+        installHookStep("DisableShareSheetGroupCreation", initialState.disableGroupCreationFromShareSheet) { InstagramShareSheetGroupCreationHooks.install(appClassLoader) }
         installHookStep("ActivityHistory", initialState.enableActivityHistory) { InstagramActivityHistoryHooks.install(androidContext, appClassLoader) }
         installHookStep("Network", shouldInstallNetwork) {
             installOkHttpHooks()
@@ -4578,7 +4583,7 @@ class InstagramHooks(
             installDexKitStep("OldPostReelContextMenuClassicSheet") { installOldPostReelContextMenuClassicSheetHook() }
         }
         if (s.enableActivityHistory) installDexKitStep("ActivityHistory") { InstagramActivityHistoryHooks.installDexKitHooks(dexBridge, appClassLoader) }
-        if (s.enableCopyBio) installDexKitStep("CopyBio") { installCopyBioModelHooks() }
+        if (s.enableCopyBio || s.showFollowerToast) installDexKitStep("CopyBio") { installCopyBioModelHooks() }
         if (s.enableCopyComment) installDexKitStep("CommentCopy") { installCommentCopyLongPressHooks() }
         if (s.isAdBlockEnabled) installDexKitStep("SponsoredModels") { installSponsoredModelHooks() }
         if (s.hideSuggestionsInFeed) installDexKitStep("HideSuggestedFeed") { installHideSuggestedFeedItemsHook() }
@@ -13188,7 +13193,7 @@ class InstagramHooks(
                     cls,
                     object : XC_MethodHook() {
                         override fun afterHookedMethod(param: MethodHookParam<*>) {
-                            if (state.enableCopyBio) rememberProfileControllerUser(param.thisObject)
+                            if (state.enableCopyBio || state.showFollowerToast) rememberProfileControllerUser(param.thisObject)
                         }
                     }
                 )
@@ -13201,7 +13206,7 @@ class InstagramHooks(
                     method,
                     object : XC_MethodHook() {
                         override fun beforeHookedMethod(param: MethodHookParam<*>) {
-                            if (state.enableCopyBio) rememberProfileControllerUser(param.thisObject)
+                            if (state.enableCopyBio || state.showFollowerToast) rememberProfileControllerUser(param.thisObject)
                         }
                     }
                 )
@@ -13214,6 +13219,7 @@ class InstagramHooks(
     private fun rememberProfileControllerUser(controller: Any?) {
         val user = findInstagramUserObject(controller) ?: return
         val username = extractUsernameFromUser(user)
+        if (state.showFollowerToast) rememberFollowDisplayName(user, username)
         val bio = extractBiographyFromUser(user)?.trim().orEmpty()
         if (bio.isBlank() || isNeverBioText(bio.lowercase(Locale.US))) return
         rememberBioText(username, bio)
@@ -40010,11 +40016,7 @@ class InstagramHooks(
         val request = uri.toString()
         val path = uri.path.orEmpty()
         val isFriendshipShow = path.contains("/friendships/show")
-        val isProfileRelationshipPayload =
-            request.contains("Profile", ignoreCase = true) ||
-                request.contains("profile", ignoreCase = true) ||
-                request.contains("graphql", ignoreCase = true)
-        if (!isFriendshipShow && !isProfileRelationshipPayload) return
+        if (!isFriendshipShow) return
         val userId = extractFollowStatusUserId(uri)
             ?: currentProfileUsername?.takeIf { it.isNotBlank() }
             ?: return
@@ -40027,20 +40029,7 @@ class InstagramHooks(
 
     private fun mightBeFollowStatusRequest(uri: URI): Boolean {
         val path = uri.path.orEmpty()
-        if (path.contains("/friendships/show")) return true
-        val raw = buildString {
-            append(path)
-            uri.rawQuery?.let {
-                append('?')
-                append(it)
-            }
-        }
-        if (raw.isBlank()) return false
-        val lower = raw.lowercase(Locale.US)
-        return lower.contains("profile") ||
-            lower.contains("graphql") ||
-            lower.contains("friendship") ||
-            lower.contains("followed_by")
+        return path.contains("/friendships/show")
     }
 
     private fun extractFollowStatusUserId(uri: URI): String? {
@@ -40137,11 +40126,129 @@ class InstagramHooks(
         return null
     }
 
-    private fun showFollowStatusToast(userId: String, followedBy: Boolean) {
+    private fun rememberFollowDisplayName(user: Any?, username: String?) {
+        if (user == null) return
+        val userId = extractUserPk(user) ?: return
+        val fullName = extractFullNameFromUser(user)
+        val displayName = fullName?.takeIf { it.isNotBlank() }
+            ?: username?.takeIf { it.isNotBlank() }?.let { "@$it" }
+            ?: return
+        followDisplayNames[userId] = displayName
+        if (followDisplayNames.size > 200) {
+            val excess = followDisplayNames.keys.take(followDisplayNames.size - 100)
+            excess.forEach { followDisplayNames.remove(it) }
+        }
+    }
+
+    private fun extractUserPk(user: Any?): String? {
+        if (user == null) return null
+        arrayOf("getId", "id", "getPk", "pk").forEach { methodName ->
+            invokeNoArgDeep(user, methodName)?.toString()?.takeIf { it.all(Char::isDigit) && it.isNotBlank() }?.let { return it }
+        }
+        val dict = userDict(user)
+        if (dict != null) {
+            arrayOf("getId", "id", "getPk", "pk").forEach { methodName ->
+                invokeNoArgDeep(dict, methodName)?.toString()?.takeIf { it.all(Char::isDigit) && it.isNotBlank() }?.let { return it }
+            }
+        }
+        var cls: Class<*>? = user.javaClass
+        var checked = 0
+        while (cls != null && cls != Any::class.java && checked < 20) {
+            cls.declaredFields.forEach { field ->
+                if (checked++ >= 20 || Modifier.isStatic(field.modifiers)) return@forEach
+                if (field.type == java.lang.Long.TYPE || field.type == java.lang.Long::class.java || field.type == String::class.java) {
+                    val name = field.name.lowercase(Locale.US)
+                    if (name.contains("pk") || name.contains("userid") || name.contains("user_id")) {
+                        runCatching {
+                            field.isAccessible = true
+                            val value = field.get(user)?.toString()
+                            if (!value.isNullOrBlank() && value.all(Char::isDigit) && value.length >= 3) return value
+                        }
+                    }
+                }
+            }
+            cls = cls.superclass
+        }
+        return null
+    }
+
+    private fun extractFullNameFromUser(user: Any?): String? {
+        if (user == null) return null
+        invokeStringNoArg(user, "getFullName")?.takeIf { it.isNotBlank() }?.let { return it }
+        val dict = userDict(user)
+        if (dict != null) {
+            invokeStringNoArg(dict, "getFullName")?.takeIf { it.isNotBlank() }?.let { return it }
+        }
+        return null
+    }
+
+    private fun extractFollowedByFromFriendshipStatus(status: Any?): Boolean? {
+        if (status == null) return null
+        // Try known method names first
+        runCatching { status.javaClass.getMethod("isFollowedBy").invoke(status) as? Boolean }?.getOrNull()?.let { return it }
+        // Try getMappings approach (like Piko)
+        var cls: Class<*>? = status.javaClass
+        while (cls != null && cls != Any::class.java) {
+            cls.declaredFields.forEach { field ->
+                if (Modifier.isStatic(field.modifiers)) return@forEach
+                val name = field.name.lowercase(Locale.US)
+                if (field.type == java.lang.Boolean.TYPE || field.type == java.lang.Boolean::class.java) {
+                    if (name.contains("followed_by") || name.contains("followedby") || name.contains("is_followed")) {
+                        runCatching {
+                            field.isAccessible = true
+                            return field.getBoolean(status)
+                        }
+                    }
+                }
+            }
+            cls = cls.superclass
+        }
+        // Try converting to map
+        cls = status.javaClass
+        while (cls != null && cls != Any::class.java) {
+            cls.declaredMethods.forEach { method ->
+                if (method.parameterTypes.isEmpty() && Map::class.java.isAssignableFrom(method.returnType)) {
+                    runCatching {
+                        method.isAccessible = true
+                        @Suppress("UNCHECKED_CAST")
+                        val map = method.invoke(status) as? Map<String, Any?>
+                        map?.get("followed_by")?.let { value ->
+                            return when (value) {
+                                is Boolean -> value
+                                is String -> value.equals("true", ignoreCase = true)
+                                else -> null
+                            }
+                        }
+                    }
+                }
+            }
+            cls = cls.superclass
+        }
+        // Last resort: scan all boolean fields, pick one that looks relevant based on field index position
+        status.javaClass.declaredFields
+            .filter { !Modifier.isStatic(it.modifiers) && (it.type == java.lang.Boolean.TYPE || it.type == java.lang.Boolean::class.java) }
+            .firstOrNull()?.let { field ->
+                runCatching {
+                    field.isAccessible = true
+                    return field.getBoolean(status)
+                }
+            }
+        return null
+    }
+
+    private fun showFollowStatusToast(userId: String, followedBy: Boolean, displayName: String? = null) {
         mainHandler.post {
-            if (currentFollowStatusUserId != null && currentFollowStatusUserId != userId) return@post
-            val status = if (followedBy) "follows you" else "does not follow you"
-            Toast.makeText(androidContext, "($userId) $status", Toast.LENGTH_SHORT).show()
+            val now = System.currentTimeMillis()
+            if (userId == lastFollowToastUserId && now - lastFollowToastAtMs < 3000L) return@post
+            if (currentFollowStatusUserId != null && currentFollowStatusUserId != userId && displayName == null) return@post
+            lastFollowToastUserId = userId
+            lastFollowToastAtMs = now
+            val name = displayName
+                ?: followDisplayNames[userId]
+                ?: currentProfileUsername?.takeIf { it.isNotBlank() }?.let { "@$it" }
+                ?: userId
+            val message = if (followedBy) "$name follows you" else "$name isn't following you"
+            Toast.makeText(androidContext, message, Toast.LENGTH_SHORT).show()
             currentFollowStatusUserId = null
         }
     }
