@@ -464,6 +464,7 @@ internal object InstagramCustomEmojiFontHooks {
         if (id == View.NO_ID) return false
         quickEmojiResourceIdMatches[id]?.let { return it }
         val matches = runCatching {
+            if (id <= 0x00FFFFFF) return@runCatching false
             when (view.resources.getResourceEntryName(id)) {
                 "item_emoji", "quick_snap_reaction_item_emoji" -> true
                 else -> false
@@ -479,7 +480,7 @@ internal object InstagramCustomEmojiFontHooks {
         repeat(4) {
             val node = current ?: return@repeat
             val name = runCatching {
-                if (node.id != View.NO_ID) node.resources.getResourceEntryName(node.id) else ""
+                if (node.id != View.NO_ID && node.id > 0x00FFFFFF) node.resources.getResourceEntryName(node.id) else ""
             }.getOrDefault("").lowercase()
             if (name.contains("emoji") || name.contains("reaction")) return true
             current = node.parent as? View
@@ -760,7 +761,7 @@ internal object InstagramCustomEmojiFontHooks {
 
     private fun resourceEntryName(view: View): String {
         return runCatching {
-            if (view.id != View.NO_ID) view.resources.getResourceEntryName(view.id) else ""
+            if (view.id != View.NO_ID && view.id > 0x00FFFFFF) view.resources.getResourceEntryName(view.id) else ""
         }.getOrDefault("").lowercase()
     }
 
@@ -839,7 +840,7 @@ internal object InstagramCustomEmojiFontHooks {
 
     private fun isQuickEmojiImageView(view: ImageView): Boolean {
         val name = runCatching {
-            if (view.id != View.NO_ID) view.resources.getResourceEntryName(view.id) else ""
+            if (view.id != View.NO_ID && view.id > 0x00FFFFFF) view.resources.getResourceEntryName(view.id) else ""
         }.getOrDefault("")
         if (name == "item_emoji_overlay" || name == "quick_snap_reaction_item_emoji") return true
         val parent = view.parent as? ViewGroup ?: return false
