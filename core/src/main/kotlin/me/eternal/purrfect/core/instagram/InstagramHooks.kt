@@ -615,7 +615,8 @@ class InstagramHooks(
     private val flickPerfNestedHookCalls = ThreadLocal.withInitial { 0 }
     private val dexBridge by lazy { InstagramDexKitBridge(sourceApkPath, appClassLoader, moduleSourcePath) }
     private val state get() = InstagramFeatureStateStore.current
-    private var currentActivity: Activity? = null
+    @Volatile private var currentActivity: Activity? = null
+    private val activeActivities = Collections.newSetFromMap(java.util.WeakHashMap<Activity, Boolean>())
     private var currentSettingsDialog: AlertDialog? = null
     @Volatile private var lastInstagramUserSession: Any? = null
     @Volatile private var lastInstagramFragmentActivity: WeakReference<Activity>? = null
@@ -1033,6 +1034,7 @@ class InstagramHooks(
         runSafe("Activity lifecycle hooks") {
             fun applyMonetActivity(activity: Activity) {
                 currentActivity = activity
+                activeActivities.add(activity)
                 rememberInstagramFragmentActivity(activity)
                 return
                 refreshMonetPalette(activity)
@@ -1264,6 +1266,7 @@ class InstagramHooks(
                         activity?.let {
                             captureOverlayStates.remove(it)?.remove()
                             if (currentActivity == it) currentActivity = null
+                            activeActivities.remove(it)
                         }
                     }
                 }
@@ -2141,15 +2144,11 @@ class InstagramHooks(
 
     private fun shouldDeferScrollSensitiveWork(now: Long = SystemClock.uptimeMillis()): Boolean {
         if (!isInstagramScrollHot(now)) return false
-        if (dmOverlayRootActive || dmActiveOverlayVisibleCached || dmPurrfectRowsVisibleCached) return false
         return true
     }
 
     private fun shouldBypassGlobalViewHookForScroll(view: View?): Boolean {
         if (!isInstagramScrollHot()) return false
-        if (dmDirectSurfaceActive || dmOverlayRootActive || dmActiveOverlayVisibleCached || dmPurrfectRowsVisibleCached) {
-            return false
-        }
         if (view != null && hasCachedDirectTouchSurface() && hasLocalDirectTouchHint(view)) return false
         return true
     }
@@ -3654,7 +3653,7 @@ class InstagramHooks(
     private fun isManualVideoPlayDrawableResource(resources: Resources?, resId: Int): Boolean {
         if (resources == null || resId == 0) return false
         return runCatching {
-            resources.getResourceTypeName(resId) == "drawable" &&
+            resId > 0x00FFFFFF && resources.getResourceTypeName(resId) == "drawable" &&
                 resourceEntryName(resources, resId).let { it == "play_button" || it == "play_button_large" }
         }.getOrDefault(false)
     }
@@ -17666,7 +17665,8 @@ class InstagramHooks(
         runSafe("Post download menu hook") {
             val optionClassName = "com.instagram.feed.media.mediaoption.MediaOption\$Option"
             val optionClass = Class.forName(optionClassName, false, appClassLoader)
-            val downloadOption = optionClass.enumConstants?.firstOrNull { it.toString() == "DOWNLOAD" }
+            val downloadOption = optionClass.enumConstants?.firstOrNull { it.toString() == "QR_CODE" }
+                ?: optionClass.enumConstants?.firstOrNull { it.toString() == "DOWNLOAD" }
                 ?: return@runSafe
             var addButtonMethod: Method? = null
             var creatorClass: Class<*>? = null
@@ -17834,10 +17834,15 @@ class InstagramHooks(
 
             fun shouldSuppressNewContextMenuOption(optionName: String): Boolean {
                 if (optionName == "QR_CODE") return true
-                if (optionName in RESTORE_OLD_CONTEXT_MENU_SUPPRESSED_OPTION_NAMES) return true
-                return optionName.contains("CONTENT_DEEP_DIVE") ||
+                if (optionName.contains("CONTENT_DEEP_DIVE") ||
                     optionName.startsWith("META_AI") ||
                     optionName.startsWith("GEN_AI")
+                ) return true
+                
+                if (oldContextMenuClassicMethods.isNotEmpty() && optionName in RESTORE_OLD_CONTEXT_MENU_SUPPRESSED_OPTION_NAMES) {
+                    return true
+                }
+                return false
             }
 
             fun logSuppressedNewContextMenuOption(param: XC_MethodHook.MethodHookParam<*>, optionName: String) {
@@ -17997,7 +18002,7 @@ class InstagramHooks(
                             classicContextLooksReel(param) &&
                             isNativeReelDownloadOption(optionName, text)
                         ) {
-                            param.result = null
+                            param.result = param.thisObject
                             logInfo(
                                 "Old post/reel context menu suppressed native reel download row " +
                                     "option=$optionName text=${text?.toString().orEmpty()} " +
@@ -18007,13 +18012,13 @@ class InstagramHooks(
                         }
                         if (state.restoreOldPostReelContextMenu && restoringOldContextMenuRows.get() != true) {
                             if (shouldSuppressNewContextMenuOption(optionName)) {
-                                param.result = null
+                                param.result = param.thisObject
                                 logSuppressedNewContextMenuOption(param, optionName)
                                 return
                             }
                         }
                         if (addingDownload.get() == true || !state.enablePostDownload) return
-                        if (param.args.getOrNull(optionIndex) == downloadOption) param.result = null
+                        if (param.args.getOrNull(optionIndex) == downloadOption) param.result = param.thisObject
                     }
 
                     override fun afterHookedMethod(param: MethodHookParam<*>) {
@@ -18047,7 +18052,11 @@ class InstagramHooks(
                         logDownloadControlGate("post_menu", "offered")
                         addingDownload.set(true)
                         try {
-                            resolvedAddButtonMethod.invoke(null, *callArgs)
+                            runCatching {
+                                resolvedAddButtonMethod.invoke(null, *callArgs)
+                            }.onFailure {
+                                logError("Failed to add download button to post menu", it)
+                            }
                         } finally {
                             addingDownload.remove()
                         }
@@ -18058,10 +18067,13 @@ class InstagramHooks(
             val clickHook = object : XC_MethodHook() {
                 override fun beforeHookedMethod(param: MethodHookParam<*>) {
                     if (addingDownload.get() == true) return
-                    val clicked = param.args.firstOrNull { optionClass.isInstance(it) }
-                        ?: param.args.firstOrNull { it?.javaClass?.isEnum == true && it.toString().contains("DOWNLOAD") }
+                    val clicked = param.args?.firstOrNull { optionClass.isInstance(it) }
+                        ?: param.args?.firstOrNull { it?.javaClass?.isEnum == true && it.toString().contains("DOWNLOAD") }
                         ?: return
-                    if (clicked != downloadOption && clicked.toString() != "DOWNLOAD") return
+                    val clickedStr = clicked.toString()
+                    if (clicked != downloadOption && clickedStr != "DOWNLOAD" && clickedStr != "QR_CODE") return
+                    val stackTrace = android.util.Log.getStackTraceString(Throwable())
+                    if (!stackTrace.contains("onClick") && !stackTrace.contains("onTouch") && !stackTrace.contains("performClick")) return
                     val reelClick = (state.enableReelDownload || state.enableReelThumbnailDownload) && isReelsAutoplaySurfaceActive()
                     if (!state.enablePostDownload && !reelClick) return
                     if (!shouldOfferDownloadContextMenu()) {
@@ -18239,8 +18251,8 @@ class InstagramHooks(
             helpers.forEach { helper ->
                 helper.declaredMethods.forEach { method ->
                     method.isAccessible = true
-                    if (method.returnType.isArray &&
-                        CharSequence::class.java.isAssignableFrom(method.returnType.componentType)
+                    if ((method.returnType.isArray && CharSequence::class.java.isAssignableFrom(method.returnType.componentType)) ||
+                        java.util.Collection::class.java.isAssignableFrom(method.returnType)
                     ) {
                         val signature = "${method.declaringClass.name}.${method.name}:story_options_array"
                         if (hookedDexMethods.add(signature)) {
@@ -18249,16 +18261,39 @@ class InstagramHooks(
                                 object : XC_MethodHook() {
                                     override fun afterHookedMethod(param: MethodHookParam<*>) {
                                         if (!shouldOfferAnyStoryOption()) return
-                                        val original = param.result as? Array<*> ?: return
-                                        val patched = appendStoryOptions(original.filterIsInstance<CharSequence>().toTypedArray())
-                                        if (patched !== original) param.result = patched
+                                        val res = param.result
+                                        if (res is Array<*>) {
+                                            val patched = appendStoryOptions(res.filterIsInstance<CharSequence>().toTypedArray())
+                                            if (patched !== res) param.result = patched
+                                        } else if (res is java.util.Collection<*>) {
+                                            val originalStrings = res.filterIsInstance<CharSequence>().toTypedArray()
+                                            if (originalStrings.isNotEmpty()) {
+                                                val patchedStrings = appendStoryOptions(originalStrings).toList()
+                                                val addedStrings = patchedStrings - originalStrings.toSet()
+                                                if (addedStrings.isNotEmpty()) {
+                                                    val patchedList = ArrayList<Any?>()
+                                                    patchedList.addAll(res)
+                                                    patchedList.addAll(addedStrings)
+                                                    if (res is java.util.ArrayList<*>) {
+                                                        param.result = patchedList
+                                                        return
+                                                    } else {
+                                                        param.result = patchedList
+                                                        return
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             )
                             arrayHooks++
                         }
                     }
-                    if (method.parameterTypes.any { it.isArray && CharSequence::class.java.isAssignableFrom(it.componentType) }) {
+                    if (method.parameterTypes.any { 
+                            (it.isArray && CharSequence::class.java.isAssignableFrom(it.componentType)) || 
+                            java.util.Collection::class.java.isAssignableFrom(it) 
+                        }) {
                         val signature = "${method.declaringClass.name}.${method.name}:story_options_array_param"
                         if (hookedDexMethods.add(signature)) {
                             XposedBridge.hookMethod(
@@ -18267,10 +18302,21 @@ class InstagramHooks(
                                     override fun beforeHookedMethod(param: MethodHookParam<*>) {
                                         if (!shouldOfferAnyStoryOption()) return
                                         param.args?.indices?.forEach { index ->
-                                            val original = param.args[index] as? Array<*> ?: return@forEach
-                                            if (!original.all { it is CharSequence }) return@forEach
-                                            val patched = appendStoryOptions(original.filterIsInstance<CharSequence>().toTypedArray())
-                                            if (patched !== original) param.args[index] = patched
+                                            val arg = param.args[index]
+                                            if (arg is Array<*>) {
+                                                if (!arg.all { it is CharSequence }) return@forEach
+                                                val patched = appendStoryOptions(arg.filterIsInstance<CharSequence>().toTypedArray())
+                                                if (patched !== arg) param.args[index] = patched
+                                            } else if (arg is java.util.Collection<*>) {
+                                                val originalStrings = arg.filterIsInstance<CharSequence>().toTypedArray()
+                                                if (originalStrings.isNotEmpty()) {
+                                                    val patchedStrings = appendStoryOptions(originalStrings).toList()
+                                                    val addedStrings = patchedStrings - originalStrings.toSet()
+                                                    if (addedStrings.isNotEmpty() && arg is MutableCollection<*>) {
+                                                        (arg as MutableCollection<Any>).addAll(addedStrings)
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -18343,10 +18389,9 @@ class InstagramHooks(
     }
 
     private fun isStoryOverflowOptionMethod(method: Method): Boolean {
-        val hasOptionArrayReturn = method.returnType.isArray &&
-            CharSequence::class.java.isAssignableFrom(method.returnType.componentType)
+        val hasOptionArrayReturn = (method.returnType.isArray && CharSequence::class.java.isAssignableFrom(method.returnType.componentType)) || java.util.Collection::class.java.isAssignableFrom(method.returnType)
         val hasOptionArrayParam = method.parameterTypes.any {
-            it.isArray && CharSequence::class.java.isAssignableFrom(it.componentType)
+            (it.isArray && CharSequence::class.java.isAssignableFrom(it.componentType)) || java.util.Collection::class.java.isAssignableFrom(it)
         }
         val hasOptionClickParam = method.returnType == Void.TYPE &&
             method.parameterTypes.any { CharSequence::class.java.isAssignableFrom(it) }
@@ -18411,7 +18456,7 @@ class InstagramHooks(
             mutableMediaDictIntfClass = dictClass
             val seen = linkedSetOf<String>()
             fun collect(owner: Class<*>) {
-                owner.declaredMethods
+                owner.methods
                     .filter { method ->
                         method.parameterTypes.isEmpty() &&
                             List::class.java.isAssignableFrom(method.returnType) &&
@@ -18423,9 +18468,6 @@ class InstagramHooks(
                     }
             }
             collect(dictClass)
-            dictClass.interfaces
-                .filter { it.name.startsWith("X.") || it.name.startsWith("p000X.") || it.name.startsWith("com.instagram.") || it.name.startsWith("com.facebook.") }
-                .forEach(::collect)
         }.onFailure { logError("Could not resolve Instagram mutable media download helpers", it) }
     }
 
@@ -24950,6 +24992,16 @@ class InstagramHooks(
     }
 
     private fun looksLikeCarouselMediaObject(mediaObject: Any?): Boolean {
+        if (mediaObject == null) return false
+        if (mediaClass?.isInstance(mediaObject) == true) {
+            return true
+        }
+        val clazz = mediaObject.javaClass
+        if (clazz.declaredFields.any { it.type == java.util.List::class.java } &&
+            clazz.declaredFields.any { it.type == java.lang.String::class.java } &&
+            clazz.declaredFields.count() > 20) {
+            return true
+        }
         val tokens = arrayOf(
             "carousel",
             "carousel_media",
@@ -26619,7 +26671,7 @@ class InstagramHooks(
         if (looksLikeVoiceToken(view.contentDescription?.toString())) return true
         if (looksLikeVoiceToken(view.tag?.toString())) return true
         runCatching {
-            if (view.id != View.NO_ID && looksLikeVoiceToken(view.resources.getResourceEntryName(view.id))) return true
+            if (view.id != View.NO_ID && view.id > 0x00FFFFFF && looksLikeVoiceToken(view.resources.getResourceEntryName(view.id))) return true
         }
         return view is TextView && looksLikeVoiceToken(view.text?.toString())
     }
@@ -31236,7 +31288,7 @@ class InstagramHooks(
     }
 
     private fun isInstagramResource(resources: Resources, resId: Int): Boolean {
-        if (resId == 0) return false
+        if (resId <= 0x00FFFFFF) return false
         return runCatching { isSupportedInstagramPackage(resources.getResourcePackageName(resId)) }.getOrDefault(false)
     }
 
@@ -31271,7 +31323,7 @@ class InstagramHooks(
     }
 
     private fun resourceEntryName(resources: Resources, resId: Int): String? {
-        if (resId == 0) return null
+        if (resId <= 0x00FFFFFF) return null
         return runCatching { resources.getResourceEntryName(resId) }.getOrNull()
     }
 
@@ -31975,7 +32027,7 @@ class InstagramHooks(
     private fun storyRingDimenName(resources: Resources, id: Int): String {
         storyRingIdNameCache[id]?.let { return it }
         val name = runCatching {
-            if (resources.getResourceTypeName(id) != "dimen") ""
+            if (id <= 0x00FFFFFF || resources.getResourceTypeName(id) != "dimen") ""
             else resources.getResourceEntryName(id).lowercase(Locale.US)
         }.getOrDefault("")
         storyRingIdNameCache[id] = name
@@ -32784,12 +32836,26 @@ class InstagramHooks(
         val target = normalizeNavigationTabKey(state.navigationDefaultTab)?.takeIf { it != "home" } ?: return
         val hidden = effectiveHiddenNavigationTabs()
         if (target in hidden) return
+        if (navigationDefaultClickedTargets[activity] == true) return
         val root = activity.window?.decorView ?: return
         fun clickMatching() {
-            findView(root) { view ->
-                val name = (resourceEntryName(view).orEmpty() + " " + view.contentDescription?.toString().orEmpty() + " " + (view as? TextView)?.text?.toString().orEmpty()).lowercase()
-                name.contains(target) && view.isClickable
-            }?.performClick()
+            if (navigationDefaultClickedTargets[activity] == true) return
+            val clicked = findView(root) { view ->
+                val resourceName = resourceEntryName(view).orEmpty().lowercase()
+                val contentDesc = view.contentDescription?.toString().orEmpty().lowercase()
+                val name = resourceName + " " + contentDesc + " " + (view as? TextView)?.text?.toString().orEmpty().lowercase()
+                // Require it to be in a tab bar or have a specific tab-like name, and exactly match the target to avoid "share to direct"
+                val isTabBarChild = buildList {
+                    var p = view.parent
+                    while (p is View) {
+                        add(resourceEntryName(p).orEmpty().lowercase())
+                        p = p.parent
+                    }
+                }.any { it.contains("tab_bar") || it.contains("tabbar") || it.contains("bottom_nav") }
+                
+                (isTabBarChild || resourceName.contains("tab")) && name.contains(target) && view.isClickable
+            }?.performClick() == true
+            if (clicked) navigationDefaultClickedTargets[activity] = true
         }
         root.post { clickMatching() }
         root.postDelayed({ clickMatching() }, 80L)
@@ -38771,6 +38837,7 @@ class InstagramHooks(
 
     private fun launchExternalBrowserIfNeeded(context: Context, intent: Intent): Boolean {
         if (intent.getBooleanExtra(EXTRA_INTERNAL_PROFILE_OPEN, false)) return false
+        if (intent.getBooleanExtra("me.eternal.purrfect.internal_intent", false)) return false
         if (launchingExternalBrowser.get()) return false
         if (isInstagramInternalNavigationIntent(context, intent)) return false
         val url = extractHttpUrl(intent) ?: return false
@@ -40715,12 +40782,13 @@ class InstagramHooks(
                     debug += "${candidate.name}:items=${items.size}:videoVersions"
                     return@forEach
                 }
+                val parentDictClass = dict.javaClass
                 val carouselUrls = items.mapNotNull { item ->
                     item ?: return@mapNotNull null
                     bestMediaVideoUrl(item)
                         ?: imageUrlFromMedia(context, item)
                         ?: probeCdnUrlViaStringMethods(item)
-                        ?: collectCdnUrls(item)
+                        ?: collectCdnUrls(item, parentDictClass)
                             .filterNot(::isVideoMediaUrl)
                             .let(::pickBestImageMediaUrl)
                 }
@@ -40818,19 +40886,19 @@ class InstagramHooks(
         return (0 until count).map { index -> java.lang.reflect.Array.get(value, index) }
     }
 
-    private fun carouselUrlsFromItems(context: Context, items: List<Any?>): List<String> {
+    private fun carouselUrlsFromItems(context: Context, items: List<Any?>, parentDictClass: Class<*>? = null): List<String> {
         if (items.size < 2) return emptyList()
         val first = items.firstOrNull { it != null } ?: return emptyList()
         val videoClass = storyVideoVersionIntfClass
         if (videoClass != null && videoClass.isInstance(first)) return emptyList()
         return items
-            .mapNotNull { carouselItemDownloadUrl(context, it) }
+            .mapNotNull { carouselItemDownloadUrl(context, it, parentDictClass) }
             .filterNot(::looksLikeProfileImageUrl)
             .distinctBy(::dmUrlIdentityForChoice)
             .take(12)
     }
 
-    private fun carouselItemDownloadUrl(context: Context, item: Any?): String? {
+    private fun carouselItemDownloadUrl(context: Context, item: Any?, parentDictClass: Class<*>? = null): String? {
         item ?: return null
         when (item) {
             is String -> return item.takeIf { looksLikeMediaUrl(it) && !looksLikeProfileImageUrl(it) }
@@ -40840,7 +40908,7 @@ class InstagramHooks(
             ?: imageUrlFromMedia(context, item)
             ?: collectDmMediaObjectDownloadUrls(item).firstOrNull { !isAudioUrl(it) && !isLikelyAudioHttpUrl(it) }
             ?: probeCdnUrlViaStringMethods(item)
-            ?: collectCdnUrls(item)
+            ?: collectCdnUrls(item, parentDictClass)
                 .filterNot(::looksLikeProfileImageUrl)
                 .filter { !isAudioUrl(it) && !isLikelyAudioHttpUrl(it) }
                 .let(::pickBestImageMediaUrl)
@@ -41238,10 +41306,13 @@ class InstagramHooks(
             return
         }
         val safeIndex = currentIndex.takeIf { it in choices.indices } ?: 0
-        val activity = if (metadata.type.startsWith("dm")) {
+        var activity = if (metadata.type.startsWith("dm")) {
             findActivity(context) ?: currentActivity
         } else {
             findActivity(context) ?: currentActivity
+        }
+        if (activity == null) {
+            activity = activeActivities.firstOrNull { !it.isFinishing && !it.isDestroyed }
         }
         if (activity == null) {
             logInfo("Download chooser missing activity; downloading safeIndex=$safeIndex type=${metadata.type}")
@@ -41699,11 +41770,12 @@ class InstagramHooks(
         return scan(root, 0)
     }
 
-    private fun collectCdnUrls(root: Any?): List<String> {
+    private fun collectCdnUrls(root: Any?, ignoreClass: Class<*>? = null): List<String> {
         val output = linkedSetOf<String>()
         val visited = Collections.newSetFromMap(java.util.IdentityHashMap<Any, Boolean>())
         fun scan(value: Any?, depth: Int) {
             if (value == null || depth > 5 || output.size >= 40) return
+            if (ignoreClass != null && value !== root && ignoreClass.isInstance(value)) return
             when (value) {
                 is String -> {
                     urlPattern.matcher(value).let { matcher ->
@@ -42272,7 +42344,7 @@ class InstagramHooks(
 
     private fun resourceEntryName(view: View): String? {
         val id = view.id
-        if (id == View.NO_ID || id == 0) return null
+        if (id <= 0x00FFFFFF) return null
         resourceEntryNameCache[id]?.let { return it }
         val name = runCatching { view.resources.getResourceEntryName(id) }.getOrNull() ?: return null
         resourceEntryNameCache[id] = name
