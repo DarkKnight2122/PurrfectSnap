@@ -10,6 +10,7 @@ import com.google.gson.JsonObject
 import me.eternal.purrfect.common.data.FriendLinkType
 import me.eternal.purrfect.common.database.impl.FriendInfo
 import me.eternal.purrfect.core.event.events.impl.NetworkApiRequestEvent
+import me.eternal.purrfect.core.event.events.impl.UnaryCallEvent
 import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.util.EvictingMap
 import java.io.InputStreamReader
@@ -81,17 +82,41 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
         return calendar.getDisplayName(Calendar.MONTH, Calendar.LONG, context.translation.loadedLocale)?.toString() + " " + day
     }
 
+    private fun com.google.gson.JsonElement?.asSafeString(): String? {
+        return if (this != null && this.isJsonPrimitive) this.asString else null
+    }
+
     override fun init() {
         val config by context.config.messaging.friendMutationNotifier
+
+        // Diagnostic log for gRPC calls related to friends
+        context.event.subscribe(UnaryCallEvent::class) { event ->
+            if (event.uri.contains("friend", ignoreCase = true) || event.uri.contains("atlas", ignoreCase = true)) {
+                context.log.verbose("[FRIEND_MUTATION] Intercepted gRPC unary request: ${event.uri} payloadSize=${event.buffer.size}")
+                
+                if (event.uri == "/com.snapchat.atlas.gw.AtlasGw/SyncFriendData") {
+                    event.addResponseCallback {
+                        context.log.verbose("[FRIEND_MUTATION] SyncFriendData response size=${buffer.size}")
+                        // Dump hex or a formatted protobuf tree to the logs
+                        val hex = buffer.joinToString("") { String.format("%02X", it) }
+                        context.log.verbose("[FRIEND_MUTATION] SyncFriendData response HEX: $hex")
+                    }
+                }
+            }
+        }
+
         context.event.subscribe(NetworkApiRequestEvent::class) { event ->
+            if (event.url.contains("ami/friends")) {
+                context.log.verbose("[FRIEND_MUTATION] Intercepted REST endpoint: ${event.url}")
+            }
             if (!event.url.contains("ami/friends")) return@subscribe
             event.onSuccess { buffer ->
                 runCatching {
                     val jsonObject = context.gson.fromJson(InputStreamReader(buffer?.inputStream() ?: return@onSuccess, Charsets.UTF_8), JsonObject::class.java)
                     jsonObject.getAsJsonArray("added_friends")?.map { it.asJsonObject }?.forEach { friend ->
-                        val userId = friend.get("user_id").asString
-                        (friend.get("add_source")?.asString?.takeIf { it.isNotBlank() }
-                            ?: friend.get("add_source_type")?.asString?.takeIf { it.isNotBlank() })?.let {
+                        val userId = friend.get("user_id").asSafeString() ?: return@forEach
+                        (friend.get("add_source").asSafeString()
+                            ?: friend.get("add_source_type").asSafeString())?.let {
                             addSourceCache[userId] = it
                         }
                     }
@@ -99,12 +124,12 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                     if (config.isEmpty()) return@runCatching
                     jsonObject.getAsJsonArray("friends")?.map { it.asJsonObject }?.forEach { friend ->
                         runCatching {
-                            val userId = friend.get("user_id")?.asString ?: return@forEach
+                            val userId = friend.get("user_id").asSafeString() ?: return@forEach
                             if (userId == context.database.myUserId) return@forEach
                             val databaseFriend = context.database.getFriendInfo(userId) ?: return@forEach
                             if (FriendLinkType.fromValue(databaseFriend.friendLinkType) != FriendLinkType.MUTUAL) return@forEach
 
-                            if (friend.get("direction")?.asString == "OUTGOING" && !friend.has("fidelius_info")) {
+                            if (friend.get("direction").asSafeString() == "OUTGOING" && !friend.has("fidelius_info")) {
                                 val isDeactivated = friend.get("deactivated")?.takeIf { it.isJsonPrimitive }?.asBoolean == true || friend.has("deactivated_timestamp")
                                 if (isDeactivated) {
                                     if (config.contains("deactivated_friend")) {
@@ -121,13 +146,13 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                             if (config.contains("birthday_changes") &&
                                 databaseFriend.birthday.takeIf { it != 0L }?.let {
                                     ((it shr 32).toInt()).toString().padStart(2, '0') + "-" + (it.toInt()).toString().padStart(2, '0')
-                                } != friend.get("birthday")?.asString
+                                } != friend.get("birthday").asSafeString()
                             ) {
                                 val oldBirthday = databaseFriend.birthday.takeIf { it != 0L }?.let { prettyPrintBirthday((it shr 32).toInt() - 1, it.toInt()) }
                                 if (!friend.has("birthday")) {
                                     sendMutationNotification(Icons.Default.Cake, translation.format("birthday_removed", "username" to formatUsername(databaseFriend), "birthday" to oldBirthday.orEmpty()), databaseFriend)
                                 } else {
-                                    val newBirthday = friend.get("birthday")?.asString?.split("-")?.let { prettyPrintBirthday(it[0].toInt() - 1, it[1].toInt()) }
+                                    val newBirthday = friend.get("birthday").asSafeString()?.split("-")?.let { prettyPrintBirthday(it[0].toInt() - 1, it[1].toInt()) }
                                     if (oldBirthday == null) {
                                         sendMutationNotification(Icons.Default.Cake, translation.format("birthday_added", "username" to formatUsername(databaseFriend), "birthday" to newBirthday.orEmpty()), databaseFriend)
                                     } else {
@@ -136,19 +161,19 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                 }
                             }
 
-                            if (config.contains("bitmoji_avatar_changes") && databaseFriend.bitmojiAvatarId != friend.get("bitmoji_avatar_id")?.asString) {
+                            if (config.contains("bitmoji_avatar_changes") && databaseFriend.bitmojiAvatarId != friend.get("bitmoji_avatar_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_avatar_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (config.contains("bitmoji_selfie_changes") && databaseFriend.bitmojiSelfieId != friend.get("bitmoji_selfie_id")?.asString) {
+                            if (config.contains("bitmoji_selfie_changes") && databaseFriend.bitmojiSelfieId != friend.get("bitmoji_selfie_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_selfie_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (config.contains("bitmoji_background_changes") && databaseFriend.bitmojiBackgroundId != friend.get("bitmoji_background_id")?.asString) {
+                            if (config.contains("bitmoji_background_changes") && databaseFriend.bitmojiBackgroundId != friend.get("bitmoji_background_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Image, translation.format("bitmoji_background_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (config.contains("bitmoji_scene_changes") && databaseFriend.bitmojiSceneId != friend.get("bitmoji_scene_id")?.asString) {
+                            if (config.contains("bitmoji_scene_changes") && databaseFriend.bitmojiSceneId != friend.get("bitmoji_scene_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Landscape, translation.format("bitmoji_scene_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
                         }.onFailure { context.log.error("Failed to process friend", it) }

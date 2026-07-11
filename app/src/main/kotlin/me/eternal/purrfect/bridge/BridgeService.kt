@@ -113,12 +113,7 @@ class BridgeService : Service() {
                 }
             } ?: run {
                 if (updateOnly) {
-                    if (isBridgeWarmed.get()) {
-                        when (scope) {
-                            SocialScope.FRIEND -> database.deleteFriend(id)
-                            SocialScope.GROUP -> database.deleteGroup(id)
-                        }
-                    }
+                    remoteSideContext.log.verbose("Skipped sync cleanup for $scope $id (update only)")
                     return
                 }
                 remoteSideContext.log.warn("Failed to sync $scope $id")
@@ -129,9 +124,7 @@ class BridgeService : Service() {
                 SocialScope.FRIEND -> {
                     toParcelable<MessagingFriendInfo>(syncedObject)?.let { database.syncFriend(it) } ?: run {
                         if (updateOnly) {
-                            if (isBridgeWarmed.get()) {
-                                database.deleteFriend(id)
-                            }
+                            remoteSideContext.log.verbose("Skipped sync cleanup for $scope $id (update only)")
                             return
                         }
                         remoteSideContext.log.warn("Failed to sync $scope $id")
@@ -141,9 +134,7 @@ class BridgeService : Service() {
                 SocialScope.GROUP -> {
                     toParcelable<MessagingGroupInfo>(syncedObject)?.let { database.syncGroupInfo(it) } ?: run {
                         if (updateOnly) {
-                            if (isBridgeWarmed.get()) {
-                                database.deleteGroup(id)
-                            }
+                            remoteSideContext.log.verbose("Skipped sync cleanup for $scope $id (update only)")
                             return
                         }
                         remoteSideContext.log.warn("Failed to sync $scope $id")

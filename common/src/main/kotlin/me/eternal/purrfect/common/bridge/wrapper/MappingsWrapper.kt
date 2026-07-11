@@ -55,6 +55,21 @@ class MappingsWrapper(
         }
 
         val packageInfo = getSnapchatPackageInfo()
+        val apkPaths = runCatching { getSnapchatApkPaths() }.getOrDefault(emptyList())
+        val apkInfoStr = apkPaths.sorted().map { path ->
+            val file = File(path)
+            "$path:${runCatching { file.length() }.getOrDefault(-1L)}"
+        }.joinToString()
+
+        AbstractLogger.directDebug(
+            "[MAPPINGS] getUniqueBuildId details: schema=$MAPPINGS_SCHEMA_VERSION " +
+                "appId=${BuildConfig.APPLICATION_ID} verCode=${BuildConfig.VERSION_CODE} " +
+                "buildHash=${BuildConfig.BUILD_HASH} gitHash=${BuildConfig.GIT_HASH} " +
+                "snapVer=${packageInfo?.longVersionCode} snapName=${packageInfo?.versionName} " +
+                "snapUpdated=${packageInfo?.lastUpdateTime} apks=[$apkInfoStr]",
+            "PurrfectMapper"
+        )
+
         mixLong(MAPPINGS_SCHEMA_VERSION)
         mixString(BuildConfig.APPLICATION_ID)
         mixLong(BuildConfig.VERSION_CODE.toLong())
@@ -64,7 +79,6 @@ class MappingsWrapper(
         mixString(packageInfo?.versionName)
         mixLong(packageInfo?.lastUpdateTime ?: -1L)
 
-        val apkPaths = runCatching { getSnapchatApkPaths() }.getOrDefault(emptyList())
         apkPaths.sorted().forEach { path ->
             val file = File(path)
             mixString(path)
@@ -107,7 +121,17 @@ class MappingsWrapper(
     }
 
     fun getGeneratedBuildNumber() = mappingUniqueHash
-    fun isMappingsOutdated() = mappingUniqueHash != getUniqueBuildId() || isMappingsLoaded.not()
+    fun isMappingsOutdated(): Boolean {
+        val currentHash = getUniqueBuildId()
+        val isOutdated = mappingUniqueHash != currentHash || isMappingsLoaded.not()
+        AbstractLogger.directDebug(
+            "[MAPPINGS] isMappingsOutdated: isOutdated=$isOutdated " +
+                "mappingUniqueHash=$mappingUniqueHash currentUniqueBuildId=$currentHash " +
+                "isMappingsLoaded=$isMappingsLoaded",
+            "PurrfectMapper"
+        )
+        return isOutdated
+    }
 
     private fun loadCached() {
         if (!exists()) {

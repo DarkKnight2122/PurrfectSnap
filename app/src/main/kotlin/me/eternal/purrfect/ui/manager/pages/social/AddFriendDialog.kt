@@ -233,25 +233,47 @@ class AddFriendDialog(
         var hasFetchError by remember { mutableStateOf(false) }
 
         LaunchedEffect(Unit) {
+            val initialDbFriendIds = context.database.getFriends().map { it.userId }.toSet()
+            val initialDbGroupIds = context.database.getGroups().map { it.conversationId }.toSet()
+
             fun applySnapshot(
                 friends: List<MessagingFriendInfo>,
                 groups: List<MessagingGroupInfo>
             ) {
-                cachedFriends = context.sortSocialFriends(friends, pinnedIds = pinnedIds)
-                cachedGroups = groups.run {
-                    if (pinnedIds != null) {
-                        sortedBy { -pinnedIds.indexOf(it.conversationId) }
-                    } else {
-                        // Priority sort for whitelisted groups
-                        val whitelistedIds = context.database.getRuleIds(MessagingRuleType.STEALTH.key).toSet()
-                        sortedWith { a, b ->
-                            val aSelected = whitelistedIds.contains(a.conversationId)
-                            val bSelected = whitelistedIds.contains(b.conversationId)
-                            if (aSelected != bSelected) if (aSelected) -1 else 1
-                            else a.name.compareTo(b.name, ignoreCase = true)
-                        }
+                val whitelistedIds = pinnedIds?.toSet() ?: context.database.getFriends().map { it.userId }.toSet()
+                cachedFriends = friends.sortedWith { a, b ->
+                    val aNew = !initialDbFriendIds.contains(a.userId)
+                    val bNew = !initialDbFriendIds.contains(b.userId)
+                    if (aNew != bNew) {
+                        return@sortedWith if (aNew) -1 else 1
                     }
+
+                    val aSelected = whitelistedIds.contains(a.userId)
+                    val bSelected = whitelistedIds.contains(b.userId)
+                    if (aSelected != bSelected) {
+                        return@sortedWith if (aSelected) -1 else 1
+                    }
+
+                    (a.displayName ?: a.mutableUsername).compareTo(b.displayName ?: b.mutableUsername, ignoreCase = true)
                 }
+
+                val whitelistedGroupIds = pinnedIds?.toSet() ?: context.database.getRuleIds(MessagingRuleType.STEALTH.key).toSet()
+                cachedGroups = groups.sortedWith { a, b ->
+                    val aNew = !initialDbGroupIds.contains(a.conversationId)
+                    val bNew = !initialDbGroupIds.contains(b.conversationId)
+                    if (aNew != bNew) {
+                        return@sortedWith if (aNew) -1 else 1
+                    }
+
+                    val aSelected = whitelistedGroupIds.contains(a.conversationId)
+                    val bSelected = whitelistedGroupIds.contains(b.conversationId)
+                    if (aSelected != bSelected) {
+                        return@sortedWith if (aSelected) -1 else 1
+                    }
+
+                    a.name.compareTo(b.name, ignoreCase = true)
+                }
+
                 if (friends.isNotEmpty() || groups.isNotEmpty()) {
                     timeoutJob?.cancel()
                     hasFetchError = false
@@ -337,9 +359,10 @@ class AddFriendDialog(
                     }
 
                     val searchKeyword = remember { mutableStateOf("") }
-
+                    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
                     BackHandler(enabled = searchKeyword.value.isNotEmpty()) {
                         searchKeyword.value = ""
+                        focusManager.clearFocus()
                     }
 
                     val filteredGroups = cachedGroups!!.takeIf { searchKeyword.value.isNotBlank() }?.filter {
