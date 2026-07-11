@@ -1118,13 +1118,13 @@ class SendOverride : Feature("Send Override") {
                                     }
                                 }
 
-                                fun convertDuration(duration: Float) = when {
-                                    duration in -2f..-1f -> 100
-                                    duration in -1f..-0f -> 250
-                                    duration in -0f..1f -> 500
-                                    duration >= 11f -> null
-                                    else -> ((duration * 1000).toInt() / 1000) * 1000
-                                }
+                                 fun convertDuration(duration: Float) = when {
+                                     duration <= -2f -> 100
+                                     duration <= -1f -> 250
+                                     duration <= 0f -> 500
+                                     duration >= 11f -> null
+                                     else -> ((duration * 1000).toInt() / 1000) * 1000
+                                 }
                         
                         fun formatTimeText(ms: Long): String {
                             val days = (ms / (24 * 60 * 60 * 1000)).toInt()
