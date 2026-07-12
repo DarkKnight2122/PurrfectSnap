@@ -1808,7 +1808,7 @@ internal object InstagramActivityHistoryHooks {
 
     private fun resourceName(view: View): String {
         val id = view.id
-        if (id == View.NO_ID || id == 0) return ""
+        if (id == View.NO_ID || id <= 0x00FFFFFF) return ""
         return runCatching { view.resources.getResourceEntryName(id) }.getOrDefault("")
     }
 
@@ -2631,10 +2631,12 @@ internal object InstagramActivityHistoryDialog {
         runCatching {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                 setPackage(context.packageName)
+                putExtra("me.eternal.purrfect.internal_intent", true)
                 if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         }.onFailure {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                putExtra("me.eternal.purrfect.internal_intent", true)
                 if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         }
