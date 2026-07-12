@@ -75,7 +75,7 @@ fun AphelionFriendMutationToast(
                     .widthIn(max = 340.dp)
                     .shadow(20.dp, RoundedCornerShape(28.dp)),
                 shape = RoundedCornerShape(28.dp),
-                color = Color(0xE61B152E),
+                color = Color(0xE60A0A0A),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
             ) {
                 Row(

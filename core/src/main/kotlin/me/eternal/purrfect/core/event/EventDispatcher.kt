@@ -208,7 +208,11 @@ class EventDispatcher(
                 return@hook
             }
 
-            Hooker.ephemeralHookObjectMethod(unaryEventHandler::class.java, unaryEventHandler, "onEvent", HookStage.BEFORE) { methodParam ->
+            val callbackMethodName = (unaryEventHandler::class.java.declaredMethods + unaryEventHandler::class.java.methods)
+                .firstOrNull { it.parameterTypes.size == 1 && it.parameterTypes[0] == java.nio.ByteBuffer::class.java }
+                ?.name ?: "onEvent"
+
+            Hooker.ephemeralHookObjectMethod(unaryEventHandler::class.java, unaryEventHandler, callbackMethodName, HookStage.BEFORE) { methodParam ->
                 val byteBuffer = methodParam.argNullable<ByteBuffer>(0) ?: return@ephemeralHookObjectMethod
                 val array = byteBuffer.run {
                     val array = ByteArray(limit())
