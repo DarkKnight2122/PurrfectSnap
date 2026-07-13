@@ -65,7 +65,6 @@ enum class MessagingRuleType(
     AUTO_DELETE_SENT_MESSAGES("auto_delete_sent_messages", true, Icons.Outlined.DeleteSweep, defaultValue = "blacklist");
 
     fun translateOptionKey(optionKey: String): String {
-        if (key.contains("stealth")) return "features.options.friend_feed_menu_buttons.$key"
         return if (listMode) "rules.properties.$key.options.$optionKey" else "rules.properties.$key.name"
     }
 

@@ -17,6 +17,8 @@ import me.eternal.purrfect.core.features.impl.spying.FriendTracker
 import me.eternal.purrfect.core.features.impl.spying.HalfSwipeNotifier
 import me.eternal.purrfect.core.features.impl.spying.MessageLogger
 import me.eternal.purrfect.core.features.impl.spying.StealthMode
+import me.eternal.purrfect.core.features.impl.spying.SnapStealth
+import me.eternal.purrfect.core.features.impl.spying.ChatStealth
 import me.eternal.purrfect.core.features.impl.tweaks.*
 import me.eternal.purrfect.core.features.impl.ui.*
 import me.eternal.purrfect.core.logger.CoreLogger
@@ -80,6 +82,8 @@ class FeatureManager(
             AutoRead(),
             MediaDownloader(),
             StealthMode(),
+            SnapStealth(),
+            ChatStealth(),
             MenuViewInjector(),
             MessageLogger(),
             ConvertMessageLocally(),

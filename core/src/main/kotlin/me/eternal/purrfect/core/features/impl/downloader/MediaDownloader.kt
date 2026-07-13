@@ -618,9 +618,14 @@ class MediaDownloader : MessagingRuleFeature("MediaDownloader", MessagingRuleTyp
                 playlistGroupString.substringAfter("storyUserId=").substringBefore(",")
             } else {
                 val arroyoMessageId = playlistGroup::class.java.methods.firstOrNull { it.name == "getId" }?.invoke(playlistGroup)?.toString()?.split(":")?.getOrNull(2) ?: return@let
-                val conversationMessage = modCtx.database.getConversationMessageFromId(arroyoMessageId.toLong()) ?: return@let
-                val conversationParticipants = modCtx.database.getConversationParticipants(conversationMessage.clientConversationId.toString()) ?: return@let
-                conversationParticipants.firstOrNull { it != conversationMessage.senderId }
+                if (arroyoMessageId.contains("~")) {
+                    arroyoMessageId.substringAfter("~")
+                } else {
+                    val messageIdLong = arroyoMessageId.toLongOrNull() ?: return@let
+                    val conversationMessage = modCtx.database.getConversationMessageFromId(messageIdLong) ?: return@let
+                    val conversationParticipants = modCtx.database.getConversationParticipants(conversationMessage.clientConversationId.toString()) ?: return@let
+                    conversationParticipants.firstOrNull { it != conversationMessage.senderId }
+                }
             }
 
             val author = modCtx.database.getFriendInfo(if (storyUserId == null || storyUserId == "null") modCtx.database.myUserId else storyUserId) ?: return@let

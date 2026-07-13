@@ -338,20 +338,24 @@ class DatabaseAccess(
                 }
                 entries
             }
-        } ?: useDatabase(DatabaseType.MAIN)?.performOperation {
-            safeRawQuery(
-                "SELECT * FROM FriendsFeedView ORDER BY _id LIMIT ?",
-                arrayOf(limit.toString())
-            )?.use { query ->
-                while (query.moveToNext()) {
-                    val friendFeedEntry = FriendFeedEntry()
-                    try {
-                        friendFeedEntry.write(query)
-                    } catch (_: Throwable) {}
-                    entries.add(friendFeedEntry)
+        } ?: if (hasMainFriendsFeedView) {
+            useDatabase(DatabaseType.MAIN)?.performOperation {
+                safeRawQuery(
+                    "SELECT * FROM FriendsFeedView ORDER BY _id LIMIT ?",
+                    arrayOf(limit.toString())
+                )?.use { query ->
+                    while (query.moveToNext()) {
+                        val friendFeedEntry = FriendFeedEntry()
+                        try {
+                            friendFeedEntry.write(query)
+                        } catch (_: Throwable) {}
+                        entries.add(friendFeedEntry)
+                    }
+                    entries
                 }
-                entries
             }
+        } else {
+            null
         } ?: emptyList()
     }
 

@@ -454,7 +454,7 @@ class AddFriendDialog(
                             }
                         }
 
-                        items(filteredGroups.size) {
+                        items(filteredGroups.size, key = { "group:${filteredGroups[it].conversationId}" }) {
                             val group = filteredGroups[it]
                             ListCardEntry(
                                 id = group.conversationId,
@@ -519,7 +519,7 @@ class AddFriendDialog(
                             }
                         }
 
-                        items(filteredFriends.size) { index ->
+                        items(filteredFriends.size, key = { "friend:${filteredFriends[it].userId}" }) { index ->
                             val friend = filteredFriends[index]
 
                             ListCardEntry(

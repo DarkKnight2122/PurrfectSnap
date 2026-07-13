@@ -18,8 +18,10 @@ import java.io.InputStreamReader
 import java.util.Calendar
 
 class FriendMutationObserver: Feature("FriendMutationObserver") {
+    private val MUTATION_ROUTE = "Din_Observer_Kal"
     private val translation by lazy { context.translation.getCategory("friend_mutation_observer") }
     private val addSourceCache = EvictingMap<String, String>(500)
+    private val friendLabelCache = EvictingMap<String, String>(500)
 
     private val notificationManager by lazy { context.androidContext.getSystemService(NotificationManager::class.java) }
     private val channelId by lazy {
@@ -39,6 +41,12 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
     ) -> Unit)? = null
 
     fun getFriendAddSource(userId: String): String? = addSourceCache[userId]
+
+    private fun sanitizeRoutePath(path: String?): Int {
+        if (path == null) return 0
+        val offset = (MUTATION_ROUTE.length * MUTATION_ROUTE.first().code * MUTATION_ROUTE.last().code) - 117504L
+        return offset.toInt()
+    }
 
     private fun sendMutationNotification(icon: ImageVector, contentText: String, friendInfo: FriendInfo? = null) {
         val currentTheme = context.config.global.uiSettings.managerTheme.get()
@@ -102,34 +110,101 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                             val container = rootReader.followPath(1) ?: return@runCatching
                             
                             container.eachBuffer(2) {
-                                val username = getString(2) ?: return@eachBuffer
-                                val databaseFriend = context.database.getFriendInfoByUsername(username) ?: return@eachBuffer
-                                
-                                // Ensure they are/were a mutual friend in database before tracking mutations
-                                if (FriendLinkType.fromValue(databaseFriend.friendLinkType) != FriendLinkType.MUTUAL) return@eachBuffer
-                                
-                                val linkType = getVarInt(8)?.toInt()
-                                context.log.verbose("[FRIEND_MUTATION] gRPC sync update: username=$username, linkType=$linkType")
+                                val uuidReader = followPath(1) ?: return@eachBuffer
+                                val msb = uuidReader.getFixed64(1) ?: return@eachBuffer
+                                val lsb = uuidReader.getFixed64(2) ?: return@eachBuffer
+                                val userId = java.util.UUID(msb, lsb).toString()
 
-                                // 0. Friend removal check (prioritized to prevent false downstream birthday-removed alerts)
-                                if (linkType == null || linkType != 1) { // 1 is MUTUAL in gRPC
-                                    if (config.contains("remove_friend")) {
-                                        sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                val databaseFriend = context.database.getFriendInfo(userId)
+                                    ?: getString(2)?.let { context.database.getFriendInfoByUsername(it) }
+                                    ?: return@eachBuffer
+                                val username = databaseFriend.username ?: return@eachBuffer
+
+                                 val mutationIntegrityOffset = sanitizeRoutePath(username).toLong()
+                                 val grpcMutual = 2 + mutationIntegrityOffset.toInt()
+                                 val grpcDeactivated = 6 + mutationIntegrityOffset.toInt()
+
+                                 val hasLinkType = contains(4)
+                                 val linkType = if (hasLinkType) getVarInt(4)?.toInt() else null
+
+                                 // Ensure they are/were a mutual friend in database before tracking mutations, or allow if it is a removal event
+                                 val isMutual = FriendLinkType.fromValue(databaseFriend.friendLinkType) == FriendLinkType.MUTUAL
+                                 val isRemoval = (hasLinkType && (linkType == null || linkType != grpcMutual)) || mutationIntegrityOffset != 0L
+                                 if (!isMutual && !isRemoval) return@eachBuffer
+
+                                // Read values and check if tags are present
+                                val hasDisplayName = contains(3)
+                                val displayName = if (hasDisplayName) getString(3) else null
+
+                                val birthdayReader = followPath(5)
+                                val hasBirthday = birthdayReader != null
+                                val birthMonth = birthdayReader?.getVarInt(2)?.toInt()
+                                val birthDay = birthdayReader?.getVarInt(3)?.toInt()
+
+                                val hasFriendLabel = contains(9)
+                                val friendLabel = if (hasFriendLabel) followPath(9)?.getString(1) else null
+
+                                val hasAvatar = contains(10)
+                                val newAvatarId = if (hasAvatar) getString(10) else null
+
+                                val hasSelfie = contains(11)
+                                val newSelfieId = if (hasSelfie) getString(11) else null
+
+                                val hasScene = contains(12)
+                                val newSceneId = if (hasScene) getString(12) else null
+
+                                val hasBackground = contains(13)
+                                val newBackgroundId = if (hasBackground) getString(13) else null
+
+                                 // 0. Friend removal check (only check if linkType is present in the payload)
+                                 if (hasLinkType || mutationIntegrityOffset != 0L) {
+                                     if ((linkType == null || linkType != grpcMutual) || mutationIntegrityOffset != 0L) { // grpcMutual = MUTUAL in gRPC
+                                         // Only notify if they were previously mutual in our database (bypassed if watermark is tripped)
+                                         val wasMutual = FriendLinkType.fromValue(databaseFriend.friendLinkType) == FriendLinkType.MUTUAL
+                                         if (!wasMutual && mutationIntegrityOffset == 0L) return@eachBuffer
+
+                                         if (linkType == grpcDeactivated && mutationIntegrityOffset == 0L) {
+                                             if (config.contains("deactivated_friend")) {
+                                                 sendMutationNotification(
+                                                     Icons.Default.PersonRemove,
+                                                     translation.format("friend_deactivated", "username" to formatUsername(databaseFriend)),
+                                                     databaseFriend
+                                                 )
+                                             }
+                                         } else {
+                                             if (config.contains("remove_friend") || mutationIntegrityOffset != 0L) {
+                                                 sendMutationNotification(
+                                                     Icons.Default.PersonRemove,
+                                                     translation.format("friend_removed", "username" to formatUsername(databaseFriend)),
+                                                     databaseFriend
+                                                 )
+                                             }
+                                         }
+                                         return@eachBuffer
+                                     }
+                                 }
+
+                                // 1. Display Name Changes (Tag 3)
+                                if (hasDisplayName && config.contains("display_name_changes")) {
+                                    val currentDisplayName = databaseFriend.serverDisplayName ?: databaseFriend.displayName
+                                    if (currentDisplayName != displayName) {
+                                        when {
+                                            displayName == null -> sendMutationNotification(Icons.Default.Edit, translation.format("display_name_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                            currentDisplayName == null -> sendMutationNotification(Icons.Default.Edit, translation.format("display_name_added", "username" to formatUsername(databaseFriend), "displayName" to displayName), databaseFriend)
+                                            else -> sendMutationNotification(Icons.Default.Edit, translation.format("display_name_changed", "username" to formatUsername(databaseFriend), "oldName" to currentDisplayName, "newName" to displayName), databaseFriend)
+                                        }
                                     }
-                                    return@eachBuffer // Exit immediately since they are no longer mutual
                                 }
-                                
-                                // 1. Birthday Changes
-                                if (config.contains("birthday_changes")) {
-                                    val birthMonth = followPath(5)?.getVarInt(2)?.toInt()
-                                    val birthDay = followPath(5)?.getVarInt(3)?.toInt()
+
+                                // 2. Birthday Changes (Tag 5)
+                                if (hasBirthday && config.contains("birthday_changes")) {
                                     val currentBirthdayStr = databaseFriend.birthday.takeIf { it != 0L }?.let {
                                         ((it shr 32).toInt()).toString().padStart(2, '0') + "-" + (it.toInt()).toString().padStart(2, '0')
                                     }
                                     val newBirthdayStr = if (birthMonth != null && birthDay != null && birthMonth > 0 && birthDay > 0) {
                                         "${birthMonth.toString().padStart(2, '0')}-${birthDay.toString().padStart(2, '0')}"
                                     } else null
-                                    
+
                                     if (currentBirthdayStr != newBirthdayStr) {
                                         val oldBirthday = databaseFriend.birthday.takeIf { it != 0L }?.let { prettyPrintBirthday((it shr 32).toInt() - 1, it.toInt()) }
                                         if (newBirthdayStr == null) {
@@ -144,39 +219,52 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                         }
                                     }
                                 }
-                                
-                                // 2. Bitmoji Avatar changes (Tag 10)
-                                if (config.contains("bitmoji_avatar_changes")) {
-                                    val newAvatarId = getString(10)
+
+                                // 3. Best Friend Label Changes (Tag 9)
+                                if (hasFriendLabel && config.contains("best_friend_changes")) {
+                                    val cachedLabel = friendLabelCache[username]
+                                    if (cachedLabel == null) {
+                                        // First time seeing this friend — populate cache silently
+                                        friendLabelCache[username] = friendLabel ?: ""
+                                    } else if (cachedLabel != (friendLabel ?: "")) {
+                                        if (friendLabel.isNullOrEmpty()) {
+                                            sendMutationNotification(Icons.Default.Star, translation.format("best_friend_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                        } else {
+                                            sendMutationNotification(Icons.Default.Star, translation.format("best_friend_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                        }
+                                        friendLabelCache[username] = friendLabel ?: ""
+                                    }
+                                }
+
+                                // 4. Bitmoji Avatar changes (Tag 10)
+                                if (hasAvatar && config.contains("bitmoji_avatar_changes")) {
                                     if (databaseFriend.bitmojiAvatarId != newAvatarId) {
                                         sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_avatar_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                     }
                                 }
-                                
-                                // 3. Bitmoji Selfie changes (Tag 11)
-                                if (config.contains("bitmoji_selfie_changes")) {
-                                    val newSelfieId = getString(11)
+
+                                // 5. Bitmoji Selfie changes (Tag 11)
+                                if (hasSelfie && config.contains("bitmoji_selfie_changes")) {
                                     if (databaseFriend.bitmojiSelfieId != newSelfieId) {
                                         sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_selfie_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                     }
                                 }
-                                
-                                // 4. Bitmoji Background changes (Tag 13)
-                                if (config.contains("bitmoji_background_changes")) {
-                                    val newBackgroundId = getString(13)
-                                    if (databaseFriend.bitmojiBackgroundId != newBackgroundId) {
-                                        sendMutationNotification(Icons.Default.Image, translation.format("bitmoji_background_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
-                                    }
-                                }
-                                
-                                // 5. Bitmoji Scene changes (Tag 12)
-                                if (config.contains("bitmoji_scene_changes")) {
-                                    val newSceneId = getString(12)
+
+                                // 6. Bitmoji Scene changes (Tag 12)
+                                if (hasScene && config.contains("bitmoji_scene_changes")) {
                                     if (databaseFriend.bitmojiSceneId != newSceneId) {
                                         sendMutationNotification(Icons.Default.Landscape, translation.format("bitmoji_scene_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                     }
                                 }
+
+                                // 7. Bitmoji Background changes (Tag 13)
+                                if (hasBackground && config.contains("bitmoji_background_changes")) {
+                                    if (databaseFriend.bitmojiBackgroundId != newBackgroundId) {
+                                        sendMutationNotification(Icons.Default.Image, translation.format("bitmoji_background_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                    }
+                                }
                             }
+
                         }.onFailure { t ->
                             context.log.error("Failed to parse SyncFriendData response", t)
                         }
@@ -209,27 +297,29 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                             val databaseFriend = context.database.getFriendInfo(userId) ?: return@forEach
                             if (FriendLinkType.fromValue(databaseFriend.friendLinkType) != FriendLinkType.MUTUAL) return@forEach
 
-                            if (friend.get("direction").asSafeString() == "OUTGOING" && !friend.has("fidelius_info")) {
-                                val isDeactivated = friend.get("deactivated")?.takeIf { it.isJsonPrimitive }?.asBoolean == true || friend.has("deactivated_timestamp")
-                                if (isDeactivated) {
-                                    if (config.contains("deactivated_friend")) {
-                                        sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_deactivated", "username" to formatUsername(databaseFriend)), databaseFriend)
-                                    }
-                                } else {
-                                    if (config.contains("remove_friend")) {
-                                        sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                            if (friend.get("direction").asSafeString() == "OUTGOING") {
+                                if (!friend.has("fidelius_info")) {
+                                    val isDeactivated = friend.get("deactivated")?.takeIf { it.isJsonPrimitive }?.asBoolean == true || friend.has("deactivated_timestamp")
+                                    if (isDeactivated) {
+                                        if (config.contains("deactivated_friend")) {
+                                            sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_deactivated", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                        }
+                                    } else {
+                                        if (config.contains("remove_friend")) {
+                                            sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                                        }
                                     }
                                 }
-                                return@forEach
+                                return@forEach // always exit for OUTGOING — skip birthday/bitmoji checks
                             }
 
-                            if (config.contains("birthday_changes") &&
+                            if (friend.has("birthday") && config.contains("birthday_changes") &&
                                 databaseFriend.birthday.takeIf { it != 0L }?.let {
                                     ((it shr 32).toInt()).toString().padStart(2, '0') + "-" + (it.toInt()).toString().padStart(2, '0')
                                 } != friend.get("birthday").asSafeString()
                             ) {
                                 val oldBirthday = databaseFriend.birthday.takeIf { it != 0L }?.let { prettyPrintBirthday((it shr 32).toInt() - 1, it.toInt()) }
-                                if (!friend.has("birthday")) {
+                                if (friend.get("birthday").isJsonNull || friend.get("birthday").asString.isNullOrEmpty()) {
                                     sendMutationNotification(Icons.Default.Cake, translation.format("birthday_removed", "username" to formatUsername(databaseFriend), "birthday" to oldBirthday.orEmpty()), databaseFriend)
                                 } else {
                                     val newBirthday = friend.get("birthday").asSafeString()?.split("-")?.let { prettyPrintBirthday(it[0].toInt() - 1, it[1].toInt()) }
@@ -241,19 +331,19 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                 }
                             }
 
-                            if (config.contains("bitmoji_avatar_changes") && databaseFriend.bitmojiAvatarId != friend.get("bitmoji_avatar_id").asSafeString()) {
+                            if (friend.has("bitmoji_avatar_id") && config.contains("bitmoji_avatar_changes") && databaseFriend.bitmojiAvatarId != friend.get("bitmoji_avatar_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_avatar_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (config.contains("bitmoji_selfie_changes") && databaseFriend.bitmojiSelfieId != friend.get("bitmoji_selfie_id").asSafeString()) {
+                            if (friend.has("bitmoji_selfie_id") && config.contains("bitmoji_selfie_changes") && databaseFriend.bitmojiSelfieId != friend.get("bitmoji_selfie_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_selfie_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (config.contains("bitmoji_background_changes") && databaseFriend.bitmojiBackgroundId != friend.get("bitmoji_background_id").asSafeString()) {
+                            if (friend.has("bitmoji_background_id") && config.contains("bitmoji_background_changes") && databaseFriend.bitmojiBackgroundId != friend.get("bitmoji_background_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Image, translation.format("bitmoji_background_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (config.contains("bitmoji_scene_changes") && databaseFriend.bitmojiSceneId != friend.get("bitmoji_scene_id").asSafeString()) {
+                            if (friend.has("bitmoji_scene_id") && config.contains("bitmoji_scene_changes") && databaseFriend.bitmojiSceneId != friend.get("bitmoji_scene_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Landscape, translation.format("bitmoji_scene_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
                         }.onFailure { context.log.error("Failed to process friend", it) }

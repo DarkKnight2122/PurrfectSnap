@@ -13,38 +13,21 @@ import java.util.concurrent.ConcurrentHashMap
 class StealthMode : MessagingRuleFeature("StealthMode", MessagingRuleType.STEALTH) {
     private val displayedMessageQueue = CopyOnWriteArraySet<Long>()
     private val snapInteractionQueue = CopyOnWriteArraySet<Long>()
-    private val ruleSnapshotCache = ConcurrentHashMap<String, Pair<Long, Set<MessagingRuleType>>>()
 
     private fun getTargetId(conversationId: String): String {
         return context.database.getDMOtherParticipant(conversationId) ?: conversationId
     }
 
-    private fun getRuleSnapshot(conversationId: String): Set<MessagingRuleType> {
-        val targetId = getTargetId(conversationId)
-        val now = System.currentTimeMillis()
-        ruleSnapshotCache[targetId]?.takeIf { now - it.first < 1_000L }?.let { return it.second }
-        return context.bridgeClient.getRules(targetId).toSet().also { rules ->
-            ruleSnapshotCache[targetId] = now to rules
-        }
-    }
 
-    private fun isRuleActive(
-        conversationId: String,
-        ruleType: MessagingRuleType
-    ): Boolean {
-        val ruleState = context.config.rules.getRuleState(ruleType) ?: return false
-        val enabled = ruleType in getRuleSnapshot(conversationId)
-        return if (ruleState == RuleState.BLACKLIST) !enabled else enabled
-    }
 
     fun canUseChatStealth(conversationId: String): Boolean {
-        return isRuleActive(conversationId, MessagingRuleType.STEALTH) ||
-            isRuleActive(conversationId, MessagingRuleType.CHAT_STEALTH)
+        return canUseRule(conversationId) ||
+            (context.feature(ChatStealth::class)?.canUseRule(conversationId) ?: false)
     }
 
     fun canUseSnapStealth(conversationId: String): Boolean {
-        return isRuleActive(conversationId, MessagingRuleType.STEALTH) ||
-            isRuleActive(conversationId, MessagingRuleType.SNAP_STEALTH)
+        return canUseRule(conversationId) ||
+            (context.feature(SnapStealth::class)?.canUseRule(conversationId) ?: false)
     }
 
     fun isAnyStealthEnabled(conversationId: String): Boolean {
@@ -77,4 +60,16 @@ class StealthMode : MessagingRuleFeature("StealthMode", MessagingRuleType.STEALT
             }
         }
     }
+}
+
+class SnapStealth : MessagingRuleFeature("SnapStealth", MessagingRuleType.SNAP_STEALTH) {
+    override fun init() {}
+
+
+}
+
+class ChatStealth : MessagingRuleFeature("ChatStealth", MessagingRuleType.CHAT_STEALTH) {
+    override fun init() {}
+
+
 }

@@ -3619,7 +3619,9 @@
                 "bitmoji_selfie_changes": "Notify when someone changes their Bitmoji selfie",
                 "bitmoji_avatar_changes": "Notify when someone changes their Bitmoji avatar",
                 "bitmoji_background_changes": "Notify when someone changes their Bitmoji background",
-                "bitmoji_scene_changes": "Notify when someone changes their Bitmoji scene"
+                "bitmoji_scene_changes": "Notify when someone changes their Bitmoji scene",
+                "display_name_changes": "Notify when someone changes their display name",
+                "best_friend_changes": "Notify when someone changes their best friend status"
             },
             "double_tap_chat_action": {
                 "like_message": "Like Message",
@@ -4275,7 +4277,13 @@
         "bitmoji_selfie_changed": "{username} has changed their Bitmoji selfie",
         "bitmoji_avatar_changed": "{username} has changed their Bitmoji avatar",
         "bitmoji_background_changed": "{username} has changed their Bitmoji background",
-        "bitmoji_scene_changed": "{username} has changed their Bitmoji scene"
+        "bitmoji_scene_changed": "{username} has changed their Bitmoji scene",
+        "friend_deactivated": "{username} has deactivated their account",
+        "display_name_removed": "{username} has removed their display name",
+        "display_name_added": "{username} has added a display name ({displayName})",
+        "display_name_changed": "{username} changed their display name from {oldName} to {newName}",
+        "best_friend_removed": "{username} is no longer in your best friends",
+        "best_friend_changed": "{username} has changed their best friend status"
     },
     "material3_strings": {
         "date_range_picker_start_headline": "From",
