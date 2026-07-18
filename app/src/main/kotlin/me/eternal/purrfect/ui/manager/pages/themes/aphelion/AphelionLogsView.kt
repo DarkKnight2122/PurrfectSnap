@@ -63,6 +63,22 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
     var isRefreshing by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
 
+    fun applyFilters() {
+        val reader = logReader ?: return
+        coroutineScope.launch(Dispatchers.Default) {
+            val filteredLogs = (0 until reader.lineCount).mapNotNull { index ->
+                reader.getLogLine(index)?.takeUnless(::shouldHideLog)
+            }
+            withContext(Dispatchers.Main) {
+                visibleLogs.clear()
+                visibleLogs.addAll(filteredLogs)
+                if (visibleLogs.isNotEmpty()) {
+                    logListState.scrollToItem((visibleLogs.size - 1).coerceAtLeast(0))
+                }
+            }
+        }
+    }
+
     fun refreshLogs() {
         isRefreshing = true
         coroutineScope.launch(Dispatchers.IO) {
@@ -92,7 +108,10 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
 
     @Composable
     fun LogFilterDialog() {
-        Dialog(onDismissRequest = { showFilterDialog = false }) {
+        Dialog(onDismissRequest = { 
+            showFilterDialog = false
+            applyFilters()
+        }) {
             PurrfectOverlayTheme {
                 PurrfectGlassCard(
                     title = translation["filter_logs_title"] ?: "Log Filters",
@@ -115,8 +134,10 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(12.dp))
                                             .clickable {
-                                                enabledCategories[category] = !(enabledCategories[category] ?: true)
-                                                refreshLogs()
+                                                val nextVal = !(enabledCategories[category] ?: true)
+                                                enabledCategories[category] = nextVal
+                                                val enabledNames = enabledCategories.filter { it.value }.keys.map { it.name }.toSet()
+                                                context.sharedPreferences.edit().putStringSet("logger_enabled_categories", enabledNames).apply()
                                             }
                                             .padding(horizontal = 12.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
@@ -125,7 +146,8 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                                             checked = enabledCategories[category] == true,
                                             onCheckedChange = { checked ->
                                                 enabledCategories[category] = checked
-                                                refreshLogs()
+                                                val enabledNames = enabledCategories.filter { it.value }.keys.map { it.name }.toSet()
+                                                context.sharedPreferences.edit().putStringSet("logger_enabled_categories", enabledNames).apply()
                                             },
                                             colors = CheckboxDefaults.colors(
                                                 checkedColor = LogsSkinPalette.glowPrimary,
@@ -145,7 +167,10 @@ fun HomeLogs.AphelionLogsScreen(nav: NavBackStackEntry) {
                         }
 
                         Button(
-                            onClick = { showFilterDialog = false },
+                            onClick = { 
+                                showFilterDialog = false 
+                                applyFilters()
+                            },
                             modifier = Modifier.fillMaxWidth().height(54.dp),
                             shape = RoundedCornerShape(18.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = LogsSkinPalette.glowPrimary)

@@ -117,14 +117,19 @@ class FriendFeedMessagePreview : Feature("FriendFeedMessagePreview") {
                             val previewContainerHeight = if (messages.isNullOrEmpty()) 0 else (messages.size * (lineHeight + spacing))
 
                             if (previewContainerHeight == 0) {
-                                ffItem.layoutParams = ffItem.layoutParams.apply {
-                                    height = ViewGroup.LayoutParams.MATCH_PARENT
+                                if (ffItem.layoutParams.height != ViewGroup.LayoutParams.MATCH_PARENT) {
+                                    ffItem.layoutParams = ffItem.layoutParams.apply {
+                                        height = ViewGroup.LayoutParams.MATCH_PARENT
+                                    }
                                 }
                                 return@fetchMessages
                             }
 
-                            ffItem.layoutParams = ffItem.layoutParams.apply {
-                                height = feedEntryHeight + (safetyGap).toInt() + previewContainerHeight
+                            val targetHeight = feedEntryHeight + (safetyGap).toInt() + previewContainerHeight
+                            if (ffItem.layoutParams.height != targetHeight) {
+                                ffItem.layoutParams = ffItem.layoutParams.apply {
+                                    height = targetHeight
+                                }
                             }
 
                             cachedLayouts[conversationId] = frameLayout

@@ -323,17 +323,15 @@ class CallRecorder : Feature("Call Recorder") {
             audioFormat = format,
             sourceLabel = "self-internal:$reason",
             onStreamOpened = {
-                selfSideStreamOpened = true
-                if (audioRecord !== fallbackMicRecord) {
-                    stopFallbackMicCapture("internalSelfStreamOpened")
+                if (!selfSideStreamOpened) {
+                    selfSideStreamOpened = true
+                    if (audioRecord !== fallbackMicRecord) {
+                        stopFallbackMicCapture("internalSelfStreamOpened")
+                    }
                 }
             }
         ).also {
             streams[streamId] = it
-            selfSideStreamOpened = true
-            if (audioRecord !== fallbackMicRecord) {
-                stopFallbackMicCapture("internalSelfStreamRegistered:$reason")
-            }
             context.log.verbose(
                 "Registered AudioRecord stream source=$audioSource reason=$reason sampleRate=${format.sampleRate} channels=${format.channelCount}",
                 "CallRecorder"
@@ -358,6 +356,16 @@ class CallRecorder : Feature("Call Recorder") {
         }
     }
 
+    private fun getOptimalSampleRate(channelMask: Int, encoding: Int): Int {
+        if (AudioRecord.getMinBufferSize(32000, channelMask, encoding) > 0) {
+            return 32000
+        }
+        if (AudioRecord.getMinBufferSize(16000, channelMask, encoding) > 0) {
+            return 16000
+        }
+        return 16000
+    }
+
     private fun startFallbackMicCapture() {
         if (!shouldCaptureSelfSide() || selfSideStreamOpened || fallbackMicJob != null || !uiState.isRecording) return
 
@@ -367,9 +375,9 @@ class CallRecorder : Feature("Call Recorder") {
             return
         }
 
-        val sampleRate = 48_000
         val channelMask = AudioFormat.CHANNEL_IN_MONO
         val encoding = AudioFormat.ENCODING_PCM_16BIT
+        val sampleRate = getOptimalSampleRate(channelMask, encoding)
         val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelMask, encoding)
         if (minBufferSize <= 0) {
             context.log.warn("Fallback mic capture unavailable: invalid min buffer size $minBufferSize", "CallRecorder")
@@ -385,7 +393,7 @@ class CallRecorder : Feature("Call Recorder") {
         constructingFallbackMic = true
         val audioRecord = runCatching {
             AudioRecord.Builder()
-                .setAudioSource(MediaRecorder.AudioSource.VOICE_COMMUNICATION)
+                .setAudioSource(MediaRecorder.AudioSource.MIC)
                 .setAudioFormat(audioFormat)
                 .setBufferSizeInBytes(minBufferSize * 2)
                 .build()
@@ -403,7 +411,7 @@ class CallRecorder : Feature("Call Recorder") {
         }
 
         fallbackMicRecord = audioRecord
-        context.log.verbose("Starting fallback mic capture", "CallRecorder")
+        context.log.verbose("Starting fallback mic at ${sampleRate}Hz (adaptive)", "CallRecorder")
 
         fallbackMicJob = context.coroutineScope.launch(Dispatchers.IO) {
             val buffer = ByteArray(minBufferSize.coerceAtLeast(2048))
@@ -414,12 +422,12 @@ class CallRecorder : Feature("Call Recorder") {
                     selfSideStreamOpened = true
                 }
             )
-            val echoCanceler = if (callRecorderConfig.echoSuppression.get()) {
+            val echoCanceler = if (callRecorderConfig.echoSuppression.get() && AcousticEchoCanceler.isAvailable()) {
                 AcousticEchoCanceler.create(audioRecord.audioSessionId)?.apply {
                     enabled = true
                 }
             } else null
-            val noiseSuppressor = if (callRecorderConfig.noiseSuppression.get()) {
+            val noiseSuppressor = if (callRecorderConfig.noiseSuppression.get() && NoiseSuppressor.isAvailable()) {
                 NoiseSuppressor.create(audioRecord.audioSessionId)?.apply {
                     enabled = true
                 }

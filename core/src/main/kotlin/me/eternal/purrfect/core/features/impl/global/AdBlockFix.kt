@@ -184,11 +184,8 @@ class AdBlockFix : Feature("AdBlockFix") {
 
     private fun isCampaignFeedEntry(feedEntry: Any?): Boolean {
         if (feedEntry == null) return false
-        if (feedEntry.getObjectFieldOrNull("mConversationSubType")?.toString() == "CAMPAIGN") {
-            return true
-        }
-        return feedEntry.getObjectFieldOrNull("mConversationSubTypeMetadata")
-            ?.getObjectFieldOrNull("mCampaignMetadata") != null
+        val subType = feedEntry.getObjectFieldOrNull("mConversationSubType")?.toString()
+        return subType == "CAMPAIGN"
     }
 
     private fun isSpotlightCommercialPage(paramMap: ParamMap): Boolean {

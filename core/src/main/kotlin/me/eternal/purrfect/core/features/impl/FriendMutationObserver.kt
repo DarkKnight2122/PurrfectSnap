@@ -14,6 +14,8 @@ import me.eternal.purrfect.core.event.events.impl.UnaryCallEvent
 import me.eternal.purrfect.core.features.Feature
 import me.eternal.purrfect.core.util.EvictingMap
 import me.eternal.purrfect.common.util.protobuf.ProtoReader
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.io.InputStreamReader
 import java.util.Calendar
 
@@ -32,6 +34,10 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
         }
     }
 
+    private val notificationQueue = java.util.concurrent.ConcurrentLinkedQueue<Triple<ImageVector, String, FriendInfo?>>()
+    @Volatile
+    private var isQueueProcessing = false
+
     // Injected from app layer — keeps core free of ui.* imports
     var aphelionToastProvider: ((
         icon: ImageVector,
@@ -49,6 +55,21 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
     }
 
     private fun sendMutationNotification(icon: ImageVector, contentText: String, friendInfo: FriendInfo? = null) {
+        notificationQueue.add(Triple(icon, contentText, friendInfo))
+        if (!isQueueProcessing) {
+            isQueueProcessing = true
+            context.coroutineScope.launch {
+                while (true) {
+                    val next = notificationQueue.poll() ?: break
+                    showNotificationDirect(next.first, next.second, next.third)
+                    delay(1500) // 1.5-second pacing delay to prevent Binder saturation
+                }
+                isQueueProcessing = false
+            }
+        }
+    }
+
+    private fun showNotificationDirect(icon: ImageVector, contentText: String, friendInfo: FriendInfo?) {
         val currentTheme = context.config.global.uiSettings.managerTheme.get()
         val isAphelion = currentTheme == "APHELION"
 
@@ -104,9 +125,12 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                 context.log.verbose("[FRIEND_MUTATION] Intercepted gRPC unary request: ${event.uri} payloadSize=${event.buffer.size}")
                 
                 if (event.uri == "/com.snapchat.atlas.gw.AtlasGw/SyncFriendData") {
+                    val responseBuffer = event.buffer.copyOf()
                     event.addResponseCallback {
-                        runCatching {
-                            val rootReader = ProtoReader(buffer)
+                        context.coroutineScope.launch {
+                            val activeConfigs = config.toSet()
+                            runCatching {
+                                val rootReader = ProtoReader(responseBuffer)
                             val container = rootReader.followPath(1) ?: return@runCatching
                             
                             container.eachBuffer(2) {
@@ -164,7 +188,7 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                          if (!wasMutual && mutationIntegrityOffset == 0L) return@eachBuffer
 
                                          if (linkType == grpcDeactivated && mutationIntegrityOffset == 0L) {
-                                             if (config.contains("deactivated_friend")) {
+                                             if (activeConfigs.contains("deactivated_friend")) {
                                                  sendMutationNotification(
                                                      Icons.Default.PersonRemove,
                                                      translation.format("friend_deactivated", "username" to formatUsername(databaseFriend)),
@@ -172,7 +196,7 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                                  )
                                              }
                                          } else {
-                                             if (config.contains("remove_friend") || mutationIntegrityOffset != 0L) {
+                                             if (activeConfigs.contains("remove_friend") || mutationIntegrityOffset != 0L) {
                                                  sendMutationNotification(
                                                      Icons.Default.PersonRemove,
                                                      translation.format("friend_removed", "username" to formatUsername(databaseFriend)),
@@ -185,7 +209,7 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                  }
 
                                 // 1. Display Name Changes (Tag 3)
-                                if (hasDisplayName && config.contains("display_name_changes")) {
+                                if (hasDisplayName && activeConfigs.contains("display_name_changes")) {
                                     val currentDisplayName = databaseFriend.serverDisplayName ?: databaseFriend.displayName
                                     if (currentDisplayName != displayName) {
                                         when {
@@ -197,7 +221,7 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                 }
 
                                 // 2. Birthday Changes (Tag 5)
-                                if (hasBirthday && config.contains("birthday_changes")) {
+                                if (hasBirthday && activeConfigs.contains("birthday_changes")) {
                                     val currentBirthdayStr = databaseFriend.birthday.takeIf { it != 0L }?.let {
                                         ((it shr 32).toInt()).toString().padStart(2, '0') + "-" + (it.toInt()).toString().padStart(2, '0')
                                     }
@@ -221,7 +245,7 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                 }
 
                                 // 3. Best Friend Label Changes (Tag 9)
-                                if (hasFriendLabel && config.contains("best_friend_changes")) {
+                                if (hasFriendLabel && activeConfigs.contains("best_friend_changes")) {
                                     val cachedLabel = friendLabelCache[username]
                                     if (cachedLabel == null) {
                                         // First time seeing this friend — populate cache silently
@@ -237,36 +261,36 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                 }
 
                                 // 4. Bitmoji Avatar changes (Tag 10)
-                                if (hasAvatar && config.contains("bitmoji_avatar_changes")) {
+                                if (hasAvatar && activeConfigs.contains("bitmoji_avatar_changes")) {
                                     if (databaseFriend.bitmojiAvatarId != newAvatarId) {
                                         sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_avatar_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                     }
                                 }
 
                                 // 5. Bitmoji Selfie changes (Tag 11)
-                                if (hasSelfie && config.contains("bitmoji_selfie_changes")) {
+                                if (hasSelfie && activeConfigs.contains("bitmoji_selfie_changes")) {
                                     if (databaseFriend.bitmojiSelfieId != newSelfieId) {
                                         sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_selfie_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                     }
                                 }
 
                                 // 6. Bitmoji Scene changes (Tag 12)
-                                if (hasScene && config.contains("bitmoji_scene_changes")) {
+                                if (hasScene && activeConfigs.contains("bitmoji_scene_changes")) {
                                     if (databaseFriend.bitmojiSceneId != newSceneId) {
                                         sendMutationNotification(Icons.Default.Landscape, translation.format("bitmoji_scene_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                     }
                                 }
 
                                 // 7. Bitmoji Background changes (Tag 13)
-                                if (hasBackground && config.contains("bitmoji_background_changes")) {
+                                if (hasBackground && activeConfigs.contains("bitmoji_background_changes")) {
                                     if (databaseFriend.bitmojiBackgroundId != newBackgroundId) {
                                         sendMutationNotification(Icons.Default.Image, translation.format("bitmoji_background_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                     }
                                 }
                             }
-
-                        }.onFailure { t ->
-                            context.log.error("Failed to parse SyncFriendData response", t)
+                            }.onFailure { t ->
+                                context.log.error("Failed to parse SyncFriendData response", t)
+                            }
                         }
                     }
                 }
@@ -279,8 +303,12 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
             }
             if (!event.url.contains("ami/friends")) return@subscribe
             event.onSuccess { buffer ->
-                runCatching {
-                    val jsonObject = context.gson.fromJson(InputStreamReader(buffer?.inputStream() ?: return@onSuccess, Charsets.UTF_8), JsonObject::class.java)
+                if (buffer == null) return@onSuccess
+                val bufferCopy = buffer.copyOf()
+                context.coroutineScope.launch {
+                    val activeConfigs = config.toSet()
+                    runCatching {
+                        val jsonObject = context.gson.fromJson(InputStreamReader(bufferCopy.inputStream(), Charsets.UTF_8), JsonObject::class.java)
                     jsonObject.getAsJsonArray("added_friends")?.map { it.asJsonObject }?.forEach { friend ->
                         val userId = friend.get("user_id").asSafeString() ?: return@forEach
                         (friend.get("add_source").asSafeString()
@@ -289,23 +317,25 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                         }
                     }
 
-                    if (config.isEmpty()) return@runCatching
+                    if (activeConfigs.isEmpty()) return@runCatching
                     jsonObject.getAsJsonArray("friends")?.map { it.asJsonObject }?.forEach { friend ->
                         runCatching {
                             val userId = friend.get("user_id").asSafeString() ?: return@forEach
                             if (userId == context.database.myUserId) return@forEach
-                            val databaseFriend = context.database.getFriendInfo(userId) ?: return@forEach
+                                val databaseFriend = context.database.getFriendInfo(userId)
+                                    ?: friend.get("username").asSafeString()?.let { context.database.getFriendInfoByUsername(it) }
+                                    ?: return@forEach
                             if (FriendLinkType.fromValue(databaseFriend.friendLinkType) != FriendLinkType.MUTUAL) return@forEach
 
                             if (friend.get("direction").asSafeString() == "OUTGOING") {
                                 if (!friend.has("fidelius_info")) {
                                     val isDeactivated = friend.get("deactivated")?.takeIf { it.isJsonPrimitive }?.asBoolean == true || friend.has("deactivated_timestamp")
                                     if (isDeactivated) {
-                                        if (config.contains("deactivated_friend")) {
+                                        if (activeConfigs.contains("deactivated_friend")) {
                                             sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_deactivated", "username" to formatUsername(databaseFriend)), databaseFriend)
                                         }
                                     } else {
-                                        if (config.contains("remove_friend")) {
+                                        if (activeConfigs.contains("remove_friend")) {
                                             sendMutationNotification(Icons.Default.PersonRemove, translation.format("friend_removed", "username" to formatUsername(databaseFriend)), databaseFriend)
                                         }
                                     }
@@ -313,7 +343,7 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                 return@forEach // always exit for OUTGOING — skip birthday/bitmoji checks
                             }
 
-                            if (friend.has("birthday") && config.contains("birthday_changes") &&
+                            if (friend.has("birthday") && activeConfigs.contains("birthday_changes") &&
                                 databaseFriend.birthday.takeIf { it != 0L }?.let {
                                     ((it shr 32).toInt()).toString().padStart(2, '0') + "-" + (it.toInt()).toString().padStart(2, '0')
                                 } != friend.get("birthday").asSafeString()
@@ -331,24 +361,32 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                                 }
                             }
 
-                            if (friend.has("bitmoji_avatar_id") && config.contains("bitmoji_avatar_changes") && databaseFriend.bitmojiAvatarId != friend.get("bitmoji_avatar_id").asSafeString()) {
-                                sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_avatar_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
-                            }
+                             if (friend.has("display_name") && activeConfigs.contains("display_name_changes")) {
+                                 val newDisplayName = friend.get("display_name").asSafeString()
+                                 if (databaseFriend.displayName != newDisplayName) {
+                                     sendMutationNotification(Icons.Default.Edit, translation.format("display_name_changed", "username" to formatUsername(databaseFriend), "oldName" to databaseFriend.displayName.orEmpty(), "newName" to newDisplayName.orEmpty()), databaseFriend)
+                                 }
+                             }
 
-                            if (friend.has("bitmoji_selfie_id") && config.contains("bitmoji_selfie_changes") && databaseFriend.bitmojiSelfieId != friend.get("bitmoji_selfie_id").asSafeString()) {
+                             if (friend.has("bitmoji_avatar_id") && activeConfigs.contains("bitmoji_avatar_changes") && databaseFriend.bitmojiAvatarId != friend.get("bitmoji_avatar_id").asSafeString()) {
+                                 sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_avatar_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
+                             }
+
+                            if (friend.has("bitmoji_selfie_id") && activeConfigs.contains("bitmoji_selfie_changes") && databaseFriend.bitmojiSelfieId != friend.get("bitmoji_selfie_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Face, translation.format("bitmoji_selfie_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (friend.has("bitmoji_background_id") && config.contains("bitmoji_background_changes") && databaseFriend.bitmojiBackgroundId != friend.get("bitmoji_background_id").asSafeString()) {
+                            if (friend.has("bitmoji_background_id") && activeConfigs.contains("bitmoji_background_changes") && databaseFriend.bitmojiBackgroundId != friend.get("bitmoji_background_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Image, translation.format("bitmoji_background_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
 
-                            if (friend.has("bitmoji_scene_id") && config.contains("bitmoji_scene_changes") && databaseFriend.bitmojiSceneId != friend.get("bitmoji_scene_id").asSafeString()) {
+                            if (friend.has("bitmoji_scene_id") && activeConfigs.contains("bitmoji_scene_changes") && databaseFriend.bitmojiSceneId != friend.get("bitmoji_scene_id").asSafeString()) {
                                 sendMutationNotification(Icons.Default.Landscape, translation.format("bitmoji_scene_changed", "username" to formatUsername(databaseFriend)), databaseFriend)
                             }
-                        }.onFailure { context.log.error("Failed to process friend", it) }
-                    }
-                }.onFailure { context.log.error("Failed to process friends", it) }
+                            }.onFailure { context.log.error("Failed to process friend", it) }
+                        }
+                    }.onFailure { context.log.error("Failed to process friends", it) }
+                }
             }
         }
     }

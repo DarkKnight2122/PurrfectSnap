@@ -260,6 +260,25 @@ class LoggerHistoryRoot : Routes.Route() {
         }
     }
 
+    private suspend fun decodeMessageAsync(
+        message: LoggedMessage,
+        result: (contentType: ContentType, messageReader: ProtoReader, attachments: List<DecodedAttachment>) -> Unit
+    ) {
+        val parsed = withContext(Dispatchers.Default) {
+            runCatching {
+                val messageObject = JsonParser.parseString(String(message.messageData, Charsets.UTF_8)).asJsonObject
+                val messageContent = messageObject.getAsJsonObject("mMessageContent")
+                val messageReader = messageContent.getAsJsonArray("mContent").map { it.asByte }.toByteArray().let { ProtoReader(it) }
+                val attachments = MessageDecoder.decode(messageContent)
+                val contentType = ContentType.fromMessageContainer(messageReader) ?: ContentType.UNKNOWN
+                Triple(contentType, messageReader, attachments)
+            }.getOrNull()
+        }
+        if (parsed != null) {
+            result(parsed.first, parsed.second, parsed.third)
+        }
+    }
+
     private fun downloadAttachment(creationTimestamp: Long, attachment: DecodedAttachment) {
         context.shortToast(translation["download_started_toast"])
         val attachmentHash = attachment.mediaUniqueId!!.longHashCode().absoluteValue.toString()
@@ -332,7 +351,7 @@ class LoggerHistoryRoot : Routes.Route() {
 
                 LaunchedEffect(Unit, message) {
                     runCatching {
-                        decodeMessage(message) { contentType, messageReader, attachments ->
+                        decodeMessageAsync(message) { contentType, messageReader, attachments ->
                             @Composable
                             fun ContentHeader() {
                                 val date = remember { DateFormat.getDateTimeInstance().format(message.sendTimestamp) }
@@ -383,45 +402,45 @@ class LoggerHistoryRoot : Routes.Route() {
                                         ContentHeader()
                                     }
                                 }
-                                return@runCatching
-                            }
-                            contentView = {
-                                Column column@{
-                                    if (attachments.isEmpty()) return@column
+                            } else {
+                                contentView = {
+                                    Column column@{
+                                        if (attachments.isEmpty()) return@column
 
-                                    FlowRow(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(2.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        attachments.forEachIndexed { index, attachment ->
-                                            Button(
-                                                onClick = {
-                                                    context.coroutineScope.launch {
-                                                        runCatching {
-                                                            downloadAttachment(message.sendTimestamp, attachment)
-                                                        }.onFailure {
-                                                            context.log.error("Failed to download attachment", it)
-                                                            context.shortToast(translation["download_attachment_failed_toast"])
+                                        FlowRow(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(2.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            attachments.forEachIndexed { index, attachment ->
+                                                Button(
+                                                    onClick = {
+                                                        context.coroutineScope.launch {
+                                                            runCatching {
+                                                                downloadAttachment(message.sendTimestamp, attachment)
+                                                            }.onFailure {
+                                                                context.log.error("Failed to download attachment", it)
+                                                                context.shortToast(translation["download_attachment_failed_toast"])
+                                                            }
                                                         }
-                                                    }
-                                                },
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = glowPrimary.copy(alpha = 0.28f),
-                                                    contentColor = LoggerSkinPalette.textPrimary
-                                                )
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Download,
-                                                    contentDescription = translation["download_button"],
-                                                    modifier = Modifier.padding(end = 4.dp)
-                                                )
-                                                Text(translation.format("chat_attachment", "index" to (index + 1).toString()))
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = glowPrimary.copy(alpha = 0.28f),
+                                                        contentColor = LoggerSkinPalette.textPrimary
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Download,
+                                                        contentDescription = translation["download_button"],
+                                                        modifier = Modifier.padding(end = 4.dp)
+                                                    )
+                                                    Text(translation.format("chat_attachment", "index" to (index + 1).toString()))
+                                                }
                                             }
                                         }
+                                        ContentHeader()
                                     }
-                                    ContentHeader()
                                 }
                             }
                         }

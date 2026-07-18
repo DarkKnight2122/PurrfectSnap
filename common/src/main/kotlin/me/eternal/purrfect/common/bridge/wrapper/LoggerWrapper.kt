@@ -159,6 +159,23 @@ class LoggerWrapper(
         return SQLiteDatabase.openDatabase(file.absolutePath, null, dbFlags).also { openedDatabase ->
             if (!readOnly) {
                 SQLiteDatabaseHelper.createTablesFromSchema(openedDatabase, MESSAGE_LOGGER_SCHEMA)
+                
+                // messages indexes
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id)")
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_messages_message_id ON messages(message_id)")
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_messages_conversation_timestamp ON messages(conversation_id, send_timestamp)")
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_messages_conversation_message ON messages(conversation_id, message_id)")
+
+                // chat_edits indexes
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_chat_edits_message_id ON chat_edits(message_id)")
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_chat_edits_conv_msg_time ON chat_edits(conversation_id, message_id, added_timestamp)")
+
+                // tracker_events indexes
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_tracker_events_conversation_id ON tracker_events(conversation_id)")
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_tracker_events_conversation_timestamp ON tracker_events(conversation_id, timestamp)")
+
+                // stories indexes
+                openedDatabase.execSQL("CREATE INDEX IF NOT EXISTS idx_stories_user_id ON stories(user_id)")
             }
         }
     }

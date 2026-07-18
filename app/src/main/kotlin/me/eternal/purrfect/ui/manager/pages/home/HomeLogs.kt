@@ -82,6 +82,17 @@ class HomeLogs : Routes.Route() {
     internal val externalRefreshTick = mutableIntStateOf(0)
     override val init: () -> Unit = {
         activityLauncherHelper = ActivityLauncherHelper(context.activity!!)
+        val saved = context.sharedPreferences.getStringSet("logger_enabled_categories", null)
+        enabledCategories.clear()
+        if (saved != null) {
+            LogCategory.entries.forEach { category ->
+                enabledCategories[category] = saved.contains(category.name)
+            }
+        } else {
+            LogCategory.entries.forEach { category ->
+                enabledCategories[category] = true
+            }
+        }
     }
 
     internal fun clearLogsAndReload() {
@@ -492,14 +503,12 @@ class HomeLogs : Routes.Route() {
         MEDIA("log_category_media", listOf("downloader", "ffmpeg", "media", "video")),
         BRIDGE("log_category_bridge", listOf("messagingbridge", "bridge", "ipc")),
         SYSTEM("log_category_system", listOf("systemguard", "thermal", "battery", "wakelock")),
+        CONVERSATION_TRACKER("log_category_conversation_tracker", listOf("volatile", "presence", "messaging", "snap_opened", "conversation")),
         TRACKER("log_category_tracker", listOf("tracker", "friendtracker")),
-        CONVERSATION_TRACKER("log_category_conversation_tracker", listOf("volatile event", "presence", "messaging event", "snap_opened", "conversation messaging")),
         CONTINUOUS_SEND("log_category_continuous_send", listOf("continuoussend", "sendoverride", "scheduledsend"))
     }
 
-    val enabledCategories = mutableStateMapOf<LogCategory, Boolean>().apply {
-        LogCategory.entries.forEach { put(it, true) }
-    }
+    val enabledCategories = mutableStateMapOf<LogCategory, Boolean>()
 
     internal fun getCategoryForLog(line: LogLine): LogCategory? {
         val tag = line.tag.lowercase()

@@ -6,6 +6,8 @@ import me.eternal.purrfect.common.data.RuleState
 import me.eternal.purrfect.core.event.events.impl.BindViewEvent
 import me.eternal.purrfect.core.features.MessagingRuleFeature
 import me.eternal.purrfect.core.ui.hideViewCompletely
+import me.eternal.purrfect.core.ui.showViewCompletely
+import me.eternal.purrfect.core.ui.isCompletelyHidden
 import me.eternal.purrfect.core.util.dataBuilder
 import me.eternal.purrfect.core.util.hook.HookStage
 import me.eternal.purrfect.core.util.hook.hook
@@ -108,6 +110,21 @@ class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType
         }
     }
 
+    private fun showBoundChatFeedRow(view: View) {
+        var current: View? = view
+        repeat(4) {
+            val parent = current?.parent as? View
+            val c = current
+            if (c != null && c.isCompletelyHidden()) {
+                c.showViewCompletely()
+            }
+            if (parent?.javaClass?.name?.contains("RecyclerView") == true) {
+                return
+            }
+            current = parent
+        }
+    }
+
     private fun hookCallbackMethod(
         hookedCallbacks: MutableSet<String>,
         callbackClassName: String,
@@ -132,6 +149,8 @@ class HideFriendFeedEntry : MessagingRuleFeature("HideFriendFeedEntry", ruleType
             event.friendFeedItem { conversationId ->
                 if (shouldHideConversation(conversationId, getRuleIdsSnapshot(), getRuleState())) {
                     hideBoundChatFeedRow(event.view)
+                } else {
+                    showBoundChatFeedRow(event.view)
                 }
             }
         }

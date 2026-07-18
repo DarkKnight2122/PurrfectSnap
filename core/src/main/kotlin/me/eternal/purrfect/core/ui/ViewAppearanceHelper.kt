@@ -135,23 +135,58 @@ fun View.onAttachChange(onAttach: (View.OnAttachStateChangeListener) -> Unit = {
     }.also { addOnAttachStateChangeListener(it) }
 }
 
-fun View.hideViewCompletely() {
-    fun hide() {
-        if (visibility == View.GONE && layoutParams?.width == 0 && layoutParams?.height == 0) return
-        
-        isEnabled = false
-        visibility = View.GONE
-        setWillNotDraw(true)
+private val layoutListenerTag = randomTag()
 
-        layoutParams = layoutParams?.apply {
-            width = 0
-            height = 0
-        } ?: return
+fun View.hideViewCompletely() {
+    val alreadyHidden = visibility == View.GONE 
+        && layoutParams?.width == 0 
+        && layoutParams?.height == 0
+    if (alreadyHidden) return
+
+    isEnabled = false
+    visibility = View.GONE
+    setWillNotDraw(true)
+    layoutParams = layoutParams?.apply {
+        width = 0
+        height = 0
     }
-    hide()
-    post { hide() }
-    onLayoutChange { post { hide() } }
+
+    // Clean up any pre-existing listener to avoid leaks
+    (getTag(layoutListenerTag) as? View.OnLayoutChangeListener)?.let {
+        removeOnLayoutChangeListener(it)
+    }
+
+    val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        if (visibility != View.GONE || layoutParams?.width != 0 || layoutParams?.height != 0) {
+            isEnabled = false
+            visibility = View.GONE
+            setWillNotDraw(true)
+            layoutParams = layoutParams?.apply { width = 0; height = 0 }
+        }
+    }
+    addOnLayoutChangeListener(listener)
+    setTag(layoutListenerTag, listener)
 }
+
+fun View.showViewCompletely(
+    originalWidth: Int = ViewGroup.LayoutParams.MATCH_PARENT, 
+    originalHeight: Int = ViewGroup.LayoutParams.WRAP_CONTENT
+) {
+    (getTag(layoutListenerTag) as? View.OnLayoutChangeListener)?.let {
+        removeOnLayoutChangeListener(it)
+        setTag(layoutListenerTag, null)
+    }
+
+    isEnabled = true
+    visibility = View.VISIBLE
+    setWillNotDraw(false)
+    layoutParams = layoutParams?.apply {
+        width = originalWidth
+        height = originalHeight
+    }
+}
+
+fun View.isCompletelyHidden(): Boolean = getTag(layoutListenerTag) != null
 
 fun View.getValdiViewNode(): ValdiViewNode? {
     val valdiView = Purrfect.classCache.valdiView ?: return null

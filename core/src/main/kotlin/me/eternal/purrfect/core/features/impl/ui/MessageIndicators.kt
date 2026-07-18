@@ -34,6 +34,7 @@ import me.eternal.purrfect.common.ui.rememberAsyncMutableState
 import me.eternal.purrfect.common.util.protobuf.ProtoReader
 import me.eternal.purrfect.core.event.events.impl.BindViewEvent
 import me.eternal.purrfect.core.features.Feature
+import me.eternal.purrfect.core.util.EvictingMap
 import me.eternal.purrfect.core.ui.AppleLogo
 import me.eternal.purrfect.core.util.ktx.vibrateLongPress
 import kotlin.random.Random
@@ -90,6 +91,8 @@ private fun GradientText(
 }
 
 class MessageIndicators : Feature("Message Indicators") {
+    private val groupConversationCache = java.util.Collections.synchronizedMap(EvictingMap<String, Boolean>(100))
+
     override fun init() {
         val messageIndicatorsConfig = context.config.userInterface.messageIndicators.getNullable() ?: return
         if (messageIndicatorsConfig.isEmpty()) return
@@ -107,7 +110,9 @@ class MessageIndicators : Feature("Message Indicators") {
                     if (message.contentType != ContentType.SNAP.id && message.contentType != ContentType.EXTERNAL_MEDIA.id) return@chatMessage
                     if (message.senderId == context.database.myUserId && messageIndicatorsConfig.contains("skip_own_indicators")) return@chatMessage
                     val reader = ProtoReader(message.messageContent ?: return@chatMessage)
-                    val isGroupConversation = (context.database.getConversationParticipants(conversationId)?.size ?: 0) > 2
+                    val isGroupConversation = groupConversationCache.getOrPut(conversationId) {
+                        (context.database.getConversationParticipants(conversationId)?.size ?: 0) > 2
+                    }
                     if (isGroupConversation && messageIndicatorsConfig.contains("disable_indicators_in_groups")) return@chatMessage
 
                     createComposeView(event.view.context) {
