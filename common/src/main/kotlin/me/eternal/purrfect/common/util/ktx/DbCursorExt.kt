@@ -4,7 +4,16 @@ import android.database.Cursor
 
 fun Cursor.getStringOrNull(columnName: String): String? {
     val columnIndex = getColumnIndex(columnName)
-    return if (columnIndex == -1) null else getString(columnIndex)
+    if (columnIndex == -1 || isNull(columnIndex)) return null
+    return try {
+        if (getType(columnIndex) == Cursor.FIELD_TYPE_BLOB) {
+            getBlob(columnIndex)?.let { String(it, Charsets.UTF_8) }
+        } else {
+            getString(columnIndex)
+        }
+    } catch (e: Exception) {
+        runCatching { getBlob(columnIndex)?.let { String(it, Charsets.UTF_8) } }.getOrNull()
+    }
 }
 
 fun Cursor.getIntOrNull(columnName: String): Int? {

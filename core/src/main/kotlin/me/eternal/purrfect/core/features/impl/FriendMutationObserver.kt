@@ -59,12 +59,19 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
         if (!isQueueProcessing) {
             isQueueProcessing = true
             context.coroutineScope.launch {
-                while (true) {
-                    val next = notificationQueue.poll() ?: break
-                    showNotificationDirect(next.first, next.second, next.third)
-                    delay(1500) // 1.5-second pacing delay to prevent Binder saturation
+                try {
+                    while (true) {
+                        val next = notificationQueue.poll() ?: break
+                        runCatching {
+                            showNotificationDirect(next.first, next.second, next.third)
+                        }.onFailure {
+                            context.log.error("Failed to show mutation notification", it)
+                        }
+                        delay(1500) // 1.5-second pacing delay to prevent Binder saturation
+                    }
+                } finally {
+                    isQueueProcessing = false
                 }
-                isQueueProcessing = false
             }
         }
     }
@@ -125,12 +132,12 @@ class FriendMutationObserver: Feature("FriendMutationObserver") {
                 context.log.verbose("[FRIEND_MUTATION] Intercepted gRPC unary request: ${event.uri} payloadSize=${event.buffer.size}")
                 
                 if (event.uri == "/com.snapchat.atlas.gw.AtlasGw/SyncFriendData") {
-                    val responseBuffer = event.buffer.copyOf()
                     event.addResponseCallback {
+                        val responseCopy = this.buffer.copyOf()
                         context.coroutineScope.launch {
                             val activeConfigs = config.toSet()
                             runCatching {
-                                val rootReader = ProtoReader(responseBuffer)
+                                val rootReader = ProtoReader(responseCopy)
                             val container = rootReader.followPath(1) ?: return@runCatching
                             
                             container.eachBuffer(2) {

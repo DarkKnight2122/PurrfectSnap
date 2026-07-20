@@ -56,25 +56,6 @@ class PerformanceMode : Feature("Performance Mode") {
         private const val REOPEN_WARMUP_DM_MESSAGES = 96
     }
 
-    private data class SnapshotCell(
-        val type: Int,
-        val stringValue: String? = null,
-        val longValue: Long? = null,
-        val doubleValue: Double? = null,
-        val blobValue: String? = null,
-    )
-
-    private data class CursorSnapshot(
-        val columns: List<String>,
-        val rows: List<List<SnapshotCell>>,
-    )
-
-    private data class ChatFeedSnapshotCache(
-        val schemaVersion: Int,
-        val queryKey: String,
-        val createdAt: Long,
-        val snapshot: CursorSnapshot,
-    )
 
     private data class MessageWindowState(
         val conversationId: String,
@@ -93,6 +74,10 @@ class PerformanceMode : Feature("Performance Mode") {
         }
 
         val profile = context.config.global.performanceMode.profile.getNullable() ?: return
+        if (profile == "off") {
+            context.log.verbose("PerformanceMode disabled (profile is off)", "PerformanceMode")
+            return
+        }
         val isMaxProfile = profile == "max"
         val threadPriority = if (isMaxProfile) {
             Process.THREAD_PRIORITY_DISPLAY
@@ -169,26 +154,6 @@ class PerformanceMode : Feature("Performance Mode") {
             return durationMs.coerceAtMost(maxDurationMs)
         }
 
-        val performanceCacheDir = File(context.androidContext.filesDir, "performance_mode_cache").apply { mkdirs() }
-        val chatFeedSnapshotFile = File(performanceCacheDir, "chat_feed_snapshot.json")
-        val lastChatFeedSnapshotWrite = AtomicLong(0L)
-        val chatFeedSnapshotServedThisProcess = AtomicBoolean(false)
-
-        fun invalidateChatFeedSnapshot(reason: String) {
-            val deleted = runCatching {
-                if (!chatFeedSnapshotFile.exists()) return@runCatching false
-                chatFeedSnapshotFile.delete()
-            }.getOrDefault(false)
-            chatFeedSnapshotServedThisProcess.set(false)
-            if (deleted) {
-                context.log.info("Invalidated chat feed snapshot ($reason)", "PerformanceMode")
-            }
-        }
-
-        Activity::class.java.hook("onResume", HookStage.AFTER) {
-            if (!isMaxProfile) return@hook
-            chatFeedSnapshotServedThisProcess.set(false)
-        }
 
         val windowStatePrefs = context.androidContext.getSharedPreferences("purrfectsnap_perf_message_windows", Context.MODE_PRIVATE)
         val messageWindowStates = runCatching {
@@ -211,142 +176,10 @@ class PerformanceMode : Feature("Performance Mode") {
             }
         }
 
-        val snapshotQueryWhitespaceRegex = Regex("\\s+")
-        fun buildChatFeedSnapshotQueryKey(sql: String): String {
-            return sql.lowercase()
-                .replace(snapshotQueryWhitespaceRegex, " ")
-                .trim()
-        }
-
-        fun isChatFeedQuery(sql: String): Boolean {
-            val normalized = buildChatFeedSnapshotQueryKey(sql)
-            if (!normalized.startsWith("select ")) return false
-
-            val isFriendsFeedViewQuery =
-                normalized.startsWith("select * from friendsfeedview ") &&
-                    normalized.contains(" order by _id ") &&
-                    normalized.contains(" limit ")
-
-            val isFeedEntryQuery =
-                normalized.startsWith("select * from feed_entry ") &&
-                    normalized.contains(" order by last_updated_timestamp desc ") &&
-                    normalized.contains(" limit ")
-
-            return (isFriendsFeedViewQuery || isFeedEntryQuery) &&
-                !normalized.contains("count(") &&
-                !normalized.contains("select 0") &&
-                !normalized.contains("where key = ?") &&
-                !normalized.contains("where client_conversation_id = ?")
-        }
-
-        fun cursorCell(cursor: Cursor, index: Int): SnapshotCell {
-            return when (cursor.getType(index)) {
-                Cursor.FIELD_TYPE_NULL -> SnapshotCell(Cursor.FIELD_TYPE_NULL)
-                Cursor.FIELD_TYPE_INTEGER -> SnapshotCell(Cursor.FIELD_TYPE_INTEGER, longValue = cursor.getLong(index))
-                Cursor.FIELD_TYPE_FLOAT -> SnapshotCell(Cursor.FIELD_TYPE_FLOAT, doubleValue = cursor.getDouble(index))
-                Cursor.FIELD_TYPE_STRING -> SnapshotCell(Cursor.FIELD_TYPE_STRING, stringValue = cursor.getString(index))
-                Cursor.FIELD_TYPE_BLOB -> SnapshotCell(
-                    Cursor.FIELD_TYPE_BLOB,
-                    blobValue = cursor.getBlob(index)
-                        ?.takeIf { it.size <= CHAT_FEED_CACHE_MAX_BLOB_BYTES }
-                        ?.let { Base64.encodeToString(it, Base64.NO_WRAP) }
-                )
-                else -> SnapshotCell(Cursor.FIELD_TYPE_STRING, stringValue = cursor.getString(index))
-            }
-        }
-
-        fun snapshotFromCursor(cursor: Cursor): CursorSnapshot? {
-            val originalPosition = cursor.position
-            val snapshot = runCatching {
-                val columns = cursor.columnNames.toList()
-                val rows = mutableListOf<List<SnapshotCell>>()
-                if (cursor.moveToFirst()) {
-                    var rowCount = 0
-                    do {
-                        rows += columns.indices.map { index -> cursorCell(cursor, index) }
-                        rowCount++
-                    } while (rowCount < CHAT_FEED_CACHE_MAX_ROWS && cursor.moveToNext())
-                }
-                CursorSnapshot(columns, rows)
-            }.onFailure {
-                context.log.error("Failed to snapshot chat feed cursor", it, "PerformanceMode")
-            }.getOrNull()
-
-            runCatching { cursor.moveToPosition(originalPosition) }
-            val restoredPosition = runCatching { cursor.position }.getOrNull()
-            if (restoredPosition != originalPosition) {
-                context.log.warn(
-                    "Skipping chat feed snapshot write due non-restorable cursor position (from=$originalPosition to=${restoredPosition ?: "unknown"})",
-                    "PerformanceMode"
-                )
-                return null
-            }
-            return snapshot
-        }
-
-        fun snapshotToMatrixCursor(snapshot: CursorSnapshot): MatrixCursor {
-            return MatrixCursor(snapshot.columns.toTypedArray(), snapshot.rows.size).also { matrixCursor ->
-                snapshot.rows.forEach { row ->
-                    matrixCursor.addRow(row.map { cell ->
-                        when (cell.type) {
-                            Cursor.FIELD_TYPE_NULL -> null
-                            Cursor.FIELD_TYPE_INTEGER -> cell.longValue
-                            Cursor.FIELD_TYPE_FLOAT -> cell.doubleValue
-                            Cursor.FIELD_TYPE_BLOB -> cell.blobValue?.let { Base64.decode(it, Base64.NO_WRAP) }
-                            else -> cell.stringValue
-                        }
-                    })
-                }
-            }
-        }
-
-        fun readSnapshot(file: File, expectedQueryKey: String): CursorSnapshot? {
-            return runCatching {
-                if (!file.exists()) return null
-                val cache = context.gson.fromJson(file.readText(Charsets.UTF_8), ChatFeedSnapshotCache::class.java) ?: return null
-                if (cache.schemaVersion != CHAT_FEED_CACHE_SCHEMA_VERSION) {
-                    runCatching { file.delete() }
-                    return null
-                }
-                if (cache.queryKey != expectedQueryKey) {
-                    runCatching { file.delete() }
-                    return null
-                }
-                if (System.currentTimeMillis() - cache.createdAt > CHAT_FEED_CACHE_MAX_AGE_MS) {
-                    runCatching { file.delete() }
-                    return null
-                }
-                cache.snapshot
-            }.getOrElse {
-                runCatching { file.delete() }
-                null
-            }
-        }
-
-        fun writeSnapshot(file: File, queryKey: String, snapshot: CursorSnapshot) {
-            runCatching {
-                file.writeText(
-                    context.gson.toJson(
-                        ChatFeedSnapshotCache(
-                            schemaVersion = CHAT_FEED_CACHE_SCHEMA_VERSION,
-                            queryKey = queryKey,
-                            createdAt = System.currentTimeMillis(),
-                            snapshot = snapshot,
-                        )
-                    ),
-                    Charsets.UTF_8
-                )
-            }.onFailure {
-                context.log.error("Failed to persist friend list snapshot", it, "PerformanceMode")
-            }
-        }
 
         context.event.subscribe(NetworkApiRequestEvent::class) { event ->
             if (!isMaxProfile) return@subscribe
             val url = event.url
-            if (url.contains("ami/friends")) {
-                invalidateChatFeedSnapshot("friends-mutation-sync")
-            }
             if (url.contains("mapbox") && (url.contains("events.") || url.contains("telemetry"))) {
                 event.canceled = true
                 mapboxNetworkBlockLog("url=$url")
@@ -373,30 +206,7 @@ class PerformanceMode : Feature("Performance Mode") {
             handlerThreadStartLog("name=${thread.name} tid=${thread.threadId} priority=$threadPriority")
         }
 
-        Thread::class.java.hook("start", HookStage.AFTER) { param ->
-            val thread = param.thisObject<Thread>()
-            if (!isPerformanceSensitiveThread(thread.name)) return@hook
-            runCatching {
-                thread.priority = if (isMaxProfile) Thread.MAX_PRIORITY else Thread.NORM_PRIORITY + 1
-            }
-            threadStartLog("name=${thread.name} priority=${thread.priority}")
-            if ((thread.name ?: "").contains("map", ignoreCase = true) || (thread.name ?: "").contains("mapbox", ignoreCase = true)) {
-                mapThreadLog("name=${thread.name} priority=${thread.priority}")
-            }
-        }
 
-        ThreadPoolExecutor::class.java.hookConstructor(HookStage.AFTER) { param ->
-            val executor = param.thisObject<ThreadPoolExecutor>()
-            runCatching {
-                val targetCorePoolSize = executor.maximumPoolSize.coerceAtLeast(1).coerceAtMost(minimumCoreThreads.coerceAtLeast(executor.corePoolSize))
-                if (executor.corePoolSize < targetCorePoolSize) {
-                    executor.corePoolSize = targetCorePoolSize
-                }
-                executor.allowCoreThreadTimeOut(false)
-                executor.prestartAllCoreThreads()
-                executorLog("core=${executor.corePoolSize} max=${executor.maximumPoolSize} active=${executor.activeCount}")
-            }
-        }
 
         Dispatcher::class.java.hookConstructor(HookStage.AFTER) { param ->
             val dispatcher = param.thisObject<Dispatcher>()
@@ -525,18 +335,11 @@ class PerformanceMode : Feature("Performance Mode") {
             applyActivityPerformanceTuning(it)
         }
 
-        Dialog::class.java.hook("show", HookStage.AFTER) { param ->
+        Dialog::class.java.hook("show", HookStage.BEFORE) { param ->
             val dialog = param.nullableThisObject<Any>() as? Dialog ?: return@hook
             val window = dialog.window ?: return@hook
             runCatching {
                 window.setWindowAnimations(0)
-                window.decorView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                window.attributes = window.attributes.apply {
-                    flags = flags or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
-                }
-                if (dialog::class.java.name.contains("map", ignoreCase = true) || dialog::class.java.name.contains("snap", ignoreCase = true)) {
-                    mapDialogLog("class=${dialog::class.java.name}")
-                }
             }
         }
 
@@ -717,35 +520,6 @@ class PerformanceMode : Feature("Performance Mode") {
             }
         }
 
-        runCatching {
-            findClass("io.requery.android.database.sqlite.SQLiteDatabase").hook("rawQueryWithFactory", HookStage.BEFORE) { param ->
-                if (!isMaxProfile) return@hook
-                val sql = param.argNullable<String>(1) ?: return@hook
-                if (!isChatFeedQuery(sql)) return@hook
-                if (chatFeedSnapshotServedThisProcess.get()) return@hook
-                val queryKey = buildChatFeedSnapshotQueryKey(sql)
-                readSnapshot(chatFeedSnapshotFile, queryKey)?.let { snapshot ->
-                    param.setResult(snapshotToMatrixCursor(snapshot))
-                    chatFeedSnapshotServedThisProcess.set(true)
-                }
-            }
-
-            findClass("io.requery.android.database.sqlite.SQLiteDatabase").hook("rawQueryWithFactory", HookStage.AFTER) { param ->
-                if (!isMaxProfile) return@hook
-                val sql = param.argNullable<String>(1) ?: return@hook
-                if (!isChatFeedQuery(sql)) return@hook
-                val cursor = param.getResult() as? Cursor ?: return@hook
-                val now = System.currentTimeMillis()
-                if (now - lastChatFeedSnapshotWrite.get() < CHAT_FEED_CACHE_MIN_REFRESH_INTERVAL_MS) return@hook
-                val queryKey = buildChatFeedSnapshotQueryKey(sql)
-                val snapshot = snapshotFromCursor(cursor) ?: return@hook
-                if (snapshot.rows.isEmpty()) return@hook
-                writeSnapshot(chatFeedSnapshotFile, queryKey, snapshot)
-                lastChatFeedSnapshotWrite.set(now)
-            }
-        }.onFailure {
-            context.log.error("Failed to install chat feed cache hooks", it, "PerformanceMode")
-        }
 
     }
 }
