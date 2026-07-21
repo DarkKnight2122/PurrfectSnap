@@ -71,6 +71,7 @@
         <service
             android:name=".bridge.BridgeService"
             android:exported="true"
+            android:foregroundServiceType="dataSync"
             android:permission="com.snapchat.android.permission.UPDATE_STICKER_INDEX">
         </service>
         <service

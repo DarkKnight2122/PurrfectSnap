@@ -88,30 +88,16 @@ class InstallModeScreen(
             }
         }
 
-        LaunchedEffect(showGuides) {
-            if (showGuides) {
-                timeout = 15
-                while (timeout > 0) {
-                    delay(1000)
-                    timeout--
-                }
-            }
-        }
-
         if (showGuides) {
-            val confirmLabel = if (timeout > 0) {
-                context.translation.format("setup.install_mode.confirm_timeout", "seconds" to timeout.toString())
-            } else {
-                context.translation["setup.install_mode.confirm"]
-            }
+            val confirmLabel = context.translation["setup.install_mode.confirm"]
             AestheticDialog(
-                onDismissRequest = { if (timeout == 0) showGuides = false },
+                onDismissRequest = { showGuides = false },
                 title = context.translation["setup.install_mode.notice_title"],
                 text = "",
                 icon = Icons.Filled.Warning,
-                confirmButtonText = confirmLabel,
-                onConfirm = { if (timeout == 0) showGuides = false },
-                confirmEnabled = timeout == 0,
+                confirmButtonText = confirmLabel ?: "I Understand",
+                onConfirm = { showGuides = false },
+                confirmEnabled = true,
                 showCloseButton = false,
                 customContent = {
                     val bodyStyle = MaterialTheme.typography.bodyMedium.copy(

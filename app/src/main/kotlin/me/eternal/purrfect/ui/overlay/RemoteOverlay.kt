@@ -54,6 +54,7 @@ class RemoteOverlay(
 
         Scaffold(
             containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0),
             topBar = { navigation.TopBar() }
         ) { innerPadding ->
             navigation.NavContent(

@@ -69,7 +69,8 @@ fun AestheticDialog(
     showCloseButton: Boolean = true,
     confirmEnabled: Boolean = true,
     showIcon: Boolean = true,
-    showTitle: Boolean = true
+    showTitle: Boolean = true,
+    textAlign: TextAlign = TextAlign.Start
 ) {
     val skin = LocalPurrfectSkin.current
     var visible by remember { mutableStateOf(false) }
@@ -140,7 +141,7 @@ fun AestheticDialog(
                                     text = text,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = skin.textSecondary,
-                                    textAlign = TextAlign.Start,
+                                    textAlign = textAlign,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }

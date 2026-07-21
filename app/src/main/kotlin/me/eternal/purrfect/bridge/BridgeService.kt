@@ -117,7 +117,11 @@ class BridgeService : Service() {
                 .setContentTitle("PurrfectSnap")
                 .setContentText("Connecting...")
                 .build()
-            startForeground(9999, notification)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(9999, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } else {
+                startForeground(9999, notification)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 stopForeground(STOP_FOREGROUND_REMOVE)
             } else {

@@ -299,7 +299,15 @@
                 "announcements_dialog_close_button": "Close",
                 "announcements_dialog_loading": "Loading announcements...",
                 "announcements_dialog_error": "Failed to load announcements",
-                "announcements_dialog_empty": "Announcements not available"
+                "announcements_dialog_empty": "Announcements not available",
+                "supported_apps_title": "Supported Apps",
+                "switch_profile_dialog_title": "Switch App Target",
+                "switch_profile_dialog_message": "Are you sure you want to switch configured app to {app}?\n\nThe manager app will restart to apply context and reload files.",
+                "switch_profile_dialog_confirm": "Switch",
+                "switch_profile_dialog_cancel": "Cancel",
+                "setup_profile_dialog_title": "Setup Required",
+                "setup_profile_dialog_message": "The target app {app} is not installed or patched yet. Would you like to launch the setup and patching wizard?",
+                "setup_profile_dialog_confirm": "Start Setup"
             },
             "home_about": {
                 "about_title": "Purrfect",
@@ -5830,5 +5838,6 @@
     "tasks_remove_selected_tasks_title": "Are you sure you want to remove selected tasks?",
     "tasks_remove_all_tasks_title": "Are you sure you want to remove all tasks?",
     "tasks_remove_selected_tasks_confirm": "Remove {count} selected tasks?",
-    "tasks_remove_all_tasks_confirm": "This will stop all running tasks and clear the history."
+    "tasks_remove_all_tasks_confirm": "This will stop all running tasks and clear the history.",
+    "do_not_ask_again": "Do not ask again"
 }

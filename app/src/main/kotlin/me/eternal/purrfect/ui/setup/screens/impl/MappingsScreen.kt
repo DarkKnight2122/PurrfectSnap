@@ -59,43 +59,24 @@ class MappingsScreen : SetupScreen() {
         var infoText by remember { mutableStateOf(null as String?) }
         var isGenerating by remember { mutableStateOf(false) }
         var showNotice by remember { mutableStateOf(false) }
-        var timeout by remember { mutableIntStateOf(15) }
         fun finishMappings() = goNext()
 
-        LaunchedEffect(showNotice) {
-            if (showNotice) {
-                timeout = 15
-                while (timeout > 0) {
-                    delay(1000)
-                    timeout--
-                }
-            }
-        }
-
         if (showNotice) {
-            val confirmLabel = if (timeout > 0) {
-                context.translation.format("setup.mappings.confirm_understand_timeout", "seconds" to timeout.toString())
-            } else {
-                context.translation["setup.mappings.confirm_understand"]
-            }
+            val confirmLabel = context.translation["setup.mappings.confirm_understand"]
             AestheticDialog(
                 onDismissRequest = { 
-                    if (timeout == 0) {
-                        showNotice = false
-                        finishMappings()
-                    }
+                    showNotice = false
+                    finishMappings()
                 },
                 title = context.translation["setup.mappings.notice_title"],
                 text = "",
                 icon = Icons.Filled.Info,
-                confirmButtonText = confirmLabel,
+                confirmButtonText = confirmLabel ?: "I Understand",
                 onConfirm = { 
-                    if (timeout == 0) {
-                        showNotice = false
-                        finishMappings()
-                    }
+                    showNotice = false
+                    finishMappings()
                 },
-                confirmEnabled = timeout == 0,
+                confirmEnabled = true,
                 showCloseButton = false,
                 customContent = {
                     val bodyStyle = MaterialTheme.typography.bodyMedium.copy(

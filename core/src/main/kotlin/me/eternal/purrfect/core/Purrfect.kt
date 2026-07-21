@@ -302,18 +302,26 @@ class Purrfect {
             log.verbose("Checking mappings status at early startup gate...")
             log.verbose("Mappings loaded: ${mappings.isMappingsLoaded}")
             log.verbose("Mappings outdated: ${mappings.isMappingsOutdated()}")
-            if (!mappings.isMappingsLoaded) {
-                log.warn("Mappings not loaded at early startup gate, blocking Snapchat before full init")
-                log.warn("Mappings file exists: ${mappings.exists()}")
-                log.warn("Generated build number: ${mappings.getGeneratedBuildNumber()}")
+            
+            // 1. Missing Mappings entirely -> Synchronous block & regenerate (First install)
+            if (!mappings.isMappingsLoaded && !mappings.exists()) {
+                log.warn("Mappings missing at early startup gate, blocking Snapchat before full init")
                 blockSnapchatUntilMappingsRegenerated("missing")
                 return true
             }
-            if (mappings.isMappingsOutdated()) {
-                log.warn("Mappings are outdated at early startup gate, blocking Snapchat before full init")
-                blockSnapchatUntilMappingsRegenerated("outdated")
+
+            // 2. Snapchat APK updated -> Synchronous block & regenerate (Safety First!)
+            if (mappings.isSnapchatVersionChanged()) {
+                log.warn("Snapchat APK version changed, blocking Snapchat until new mappings are generated")
+                blockSnapchatUntilMappingsRegenerated("snapchat_updated")
                 return true
             }
+
+            // 3. Mod build changed or mappings valid -> Safe to boot Snapchat instantly!
+            if (mappings.isModBuildChanged()) {
+                log.warn("Mod build updated; Snapchat APK is unchanged. Booting Snapchat cleanly with current mappings.")
+            }
+
             clearMappingsGenerationState("early-mappings-current")
             return false
         }

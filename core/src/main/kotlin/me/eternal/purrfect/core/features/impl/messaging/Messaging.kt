@@ -267,7 +267,7 @@ class Messaging : Feature("Messaging") {
             val legacyPresenceHooked = hookLegacyPresenceSession(stealthMode, hideTypingIndicator)
             val platformPresenceHooked = hookPlatformPresenceActionWrapper(stealthMode, hideTypingIndicator)
             if (!legacyPresenceHooked && !platformPresenceHooked) {
-                throw RuntimeException("Failed to hook Snapchat presence actions")
+                context.log.warn("Failed to hook Snapchat presence actions — stealth presence features disabled on this version")
             }
 
             context.classCache.conversationManager.hook("sendTypingNotification", HookStage.BEFORE, {

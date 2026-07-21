@@ -1,6 +1,12 @@
-@file:OptIn(androidx.compose.animation.ExperimentalAnimationApi::class)
+@file:OptIn(
+    androidx.compose.animation.ExperimentalAnimationApi::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class
+)
 
 package me.eternal.purrfect.ui.setup
+
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.ui.text.style.TextAlign
 
 import android.app.Activity
 import android.content.ComponentName
@@ -55,6 +61,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
@@ -481,6 +488,23 @@ class SetupActivity : ComponentActivity() {
                         .background(Color.Transparent)
                 ) {
                     SetupAuroraBackground()
+                    val onBackAction = if (isFirstRunFlow) {
+                        if (currentStepIndex > 0) {
+                            {
+                                val prevRoute = visibleScreens[currentStepIndex - 1].route
+                                currentRoute = prevRoute
+                            }
+                        } else null
+                    } else {
+                        {
+                            if (currentStepIndex > 0) {
+                                val prevRoute = visibleScreens[currentStepIndex - 1].route
+                                currentRoute = prevRoute
+                            } else {
+                                endActivity()
+                            }
+                        }
+                    }
                     SetupTopBar(
                         onHome = {
                             val firstRoute = visibleScreens.firstOrNull()?.route ?: requiredScreens.first().route
@@ -491,7 +515,8 @@ class SetupActivity : ComponentActivity() {
                                 currentRoute = firstRoute
                             }
                         },
-                        onAskAi = { setupAiPrompt = "hi" }
+                        onAskAi = { setupAiPrompt = "hi" },
+                        onBack = onBackAction
                     )
                     val bottomPadding = 80.dp + navBarPadding
                     Column(
@@ -551,7 +576,16 @@ class SetupActivity : ComponentActivity() {
                                         popEnterTransition = { slideInHorizontally { -it } },
                                         popExitTransition = { slideOutHorizontally { it } }
                                     ) {
-                                        BackHandler(true) {}
+                                         BackHandler(enabled = true) {
+                                             if (currentStepIndex > 0) {
+                                                 val prevRoute = visibleScreens[currentStepIndex - 1].route
+                                                 currentRoute = prevRoute
+                                             } else {
+                                                 if (!isFirstRunFlow) {
+                                                     endActivity()
+                                                 }
+                                             }
+                                         }
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
@@ -586,25 +620,42 @@ class SetupActivity : ComponentActivity() {
                         }
                     }
 
+                    val showBackButton = currentStepIndex > 0
+                    val showSkipButton = skipAction != null
+                    val hasThreeButtons = showBackButton && showSkipButton
+                    
+                    val buttonSpacing = if (hasThreeButtons) 8.dp else 12.dp
+                    
                     Row(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
                             .padding(bottom = 16.dp)
-                            .padding(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                            .padding(horizontal = if (hasThreeButtons) 12.dp else 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(buttonSpacing, Alignment.CenterHorizontally),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (skipAction != null) {
+                        if (showBackButton) {
+                            BackButton(
+                                onClick = {
+                                    val prevRoute = visibleScreens[currentStepIndex - 1].route
+                                    currentRoute = prevRoute
+                                },
+                                modifier = if (hasThreeButtons) Modifier.weight(1f) else Modifier
+                            )
+                        }
+                        if (showSkipButton) {
                             SkipButton(
                                 label = skipLabel ?: "Skip",
-                                onClick = { skipAction?.invoke() }
+                                onClick = { skipAction?.invoke() },
+                                modifier = if (hasThreeButtons) Modifier.weight(1f) else Modifier
                             )
                         }
                         NextButton(
                             enabled = canGoNext,
                             isFinalStep = currentStepIndex >= stepMeta.lastIndex,
-                            onClick = { nextScreen() }
+                            onClick = { nextScreen() },
+                            modifier = if (hasThreeButtons) Modifier.weight(1f) else Modifier
                         )
                     }
                     setupAiPrompt?.let { prompt ->
@@ -807,7 +858,8 @@ class SetupActivity : ComponentActivity() {
 @Composable
 private fun SkipButton(
     label: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val skin = LocalPurrfectSkin.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -821,7 +873,7 @@ private fun SkipButton(
     val buttonShape = if (skin.id == "AETHER") G2RoundedRectangle(36.dp) else RoundedCornerShape(36.dp)
     
     Surface(
-        modifier = Modifier
+        modifier = modifier
             .scaleOnPress(interactionSource)
             .clip(buttonShape)
             .border(
@@ -832,20 +884,24 @@ private fun SkipButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() },
+            ) { onClick() }
+            .height(48.dp),
         color = Color.Transparent
     ) {
         Box(
             modifier = Modifier
                 .background(gradient)
-                .padding(horizontal = 24.dp, vertical = 14.dp),
+                .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = label,
                 color = contentColor,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp
+                fontSize = 15.sp,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.basicMarquee()
             )
         }
     }
@@ -980,7 +1036,8 @@ private fun SetupAuroraBackground() {
 @Composable
 private fun SetupTopBar(
     onHome: () -> Unit,
-    onAskAi: () -> Unit
+    onAskAi: () -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     val skin = LocalPurrfectSkin.current
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -1012,6 +1069,28 @@ private fun SetupTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (onBack != null) {
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = CircleShape,
+                    color = skin.textPrimary.copy(alpha = 0.08f),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, skin.textPrimary.copy(alpha = 0.14f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable(onClick = onBack),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = contentColor,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+                }
+            }
             Text(
                 text = "Purrfect",
                 color = skin.textPrimary,
@@ -1353,17 +1432,19 @@ private fun NextButton(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null
-            ) { onClick() },
+            ) { onClick() }
+            .height(48.dp),
         color = Color.Transparent
     ) {
         Box(
             modifier = Modifier
                 .background(if (enabled) gradient else SolidColor(skin.textPrimary.copy(alpha = 0.08f)))
-                .padding(horizontal = 24.dp, vertical = 14.dp)
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = if (isFinalStep) {
@@ -1373,13 +1454,72 @@ private fun NextButton(
                     },
                     color = contentColor,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.basicMarquee().weight(1f, fill = false),
+                    textAlign = TextAlign.Center
                 )
                 Icon(
                     imageVector = if (isFinalStep) Icons.Filled.Check else Icons.AutoMirrored.Filled.ArrowForwardIos,
                     contentDescription = null,
                     tint = contentColor,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BackButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val skin = LocalPurrfectSkin.current
+    val contentColor = skin.textPrimary
+    val buttonShape = if (skin.id == "AETHER") G2RoundedRectangle(36.dp) else RoundedCornerShape(36.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    
+    Surface(
+        modifier = modifier
+            .scaleOnPress(interactionSource)
+            .clip(buttonShape)
+            .border(
+                width = 1.dp,
+                color = skin.textPrimary.copy(alpha = 0.24f),
+                shape = buttonShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onClick() }
+            .height(48.dp),
+        color = skin.textPrimary.copy(alpha = 0.08f)
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Back",
+                    color = contentColor,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.basicMarquee()
                 )
             }
         }

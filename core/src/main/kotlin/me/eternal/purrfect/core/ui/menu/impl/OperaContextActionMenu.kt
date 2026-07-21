@@ -231,7 +231,7 @@ class OperaContextActionMenu : AbstractMenu() {
                                         if (newValue != sliderValue) {
                                             view.context.vibrateLongPress()
                                             sliderValue = newValue
-                                            operaViewerParamsOverride.currentPlaybackRate = newValue
+                                            operaViewerParamsOverride.updateActivePlayerSpeed(newValue)
                                         }
                                     },
                                     valueRange = 0.25f..4.0f,

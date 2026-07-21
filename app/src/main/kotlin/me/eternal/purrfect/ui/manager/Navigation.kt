@@ -152,8 +152,11 @@ class Navigation(
                 }
             )
 
+        val isOverlay = context.sharedPreferences.getBoolean("overlay_active", false) || me.eternal.purrfect.core.ui.LocalModContext.current != null
+
         TopAppBar(
             modifier = topBarModifier,
+            windowInsets = if (isOverlay) WindowInsets(0) else TopAppBarDefaults.windowInsets,
             title = {
                 currentRoute?.apply {
                     title?.invoke() ?: routeInfo.translatedKey?.value?.let {
@@ -235,7 +238,8 @@ class Navigation(
         val labelAlpha = (1f - (focusFactor * 2.5f)).coerceIn(0f, 1f)
         val iconTranslationY = (10 * focusFactor).dp
 
-        val isMechanicalMode = skin.id == "AETHER" || skin.id == "LUMINA"
+        val isOverlay = context.sharedPreferences.getBoolean("overlay_active", false) || me.eternal.purrfect.core.ui.LocalModContext.current != null
+        val isMechanicalMode = skin.id == "AETHER" || skin.id == "LUMINA" || skin.id == "CYBER"
 
         val prefs = remember { context.sharedPreferences }
         val defaultOrder = remember(isLimitedTargetMode) {
@@ -308,7 +312,7 @@ class Navigation(
             Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
-                .navigationBarsPadding(),
+                .then(if (!isOverlay) Modifier.navigationBarsPadding() else Modifier),
             contentAlignment = Alignment.BottomCenter
         ) {
             val baseItemWidth = 92.dp
@@ -321,13 +325,13 @@ class Navigation(
                 color = Color.Transparent,
                 contentColor = skin.textPrimary,
                 border = BorderStroke(
-                    if (skin.id == "AETHER") 2.dp else 1.dp,
-                    if (skin.id == "AETHER") SolidColor(skin.glowPrimary) else barBorder
+                    if (isMechanicalMode && skin.id != "CYBER") 2.dp else 1.dp,
+                    if (isMechanicalMode && skin.id != "CYBER") SolidColor(skin.glowPrimary) else barBorder
                 ),
                 modifier = Modifier
                     .then(if (targetBarWidth != null) Modifier.width(animatedBarWidth) else Modifier.fillMaxWidth())
                     .shadow(
-                        elevation = if (skin.id == "AETHER") 0.dp else 28.dp,
+                        elevation = if (isMechanicalMode) 0.dp else 28.dp,
                         shape = barShape,
                         spotColor = skin.glowPrimary.copy(alpha = 0.35f),
                         ambientColor = skin.glowSecondary.copy(alpha = 0.26f)
@@ -338,15 +342,15 @@ class Navigation(
                         .fillMaxWidth()
                         .height(barHeight)
                         .clip(barShape)
-                        .background(if (skin.id == "AETHER") skin.cardOverlayColor else Color.Transparent)
+                        .background(if (isMechanicalMode && skin.id != "CYBER") skin.cardOverlayColor else Color.Transparent)
                 ) {
-                    // LAYER 1: Core Material Slab (All skins except Aether)
-                    if (skin.id != "AETHER") {
+                    // LAYER 1: Core Material Slab (Glassmorphic skins + Cyber Hybrid)
+                    if (!isMechanicalMode || skin.id == "CYBER") {
                         Box(Modifier.matchParentSize().background(slabGradient))
                     }
 
-                    // LAYER 2: Physical Rim Sheen (All skins except Aether)
-                    if (skin.id != "AETHER") {
+                    // LAYER 2: Physical Rim Sheen (Glassmorphic skins + Cyber Hybrid)
+                    if (!isMechanicalMode || skin.id == "CYBER") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -357,8 +361,8 @@ class Navigation(
                         )
                     }
 
-                    // LAYER 3: Refractive Mesh Glow (All skins except Aether)
-                    if (skin.id != "AETHER") {
+                    // LAYER 3: Refractive Mesh Glow (Glassmorphic skins + Cyber Hybrid)
+                    if (!isMechanicalMode || skin.id == "CYBER") {
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
@@ -469,7 +473,7 @@ class Navigation(
                                         modifier = Modifier
                                             .matchParentSize()
                                             .background(
-                                                if (isMechanicalMode) SolidColor(skin.glowPrimary)
+                                                if (isMechanicalMode && skin.id != "CYBER") SolidColor(skin.glowPrimary)
                                                 else Brush.linearGradient(
                                                     listOf(
                                                         skin.glowPrimary.copy(alpha = 0.85f),

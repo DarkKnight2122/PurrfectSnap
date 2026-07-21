@@ -72,7 +72,8 @@ fun FloatingTopBar(
 ) {
     val skin = LocalPurrfectSkin.current
     val haptic = LocalHapticFeedback.current
-    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val isOverlay = me.eternal.purrfect.core.ui.LocalModContext.current != null
+    val statusBarHeight = if (isOverlay) 0.dp else WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     val focusFactor by remember(scrollOffset, enableMorph) {
         derivedStateOf { 

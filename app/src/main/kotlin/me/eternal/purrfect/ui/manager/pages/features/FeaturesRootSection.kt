@@ -2307,9 +2307,9 @@ class FeaturesRootSection : Routes.Route() {
             Text(
                 text = text,
                 color = color,
-                fontSize = 12.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
             )
         }
     }
@@ -3065,7 +3065,25 @@ class FeaturesRootSection : Routes.Route() {
             isInstagramDistractionPropertyDisabled(property.key.name)
         val isInteractionEnabled = !isComponentDisabled && !isInstagramConditionalDisabled
 
-        val cardShape = RoundedCornerShape(22.dp)
+        val config = androidx.compose.ui.platform.LocalConfiguration.current
+        val isLargeScreen = config.screenWidthDp >= 390 && config.fontScale <= 1.3f
+
+        val outerPaddingHorizontal = if (isLargeScreen) 12.dp else 10.dp
+        val outerPaddingVertical = if (isLargeScreen) 8.dp else 6.dp
+        val innerPaddingHorizontal = if (isLargeScreen) 14.dp else 12.dp
+        val innerPaddingVertical = if (isLargeScreen) 16.dp else 12.dp
+        val iconContainerSize = if (isLargeScreen) 62.dp else 52.dp
+        val iconSize = if (isLargeScreen) 30.dp else 26.dp
+        val gapSize = if (isLargeScreen) 14.dp else 12.dp
+        val titleFontSize = if (isLargeScreen) 17.sp else 15.sp
+        val titleLineHeight = if (isLargeScreen) 20.sp else 18.sp
+        val cardCornerRadius = if (isLargeScreen) 22.dp else 16.dp
+        val iconCornerRadius = if (isLargeScreen) 18.dp else 12.dp
+        val glowAlphaValue = if (isLargeScreen) 0.16f else 0.22f
+        val primaryGlowAlpha = if (isLargeScreen) 0.35f else 0.40f
+        val secondaryGlowAlpha = if (isLargeScreen) 0.28f else 0.32f
+
+        val cardShape = RoundedCornerShape(cardCornerRadius)
         val interactionSource = remember { MutableInteractionSource() }
         val cardBorder = remember(skin.glowPrimary, skin.glowSecondary) {
             Brush.linearGradient(
@@ -3080,7 +3098,7 @@ class FeaturesRootSection : Routes.Route() {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .padding(horizontal = outerPaddingHorizontal, vertical = outerPaddingVertical)
                 .graphicsLayer { if (!isInteractionEnabled) alpha = 0.5f }
                 .clickable(
                     enabled = isInteractionEnabled,
@@ -3100,19 +3118,19 @@ class FeaturesRootSection : Routes.Route() {
                 modifier = Modifier
                     .background(cardBackground, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = innerPaddingHorizontal, vertical = innerPaddingVertical)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(gapSize)
                 ) {
                     property.key.params.icon?.let { icon ->
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = skin.glowPrimary.copy(alpha = 0.22f),
+                            shape = RoundedCornerShape(iconCornerRadius),
+                            color = skin.glowPrimary.copy(alpha = glowAlphaValue),
                             tonalElevation = 0.dp,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(iconContainerSize)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -3120,8 +3138,8 @@ class FeaturesRootSection : Routes.Route() {
                                     .background(
                                         Brush.linearGradient(
                                             listOf(
-                                                skin.glowPrimary.copy(alpha = 0.40f),
-                                                skin.glowSecondary.copy(alpha = 0.32f)
+                                                skin.glowPrimary.copy(alpha = primaryGlowAlpha),
+                                                skin.glowSecondary.copy(alpha = secondaryGlowAlpha)
                                             )
                                         )
                                     ),
@@ -3131,7 +3149,7 @@ class FeaturesRootSection : Routes.Route() {
                                     imageVector = icon,
                                     contentDescription = null,
                                     tint = skin.textPrimary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(iconSize)
                                 )
                             }
                         }
@@ -3143,10 +3161,10 @@ class FeaturesRootSection : Routes.Route() {
                     ) {
                             Text(
                                 text = context.translation[property.key.propertyName()] ?: property.key.name,
-                                fontSize = 15.sp,
+                                fontSize = titleFontSize,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = skin.textPrimary,
-                                lineHeight = 18.sp
+                                lineHeight = titleLineHeight
                             )
                             Text(
                                 text = context.translation[property.key.propertyDescription()] ?: "",
@@ -3533,10 +3551,11 @@ class FeaturesRootSection : Routes.Route() {
                     )
                 }
 
+                val isOverlay = me.eternal.purrfect.core.ui.LocalModContext.current != null
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
+                        .let { if (!isOverlay) it.statusBarsPadding() else it }
                         .padding(horizontal = 14.dp, vertical = 12.dp)
                         .zIndex(1f)
                 ) {

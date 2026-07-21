@@ -222,15 +222,17 @@ class HomeSettings : Routes.Route() {
         }
     }
 
+    internal fun executeTargetSwitch(targetApp: TargetApp) {
+        context.setActiveTargetApp(targetApp)
+        val intent = Intent(context.androidContext, me.eternal.purrfect.ui.manager.MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        context.androidContext.startActivity(intent)
+        context.activity?.finish()
+    }
+
     internal fun handleTargetSwitch(targetApp: TargetApp) {
         if (isTargetReady(targetApp)) {
-            context.setActiveTargetApp(targetApp)
-            
-            // Cold Restart to ensure entire engine (ABI, Config, Locale) reloads for the new target app
-            val intent = Intent(context.androidContext, me.eternal.purrfect.ui.manager.MainActivity::class.java)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-            context.androidContext.startActivity(intent)
-            context.activity?.finish()
+            executeTargetSwitch(targetApp)
         } else {
             launchTargetInstallSetup(targetApp)
         }
@@ -238,10 +240,8 @@ class HomeSettings : Routes.Route() {
 
     @Composable
     private fun LimitedTargetSettingsScreen() {
-        val hapticFeedback = LocalHapticFeedback.current
         val skin = LocalPurrfectSkin.current
         val currentTarget = context.activeTargetApp
-        var showSwitcher by remember { mutableStateOf(false) }
         val title = when (currentTarget) {
             TargetApp.REDDIT -> translation["reddit_settings_title"]
             TargetApp.WHATSAPP -> translation["whatsapp_settings_title"] ?: "WhatsApp Mode"
@@ -249,15 +249,6 @@ class HomeSettings : Routes.Route() {
             TargetApp.SNAPCHAT -> translation["target_app_title"]
         }
         val icon = Icons.Filled.Forum
-        fun openSwitcher() {
-            if (context.config.root.global.uiSettings.hapticFeedback.get()) {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-            }
-            showSwitcher = true
-        }
-        if (showSwitcher) {
-            TargetSwitcherDialog(onDismiss = { showSwitcher = false })
-        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -291,36 +282,6 @@ class HomeSettings : Routes.Route() {
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
                 )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    listOf(TargetApp.SNAPCHAT, TargetApp.INSTAGRAM, TargetApp.REDDIT)
-                        .filter { it != currentTarget }
-                        .forEach { targetApp ->
-                            Button(
-                                onClick = { handleTargetSwitch(targetApp) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = skin.textPrimary.copy(alpha = 0.85f),
-                                    contentColor = skin.cardOverlayColor
-                                )
-                            ) {
-                                Text(targetSwitchLabel(targetApp), fontSize = 12.sp)
-                            }
-                        }
-                    
-                    Button(
-                        onClick = { openSwitcher() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = skin.textPrimary,
-                            contentColor = skin.cardOverlayColor
-                        )
-                    ) {
-                        Icon(Icons.Filled.Forum, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(translation["switch_target_button"] ?: "Switch", fontSize = 12.sp)
-                    }
-                }
             }
         }
     }
@@ -329,54 +290,95 @@ class HomeSettings : Routes.Route() {
     internal fun TargetSwitcherDialog(onDismiss: () -> Unit) {
         val hapticFeedback = LocalHapticFeedback.current
         val skin = LocalPurrfectSkin.current
-        Dialog(onDismissRequest = onDismiss) {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = skin.cardOverlayColor,
-                border = BorderStroke(1.dp, skin.glassBorder.copy(alpha = 0.2f))
-            ) {
+        var selectedTarget by remember { mutableStateOf<TargetApp?>(null) }
+        var dontAskAgain by remember { mutableStateOf(context.sharedPreferences.getBoolean("skip_target_switch_confirmation", false)) }
+
+        AestheticDialog(
+            onDismissRequest = onDismiss,
+            title = translation["switch_target_dialog_title"] ?: "Switch Target App",
+            text = "",
+            icon = Icons.Filled.Forum,
+            dismissButtonText = translation["cancel_button"] ?: "Cancel",
+            onDismiss = onDismiss,
+            confirmButtonText = translation["switch_target_button"] ?: "Switch",
+            confirmEnabled = selectedTarget != null,
+            onConfirm = {
+                selectedTarget?.let { target ->
+                    if (dontAskAgain) {
+                        context.sharedPreferences.edit().putBoolean("skip_target_switch_confirmation", true).apply()
+                    }
+                    onDismiss()
+                    handleTargetSwitch(target)
+                }
+            },
+            showCloseButton = true,
+            customContent = {
                 Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = translation["switch_target_dialog_title"] ?: "Switch Target App",
-                        color = skin.textPrimary,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
                     TargetApp.entries
                         .filter { it != context.activeTargetApp && it != TargetApp.WHATSAPP }
                         .forEach { targetApp ->
-                            Button(
+                            val isSelected = selectedTarget == targetApp
+                            OutlinedButton(
                                 modifier = Modifier.fillMaxWidth(),
                                 onClick = {
                                     if (context.config.root.global.uiSettings.hapticFeedback.get()) {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                     }
-                                    onDismiss()
-                                    handleTargetSwitch(targetApp)
+                                    selectedTarget = targetApp
                                 },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = when (targetApp) {
-                                        TargetApp.WHATSAPP -> Color(0xFF25D366)
-                                        TargetApp.INSTAGRAM -> Color(0xFFE4405F)
-                                        TargetApp.REDDIT -> Color(0xFFFF4500)
-                                        else -> skin.textPrimary
-                                    },
-                                    contentColor = if (targetApp == TargetApp.SNAPCHAT) skin.cardOverlayColor else Color.White
+                                border = BorderStroke(
+                                    if (isSelected) 2.dp else 1.dp,
+                                    if (isSelected) skin.glowPrimary else skin.glassBorder.copy(alpha = 0.3f)
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = if (isSelected) skin.glowPrimary.copy(alpha = 0.18f) else Color.Transparent,
+                                    contentColor = skin.textPrimary
                                 )
                             ) {
-                                Icon(Icons.Filled.Forum, contentDescription = null)
+                                Icon(Icons.Filled.Forum, contentDescription = null, tint = skin.textPrimary)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text(targetSwitchLabel(targetApp))
+                                Text(targetDisplayName(targetApp), fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                             }
                         }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                dontAskAgain = !dontAskAgain
+                                context.sharedPreferences.edit().putBoolean("skip_target_switch_confirmation", dontAskAgain).apply()
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Checkbox(
+                            checked = dontAskAgain,
+                            onCheckedChange = { checked ->
+                                dontAskAgain = checked
+                                context.sharedPreferences.edit().putBoolean("skip_target_switch_confirmation", checked).apply()
+                            },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = skin.glowPrimary,
+                                uncheckedColor = skin.textSecondary
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = translation["do_not_ask_again"] ?: "Do not ask again",
+                            color = skin.textPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
-        }
+        )
     }
 
     @Composable

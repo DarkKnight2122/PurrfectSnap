@@ -56,38 +56,47 @@ fun AphelionFriendMutationToast(
         label = "progress"
     )
 
+    val skin = me.eternal.purrfect.common.ui.theme.LocalPurrfectSkin.current
+    val cardColor = if (skin.isDark) Color(0xF20A0A0A) else Color(0xF2F5F5F7)
+    val textColor = if (skin.isDark) Color.White else Color.Black
+    val borderColor = if (skin.isDark) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 16.dp),
+            .padding(top = 8.dp),
         contentAlignment = Alignment.TopCenter
     ) {
         Box(
             modifier = Modifier.graphicsLayer {
                 translationY = -100f * (1f - progress)
                 alpha = progress
-                scaleX = 0.9f + (0.1f * progress)
-                scaleY = 0.9f + (0.1f * progress)
+                scaleX = 0.96f + (0.04f * progress)
+                scaleY = 0.96f + (0.04f * progress)
             }
         ) {
             Surface(
                 modifier = Modifier
-                    .widthIn(max = 340.dp)
-                    .shadow(20.dp, RoundedCornerShape(28.dp)),
-                shape = RoundedCornerShape(28.dp),
-                color = Color(0xE60A0A0A),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp)
+                    .heightIn(min = 78.dp)
+                    .shadow(12.dp, RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp),
+                color = cardColor,
+                border = BorderStroke(1.dp, borderColor)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(48.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.1f)),
+                            .background(textColor.copy(alpha = 0.08f)),
                         contentAlignment = Alignment.Center
                     ) {
                         if (bitmojiBitmap != null) {
@@ -101,17 +110,19 @@ fun AphelionFriendMutationToast(
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
+                                tint = textColor,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
                     Text(
                         text = text,
-                        color = Color.White,
+                        color = textColor,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.SemiBold,
                         lineHeight = 18.sp,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
                 }

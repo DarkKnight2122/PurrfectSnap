@@ -73,8 +73,6 @@ class MappingsWrapper(
         mixLong(MAPPINGS_SCHEMA_VERSION)
         mixString(BuildConfig.APPLICATION_ID)
         mixLong(BuildConfig.VERSION_CODE.toLong())
-        mixString(BuildConfig.BUILD_HASH)
-        mixString(BuildConfig.GIT_HASH)
         mixLong(packageInfo?.longVersionCode ?: -1L)
         mixString(packageInfo?.versionName)
         mixLong(packageInfo?.lastUpdateTime ?: -1L)
@@ -120,7 +118,28 @@ class MappingsWrapper(
         return apkPaths.distinct()
     }
 
+    private var savedSnapchatVersionCode: Long = -1L
+
     fun getGeneratedBuildNumber() = mappingUniqueHash
+
+    fun isSnapchatVersionChanged(): Boolean {
+        val packageInfo = getSnapchatPackageInfo() ?: return false
+        val currentVersion = packageInfo.longVersionCode
+        val changed = savedSnapchatVersionCode != -1L && savedSnapchatVersionCode != currentVersion
+        AbstractLogger.directDebug(
+            "[MAPPINGS] isSnapchatVersionChanged: changed=$changed saved=$savedSnapchatVersionCode current=$currentVersion",
+            "PurrfectMapper"
+        )
+        return changed
+    }
+
+    fun isModBuildChanged(): Boolean {
+        val packageInfo = getSnapchatPackageInfo() ?: return false
+        val currentVersion = packageInfo.longVersionCode
+        val isSnapchatSame = (savedSnapchatVersionCode == -1L || savedSnapchatVersionCode == currentVersion)
+        return isSnapchatSame && isMappingsOutdated()
+    }
+
     fun isMappingsOutdated(): Boolean {
         val currentHash = getUniqueBuildId()
         val isOutdated = mappingUniqueHash != currentHash || isMappingsLoaded.not()
@@ -139,7 +158,8 @@ class MappingsWrapper(
         }
         resetMappers()
         val mappingsObject = JsonParser.parseString(readBytes().toString(Charsets.UTF_8)).asJsonObject.also {
-            mappingUniqueHash = it["unique_hash"].asLong
+            mappingUniqueHash = it.get("unique_hash")?.asLong ?: 0L
+            savedSnapchatVersionCode = it.get("snapchat_version_code")?.asLong ?: -1L
         }
 
         mappingsObject.entrySet().forEach { (key, value) ->
@@ -153,8 +173,9 @@ class MappingsWrapper(
 
     fun refresh(): List<String> {
         mappingUniqueHash = getUniqueBuildId()
+        val currentSnapVersion = getSnapchatPackageInfo()?.longVersionCode ?: -1L
         AbstractLogger.directDebug(
-            "[MAPPINGS] Refresh started package=${Constants.SNAPCHAT_PACKAGE_NAME} uniqueHash=$mappingUniqueHash",
+            "[MAPPINGS] Refresh started package=${Constants.SNAPCHAT_PACKAGE_NAME} uniqueHash=$mappingUniqueHash snapVersion=$currentSnapVersion",
             "PurrfectMapper"
         )
 
@@ -186,8 +207,10 @@ class MappingsWrapper(
         runBlocking {
             val result = classMapper.run().apply {
                 addProperty("unique_hash", mappingUniqueHash)
+                addProperty("snapchat_version_code", currentSnapVersion)
             }
             validateCriticalMappings(result)
+
             writeBytes(result.toString().toByteArray())
         }
         AbstractLogger.directDebug(

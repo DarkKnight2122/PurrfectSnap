@@ -197,8 +197,14 @@ class ThemeSelectorScreen : SetupScreen() {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("SYNTHWAVE", "NIGHTCITY").forEach { style ->
+                        listOf("SYNTHWAVE", "NIGHTCITY", "HION", "SEON").forEach { style ->
                             val isSelected = cyberwareStyle == style
+                            val label = when (style) {
+                                "SYNTHWAVE" -> "Synthwave"
+                                "NIGHTCITY" -> "Night City"
+                                "HION" -> "Hion"
+                                else -> "Seon"
+                            }
                             Surface(
                                 modifier = Modifier
                                     .weight(1f)
@@ -216,7 +222,7 @@ class ThemeSelectorScreen : SetupScreen() {
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Text(
-                                        text = if (style == "SYNTHWAVE") "Synthwave" else "Night City",
+                                        text = label,
                                         fontSize = 11.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
@@ -508,11 +514,9 @@ private fun SetupSkinPicker(
     val skins = remember {
         listOfNotNull(
             SetupSkinOption("LUMINA", "Lumina",
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-                    "Adaptive Day/Night aesthetics. Automatically shifts from ivory white to charcoal black."
-                else "Requires Android 12+",
+                "Adaptive Day/Night aesthetics. Automatically shifts from ivory white to charcoal black.",
                 listOf(Color(0xFFF8F3EC), Color(0xFF08080A), Color(0xFFF1D7D2)),
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S),
+                true),
             SetupSkinOption("AETHER", "Aether", "Functional minimalism with high-contrast solid surfaces.",
                 listOf(Color(0xFFF8F3EC), Color(0xFF1A1B26), Color(0xFF8F63D8)), true),
             SetupSkinOption("LUX",    "Lux",    "Warm Ivory on silk-smooth cards. Light theme.",

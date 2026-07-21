@@ -135,6 +135,7 @@ fun HomeRootSection.AphelionHomeView(
     var announcementsText by rememberSaveable { mutableStateOf<String?>(null) }
     var showFullChangelogDialog by rememberSaveable { mutableStateOf(false) }
     var fullChangelogText by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingTargetSwitch by remember { mutableStateOf<TargetApp?>(null) }
 
     val onShowAnnouncements = {
         announcementsText = null
@@ -195,6 +196,134 @@ fun HomeRootSection.AphelionHomeView(
             onConfirm = { showFullChangelogDialog = false },
             showCloseButton = false
         )
+    }
+
+    val pendingTargetSwitchName = remember(pendingTargetSwitch) {
+        when (pendingTargetSwitch) {
+            TargetApp.SNAPCHAT -> "Snapchat"
+            TargetApp.INSTAGRAM -> "Instagram"
+            TargetApp.REDDIT -> "Reddit"
+            TargetApp.WHATSAPP -> "WhatsApp"
+            else -> ""
+        }
+    }
+
+    val isPendingTargetReady = remember(pendingTargetSwitch) {
+        val target = pendingTargetSwitch ?: return@remember true
+        me.eternal.purrfect.ui.setup.SetupPreferences.hasCompletedTarget(context.sharedPreferences, target)
+    }
+
+    var dontAskTargetSwitchAgain by remember { mutableStateOf(context.sharedPreferences.getBoolean("skip_target_switch_confirmation", false)) }
+
+    LaunchedEffect(pendingTargetSwitch, isPendingTargetReady) {
+        val target = pendingTargetSwitch
+        if (target != null && isPendingTargetReady) {
+            val skipConfirmation = context.sharedPreferences.getBoolean("skip_target_switch_confirmation", false)
+            if (skipConfirmation) {
+                pendingTargetSwitch = null
+                context.setActiveTargetApp(target)
+                val intent = android.content.Intent(context.androidContext, me.eternal.purrfect.ui.manager.MainActivity::class.java)
+                intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                context.androidContext.startActivity(intent)
+                context.activity?.finish()
+            }
+        }
+    }
+
+    if (pendingTargetSwitch != null) {
+        if (isPendingTargetReady) {
+            val skipConfirmation = context.sharedPreferences.getBoolean("skip_target_switch_confirmation", false)
+            if (!skipConfirmation) {
+                AestheticDialog(
+                    onDismissRequest = { pendingTargetSwitch = null },
+                    title = translation["switch_profile_dialog_title"] ?: "Switch App Target",
+                    text = translation.format("switch_profile_dialog_message", "app" to pendingTargetSwitchName)
+                        .takeIf { it.isNotBlank() } ?: "Are you sure you want to switch configured app to $pendingTargetSwitchName?\n\nThe manager app will restart to apply context and reload files.",
+                    icon = Icons.Default.Warning,
+                    confirmButtonText = translation["switch_profile_dialog_confirm"] ?: "Switch",
+                    onConfirm = {
+                        val target = pendingTargetSwitch!!
+                        pendingTargetSwitch = null
+                        if (dontAskTargetSwitchAgain) {
+                            context.sharedPreferences.edit().putBoolean("skip_target_switch_confirmation", true).apply()
+                        }
+                        context.setActiveTargetApp(target)
+                        val intent = android.content.Intent(context.androidContext, me.eternal.purrfect.ui.manager.MainActivity::class.java)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        context.androidContext.startActivity(intent)
+                        context.activity?.finish()
+                    },
+                    dismissButtonText = translation["switch_profile_dialog_cancel"] ?: "Cancel",
+                    onDismiss = { pendingTargetSwitch = null },
+                    showCloseButton = false,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    customContent = {
+                        val skin = LocalPurrfectSkin.current
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    dontAskTargetSwitchAgain = !dontAskTargetSwitchAgain
+                                    context.sharedPreferences.edit().putBoolean("skip_target_switch_confirmation", dontAskTargetSwitchAgain).apply()
+                                }
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Checkbox(
+                                checked = dontAskTargetSwitchAgain,
+                                onCheckedChange = { checked ->
+                                    dontAskTargetSwitchAgain = checked
+                                    context.sharedPreferences.edit().putBoolean("skip_target_switch_confirmation", checked).apply()
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = skin.glowPrimary,
+                                    uncheckedColor = skin.textSecondary
+                                )
+                            )
+                            Text(
+                                text = translation["do_not_ask_again"] ?: "Do not ask again",
+                                color = skin.textPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                )
+            }
+        } else {
+            AestheticDialog(
+                onDismissRequest = { pendingTargetSwitch = null },
+                title = translation["setup_profile_dialog_title"] ?: "Setup Required",
+                text = translation.format("setup_profile_dialog_message", "app" to pendingTargetSwitchName)
+                    .takeIf { it.isNotBlank() } ?: "The target app $pendingTargetSwitchName is not installed or patched yet. Would you like to launch the setup and patching wizard?",
+                icon = Icons.Default.Warning,
+                confirmButtonText = translation["setup_profile_dialog_confirm"] ?: "Start Setup",
+                onConfirm = {
+                    val target = pendingTargetSwitch!!
+                    pendingTargetSwitch = null
+                    val currentContext = context.activity ?: context.androidContext
+                    val requirement = when (target) {
+                        TargetApp.SNAPCHAT -> me.eternal.purrfect.ui.setup.Requirements.INSTALL_SNAPCHAT
+                        TargetApp.REDDIT -> me.eternal.purrfect.ui.setup.Requirements.INSTALL_REDDIT
+                        TargetApp.INSTAGRAM -> me.eternal.purrfect.ui.setup.Requirements.INSTALL_INSTAGRAM
+                        else -> me.eternal.purrfect.ui.setup.Requirements.INSTALL_SNAPCHAT
+                    }
+                    val intent = android.content.Intent(currentContext, me.eternal.purrfect.ui.setup.SetupActivity::class.java).apply {
+                        putExtra("requirements", requirement)
+                        if (currentContext !is android.app.Activity) {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    }
+                    currentContext.startActivity(intent)
+                },
+                dismissButtonText = translation["switch_profile_dialog_cancel"] ?: "Cancel",
+                onDismiss = { pendingTargetSwitch = null },
+                showCloseButton = false,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        }
     }
 
     if (showQuickActionsMenu) {
@@ -495,13 +624,6 @@ fun HomeRootSection.AphelionHomeView(
                         fontSize = 15.sp,
                         lineHeight = 20.sp,
                         textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Switch Apps in Settings",
-                        color = skin.textPrimary.copy(alpha = 0.5f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
                     )
                 }
 
@@ -927,6 +1049,123 @@ fun HomeRootSection.AphelionHomeView(
             )
 
             Spacer(Modifier.height(12.dp))
+
+            // COHESIVE TARGET APP SWITCHER PANEL
+            Surface(
+                modifier = Modifier.padding(horizontal = HomeRootSection.cardMargin, vertical = 10.dp),
+                shape = RoundedCornerShape(34.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.dp, (if (skin.isDark) LocalPurrfectSkin.current.textPrimary else Color.Black).copy(alpha = 0.05f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Brush.linearGradient(quickActionsGradientColors))
+                        .padding(horizontal = 24.dp, vertical = 26.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val config = androidx.compose.ui.platform.LocalConfiguration.current
+                    val isLargeScreen = config.screenWidthDp >= 390 && config.fontScale <= 1.3f
+
+                    val switcherIconSize = if (isLargeScreen) 80.dp else 68.dp
+                    val switcherIconSpacing = if (isLargeScreen) 20.dp else 16.dp
+                    val switcherIconCornerRadius = if (isLargeScreen) 20.dp else 16.dp
+                    val switcherBorderWidth = if (isLargeScreen) 2.dp else 1.5.dp
+
+                    // Centered Section Title
+                    Text(
+                        text = translation["supported_apps_title"] ?: "Supported Apps", 
+                        fontSize = 24.sp, 
+                        fontWeight = FontWeight.Bold, 
+                        color = skin.textPrimary
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    // Centered App Squircles (Snapchat, Instagram, Reddit)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(switcherIconSpacing, Alignment.CenterHorizontally),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val targets = listOf(TargetApp.SNAPCHAT, TargetApp.INSTAGRAM, TargetApp.REDDIT)
+                        targets.forEach { target ->
+                            val isSelected = activeTarget == target
+                            val iconRes = when (target) {
+                                TargetApp.SNAPCHAT -> R.drawable.setup_app_snapchat
+                                TargetApp.INSTAGRAM -> R.drawable.setup_app_instagram
+                                TargetApp.REDDIT -> R.drawable.setup_app_reddit
+                                TargetApp.WHATSAPP -> R.drawable.launcher_icon_monochrome
+                            }
+                            val label = when (target) {
+                                TargetApp.SNAPCHAT -> "Snapchat"
+                                TargetApp.INSTAGRAM -> "Instagram"
+                                TargetApp.REDDIT -> "Reddit"
+                                TargetApp.WHATSAPP -> "WhatsApp"
+                            }
+
+                            val interactionSource = remember { MutableInteractionSource() }
+                            val animatedAlpha by animateFloatAsState(
+                                targetValue = if (isSelected) 1f else 0f,
+                                animationSpec = tween(300),
+                                label = "squircleBg"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(switcherIconSize)
+                                    .scaleOnPress(interactionSource)
+                                    .clickable(interactionSource = interactionSource, indication = null) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        if (activeTarget != target) {
+                                            pendingTargetSwitch = target
+                                        }
+                                    }
+                                    .clip(RoundedCornerShape(switcherIconCornerRadius))
+                                    .border(
+                                        width = switcherBorderWidth,
+                                        brush = if (isSelected) {
+                                            Brush.linearGradient(listOf(skin.glowPrimary, skin.glowSecondary))
+                                        } else {
+                                            SolidColor(Color.Transparent)
+                                        },
+                                        shape = RoundedCornerShape(switcherIconCornerRadius)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.compose.foundation.Image(
+                                    painter = coil.compose.rememberAsyncImagePainter(
+                                        model = iconRes,
+                                        imageLoader = context.imageLoader
+                                    ),
+                                    contentDescription = label,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                // Dim unselected icons to highlight the selected app target
+                                if (!isSelected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.35f))
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(18.dp))
+
+                    // Centered Configuration Caption
+                    Text(
+                        text = "Currently configured: $targetAppName", 
+                        fontSize = 13.sp, 
+                        color = skin.textPrimary.copy(alpha = 0.75f)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
 
             AnimatedContent<Boolean>(targetState = selectedTiles.isNotEmpty(), label = "QuickActions") { hasQuickActions ->
                 Surface(

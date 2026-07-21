@@ -211,10 +211,13 @@ object PurrfectSkins {
         )
     }
 
-    // —— CYBER (Synthwave & Night City Tactical) —————————————————————————————————
+    // —— CYBER (Synthwave, Night City, Hion & Seon) —————————————————————————————————
     fun cyber(style: String): PurrfectColorSet {
-        val isSynthwave = style.trim() == "SYNTHWAVE"
-        
+        val trimmedStyle = style.trim().uppercase()
+        val isSynthwave = trimmedStyle == "SYNTHWAVE"
+        val isHion = trimmedStyle == "HION" || trimmedStyle == "WAVESLINE"
+        val isSeon = trimmedStyle == "SEON"
+
         // Synthwave Colors
         val synthMidnight = Color(0xFF090713)
         val synthDark = Color(0xFF141124)
@@ -237,17 +240,92 @@ object PurrfectSkins {
         val ncText = Color(0xFFF5F5F5)
         val ncAsh = Color(0xFF888888)
 
-        val backgroundStart = if (isSynthwave) synthMidnight else ncVoid
-        val panelEnd = if (isSynthwave) synthDark else ncMatte
-        val cardColor = if (isSynthwave) synthElevated else ncPolymer
-        val primaryGlow = if (isSynthwave) synthCyan else ncYellow
-        val secondaryGlow = if (isSynthwave) synthMagenta else ncMagenta
-        val laserBorder = if (isSynthwave) synthHolo else ncTeal
-        val glassBorder = if (isSynthwave) synthWireframe else ncWire
-        val textPrimary = if (isSynthwave) synthText else ncText
-        val textSecondary = if (isSynthwave) synthSubtext else ncAsh
-        val buttonText = if (isSynthwave) synthMidnight else ncVoid
-        val glassTint = if (isSynthwave) synthHolo.copy(alpha = 0.05f) else ncYellow.copy(alpha = 0.03f)
+        // Hion Colors (Magenta-Forward Neon Wash)
+        val hionVoidGreen = Color(0xFF0A100D)     // Void Green
+        val hionTerminalSlate = Color(0xFF141D18) // Terminal Slate
+        val hionNeonMagenta = Color(0xFFFF007F)   // Neon Magenta (Primary Star)
+        val hionHoloCyan = Color(0xFF00F0FF)      // Holo Cyan (Tech Support)
+        val hionCyberYellow = Color(0xFFFCEE0A)   // Cyber Yellow (Action Interrupter)
+        val hionGridGreen = Color(0xFF2A3B32)     // Grid Green (Muted Borders)
+        val hionDataWhite = Color(0xFFE8F0EC)     // Data White (Text)
+        val hionMutedGreen = Color(0xFF5A7265)    // Muted Secondary Text
+
+        // Seon Colors (Neon-Toxicity Magenta & Cyber Yellow)
+        val seonDeepMatrix = Color(0xFF05140F)   // Deep Matrix Green Background
+        val seonTerminalSlate = Color(0xFF0C241B) // Slate Card Container
+        val seonNeonMagenta = Color(0xFFFF007F)   // Hero Magenta (Active / Content)
+        val seonCyberYellow = Color(0xFFFFE600)   // Cyber Yellow (Structural / Buttons / Brackets)
+        val seonCyanBleed = Color(0xFF008B99)     // Cyan Ambient Bleed
+        val seonTerminalGreen = Color(0xFF2A5934) // Grid / Border Lines
+        val seonPhosphorWhite = Color(0xFFE0E5E2) // Text Primary
+        val seonMutedMatrix = Color(0xFF638C71)   // Text Secondary
+
+        val backgroundStart = when {
+            isSynthwave -> synthMidnight
+            isHion -> hionVoidGreen
+            isSeon -> seonDeepMatrix
+            else -> ncVoid
+        }
+        val panelEnd = when {
+            isSynthwave -> synthDark
+            isHion -> hionTerminalSlate
+            isSeon -> seonTerminalSlate
+            else -> ncMatte
+        }
+        val cardColor = when {
+            isSynthwave -> synthElevated
+            isHion -> hionTerminalSlate
+            isSeon -> seonTerminalSlate
+            else -> ncPolymer
+        }
+        val primaryGlow = when {
+            isSynthwave -> synthCyan
+            isHion -> hionNeonMagenta
+            isSeon -> seonNeonMagenta
+            else -> ncYellow
+        }
+        val secondaryGlow = when {
+            isSynthwave -> synthMagenta
+            isHion -> hionHoloCyan
+            isSeon -> seonCyberYellow
+            else -> ncMagenta
+        }
+        val laserBorder = when {
+            isSynthwave -> synthHolo
+            isHion -> hionCyberYellow
+            isSeon -> seonCyberYellow
+            else -> ncTeal
+        }
+        val glassBorder = when {
+            isSynthwave -> synthWireframe
+            isHion -> hionGridGreen
+            isSeon -> seonTerminalGreen
+            else -> ncWire
+        }
+        val textPrimary = when {
+            isSynthwave -> synthText
+            isHion -> hionDataWhite
+            isSeon -> seonPhosphorWhite
+            else -> ncText
+        }
+        val textSecondary = when {
+            isSynthwave -> synthSubtext
+            isHion -> hionMutedGreen
+            isSeon -> seonMutedMatrix
+            else -> ncAsh
+        }
+        val buttonText = when {
+            isSynthwave -> synthMidnight
+            isHion -> hionVoidGreen
+            isSeon -> seonDeepMatrix
+            else -> ncVoid
+        }
+        val glassTint = when {
+            isSynthwave -> synthHolo.copy(alpha = 0.05f)
+            isHion -> hionNeonMagenta.copy(alpha = 0.06f)
+            isSeon -> seonCyanBleed.copy(alpha = 0.08f)
+            else -> ncYellow.copy(alpha = 0.03f)
+        }
 
         return PurrfectColorSet(
             id = "CYBER",

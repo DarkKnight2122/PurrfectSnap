@@ -178,10 +178,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    GlassCard {
-                        RowTitle(title = translation["target_app_title"] ?: "Target App")
-                        AphelionTargetAppSwitchRow()
-                    }
+
 
                     // THEME SWITCHER
                     GlassCard {
@@ -580,8 +577,14 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        listOf("SYNTHWAVE", "NIGHTCITY").forEach { style ->
+                                        listOf("SYNTHWAVE", "NIGHTCITY", "HION", "SEON").forEach { style ->
                                             val isSelected = currentStyle == style
+                                            val label = when (style) {
+                                                "SYNTHWAVE" -> "Synthwave"
+                                                "NIGHTCITY" -> "Night City"
+                                                "HION" -> "Hion"
+                                                else -> "Seon"
+                                            }
                                             Surface(
                                                 modifier = Modifier
                                                     .weight(1f)
@@ -598,7 +601,7 @@ fun HomeSettings.AphelionSettingsContent(nav: NavBackStackEntry) {
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Text(
-                                                        text = if (style == "SYNTHWAVE") "Synthwave" else "Night City",
+                                                        text = label,
                                                         fontSize = 11.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                         color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
@@ -1549,10 +1552,6 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
         ) {
             Spacer(Modifier.height(controlsHeight))
             GlassCard {
-                RowTitle(title = translation["target_app_title"] ?: "Target App")
-                AphelionTargetAppSwitchRow()
-            }
-            GlassCard {
                 RowTitle(title = translation["actions_title"] ?: "Actions")
                 RowAction(key = "change_language") { context.checkForRequirements(Requirements.LANGUAGE) }
                 if (shouldShowRedditRepatchAction()) {
@@ -1943,8 +1942,14 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        listOf("SYNTHWAVE", "NIGHTCITY").forEach { style ->
+                                        listOf("SYNTHWAVE", "NIGHTCITY", "HION", "SEON").forEach { style ->
                                             val isSelected = currentStyle == style
+                                            val label = when (style) {
+                                                "SYNTHWAVE" -> "Synthwave"
+                                                "NIGHTCITY" -> "Night City"
+                                                "HION" -> "Hion"
+                                                else -> "Seon"
+                                            }
                                             Surface(
                                                 modifier = Modifier
                                                     .weight(1f)
@@ -1961,7 +1966,7 @@ private fun HomeSettings.AphelionLimitedTargetSettingsScreen() {
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
                                                     Text(
-                                                        text = if (style == "SYNTHWAVE") "Synthwave" else "Night City",
+                                                        text = label,
                                                         fontSize = 11.sp,
                                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                                         color = if (isSelected) skin.glowPrimary else skin.textPrimary.copy(alpha = 0.7f)
