@@ -835,6 +835,8 @@ fun HomeRootSection.AphelionHomeView(
                         .padding(horizontal = lerp(14.dp, 28.dp, focusFactor))
                         .height(headerHeight)
                 ) {
+                    val config = androidx.compose.ui.platform.LocalConfiguration.current
+                    val showLabels = config.screenWidthDp >= 390 && config.fontScale <= 1.3f
                     val rowShrinkFactor = (1f - focusFactor).coerceIn(0f, 1f)
                     
                     Row(
@@ -884,18 +886,22 @@ fun HomeRootSection.AphelionHomeView(
                                 context = context,
                                 routes = routes,
                                 style = me.eternal.purrfect.ui.manager.ManagerAssistantTriggerStyle.APHELION,
-                                shrinkFactor = rowShrinkFactor,
-                                modifier = Modifier.width(lerp(36.dp, 66.dp, rowShrinkFactor))
+                                shrinkFactor = if (showLabels) rowShrinkFactor else 0f,
+                                modifier = Modifier.width(if (showLabels) lerp(36.dp, 66.dp, rowShrinkFactor) else 36.dp)
                             )
 
                             AphelionTopBarActionChip(
-                                icon = Icons.Filled.BugReport, label = context.translation["manager.routes.home_logs"],
-                                shrinkFactor = rowShrinkFactor, haptic = haptic
+                                icon = Icons.Filled.BugReport, 
+                                label = if (showLabels) context.translation["manager.routes.home_logs"] else null,
+                                shrinkFactor = rowShrinkFactor, 
+                                haptic = haptic
                             ) { routes.homeLogs.navigate() }
 
                             AphelionTopBarActionChip(
-                                icon = Icons.Filled.Settings, label = context.translation["manager.routes.home_settings"],
-                                shrinkFactor = rowShrinkFactor, haptic = haptic
+                                icon = Icons.Filled.Settings, 
+                                label = if (showLabels) context.translation["manager.routes.home_settings"] else null,
+                                shrinkFactor = rowShrinkFactor, 
+                                haptic = haptic
                             ) { routes.settings.navigate() }
                         }
                     }

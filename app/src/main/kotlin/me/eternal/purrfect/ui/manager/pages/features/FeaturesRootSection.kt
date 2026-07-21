@@ -1,4 +1,4 @@
-﻿package me.eternal.purrfect.ui.manager.pages.features
+package me.eternal.purrfect.ui.manager.pages.features
 
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -3080,7 +3080,7 @@ class FeaturesRootSection : Routes.Route() {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 7.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
                 .graphicsLayer { if (!isInteractionEnabled) alpha = 0.5f }
                 .clickable(
                     enabled = isInteractionEnabled,
@@ -3100,19 +3100,19 @@ class FeaturesRootSection : Routes.Route() {
                 modifier = Modifier
                     .background(cardBackground, cardShape)
                     .border(BorderStroke(1.dp, cardBorder), cardShape)
-                    .padding(horizontal = 14.dp, vertical = 16.dp)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     property.key.params.icon?.let { icon ->
                         Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = skin.glowPrimary.copy(alpha = 0.16f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = skin.glowPrimary.copy(alpha = 0.22f),
                             tonalElevation = 0.dp,
-                            modifier = Modifier.size(62.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Box(
                                 modifier = Modifier
@@ -3120,8 +3120,8 @@ class FeaturesRootSection : Routes.Route() {
                                     .background(
                                         Brush.linearGradient(
                                             listOf(
-                                                skin.glowPrimary.copy(alpha = 0.35f),
-                                                skin.glowSecondary.copy(alpha = 0.28f)
+                                                skin.glowPrimary.copy(alpha = 0.40f),
+                                                skin.glowSecondary.copy(alpha = 0.32f)
                                             )
                                         )
                                     ),
@@ -3131,7 +3131,7 @@ class FeaturesRootSection : Routes.Route() {
                                     imageVector = icon,
                                     contentDescription = null,
                                     tint = skin.textPrimary,
-                                    modifier = Modifier.size(30.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -3139,14 +3139,14 @@ class FeaturesRootSection : Routes.Route() {
 
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                             Text(
                                 text = context.translation[property.key.propertyName()] ?: property.key.name,
-                                fontSize = 17.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = skin.textPrimary,
-                                lineHeight = 20.sp
+                                lineHeight = 18.sp
                             )
                             Text(
                                 text = context.translation[property.key.propertyDescription()] ?: "",
