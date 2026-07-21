@@ -298,7 +298,7 @@ class UITweaks : Feature("UITweaks") {
         }
 
         context.event.subscribe(AddViewEvent::class, {
-            blockAds || disableSpotlight || isImmersiveCamera || hiddenElements.contains("hide_unread_chat_hint")
+            blockAds || disableSpotlight || isImmersiveCamera || hiddenElements.isNotEmpty()
         }) { event ->
             val viewId = event.view.id
             val view = event.view

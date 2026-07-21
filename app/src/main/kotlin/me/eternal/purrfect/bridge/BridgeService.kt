@@ -1,6 +1,9 @@
 package me.eternal.purrfect.bridge
 
 import android.app.AlarmManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
@@ -96,6 +99,33 @@ class BridgeService : Service() {
         }
         grantFolderUriPermission()
         return BridgeBinder()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelId = "bridge_wake"
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            if (notificationManager.getNotificationChannel(channelId) == null) {
+                notificationManager.createNotificationChannel(
+                    NotificationChannel(channelId, "Bridge Service", NotificationManager.IMPORTANCE_MIN).apply {
+                        setShowBadge(false)
+                    }
+                )
+            }
+            val notification = Notification.Builder(this, channelId)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("PurrfectSnap")
+                .setContentText("Connecting...")
+                .build()
+            startForeground(9999, notification)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        }
+        return START_NOT_STICKY
     }
 
     fun triggerScopeSync(scope: SocialScope, id: String, updateOnly: Boolean = false) {

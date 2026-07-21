@@ -339,6 +339,7 @@ class SnapchatUiElementHider(
 
     private fun enforceTree(view: View?) {
         view ?: return
+        if (!rules().hasAny && !isAnyCaptureEnabled()) return
         enforceVisibility(view)
         val group = view as? ViewGroup ?: return
         for (i in 0 until group.childCount) {

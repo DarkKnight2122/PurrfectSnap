@@ -233,8 +233,8 @@ class BridgeClient(
                             //ensure the remote process is running
                             runCatching {
                                 val intent = Intent()
-                                    .setClassName(Constants.MODULE_PACKAGE_NAME, "me.eternal.purrfect.bridge.ForceStartActivity")
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                                    .setClassName(Constants.MODULE_PACKAGE_NAME, "me.eternal.purrfect.bridge.BridgeWakeReceiver")
+                                    .setAction("me.eternal.purrfect.action.WAKE_BRIDGE")
                                 
                                 val pendingFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                                     PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
@@ -242,7 +242,7 @@ class BridgeClient(
                                     PendingIntent.FLAG_ONE_SHOT
                                 }
                                 
-                                val pendingIntent = PendingIntent.getActivity(
+                                val pendingIntent = PendingIntent.getBroadcast(
                                     this,
                                     0,
                                     intent,

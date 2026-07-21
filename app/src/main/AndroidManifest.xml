@@ -127,6 +127,13 @@
             android:exported="true" />
         <receiver android:name=".StreaksReminder" />
         <receiver
+            android:name=".bridge.BridgeWakeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="me.eternal.purrfect.action.WAKE_BRIDGE" />
+            </intent-filter>
+        </receiver>
+        <receiver
             android:name=".reddit.RedditConfigBroadcastReceiver"
             android:exported="true">
             <intent-filter>
