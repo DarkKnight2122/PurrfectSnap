@@ -130,7 +130,7 @@ class BridgeClient(
         }
     }
 
-    private fun isServiceAlive(): Boolean {
+    internal fun isServiceAlive(): Boolean {
         val binder = serviceBinder ?: service?.asBinder() ?: return false
         return binder.isBinderAlive && binder.pingBinder()
     }
@@ -197,7 +197,17 @@ class BridgeClient(
         }
         if (initNow && isServiceAlive()) {
             context.coroutineScope.launch(Dispatchers.IO) {
-                callback()
+                runCatching {
+                    callback()
+                }.onFailure { throwable ->
+                    context.log.error("Failed to run immediate onConnectedCallback", throwable)
+                    if (isRecoverableBinderFailure(throwable)) {
+                        clearConnectedService()
+                        context.coroutineScope.launch(Dispatchers.IO) {
+                            tryReconnect()
+                        }
+                    }
+                }
             }
         }
     }

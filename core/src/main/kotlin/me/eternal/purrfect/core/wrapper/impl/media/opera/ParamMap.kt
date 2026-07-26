@@ -4,43 +4,50 @@ import me.eternal.purrfect.common.util.ktx.findFields
 import me.eternal.purrfect.core.util.ktx.getObjectField
 import me.eternal.purrfect.core.wrapper.AbstractWrapper
 import java.lang.reflect.Field
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
+import java.util.WeakHashMap
 
 @Suppress("UNCHECKED_CAST")
 class ParamMap(obj: Any?) : AbstractWrapper(obj) {
     companion object {
-        @Volatile
-        private var cachedField: Field? = null
+        private val classFieldCache = Collections.synchronizedMap(WeakHashMap<Class<*>, Field>())
     }
 
-    val paramMapField: Field get() {
-        cachedField?.let { return it }
-        synchronized(this::class.java) {
-            cachedField?.let { return it }
-            val field = instanceNonNull()::class.java.findFields(once = true) {
-                it.type == ConcurrentHashMap::class.java ||
-                it.type == java.util.HashMap::class.java ||
-                runCatching { it.get(instance) }.getOrNull() is Map<*, *>
-            }.firstOrNull() ?: throw RuntimeException("Could not find paramMap field")
-            cachedField = field
-            return field
+    val paramMapField: Field? get() {
+        val targetClass = instance?.javaClass ?: return null
+        classFieldCache[targetClass]?.let { return it }
+        val field = targetClass.findFields(once = true) {
+            Map::class.java.isAssignableFrom(it.type)
+        }.firstOrNull() ?: targetClass.findFields(once = true) {
+            runCatching { it.get(instance) }.getOrNull() is Map<*, *>
+        }.firstOrNull()
+        if (field != null) {
+            classFieldCache[targetClass] = field
         }
+        return field
     }
 
     val concurrentHashMap: MutableMap<Any, Any>
-        get() = instanceNonNull().getObjectField(paramMapField.name) as MutableMap<Any, Any>
+        get() {
+            val fieldName = paramMapField?.name ?: return mutableMapOf()
+            val rawValue = runCatching { instance?.getObjectField(fieldName) }.getOrNull()
+            return (rawValue as? MutableMap<Any, Any>) ?: mutableMapOf()
+        }
 
     operator fun get(key: String): Any? {
-        return concurrentHashMap.keys.firstOrNull{ k: Any -> k.toString() == key }?.let { concurrentHashMap[it] }
+        val map = concurrentHashMap
+        return map.keys.firstOrNull { k: Any -> k.toString() == key }?.let { map[it] }
     }
 
     fun put(key: String, value: Any) {
-        val keyObject = concurrentHashMap.keys.firstOrNull { k: Any -> k.toString() == key } ?: key
-        concurrentHashMap[keyObject] = value
+        val map = concurrentHashMap
+        val keyObject = map.keys.firstOrNull { k: Any -> k.toString() == key } ?: key
+        map[keyObject] = value
     }
 
     fun containsKey(key: String): Boolean {
-        return concurrentHashMap.keys.any { k: Any -> k.toString() == key }
+        val map = concurrentHashMap
+        return map.keys.any { k: Any -> k.toString() == key }
     }
 
     fun getStoryIdentity(): String? {

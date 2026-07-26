@@ -90,11 +90,8 @@ class BridgeService : Service() {
         }
     }
 
-    override fun onBind(intent: Intent): IBinder? {
+    override fun onBind(intent: Intent): IBinder {
         remoteSideContext = SharedContextHolder.remote(this).apply {
-            if (checkForRequirements()) return null
-        }
-        remoteSideContext.apply {
             bridgeService = this@BridgeService
         }
         grantFolderUriPermission()

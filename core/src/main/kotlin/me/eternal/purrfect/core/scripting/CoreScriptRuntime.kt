@@ -46,39 +46,54 @@ class CoreScriptRuntime(
         }
 
         modContext.bridgeClient.addOnConnectedCallback(initNow = true) {
-            modContext.bridgeClient.getScriptingInterface()?.let { scriptingInterface ->
-                logger.info("JNI Bridge established. Initializing scripts...")
-                scripting = scriptingInterface
-                isBridgeConnected = true
+            runCatching {
+                modContext.bridgeClient.getScriptingInterface()?.let { scriptingInterface ->
+                    if (!modContext.bridgeClient.isServiceAlive()) return@addOnConnectedCallback
+                    logger.info("JNI Bridge established. Initializing scripts...")
+                    scripting = scriptingInterface
+                    isBridgeConnected = true
 
-                if (!isBridgeReloaded) {
-                    scriptingInterface.enabledScripts.forEach { path ->
-                        runCatching {
-                            logger.verbose("Loading script: $path")
-                            load(path, scriptingInterface.getScriptContent(path))
-                        }.onFailure {
-                            logger.error("Failed to load script $path", it)
+                    if (!isBridgeReloaded) {
+                        val enabled = runCatching { scriptingInterface.enabledScripts }.getOrElse {
+                            logger.error("Failed to fetch enabled scripts from bridge", it)
+                            emptyList()
+                        }
+                        enabled.forEach { path ->
+                            runCatching {
+                                logger.verbose("Loading script: $path")
+                                val content = scriptingInterface.getScriptContent(path)
+                                load(path, content)
+                            }.onFailure {
+                                logger.error("Failed to load script $path", it)
+                            }
                         }
                     }
-                }
 
-                scriptingInterface.registerAutoReloadListener(object : AutoReloadListener.Stub() {
-                    override fun restartApp() {
-                        logger.info("Script change detected. Soft-restarting app...")
-                        modContext.softRestartApp()
+                    runCatching {
+                        scriptingInterface.registerAutoReloadListener(object : AutoReloadListener.Stub() {
+                            override fun restartApp() {
+                                logger.info("Script change detected. Soft-restarting app...")
+                                modContext.softRestartApp()
+                            }
+                        })
+                    }.onFailure {
+                        logger.error("Failed to register auto-reload listener", it)
                     }
-                })
 
-                eachModule {
-                    onBridgeConnected(reloaded = isBridgeReloaded)
-                }
+                    eachModule {
+                        onBridgeConnected(reloaded = isBridgeReloaded)
+                    }
 
-                if (!isBridgeReloaded) {
-                    isBridgeReloaded = true
+                    if (!isBridgeReloaded) {
+                        isBridgeReloaded = true
+                    }
+                } ?: run {
+                    isBridgeConnected = false
+                    logger.error("JNI Bridge callback triggered but interface is null.")
                 }
-            } ?: run {
+            }.onFailure { throwable ->
                 isBridgeConnected = false
-                logger.error("JNI Bridge callback triggered but interface is null.")
+                logger.error("Failed during script runtime bridge initialization", throwable)
             }
         }
     }
