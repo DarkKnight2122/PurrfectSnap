@@ -92,6 +92,8 @@ private fun GradientText(
 
 class MessageIndicators : Feature("Message Indicators") {
     private val groupConversationCache = java.util.Collections.synchronizedMap(EvictingMap<String, Boolean>(100))
+    // Cache parsed proto bytes by serverMessageId — proto content never changes between rebinds
+    private val protoContentCache = java.util.Collections.synchronizedMap(EvictingMap<Int, ByteArray>(200))
 
     override fun init() {
         val messageIndicatorsConfig = context.config.userInterface.messageIndicators.getNullable() ?: return
@@ -104,12 +106,17 @@ class MessageIndicators : Feature("Message Indicators") {
             context.event.subscribe(BindViewEvent::class) { event ->
                 event.chatMessage { conversationId, _ ->
                     val view = event.view as? ViewGroup ?: return@subscribe
+                    // Always remove the previous row's indicator — RecyclerView reuses view objects
                     view.findViewWithTag<View>(messageInfoTag)?.let { view.removeView(it) }
 
                     val message = event.databaseMessage ?: return@chatMessage
                     if (message.contentType != ContentType.SNAP.id && message.contentType != ContentType.EXTERNAL_MEDIA.id) return@chatMessage
                     if (message.senderId == context.database.myUserId && messageIndicatorsConfig.contains("skip_own_indicators")) return@chatMessage
-                    val reader = ProtoReader(message.messageContent ?: return@chatMessage)
+                    // Use cached proto bytes on rebind — avoids re-reading from DB and re-parsing
+                    val protoBytes = protoContentCache.getOrPut(message.serverMessageId) {
+                        message.messageContent ?: return@chatMessage
+                    }
+                    val reader = ProtoReader(protoBytes)
                     val isGroupConversation = groupConversationCache.getOrPut(conversationId) {
                         (context.database.getConversationParticipants(conversationId)?.size ?: 0) > 2
                     }

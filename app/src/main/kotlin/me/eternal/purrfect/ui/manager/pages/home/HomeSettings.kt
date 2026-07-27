@@ -6,6 +6,7 @@ import android.net.Uri
 import android.app.Activity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -20,6 +21,8 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -456,7 +459,16 @@ class HomeSettings : Routes.Route() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             val skin = LocalPurrfectSkin.current
-            Text(text = text, modifier = Modifier.padding(start = 26.dp, end = 16.dp), fontSize = 14.sp, color = skin.textPrimary)
+            Text(
+                text = text,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 26.dp, end = 16.dp)
+                    .basicMarquee(),
+                fontSize = 14.sp,
+                maxLines = 1,
+                color = skin.textPrimary
+            )
             Switch(
                 checked = value,
                 onCheckedChange = null,
@@ -489,7 +501,16 @@ class HomeSettings : Routes.Route() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             val skin = LocalPurrfectSkin.current
-            Text(text = text, modifier = Modifier.padding(start = 26.dp, end = 16.dp), fontSize = 14.sp, color = skin.textPrimary)
+            Text(
+                text = text,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 26.dp, end = 16.dp)
+                    .basicMarquee(),
+                fontSize = 14.sp,
+                maxLines = 1,
+                color = skin.textPrimary
+            )
             Switch(
                 checked = value,
                 onCheckedChange = null,
@@ -611,8 +632,12 @@ class HomeSettings : Routes.Route() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = value, color = skin.textPrimary)
-            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            Text(text = value, color = skin.textPrimary, modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = skin.textPrimary
+            )
         }
     }
 }

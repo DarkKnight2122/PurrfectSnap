@@ -21,11 +21,13 @@ class BindViewEvent(
 
     inline fun chatMessage(block: (conversationId: String, messageId: String) -> Unit) {
         val modelToString = prevModel.toString()
-        if (!modelToString.startsWith("ChatViewModel")) return
+        if (!modelToString.contains("ViewModel") || !modelToString.contains("messageId=")) return
         if (view !is LinearLayout) {
-            view = (view as ViewGroup).getChildAt(0)
+            val container = view as? ViewGroup ?: return
+            if (container.childCount <= 0) return
+            view = container.getChildAt(0)
         }
-        modelToString.substringAfter("messageId=").substringBefore(",").split(":").apply {
+        modelToString.substringAfter("messageId=").substringBefore(",").substringBefore(" ").split(":").apply {
             if (size != 3) return
             block(this[0], this[2])
         }

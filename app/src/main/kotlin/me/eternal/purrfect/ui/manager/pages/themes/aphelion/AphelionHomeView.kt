@@ -1165,7 +1165,7 @@ fun HomeRootSection.AphelionHomeView(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
 
             AnimatedContent<Boolean>(targetState = selectedTiles.isNotEmpty(), label = "QuickActions") { hasQuickActions ->
                 Surface(

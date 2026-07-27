@@ -185,14 +185,38 @@ class Messaging : Feature("Messaging") {
                 shouldSpoofViewingGalleryPresence(stealthMode)
             }
 
+            val presenceFields = mutableMapOf<String, java.lang.reflect.Field?>()
+            listOf(
+                "PlatformChatVisibleAction",
+                "PlatformChatHiddenAction",
+                "PlatformViewingChatMediaAction",
+                "PlatformUsingReplyCameraAction",
+                "PlatformTypingAction",
+                "PlatformStartPeekingAction"
+            ).forEach { typeName ->
+                presenceFields[typeName] = wrapperClass.declaredFields
+                    .firstOrNull { it.type.name.contains(typeName) }
+                    ?.also { runCatching { it.isAccessible = true } }
+            }
+
             wrapperClass.hookConstructor(HookStage.AFTER) { param ->
+                val hideBitmoji = shouldHideBitmojiPresence(stealthMode)
+                val spoofGallery = shouldSpoofViewingGalleryPresence(stealthMode)
+                val spoofCamera = shouldSpoofReplyCameraPresence(stealthMode)
+                val hideTyping = shouldHideTyping(stealthMode, hideTypingIndicator)
+                val hidePeek = shouldHidePeek(stealthMode)
+
+                if (!hideBitmoji && !spoofGallery && !spoofCamera && !hideTyping && !hidePeek) return@hookConstructor
+
                 val instance = param.thisObject<Any>()
-                clearField(instance, "PlatformChatVisibleAction", shouldHideBitmojiPresence(stealthMode))
-                clearField(instance, "PlatformChatHiddenAction", shouldHideBitmojiPresence(stealthMode))
-                clearField(instance, "PlatformViewingChatMediaAction", shouldSpoofViewingGalleryPresence(stealthMode))
-                clearField(instance, "PlatformUsingReplyCameraAction", shouldSpoofReplyCameraPresence(stealthMode))
-                clearField(instance, "PlatformTypingAction", shouldHideTyping(stealthMode, hideTypingIndicator))
-                clearField(instance, "PlatformStartPeekingAction", shouldHidePeek(stealthMode))
+                if (hideBitmoji) {
+                    presenceFields["PlatformChatVisibleAction"]?.set(instance, null)
+                    presenceFields["PlatformChatHiddenAction"]?.set(instance, null)
+                }
+                if (spoofGallery) presenceFields["PlatformViewingChatMediaAction"]?.set(instance, null)
+                if (spoofCamera) presenceFields["PlatformUsingReplyCameraAction"]?.set(instance, null)
+                if (hideTyping) presenceFields["PlatformTypingAction"]?.set(instance, null)
+                if (hidePeek) presenceFields["PlatformStartPeekingAction"]?.set(instance, null)
             }
 
             context.log.verbose("Hooked PlatformPresenceActionWrapper: ${wrapperClass.name}", key)
