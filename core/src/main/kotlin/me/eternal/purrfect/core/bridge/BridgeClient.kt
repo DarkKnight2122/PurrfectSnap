@@ -311,6 +311,7 @@ class BridgeClient(
                 return
             }
 
+            clearRulesCache()
             runBlocking { runConnectedCallbacks() }
             val remoteApkPath = runCatching {
                 connectedService.applicationApkPath
@@ -371,7 +372,7 @@ class BridgeClient(
         }
     }
 
-    private fun <T> safeServiceCall(block: () -> T): T {
+    private fun <T> safeServiceCall(fallback: T? = null, block: () -> T): T? {
         return runCatching {
             block()
         }.getOrElse { throwable ->
@@ -382,12 +383,15 @@ class BridgeClient(
                     return@getOrElse runCatching {
                         block()
                     }.getOrElse {
-                        Log.e("BridgeClient", "service call failed", it)
-                        throw it
+                        Log.w("BridgeClient", "Service call failed after reconnect attempt: ${it.message}")
+                        fallback
                     }
                 }
+                Log.w("BridgeClient", "Service call failed during active reconnect: ${throwable.message}")
+                return@getOrElse fallback
             }
-            throw throwable
+            Log.e("BridgeClient", "Unrecoverable service call failure", throwable)
+            fallback
         }
     }
 
@@ -399,7 +403,7 @@ class BridgeClient(
         }
     }
 
-    fun getApplicationApkPath(): String = safeServiceCall { connectedService.applicationApkPath }
+    fun getApplicationApkPath(): String = safeServiceCall { connectedService.applicationApkPath } ?: ""
 
     fun enqueueDownload(intent: Intent, callback: DownloadCallback) = safeServiceCall {
         connectedService.enqueueDownload(intent, callback)
@@ -417,13 +421,19 @@ class BridgeClient(
 
     fun sync(callback: SyncCallback) {
         if (!context.database.hasMain()) return
-        safeServiceCall {
-            connectedService.sync(callback)
+        context.coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            safeServiceCall {
+                connectedService.sync(callback)
+            }
         }
     }
 
-    fun triggerSync(scope: SocialScope, id: String) = safeServiceCall {
-        connectedService.triggerSync(scope.key, id)
+    fun triggerSync(scope: SocialScope, id: String) {
+        context.coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            safeServiceCall {
+                connectedService.triggerSync(scope.key, id)
+            }
+        }
     }
 
     fun passGroupsAndFriends(groups: List<MessagingGroupInfo>, friends: List<MessagingFriendInfo>) =
@@ -473,41 +483,63 @@ class BridgeClient(
             }
         }
 
-    fun getRules(targetUuid: String): List<MessagingRuleType> = safeServiceCall {
-        connectedService.getRules(targetUuid).mapNotNull { MessagingRuleType.getByName(it) }
+    private val rulesCache = java.util.concurrent.ConcurrentHashMap<String, List<MessagingRuleType>>()
+
+    fun clearRulesCache() {
+        rulesCache.clear()
     }
 
-    fun getRuleIds(ruleType: MessagingRuleType): List<String> = safeServiceCall {
+    fun getRules(targetUuid: String): List<MessagingRuleType> {
+        rulesCache[targetUuid]?.let { return it }
+        val fetched = safeServiceCall(fallback = emptyList()) {
+            connectedService.getRules(targetUuid).mapNotNull { MessagingRuleType.getByName(it) }
+        } ?: emptyList()
+        if (fetched.isNotEmpty()) {
+            rulesCache[targetUuid] = fetched
+        }
+        return fetched
+    }
+
+    fun getRuleIds(ruleType: MessagingRuleType): List<String> = safeServiceCall(fallback = emptyList()) {
         connectedService.getRuleIds(ruleType.key)
-    }
+    } ?: emptyList()
 
-    fun setRule(targetUuid: String, type: MessagingRuleType, state: Boolean) = safeServiceCall {
-        connectedService.setRule(targetUuid, type.key, state)
+    fun setRule(targetUuid: String, type: MessagingRuleType, state: Boolean) {
+        val currentRules = (rulesCache[targetUuid] ?: getRules(targetUuid)).toMutableList()
+        if (state) {
+            if (!currentRules.contains(type)) currentRules.add(type)
+        } else {
+            currentRules.remove(type)
+        }
+        rulesCache[targetUuid] = currentRules
+        safeServiceCall {
+            connectedService.setRule(targetUuid, type.key, state)
+        }
     }
 
     fun getScopeNotes(id: String): String? = safeServiceCall { connectedService.getScopeNotes(id) }
 
     fun setScopeNotes(id: String, content: String?) = safeServiceCall { connectedService.setScopeNotes(id, content) }
 
-    fun getAllScopeNotes(): Map<String, String> = safeServiceCall { connectedService.getAllScopeNotes() }
+    fun getAllScopeNotes(): Map<String, String> = safeServiceCall(fallback = emptyMap()) { connectedService.getAllScopeNotes() } ?: emptyMap()
 
     fun setAllScopeNotes(notes: Map<String, String>) = safeServiceCall { connectedService.setAllScopeNotes(notes) }
 
     fun getScriptingInterface(): IScripting? = safeServiceCall<IScripting?> { connectedService.scriptingInterface }
 
-    fun getE2eeInterface(): E2eeInterface = safeServiceCall { connectedService.e2eeInterface }
+    fun getE2eeInterface(): E2eeInterface = safeServiceCall { connectedService.e2eeInterface } ?: throw IllegalStateException("Bridge not connected")
 
-    fun getMessageLogger(): LoggerInterface = safeServiceCall { connectedService.logger }
+    fun getMessageLogger(): LoggerInterface = safeServiceCall { connectedService.logger } ?: throw IllegalStateException("Bridge not connected")
 
-    fun getTracker(): TrackerInterface = safeServiceCall { connectedService.tracker }
+    fun getTracker(): TrackerInterface = safeServiceCall { connectedService.tracker } ?: throw IllegalStateException("Bridge not connected")
 
-    fun getAccountStorage(): AccountStorage = safeServiceCall { connectedService.accountStorage }
+    fun getAccountStorage(): AccountStorage = safeServiceCall { connectedService.accountStorage } ?: throw IllegalStateException("Bridge not connected")
 
-    fun getFileHandlerManager(): FileHandleManager = safeServiceCall { connectedService.fileHandleManager }
+    fun getFileHandlerManager(): FileHandleManager = safeServiceCall { connectedService.fileHandleManager } ?: throw IllegalStateException("Bridge not connected")
 
-    fun getLocationManager(): LocationManager = safeServiceCall { connectedService.locationManager }
+    fun getLocationManager(): LocationManager = safeServiceCall { connectedService.locationManager } ?: throw IllegalStateException("Bridge not connected")
 
-    fun getTaskInterface(): TaskInterface = safeServiceCall { connectedService.taskInterface }
+    fun getTaskInterface(): TaskInterface = safeServiceCall { connectedService.taskInterface } ?: throw IllegalStateException("Bridge not connected")
 
     fun registerMessagingBridge(bridge: MessagingBridge) = safeServiceCall { connectedService.registerMessagingBridge(bridge) }
 
@@ -518,14 +550,14 @@ class BridgeClient(
 
     fun getDebugProp(name: String, defaultValue: String? = null): String? = safeServiceCall { connectedService.getDebugProp(name, defaultValue) }
 
-    fun openMappingsGenerator(reason: String, completionMode: String): Boolean = safeServiceCall {
+    fun openMappingsGenerator(reason: String, completionMode: String): Boolean = safeServiceCall(fallback = false) {
         connectedService.openMappingsGenerator(reason, completionMode)
-    }
+    } ?: false
 
     fun startCallDownload(
         startTimestamp: Long,
         author: String,
     ): CallDownloadSession {
-        return safeServiceCall { connectedService.startCallDownload(startTimestamp, author) }
+        return safeServiceCall { connectedService.startCallDownload(startTimestamp, author) } ?: throw IllegalStateException("Bridge not connected")
     }
 }

@@ -296,8 +296,9 @@ fun HomeRootSection.AphelionHomeView(
             AestheticDialog(
                 onDismissRequest = { pendingTargetSwitch = null },
                 title = translation["setup_profile_dialog_title"] ?: "Setup Required",
-                text = translation.format("setup_profile_dialog_message", "app" to pendingTargetSwitchName)
-                    .takeIf { it.isNotBlank() } ?: "The target app $pendingTargetSwitchName is not installed or patched yet. Would you like to launch the setup and patching wizard?",
+                text = (translation.format("setup_profile_dialog_message", "app" to pendingTargetSwitchName)
+                    .takeIf { it.isNotBlank() } ?: "The target app $pendingTargetSwitchName is not installed or patched yet. Would you like to launch the setup and patching wizard?") +
+                    "\n\nNote: Skipping setup will not show this dialog again for $pendingTargetSwitchName.",
                 icon = Icons.Default.Warning,
                 confirmButtonText = translation["setup_profile_dialog_confirm"] ?: "Start Setup",
                 onConfirm = {
@@ -318,8 +319,17 @@ fun HomeRootSection.AphelionHomeView(
                     }
                     currentContext.startActivity(intent)
                 },
-                dismissButtonText = translation["switch_profile_dialog_cancel"] ?: "Cancel",
-                onDismiss = { pendingTargetSwitch = null },
+                dismissButtonText = translation["setup_profile_dialog_skip"] ?: "Skip Setup",
+                onDismiss = {
+                    val target = pendingTargetSwitch ?: return@AestheticDialog
+                    me.eternal.purrfect.ui.setup.SetupPreferences.addCompletedTarget(context.sharedPreferences, target)
+                    pendingTargetSwitch = null
+                    context.setActiveTargetApp(target)
+                    val intent = android.content.Intent(context.androidContext, me.eternal.purrfect.ui.manager.MainActivity::class.java)
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    context.androidContext.startActivity(intent)
+                    context.activity?.finish()
+                },
                 showCloseButton = false,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )

@@ -307,7 +307,8 @@
                 "switch_profile_dialog_cancel": "Cancel",
                 "setup_profile_dialog_title": "Setup Required",
                 "setup_profile_dialog_message": "The target app {app} is not installed or patched yet. Would you like to launch the setup and patching wizard?",
-                "setup_profile_dialog_confirm": "Start Setup"
+                "setup_profile_dialog_confirm": "Start Setup",
+                "setup_profile_dialog_skip": "Skip Setup"
             },
             "home_about": {
                 "about_title": "Purrfect",
