@@ -238,15 +238,19 @@ object RandomizedDeviceProfileStore {
     private const val profileKey = "randomized_device_profile"
     private val random = SecureRandom()
 
-    fun getOrCreate(context: Context, logger: AbstractLogger, generationToken: String?): RandomizedDeviceProfile {
+    fun getOrCreate(context: Context, logger: AbstractLogger, generationToken: String?, targetDeviceModel: String? = null): RandomizedDeviceProfile {
         val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         val requestedToken = generationToken.orEmpty()
+        val requestedModel = targetDeviceModel.takeIf { !it.isNullOrBlank() && it != "random" }
+        val targetTemplateModel = requestedModel?.let { DeviceSpoofer.getDeviceTemplate(it)?.deviceInfo?.model }
+
         prefs.getString(profileKey, null)?.let { raw ->
             runCatching {
                 RandomizedDeviceProfile.fromJson(raw)
             }.onSuccess { profile ->
                 val storedToken = prefs.getString("${profileKey}_token", "") ?: ""
-                if (profile.schemaVersion == schemaVersion && storedToken == requestedToken) {
+                val modelMatches = targetTemplateModel == null || profile.deviceInfo.model == targetTemplateModel
+                if (profile.schemaVersion == schemaVersion && storedToken == requestedToken && modelMatches) {
                     logger.info("Loaded randomized device profile ${profile.profileId} (${profile.deviceInfo.manufacturer} ${profile.deviceInfo.model})")
                     return profile
                 }
@@ -258,7 +262,7 @@ object RandomizedDeviceProfileStore {
         val previousProfile = prefs.getString(profileKey, null)?.let { raw ->
             runCatching { RandomizedDeviceProfile.fromJson(raw) }.getOrNull()
         }
-        val profile = generateProfile(previousProfile)
+        val profile = generateProfile(previousProfile, targetDeviceModel)
         prefs.edit()
             .putString(profileKey, profile.toJson().toString())
             .putString("${profileKey}_token", requestedToken)
@@ -279,17 +283,22 @@ object RandomizedDeviceProfileStore {
         return profile
     }
 
-    private fun generateProfile(previousProfile: RandomizedDeviceProfile?): RandomizedDeviceProfile {
-        val eligibleDevices = DeviceSpoofer.getAvailableDevices().filter {
-            DeviceSpoofer.getDeviceTemplate(it)?.capabilities?.let { capabilities ->
-                capabilities.isSmsCapable && capabilities.isVoiceCapable && capabilities.isWorldPhone
-            } == true
-        }.ifEmpty { DeviceSpoofer.getAvailableDevices() }
-        val deviceCandidates = eligibleDevices.filterNot {
-            previousProfile != null &&
-                DeviceSpoofer.getDeviceTemplate(it)?.deviceInfo?.model == previousProfile.deviceInfo.model
-        }.ifEmpty { eligibleDevices }
-        val deviceName = pick(deviceCandidates)
+    private fun generateProfile(previousProfile: RandomizedDeviceProfile?, targetDeviceModel: String? = null): RandomizedDeviceProfile {
+        val requestedModel = targetDeviceModel.takeIf { !it.isNullOrBlank() && it != "random" }
+        val deviceName = if (requestedModel != null && DeviceSpoofer.getDeviceTemplate(requestedModel) != null) {
+            requestedModel
+        } else {
+            val eligibleDevices = DeviceSpoofer.getAvailableDevices().filter {
+                DeviceSpoofer.getDeviceTemplate(it)?.capabilities?.let { capabilities ->
+                    capabilities.isSmsCapable && capabilities.isVoiceCapable && capabilities.isWorldPhone
+                } == true
+            }.ifEmpty { DeviceSpoofer.getAvailableDevices() }
+            val deviceCandidates = eligibleDevices.filterNot {
+                previousProfile != null &&
+                    DeviceSpoofer.getDeviceTemplate(it)?.deviceInfo?.model == previousProfile.deviceInfo.model
+            }.ifEmpty { eligibleDevices }
+            pick(deviceCandidates)
+        }
         val deviceTemplate = DeviceSpoofer.getDeviceTemplate(deviceName) ?: error("Missing device template for $deviceName")
         val regionCandidates = regionProfiles.filterNot {
             previousProfile != null &&

@@ -174,7 +174,7 @@ class DeviceSpooferHook : Feature("Device Spoofer") {
 
         // Priority 2: Fallback to generation if ModConfig is somehow empty but the feature is enabled
         return RandomizedDeviceProfileStore
-            .getOrCreate(context.androidContext, context.log, generationToken)
+            .getOrCreate(context.androidContext, context.log, generationToken, spoofConfig.deviceModel.getNullable())
             .also { profile ->
                 randomizedProfile = profile
             }

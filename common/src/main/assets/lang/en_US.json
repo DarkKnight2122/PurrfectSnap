@@ -3948,6 +3948,10 @@
                                         "name": "Persistent App Language",
                                         "description": "Force Snapchat to stay on a specific supported app language"
                                     },
+                                    "device_model": {
+                                        "name": "Target Device Model",
+                                        "description": "Select a specific device model or choose Randomised to generate across all models"
+                                    },
                                     "generate_fresh_profile_action": {
                                         "name": "Generate Fresh Profile",
                                         "description": "Request a newly generated randomized profile"
@@ -4225,7 +4229,7 @@
             "schedule_cancelled_for": "Cancelled for {name}",
             "device_model": {
                 "none": "Device Default",
-                "random": "Random",
+                "random": "Randomised",
                 "Pixel 8 Pro": "Pixel 8 Pro",
                 "Pixel 9 Pro XL": "Pixel 9 Pro XL",
                 "Pixel 10": "Pixel 10",

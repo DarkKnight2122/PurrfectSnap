@@ -176,6 +176,28 @@ class Spoof : ConfigContainer(hasGlobalState = true) {
             disabledKey = "system_default"
             customOptionTranslationPath = "features.options.persistent_app_language"
         }
+        val deviceModel = unique("device_model",
+            "random",
+            "Pixel 8 Pro",
+            "Pixel 9 Pro XL",
+            "Pixel 10",
+            "Pixel 10 Pro",
+            "Pixel 10 Pro XL",
+            "Pixel 10 Pro Fold",
+            "Galaxy S23 Ultra",
+            "Galaxy S24 Ultra",
+            "Galaxy S25 Ultra",
+            "OnePlus 15",
+            "OnePlus Open",
+            "Xiaomi 15 Ultra",
+            "OPPO Find X9 Pro",
+            "vivo X100 Pro",
+            "realme GT 6"
+        ) {
+            requireRestart()
+            disabledKey = "random"
+            customOptionTranslationPath = "features.options.device_model"
+        }
         val generateFreshProfileAction = string("generate_fresh_profile_action")
         val viewCurrentProfileAction = string("view_current_profile_action")
         val backupProfileAction = string("backup_profile_action")

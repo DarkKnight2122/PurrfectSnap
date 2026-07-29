@@ -144,6 +144,12 @@ data class PropertyKey<T>(
             } ?: "manager.sections.features.disabled"]
         }
 
+        if (key == params.disabledKey) {
+            return translation[params.customOptionTranslationPath?.let {
+                "$it.$key"
+            } ?: "features.options.${name}.$key"]
+        }
+
         return if (!params.flags.contains(ConfigFlag.NO_TRANSLATE))
             translation[params.customOptionTranslationPath?.let {
                 "$it.$key"
