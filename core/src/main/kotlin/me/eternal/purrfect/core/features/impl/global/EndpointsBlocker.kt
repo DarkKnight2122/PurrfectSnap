@@ -49,11 +49,12 @@ class EndpointsBlocker : Feature("EndpointsBlocker") {
             context.native.setTestMode(false)
         }
 
+        /*
+         * Low-Risk Network Request Evaluation:
+         * Always active across all Snapchat versions to ensure pure HTTP analytics/telemetry
+         * URLs (e.g. app-analytics, graphene) are evaluated against native Rust blocker rules.
+         */
         context.event.subscribe(NetworkApiRequestEvent::class) { event ->
-            val bypassToggleEnabled = context.bridgeClient.getDebugProp("test_mode", "false") == "true"
-            if (!bypassToggleEnabled && context.disablePlugin) {
-                return@subscribe
-            }
             if (isInLoginSignup) return@subscribe
 
             val decision = context.native.evaluateNetworkRequest(event.url)
