@@ -390,6 +390,12 @@ class LiquidGlassDrawable : Drawable() {
         val isDark = isDarkMode
         val density = canvas.density.toFloat().takeIf { it > 0 } ?: 3.0f
 
+        val isAndroid13Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+        if (!isAndroid13Plus) {
+            drawClassicGlassBar(canvas, density, isDark)
+            return
+        }
+
         // 1. Soft ambient elevation shadow (light theme)
         if (!isDark) {
             drawElevationShadow(canvas, density)
@@ -407,6 +413,50 @@ class LiquidGlassDrawable : Drawable() {
 
         // 4. Specular Edge Stroke Outline
         drawSpecularRimStroke(canvas, density, isDark)
+    }
+
+    /**
+     * Renders a full-width translucent glass navigation bar for Android 12 and below.
+     * Eliminates side/bottom margins, prevents exposed window canvas, and renders a crisp
+     * top specular sheen line and smooth active tab highlight capsule.
+     */
+    private fun drawClassicGlassBar(canvas: Canvas, density: Float, isDark: Boolean) {
+        val saveCount = canvas.save()
+        try {
+            // 1. Draw full bar translucent frosted background
+            val classicTint = if (isDark) {
+                Color.argb(0xD0, 0x18, 0x18, 0x1C)
+            } else {
+                Color.argb(0xD8, 0xF4, 0xF4, 0xF7)
+            }
+            fillPaint.color = classicTint
+            canvas.drawRect(pillRect, fillPaint)
+
+            // 2. Draw subtle top specular sheen line (1dp)
+            sheenPaint.shader = null
+            sheenPaint.style = Paint.Style.STROKE
+            sheenPaint.strokeWidth = (density * 0.75f).coerceAtLeast(1.0f)
+            sheenPaint.color = if (isDark) 0x22FFFFFF else 0x33000000
+            val halfStroke = sheenPaint.strokeWidth * 0.5f
+            canvas.drawLine(
+                pillRect.left,
+                pillRect.top + halfStroke,
+                pillRect.right,
+                pillRect.top + halfStroke,
+                sheenPaint
+            )
+
+            // 3. Draw active tab capsule behind selected tab
+            if (!capsuleRect.isEmpty && capsuleAlpha > 0.01f) {
+                val capsuleBg = if (isDark) 0x38FFFFFF else 0x22787880
+                val baseAlpha = Color.alpha(capsuleBg)
+                val finalAlpha = (baseAlpha * capsuleAlpha).toInt().coerceIn(0, 255)
+                capsulePaint.color = (capsuleBg and 0x00FFFFFF) or (finalAlpha shl 24)
+                canvas.drawRoundRect(capsuleRect, capsuleCornerRadius, capsuleCornerRadius, capsulePaint)
+            }
+        } finally {
+            canvas.restoreToCount(saveCount)
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -508,9 +558,10 @@ class LiquidGlassDrawable : Drawable() {
         try {
             canvas.clipPath(shapesPath)
 
-            val baseAlpha = Color.alpha(capsuleColor)
+            val targetColor = if (isDarkMode) 0x38FFFFFF else 0x22787880
+            val baseAlpha = Color.alpha(targetColor)
             val finalAlpha = (baseAlpha * capsuleAlpha).toInt().coerceIn(0, 255)
-            capsulePaint.color = (capsuleColor and 0x00FFFFFF) or (finalAlpha shl 24)
+            capsulePaint.color = (targetColor and 0x00FFFFFF) or (finalAlpha shl 24)
 
             canvas.drawRoundRect(capsuleRect, capsuleCornerRadius, capsuleCornerRadius, capsulePaint)
         } finally {

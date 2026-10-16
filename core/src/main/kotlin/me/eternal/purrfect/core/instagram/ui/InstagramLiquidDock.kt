@@ -2,12 +2,14 @@ package me.eternal.purrfect.core.instagram.ui
 
 import android.app.Activity
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.Shader
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RectShape
 import android.os.Build
@@ -95,21 +97,28 @@ object InstagramLiquidDock {
     }
 
     private fun attachToActivity(activity: Activity, featureState: InstagramFeatureState) {
+        val name = activity.javaClass.simpleName
+        if (name.contains("Splash", ignoreCase = true) || name.contains("Launcher", ignoreCase = true)) return
+
         val window = activity.window ?: return
         val decor = window.decorView as? ViewGroup ?: return
 
-        // Check if this Activity contains the Instagram main navigation bar
-        val tabBarId = resolveId(activity, ID_TAB_BAR)
-        if (tabBarId == 0) return
+        decor.post {
+            runCatching {
+                // Check if this Activity contains the Instagram main navigation bar
+                val tabBarId = resolveId(activity, ID_TAB_BAR)
+                if (tabBarId == 0) return@runCatching
 
-        val tabBar = decor.findViewById<ViewGroup>(tabBarId) ?: return
+                val tabBar = decor.findViewById<ViewGroup>(tabBarId) ?: return@runCatching
 
-        if (!activeControllers.containsKey(activity)) {
-            val controller = LiquidDockController(activity, tabBar, featureState)
-            activeControllers[activity] = controller
-            controller.install()
-        } else {
-            activeControllers[activity]?.refresh()
+                if (!activeControllers.containsKey(activity)) {
+                    val controller = LiquidDockController(activity, tabBar, featureState)
+                    activeControllers[activity] = controller
+                    controller.install()
+                } else {
+                    activeControllers[activity]?.refresh()
+                }
+            }
         }
     }
 
@@ -162,6 +171,116 @@ object InstagramLiquidDock {
             }
         }
 
+        private var originalBarHeight = -1
+
+        private fun getContentContainer(): ViewGroup? {
+            if (contentContainer != null && contentContainer?.isAttachedToWindow == true) return contentContainer
+            val contentId = resolveId(activity, ID_CONTENT)
+            if (contentId != 0) {
+                contentContainer = activity.findViewById(contentId)
+            }
+            if (contentContainer == null) {
+                val parent = tabBar.parent as? ViewGroup
+                if (parent != null) {
+                    for (i in 0 until parent.childCount) {
+                        val child = parent.getChildAt(i)
+                        if (child is ViewGroup && child !== tabBar && (contentId == 0 || child.id == contentId)) {
+                            contentContainer = child
+                            break
+                        }
+                    }
+                }
+            }
+            return contentContainer
+        }
+
+        /**
+         * Adapts Hush's screensAboveTheBar:
+         * Walks every child inside layout_container_main and the swipeable_tab_view_pager sibling.
+         * If the child screen has bottomMargin == barHeight, zeroes it out so feed content flows
+         * all the way behind the bar to the bottom edge of the screen.
+         */
+        private fun keepScreensAboveTheBar() {
+            val container = getContentContainer() ?: return
+            val barH = if (tabBar.height > 0) tabBar.height else originalBarHeight
+            if (barH <= 0) return
+            if (originalBarHeight < 0) originalBarHeight = barH
+
+            val isFloating = featureState.liquidGlassEdgeToEdge || Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            val wanted = if (isFloating) 0 else originalBarHeight
+
+            screensAboveTheBar(container, barH, wanted)
+        }
+
+        private fun screensAboveTheBar(content: ViewGroup, barHeight: Int, wanted: Int) {
+            for (i in 0 until content.childCount) {
+                val child = content.getChildAt(i) ?: continue
+                aboveTheBar(child, barHeight, wanted)
+            }
+            val pagerId = resolveId(activity, ID_SWIPE_PAGER)
+            val parent = content.parent as? ViewGroup ?: return
+            for (i in 0 until parent.childCount) {
+                val sibling = parent.getChildAt(i) ?: continue
+                if (pagerId != 0 && sibling.id == pagerId) {
+                    aboveTheBar(sibling, barHeight, wanted)
+                }
+            }
+        }
+
+        private fun aboveTheBar(screen: View, barHeight: Int, wanted: Int) {
+            val margins = screen.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+            if (margins.bottomMargin == barHeight || (wanted == 0 && margins.bottomMargin in (barHeight - 20)..(barHeight + 60))) {
+                margins.bottomMargin = wanted
+                screen.layoutParams = margins
+            }
+        }
+
+        // ColorOS / Android 9 layout listener to eliminate empty bottom space
+        private val globalLayoutListener = ViewTreeObserver.OnGlobalLayoutListener {
+            runCatching {
+                keepScreensAboveTheBar()
+
+                // 1. Strip phantom bottom padding injected into the TabBar or its parent (ColorOS / Android 9 fix)
+                if (tabBar.paddingBottom > 0) {
+                    tabBar.setPadding(tabBar.paddingLeft, tabBar.paddingTop, tabBar.paddingRight, 0)
+                }
+                (tabBar.parent as? ViewGroup)?.let { parent ->
+                    if (parent.paddingBottom > 0) {
+                        parent.setPadding(parent.paddingLeft, parent.paddingTop, parent.paddingRight, 0)
+                    }
+                }
+
+                // 2. Strip bottom margins on tab bar
+                (tabBar.layoutParams as? ViewGroup.MarginLayoutParams)?.let { lp ->
+                    if (lp.bottomMargin > 0) {
+                        lp.bottomMargin = 0
+                        tabBar.layoutParams = lp
+                    }
+                }
+
+                // 3. Scan root layout children for phantom white spacer views (Realme 1 fix from doc)
+                val decor = activity.window?.decorView as? ViewGroup ?: return@runCatching
+                for (i in 0 until decor.childCount) {
+                    val child = decor.getChildAt(i) ?: continue
+                    if (child === tabBar || child === contentContainer || child === topAmbientBlurView || child === bottomAmbientBlurView) continue
+                    val h = child.height
+                    if (h in 30..250 && child.width >= decor.width * 0.7f) {
+                        val loc = IntArray(2)
+                        child.getLocationInWindow(loc)
+                        if (loc[1] >= decor.height - 300) {
+                            val bg = child.background
+                            if (bg is ColorDrawable) {
+                                val color = bg.color
+                                if (color == Color.WHITE || color == Color.BLACK || Color.alpha(color) > 200) {
+                                    child.visibility = View.GONE
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         fun install() {
             if (isInstalled) return
             isInstalled = true
@@ -173,6 +292,7 @@ object InstagramLiquidDock {
             installGestureSlide()
 
             tabBar.viewTreeObserver.addOnPreDrawListener(this)
+            (activity.window?.decorView as? ViewGroup)?.viewTreeObserver?.addOnGlobalLayoutListener(globalLayoutListener)
             tabBar.background = glassDrawable
             tabBar.clipToPadding = false
 
@@ -195,7 +315,7 @@ object InstagramLiquidDock {
         /**
          * 1. Edge-to-Edge Z-Stack Surgery:
          * Clears window navigation scrims, disables Android 16 contrast enforcement,
-         * and zeroes out content container margins so media bleeds completely to bezels.
+         * zeroes out content container margins, and eliminates legacy ColorOS 48dp bottom insets.
          */
         private fun applyEdgeToEdgeSurgery() {
             if (!featureState.liquidGlassEdgeToEdge) return
@@ -216,9 +336,33 @@ object InstagramLiquidDock {
                             View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     }
 
+                    // WindowManager background drawing flags (Android 9/10/11)
+                    window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+                    @Suppress("DEPRECATION")
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION)
+
                     // Clear system bar colors to pure transparent
                     window.statusBarColor = Color.TRANSPARENT
                     window.navigationBarColor = Color.TRANSPARENT
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        window.navigationBarDividerColor = Color.TRANSPARENT
+                    }
+
+                    // Zero out bottom insets so WindowManager does not inject 48dp on Android 9/ColorOS
+                    decor.setOnApplyWindowInsetsListener { v, insets ->
+                        @Suppress("DEPRECATION")
+                        val consumed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            insets
+                        } else {
+                            insets.replaceSystemWindowInsets(
+                                insets.systemWindowInsetLeft,
+                                insets.systemWindowInsetTop,
+                                insets.systemWindowInsetRight,
+                                0 // Force bottom inset to 0
+                            )
+                        }
+                        v.onApplyWindowInsets(consumed)
+                    }
 
                     // Disable Android 10+ (Q / Android 14 / 16) navigation contrast scrim enforcement
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -238,6 +382,7 @@ object InstagramLiquidDock {
                             }
                         }
                     }
+                    keepScreensAboveTheBar()
                 }
             }
         }
@@ -333,79 +478,122 @@ object InstagramLiquidDock {
 
                 val density = activity.resources.displayMetrics.density
 
-                // Calculate user-configured dimensions
-                val dockHeightPx = (featureState.liquidGlassDockHeight * density).coerceAtLeast(36 * density)
-                val dockLiftPx = (featureState.liquidGlassDockLift * density).coerceAtLeast(0f)
-                val horizontalMargin = (barWidth * 0.05f).coerceAtLeast(16 * density) // 90% dock width
+                // Ensure child screens flow behind bar
+                keepScreensAboveTheBar()
 
-                val dockTop = barHeight - dockHeightPx - dockLiftPx
-                val dockBottom = barHeight - dockLiftPx
-                val dockLeft = horizontalMargin
-                val dockRight = barWidth - horizontalMargin
-                val stadiumRadius = dockHeightPx * 0.5f
+                val isAndroid13Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
 
-                // Detached Search Puck Geometry
-                val searchTab = findSearchTab()
-                val isApart = featureState.liquidGlassSearchPuck && searchTab != null
-
-                if (isApart && searchTab != null) {
-                    val searchWidth = (44 * density)
-                    val searchGap = (8 * density)
-                    val searchLeft = dockLeft
-                    val searchRight = searchLeft + searchWidth
-
-                    glassDrawable.setSearchPuckBounds(
-                        searchLeft, dockTop, searchRight, dockBottom, true
-                    )
-                    glassDrawable.setPillBounds(
-                        searchRight + searchGap, dockTop, dockRight, dockBottom, stadiumRadius
-                    )
-                } else {
+                if (!isAndroid13Plus) {
+                    // Android 12 and below: Full-width glass row (Hush classic style)
                     glassDrawable.setSearchPuckBounds(0f, 0f, 0f, 0f, false)
-                    glassDrawable.setPillBounds(
-                        dockLeft, dockTop, dockRight, dockBottom, stadiumRadius
-                    )
-                }
+                    glassDrawable.setPillBounds(0f, 0f, barWidth, barHeight, 0f)
 
-                // Update Active Tab Compact White Puck Position
-                val selectedTab = findSelectedTab()
-                if (selectedTab != null) {
-                    val tabCenterX = (selectedTab.left + selectedTab.right) * 0.5f
+                    val selectedTab = findSelectedTab()
+                    if (selectedTab != null) {
+                        val tabCenterX = (selectedTab.left + selectedTab.right) * 0.5f
 
-                    if (targetPuckCenterX.isNaN()) {
-                        currentPuckCenterX = tabCenterX
-                        targetPuckCenterX = tabCenterX
-                    } else if (abs(targetPuckCenterX - tabCenterX) > 1.0f) {
-                        targetPuckCenterX = tabCenterX
+                        if (targetPuckCenterX.isNaN()) {
+                            currentPuckCenterX = tabCenterX
+                            targetPuckCenterX = tabCenterX
+                        } else if (abs(targetPuckCenterX - tabCenterX) > 1.0f) {
+                            targetPuckCenterX = tabCenterX
+                        }
+
+                        val delta = targetPuckCenterX - currentPuckCenterX
+                        val springForce = delta * 0.28f
+                        puckVelocityX = (puckVelocityX + springForce) * 0.78f
+                        currentPuckCenterX += puckVelocityX
+
+                        val puckWidth = (selectedTab.width.toFloat() - 10 * density).coerceAtLeast(36 * density)
+                        val puckHeight = (barHeight - 12 * density).coerceAtLeast(32 * density)
+                        val puckCenterY = barHeight * 0.5f
+                        val puckRadius = 8 * density
+
+                        glassDrawable.setCapsuleBounds(
+                            currentPuckCenterX - puckWidth * 0.5f,
+                            puckCenterY - puckHeight * 0.5f,
+                            currentPuckCenterX + puckWidth * 0.5f,
+                            puckCenterY + puckHeight * 0.5f,
+                            puckRadius,
+                            1.0f
+                        )
+
+                        if (abs(delta) > 0.5f || abs(puckVelocityX) > 0.5f) {
+                            tabBar.invalidate()
+                        }
+                    }
+                } else {
+                    // Android 13+: Floating AGSL Liquid Dock
+                    val dockHeightPx = (featureState.liquidGlassDockHeight * density).coerceAtLeast(36 * density)
+                    val dockLiftPx = (featureState.liquidGlassDockLift * density).coerceAtLeast(0f)
+                    val horizontalMargin = (barWidth * 0.05f).coerceAtLeast(16 * density) // 90% dock width
+
+                    val dockTop = barHeight - dockHeightPx - dockLiftPx
+                    val dockBottom = barHeight - dockLiftPx
+                    val dockLeft = horizontalMargin
+                    val dockRight = barWidth - horizontalMargin
+                    val stadiumRadius = dockHeightPx * 0.5f
+
+                    // Detached Search Puck Geometry
+                    val searchTab = findSearchTab()
+                    val isApart = featureState.liquidGlassSearchPuck && searchTab != null
+
+                    if (isApart && searchTab != null) {
+                        val searchWidth = (44 * density)
+                        val searchGap = (8 * density)
+                        val searchLeft = dockLeft
+                        val searchRight = searchLeft + searchWidth
+
+                        glassDrawable.setSearchPuckBounds(
+                            searchLeft, dockTop, searchRight, dockBottom, true
+                        )
+                        glassDrawable.setPillBounds(
+                            searchRight + searchGap, dockTop, dockRight, dockBottom, stadiumRadius
+                        )
+                    } else {
+                        glassDrawable.setSearchPuckBounds(0f, 0f, 0f, 0f, false)
+                        glassDrawable.setPillBounds(
+                            dockLeft, dockTop, dockRight, dockBottom, stadiumRadius
+                        )
                     }
 
-                    // Apply Apple/Folme spring math: response = 0.32s, damping = 0.78f
-                    val delta = targetPuckCenterX - currentPuckCenterX
-                    val springForce = delta * 0.28f
-                    puckVelocityX = (puckVelocityX + springForce) * 0.78f
-                    currentPuckCenterX += puckVelocityX
+                    // Update Active Tab Compact Puck Position
+                    val selectedTab = findSelectedTab()
+                    if (selectedTab != null) {
+                        val tabCenterX = (selectedTab.left + selectedTab.right) * 0.5f
 
-                    // Dynamic velocity stretch (up to 1.18x during motion)
-                    val stretchFactor = 1.0f + (min(abs(puckVelocityX) / (40 * density), 0.18f))
-                    val puckSize = (38 * density)
-                    val puckHalfWidth = (puckSize * 0.5f) * stretchFactor
-                    val puckHalfHeight = (puckSize * 0.5f)
-                    val puckCenterY = (dockTop + dockBottom) * 0.5f
+                        if (targetPuckCenterX.isNaN()) {
+                            currentPuckCenterX = tabCenterX
+                            targetPuckCenterX = tabCenterX
+                        } else if (abs(targetPuckCenterX - tabCenterX) > 1.0f) {
+                            targetPuckCenterX = tabCenterX
+                        }
 
-                    glassDrawable.setCapsuleBounds(
-                        currentPuckCenterX - puckHalfWidth,
-                        puckCenterY - puckHalfHeight,
-                        currentPuckCenterX + puckHalfWidth,
-                        puckCenterY + puckHalfHeight,
-                        puckHalfHeight,
-                        1.0f
-                    )
+                        // Apply spring math: response = 0.32s, damping = 0.78f
+                        val delta = targetPuckCenterX - currentPuckCenterX
+                        val springForce = delta * 0.28f
+                        puckVelocityX = (puckVelocityX + springForce) * 0.78f
+                        currentPuckCenterX += puckVelocityX
 
-                    // Invert active icon color (dark icon on white puck, white on inactive)
-                    updateTabIconTints(selectedTab)
+                        // Dynamic velocity stretch (up to 1.18x during motion)
+                        val stretchFactor = 1.0f + (min(abs(puckVelocityX) / (40 * density), 0.18f))
+                        val puckSize = (38 * density)
+                        val puckHalfWidth = (puckSize * 0.5f) * stretchFactor
+                        val puckHalfHeight = (puckSize * 0.5f)
+                        val puckCenterY = (dockTop + dockBottom) * 0.5f
 
-                    if (abs(delta) > 0.5f || abs(puckVelocityX) > 0.5f) {
-                        tabBar.invalidate()
+                        glassDrawable.setCapsuleBounds(
+                            currentPuckCenterX - puckHalfWidth,
+                            puckCenterY - puckHalfHeight,
+                            currentPuckCenterX + puckHalfWidth,
+                            puckCenterY + puckHalfHeight,
+                            puckHalfHeight,
+                            1.0f
+                        )
+
+                        if (abs(delta) > 0.5f || abs(puckVelocityX) > 0.5f) {
+                            tabBar.invalidate()
+                        }
                     }
                 }
 
@@ -439,33 +627,6 @@ object InstagramLiquidDock {
             // Fallback: second child is traditionally Search on Instagram
             if (tabBar.childCount >= 2) return tabBar.getChildAt(1)
             return null
-        }
-
-        /**
-         * Inverts active icon tint (dark icon on white active puck) and keeps inactive icons white.
-         */
-        private fun updateTabIconTints(selectedTab: View) {
-            val darkFilter = PorterDuffColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN)
-            val whiteFilter = PorterDuffColorFilter(Color.WHITE, PorterDuff.Mode.SRC_IN)
-
-            for (i in 0 until tabBar.childCount) {
-                val child = tabBar.getChildAt(i)
-                val isSelected = child == selectedTab
-                val filter = if (isSelected) darkFilter else whiteFilter
-
-                // Recursively apply to ImageViews
-                applyColorFilterRecursive(child, filter)
-            }
-        }
-
-        private fun applyColorFilterRecursive(view: View, filter: PorterDuffColorFilter) {
-            if (view is ImageView) {
-                view.colorFilter = filter
-            } else if (view is ViewGroup) {
-                for (i in 0 until view.childCount) {
-                    applyColorFilterRecursive(view.getChildAt(i), filter)
-                }
-            }
         }
 
         /**
@@ -599,6 +760,9 @@ object InstagramLiquidDock {
         fun dispose() {
             handler.removeCallbacks(reelsHideRunnable)
             tabBar.viewTreeObserver.removeOnPreDrawListener(this)
+            runCatching {
+                (activity.window?.decorView as? ViewGroup)?.viewTreeObserver?.removeOnGlobalLayoutListener(globalLayoutListener)
+            }
             glassDrawable.release()
             log("LiquidDockController disposed on ${activity.javaClass.simpleName}")
         }
