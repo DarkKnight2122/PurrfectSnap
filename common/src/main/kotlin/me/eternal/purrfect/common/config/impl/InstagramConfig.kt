@@ -443,6 +443,54 @@ class InstagramConfig : ConfigContainer() {
         val downloaderCustomUri get() = downloadFolder.downloaderCustomUri
     }
 
+    inner class ExperimentalUi : ConfigContainer(true) {
+        val enableLiquidGlassUi = boolean("enableLiquidGlassUi") {
+            requireRestart()
+            addNotices(FeatureNotice.UNSTABLE)
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.enableLiquidGlassUi"
+        }
+        val liquidGlassBlurIntensity = integer("liquidGlassBlurIntensity", defaultValue = 25) {
+            requireRestart()
+            inputCheck = { raw -> (raw.toIntOrNull() ?: 25) in 0..50 }
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassBlurIntensity"
+        }
+        val liquidGlassEdgeToEdge = boolean("liquidGlassEdgeToEdge", defaultValue = true) {
+            requireRestart()
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassEdgeToEdge"
+        }
+        val liquidGlassSearchPuck = boolean("liquidGlassSearchPuck", defaultValue = true) {
+            requireRestart()
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassSearchPuck"
+        }
+        val liquidGlassSlideTabs = boolean("liquidGlassSlideTabs", defaultValue = true) {
+            requireRestart()
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassSlideTabs"
+        }
+        val liquidGlassShrinkOnScroll = boolean("liquidGlassShrinkOnScroll", defaultValue = true) {
+            requireRestart()
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassShrinkOnScroll"
+        }
+        val liquidGlassHaptics = boolean("liquidGlassHaptics", defaultValue = true) {
+            requireRestart()
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassHaptics"
+        }
+        val liquidGlassReelsHide = integer("liquidGlassReelsHide", defaultValue = 3) {
+            requireRestart()
+            inputCheck = { raw -> (raw.toIntOrNull() ?: 3) in 0..10 }
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassReelsHide"
+        }
+        val liquidGlassDockHeight = integer("liquidGlassDockHeight", defaultValue = 50) {
+            requireRestart()
+            inputCheck = { raw -> (raw.toIntOrNull() ?: 50) in 40..60 }
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassDockHeight"
+        }
+        val liquidGlassDockLift = integer("liquidGlassDockLift", defaultValue = 12) {
+            requireRestart()
+            inputCheck = { raw -> (raw.toIntOrNull() ?: 12) in 0..24 }
+            customTranslationPath = "features.properties.instagram.properties.experimental_ui.properties.liquidGlassDockLift"
+        }
+    }
+
     val developer = container("developer", Developer()) { icon = Icons.Default.Code }
     val privacy = container("privacy", GhostSettings()) { icon = Icons.Default.PrivacyTip }
     val adsAndLinks = container("ads_and_links", AdsAndAnalytics()) { icon = Icons.Default.Block }
@@ -451,6 +499,10 @@ class InstagramConfig : ConfigContainer() {
     val hiddenUiElements = container("hidden_ui_elements", HiddenUiElements()) { icon = Icons.Default.HideImage }
     val misc = container("misc", Misc()) { icon = Icons.Default.Tune }
     val downloader = container("downloader", Downloader()) { icon = Icons.Default.Download }
+    val experimentalUi = container("experimental_ui", ExperimentalUi()) {
+        icon = Icons.Default.FormatPaint
+        customTranslationPath = "features.properties.instagram.properties.experimental_ui"
+    }
 
     val quickToggle get() = privacy.quickToggle
 
@@ -574,6 +626,16 @@ class InstagramConfig : ConfigContainer() {
         "downloaderAddTimestamp" to downloader.downloaderAddTimestamp.get(),
         "reelDownloadControlMode" to downloader.reelDownloadControlMode.get(),
         "downloaderCustomPath" to downloader.downloaderCustomPath.getNullable().orEmpty(),
-        "downloaderCustomUri" to downloader.downloaderCustomUri.getNullable().orEmpty()
+        "downloaderCustomUri" to downloader.downloaderCustomUri.getNullable().orEmpty(),
+        "enableLiquidGlassUi" to experimentalUi.enableLiquidGlassUi.get(),
+        "liquidGlassBlurIntensity" to experimentalUi.liquidGlassBlurIntensity.get(),
+        "liquidGlassEdgeToEdge" to experimentalUi.liquidGlassEdgeToEdge.get(),
+        "liquidGlassSearchPuck" to experimentalUi.liquidGlassSearchPuck.get(),
+        "liquidGlassSlideTabs" to experimentalUi.liquidGlassSlideTabs.get(),
+        "liquidGlassShrinkOnScroll" to experimentalUi.liquidGlassShrinkOnScroll.get(),
+        "liquidGlassHaptics" to experimentalUi.liquidGlassHaptics.get(),
+        "liquidGlassReelsHide" to experimentalUi.liquidGlassReelsHide.get(),
+        "liquidGlassDockHeight" to experimentalUi.liquidGlassDockHeight.get(),
+        "liquidGlassDockLift" to experimentalUi.liquidGlassDockLift.get()
     )
 }

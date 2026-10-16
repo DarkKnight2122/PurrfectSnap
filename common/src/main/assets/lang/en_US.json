@@ -1541,6 +1541,52 @@
                 "name": "PurrfectInsta",
                 "description": "Instagram privacy, cleanup, media, and interface hooks",
                 "properties": {
+                    "experimental_ui": {
+                        "name": "Liquid Glass Interface",
+                        "description": "Floating liquid glass dock, separate search puck, and true edge-to-edge canvas",
+                        "properties": {
+                            "enableLiquidGlassUi": {
+                                "name": "Enable Liquid Glass UI",
+                                "description": "Transform the bottom tab bar into a floating liquid glass dock with dynamic blur and optical refraction"
+                            },
+                            "liquidGlassBlurIntensity": {
+                                "name": "Glass Blur & Refraction Intensity",
+                                "description": "Adjust the dynamic blur and refractive depth of the glass dock (0 = transparent tint, 1–50 = dense frosted glass)"
+                            },
+                            "liquidGlassEdgeToEdge": {
+                                "name": "True Edge-to-Edge Canvas",
+                                "description": "Extend feed media and reels completely behind the navigation dock down to the bottom bezel"
+                            },
+                            "liquidGlassSearchPuck": {
+                                "name": "Separate Search Glass Puck",
+                                "description": "Detach the Search button into its own floating circular glass island beside the main dock"
+                            },
+                            "liquidGlassSlideTabs": {
+                                "name": "Slide Across Tabs",
+                                "description": "Slide your finger horizontally across the glass dock to guide the active indicator with continuous haptic detents"
+                            },
+                            "liquidGlassShrinkOnScroll": {
+                                "name": "Compact Dock on Scroll",
+                                "description": "Dynamically morph the dock into compact circular islands during feed scrolling to maximize screen visibility"
+                            },
+                            "liquidGlassHaptics": {
+                                "name": "Tactile Glass Haptics",
+                                "description": "Emit crisp tactile detent ticks when the active indicator glides between tabs"
+                            },
+                            "liquidGlassReelsHide": {
+                                "name": "Reels Dock Auto-Hide",
+                                "description": "Automatically fade out the glass dock when watching Reels so video media is completely unobstructed (0 = Never, 3 = After 3s, 5 = After 5s)"
+                            },
+                            "liquidGlassDockHeight": {
+                                "name": "Dock Height",
+                                "description": "Adjust the vertical thickness of the floating glass dock in density pixels (40 to 60 dp, default: 50 dp)"
+                            },
+                            "liquidGlassDockLift": {
+                                "name": "Dock Bottom Lift",
+                                "description": "Adjust the floating elevation distance between the glass dock and the bottom display edge (0 to 24 dp, default: 12 dp)"
+                            }
+                        }
+                    },
                     "developer": {
                         "name": "Developer Options",
                         "description": "Developer and build lockout controls",

@@ -25,6 +25,7 @@ class InstagramConfigProvider : ContentProvider() {
 
         return Bundle().apply {
             BOOLEAN_FEATURE_KEYS.forEach { key -> putBoolean(key, json.optBoolean(key, defaultBoolean(key))) }
+            INTEGER_FEATURE_KEYS.forEach { key -> putInt(key, json.optInt(key, defaultInt(key))) }
             STRING_FEATURE_KEYS.forEach { key -> putString(key, json.optString(key, defaultString(key))) }
             putBoolean("json_file_exists", jsonFile.exists())
             putString("source", if (jsonFile.exists()) jsonFile.absolutePath else "config.json fallback")
@@ -39,6 +40,7 @@ class InstagramConfigProvider : ContentProvider() {
             val properties = instagram.optJSONObject("properties") ?: instagram
             JSONObject().apply {
                 BOOLEAN_FEATURE_KEYS.forEach { key -> put(key, readBoolean(properties, key)) }
+                INTEGER_FEATURE_KEYS.forEach { key -> put(key, readInt(properties, key)) }
                 STRING_FEATURE_KEYS.forEach { key -> put(key, readString(properties, key)) }
             }
         }.getOrDefault(JSONObject())
@@ -50,6 +52,14 @@ class InstagramConfigProvider : ContentProvider() {
             is Number -> value.toInt() != 0
             is String -> value.toBooleanStrictOrNull() ?: defaultBoolean(key)
             else -> defaultBoolean(key)
+        }
+    }
+
+    private fun readInt(properties: JSONObject, key: String): Int {
+        return when (val value = findPropertyValue(properties, key) ?: return defaultInt(key)) {
+            is Number -> value.toInt()
+            is String -> value.toIntOrNull() ?: defaultInt(key)
+            else -> defaultInt(key)
         }
     }
 
@@ -128,7 +138,13 @@ class InstagramConfigProvider : ContentProvider() {
             "enableHideChats", "enableActivityHistory",
             "enableCopyComment", "enableCustomDateFormat", "customDateFormatFeed",
             "customDateFormatComments", "customDateFormatReels", "customDateFormatStories",
-            "customDateFormatDirect", "enableNotesLocationSpoof"
+            "customDateFormatDirect", "enableNotesLocationSpoof",
+            "enableLiquidGlassUi", "liquidGlassEdgeToEdge", "liquidGlassSearchPuck",
+            "liquidGlassSlideTabs", "liquidGlassShrinkOnScroll", "liquidGlassHaptics"
+        )
+
+        val INTEGER_FEATURE_KEYS = listOf(
+            "liquidGlassBlurIntensity", "liquidGlassReelsHide", "liquidGlassDockHeight", "liquidGlassDockLift"
         )
 
         val STRING_FEATURE_KEYS = listOf(
@@ -149,7 +165,22 @@ class InstagramConfigProvider : ContentProvider() {
                 key == "customDateFormatComments" ||
                 key == "customDateFormatReels" ||
                 key == "customDateFormatStories" ||
-                key == "customDateFormatDirect"
+                key == "customDateFormatDirect" ||
+                key == "liquidGlassEdgeToEdge" ||
+                key == "liquidGlassSearchPuck" ||
+                key == "liquidGlassSlideTabs" ||
+                key == "liquidGlassShrinkOnScroll" ||
+                key == "liquidGlassHaptics"
+        }
+
+        fun defaultInt(key: String): Int {
+            return when (key) {
+                "liquidGlassBlurIntensity" -> 25
+                "liquidGlassReelsHide" -> 3
+                "liquidGlassDockHeight" -> 50
+                "liquidGlassDockLift" -> 12
+                else -> 0
+            }
         }
 
         fun defaultString(key: String): String {

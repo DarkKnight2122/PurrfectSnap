@@ -134,6 +134,16 @@ data class InstagramFeatureState(
     val confirmRefreshScope: String = "both",
     val notesSpoofLatitude: String = "",
     val notesSpoofLongitude: String = "",
+    val enableLiquidGlassUi: Boolean = false,
+    val liquidGlassBlurIntensity: Int = 25,
+    val liquidGlassEdgeToEdge: Boolean = true,
+    val liquidGlassSearchPuck: Boolean = true,
+    val liquidGlassSlideTabs: Boolean = true,
+    val liquidGlassShrinkOnScroll: Boolean = true,
+    val liquidGlassHaptics: Boolean = true,
+    val liquidGlassReelsHide: Int = 3,
+    val liquidGlassDockHeight: Int = 50,
+    val liquidGlassDockLift: Int = 12,
     val source: String = "unavailable"
 ) {
     val hiddenUiElementIdSet: Set<String> =
@@ -205,7 +215,13 @@ data class InstagramFeatureState(
             "improveImageViewing", "moreOptionsOnPost", "removeEmptyBottomSpace",
             "enableHideChats", "enableActivityHistory", "enableCopyComment", "enableCustomDateFormat",
             "customDateFormatFeed", "customDateFormatComments", "customDateFormatReels",
-            "customDateFormatStories", "customDateFormatDirect", "enableNotesLocationSpoof"
+            "customDateFormatStories", "customDateFormatDirect", "enableNotesLocationSpoof",
+            "enableLiquidGlassUi", "liquidGlassEdgeToEdge", "liquidGlassSearchPuck",
+            "liquidGlassSlideTabs", "liquidGlassShrinkOnScroll", "liquidGlassHaptics"
+        )
+
+        val intFeatureKeys = listOf(
+            "liquidGlassBlurIntensity", "liquidGlassReelsHide", "liquidGlassDockHeight", "liquidGlassDockLift"
         )
 
         val stringFeatureKeys = listOf(
@@ -296,7 +312,8 @@ data class InstagramFeatureState(
                     fromLookups(
                         source,
                         getBoolean = { key, defaultValue -> result.getBoolean(key, defaultValue) },
-                        getString = { key, defaultValue -> result.getString(key) ?: defaultValue }
+                        getString = { key, defaultValue -> result.getString(key) ?: defaultValue },
+                        getInt = { key, defaultValue -> result.getInt(key, defaultValue) }
                     ).also { logLoadedState(it) }
                 }
             }.onFailure { throwable ->
@@ -387,10 +404,12 @@ data class InstagramFeatureState(
                 runCatching { prefsClass.getMethod("reload").invoke(prefs) }
                 val getBoolean = prefsClass.getMethod("getBoolean", String::class.java, Boolean::class.javaPrimitiveType)
                 val getString = prefsClass.getMethod("getString", String::class.java, String::class.java)
+                val getInt = runCatching { prefsClass.getMethod("getInt", String::class.java, Int::class.javaPrimitiveType) }.getOrNull()
                 fromLookups(
                     "XSharedPreferences",
                     getBoolean = { key, defaultValue -> getBoolean.invoke(prefs, key, defaultValue) as Boolean },
-                    getString = { key, defaultValue -> getString.invoke(prefs, key, defaultValue) as? String ?: defaultValue }
+                    getString = { key, defaultValue -> getString.invoke(prefs, key, defaultValue) as? String ?: defaultValue },
+                    getInt = { key, defaultValue -> getInt?.invoke(prefs, key, defaultValue) as? Int ?: defaultValue }
                 ).also { logLoadedState(it) }
             }.getOrNull()
         }
@@ -406,7 +425,8 @@ data class InstagramFeatureState(
                     fromLookups(
                         "world-readable:${file.absolutePath}",
                         getBoolean = { key, defaultValue -> prefs.booleans[key] ?: defaultValue },
-                        getString = { key, defaultValue -> prefs.strings[key] ?: defaultValue }
+                        getString = { key, defaultValue -> prefs.strings[key] ?: defaultValue },
+                        getInt = { key, defaultValue -> prefs.ints[key] ?: defaultValue }
                     ).also { logLoadedState(it) }
                 }.getOrNull()
                 if (state != null) return state
@@ -422,12 +442,14 @@ data class InstagramFeatureState(
 
         private data class ParsedPrefs(
             val booleans: Map<String, Boolean>,
-            val strings: Map<String, String>
+            val strings: Map<String, String>,
+            val ints: Map<String, Int>
         )
 
         private fun parsePrefs(file: File): ParsedPrefs {
             val booleans = mutableMapOf<String, Boolean>()
             val strings = mutableMapOf<String, String>()
+            val ints = mutableMapOf<String, Int>()
             file.inputStream().use { input ->
                 val parser = XmlPullParserFactory.newInstance().newPullParser()
                 parser.setInput(input, "utf-8")
@@ -444,12 +466,17 @@ data class InstagramFeatureState(
                                 val name = parser.getAttributeValue(null, "name")
                                 if (name != null) strings[name] = parser.nextText().orEmpty()
                             }
+                            "int" -> {
+                                val name = parser.getAttributeValue(null, "name")
+                                val value = parser.getAttributeValue(null, "value")
+                                if (name != null && value != null) ints[name] = value.toIntOrNull() ?: 0
+                            }
                         }
                     }
                     event = parser.next()
                 }
             }
-            return ParsedPrefs(booleans, strings)
+            return ParsedPrefs(booleans, strings, ints)
         }
 
         fun fromJson(json: String, source: String): InstagramFeatureState {
@@ -457,7 +484,8 @@ data class InstagramFeatureState(
             return fromLookups(
                 source,
                 getBoolean = { key, defaultValue -> obj.optBoolean(key, defaultValue) },
-                getString = { key, defaultValue -> obj.optString(key, defaultValue) }
+                getString = { key, defaultValue -> obj.optString(key, defaultValue) },
+                getInt = { key, defaultValue -> obj.optInt(key, defaultValue) }
             )
         }
 
@@ -467,7 +495,8 @@ data class InstagramFeatureState(
             return fromLookups(
                 source,
                 getBoolean = { key, defaultValue -> readBooleanProperty(properties, key, defaultValue) },
-                getString = { key, defaultValue -> readStringProperty(properties, key, defaultValue) }
+                getString = { key, defaultValue -> readStringProperty(properties, key, defaultValue) },
+                getInt = { key, defaultValue -> readIntProperty(properties, key, defaultValue) }
             )
         }
 
@@ -476,6 +505,14 @@ data class InstagramFeatureState(
                 is Boolean -> value
                 is Number -> value.toInt() != 0
                 is String -> value.toBooleanStrictOrNull() ?: defaultValue
+                else -> defaultValue
+            }
+        }
+
+        private fun readIntProperty(properties: JSONObject, key: String, defaultValue: Int): Int {
+            return when (val value = findPropertyValue(properties, key) ?: return defaultValue) {
+                is Number -> value.toInt()
+                is String -> value.toIntOrNull() ?: defaultValue
                 else -> defaultValue
             }
         }
@@ -507,7 +544,8 @@ data class InstagramFeatureState(
         private fun fromLookups(
             source: String,
             getBoolean: (key: String, defaultValue: Boolean) -> Boolean,
-            getString: (key: String, defaultValue: String) -> String
+            getString: (key: String, defaultValue: String) -> String,
+            getInt: (key: String, defaultValue: Int) -> Int = { _, default -> default }
         ): InstagramFeatureState {
             return InstagramFeatureState(
                 isDevEnabled = getBoolean("isDevEnabled", false),
@@ -633,6 +671,16 @@ data class InstagramFeatureState(
                 },
                 notesSpoofLatitude = getString("notesSpoofLatitude", ""),
                 notesSpoofLongitude = getString("notesSpoofLongitude", ""),
+                enableLiquidGlassUi = getBoolean("enableLiquidGlassUi", false),
+                liquidGlassBlurIntensity = getInt("liquidGlassBlurIntensity", 25),
+                liquidGlassEdgeToEdge = getBoolean("liquidGlassEdgeToEdge", true),
+                liquidGlassSearchPuck = getBoolean("liquidGlassSearchPuck", true),
+                liquidGlassSlideTabs = getBoolean("liquidGlassSlideTabs", true),
+                liquidGlassShrinkOnScroll = getBoolean("liquidGlassShrinkOnScroll", true),
+                liquidGlassHaptics = getBoolean("liquidGlassHaptics", true),
+                liquidGlassReelsHide = getInt("liquidGlassReelsHide", 3),
+                liquidGlassDockHeight = getInt("liquidGlassDockHeight", 50),
+                liquidGlassDockLift = getInt("liquidGlassDockLift", 12),
                 source = source
             )
         }
