@@ -993,6 +993,9 @@ class InstagramHooks(
         installHookStep("CustomEmojiFont", initialState.customEmojiFontEnabled) { InstagramCustomEmojiFontHooks.install(androidContext, appClassLoader) }
         installHookStep("ShareSheetEmojiShortcuts", initialState.enableShareSheetEmojiShortcuts) { InstagramShareSheetEmojiShortcutHooks.install(appClassLoader) }
         installHookStep("DisableShareSheetGroupCreation", initialState.disableGroupCreationFromShareSheet) { InstagramShareSheetGroupCreationHooks.install(appClassLoader) }
+        installHookStep("RemoveEmptyBottomSpace", initialState.removeEmptyBottomSpace || initialState.enableLiquidGlassUi) {
+            me.eternal.purrfect.core.instagram.ui.InstagramBottomSpaceFix.init()
+        }
         installHookStep("LiquidGlassUi", initialState.enableLiquidGlassUi) {
             me.eternal.purrfect.core.instagram.ui.InstagramLiquidDock.init(initialState)
         }
@@ -36915,6 +36918,7 @@ class InstagramHooks(
         if (current.customEmojiFontEnabled) InstagramCustomEmojiFontHooks.install(androidContext, appClassLoader)
         if (current.enableShareSheetEmojiShortcuts) InstagramShareSheetEmojiShortcutHooks.install(appClassLoader)
         if (current.enableActivityHistory) InstagramActivityHistoryHooks.install(androidContext, appClassLoader)
+        if (current.removeEmptyBottomSpace || current.enableLiquidGlassUi) me.eternal.purrfect.core.instagram.ui.InstagramBottomSpaceFix.init()
         if (current.enableLiquidGlassUi) me.eternal.purrfect.core.instagram.ui.InstagramLiquidDock.init(current)
         if (shouldInstallNetworkHooks(current)) {
             installOkHttpHooks()
